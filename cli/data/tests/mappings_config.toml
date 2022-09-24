@@ -1,0 +1,11 @@
+[swift.type_mappings]
+"DateTime" = "Date"
+
+[typescript.type_mappings]
+"DateTime" = "string"
+
+[kotlin.type_mappings]
+"DateTime" = "String"
+
+[go.type_mappings]
+"DateTime" = "string"

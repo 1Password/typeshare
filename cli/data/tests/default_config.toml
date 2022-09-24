@@ -1,0 +1,16 @@
+[swift]
+prefix = ''
+
+[kotlin]
+module_name = ''
+package = ''
+
+[typescript]
+
+[go]
+
+[swift.type_mappings]
+
+[typescript.type_mappings]
+
+[kotlin.type_mappings]
