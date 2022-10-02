@@ -4,6 +4,7 @@ version = "1.0.0"
 rust-version = "1.57"
 license = "MIT OR Apache-2.0"
 edition = "2021"
+description = "The code generator used by Typeshare's command line tool"
 repository = "https://github.com/1Password/typeshare"
 
 [dependencies]

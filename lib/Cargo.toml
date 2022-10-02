@@ -4,6 +4,8 @@ version = "1.0.0"
 rust-version = "1.57"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+readme = "../README.md"
+description = "Seamlessly share type definitions across multiple languages for FFI interoperability"
 repository = "https://github.com/1Password/typeshare"
 
 [dependencies]
