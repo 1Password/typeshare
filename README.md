@@ -31,7 +31,7 @@ cargo install typeshare-cli
 In your `Cargo.toml`, under `[dependencies]`:
 
 ```toml
-typeshare = "0.1.0"
+typeshare = "1.0.0"
 ```
 
 ## Using Typeshare

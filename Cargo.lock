@@ -524,7 +524,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "serde",
@@ -534,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-annotation"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "quote",
  "syn",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "ignore",
@@ -555,7 +555,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "expect-test",
