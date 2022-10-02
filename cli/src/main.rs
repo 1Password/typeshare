@@ -1,8 +1,7 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::ArgMatches;
-use clap::{App, Arg};
+use clap::{ArgMatches, Arg, command};
 use config::Config;
 use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
@@ -28,11 +27,11 @@ const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 
 fn main() {
-    let options = App::new("typeshare")
+    let options = command!()
         .version(VERSION)
         .arg(
-            Arg::with_name(ARG_TYPE)
-                .short("l")
+            Arg::new(ARG_TYPE)
+                .short('l')
                 .long("lang")
                 .help("Language of generated types")
                 .takes_value(true)
@@ -40,55 +39,55 @@ fn main() {
                 .required_unless(ARG_GENERATE_CONFIG),
         )
         .arg(
-            Arg::with_name(ARG_SWIFT_PREFIX)
-                .short("s")
+            Arg::new(ARG_SWIFT_PREFIX)
+                .short('s')
                 .long("swift-prefix")
                 .help("Prefix for generated Swift types")
                 .takes_value(true)
                 .required(false),
         )
         .arg(
-            Arg::with_name(ARG_JAVA_PACKAGE)
-                .short("j")
+            Arg::new(ARG_JAVA_PACKAGE)
+                .short('j')
                 .long("java-package")
                 .help("JAVA package name")
                 .takes_value(true)
                 .required(false),
         )
         .arg(
-            Arg::with_name(ARG_MODULE_NAME)
-                .short("m")
+            Arg::new(ARG_MODULE_NAME)
+                .short('m')
                 .long("module-name")
                 .help("Kotlin serializer module name")
                 .takes_value(true)
                 .required(false),
         )
         .arg(
-            Arg::with_name(ARG_GO_PACKAGE)
+            Arg::new(ARG_GO_PACKAGE)
                 .long("go-package")
                 .help("Go package name")
                 .takes_value(true)
                 .required_if(ARG_TYPE, "go"),
         )
         .arg(
-            Arg::with_name(ARG_CONFIG_FILE_NAME)
-                .short("c")
+            Arg::new(ARG_CONFIG_FILE_NAME)
+                .short('c')
                 .long("config-file")
                 .help("Configuration file for typeshare")
                 .takes_value(true)
                 .required(false),
         )
         .arg(
-            Arg::with_name(ARG_GENERATE_CONFIG)
-                .short("g")
+            Arg::new(ARG_GENERATE_CONFIG)
+                .short('g')
                 .long("generate-config-file")
                 .help("Generates a configuration file based on the other options specified. The file will be written to typeshare.toml by default or to the file path specified by the --config-file option.")
                 .takes_value(false)
                 .required(false),
         )
         .arg(
-            Arg::with_name(ARG_OUTPUT_FILE)
-                .short("o")
+            Arg::new(ARG_OUTPUT_FILE)
+                .short('o')
                 .long("output-file")
                 .help("File to write output to. mtime will be preserved if the file contents don't change")
                 .required_unless(ARG_GENERATE_CONFIG)
@@ -96,7 +95,7 @@ fn main() {
                 .long(ARG_OUTPUT_FILE)
         )
         .arg(
-            Arg::with_name("directories")
+            Arg::new("directories")
                 .help("Directories within which to recursively find and process rust files")
                 .required_unless(ARG_GENERATE_CONFIG)
                 .min_values(1),
