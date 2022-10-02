@@ -1,7 +1,7 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::{ArgMatches, Arg, command};
+use clap::{command, Arg, ArgMatches};
 use config::Config;
 use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
