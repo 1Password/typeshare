@@ -1,0 +1,16 @@
+[package]
+name = "typeshare-repl"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+console_error_panic_hook = "0.1.6"
+wasm-bindgen = "0.2"
+ybc = "0.2"
+yew = "0.18.0"
+yewdux = "0.6"
+serde = "1.0"
+typeshare-core = { path = "../core" }
+syntect = { version = "4.5.0", default-features = false, features = ["default-fancy"] }

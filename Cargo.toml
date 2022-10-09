@@ -3,7 +3,8 @@ members = [
     "annotation",
     "cli",
     "core",
-    "lib"
+    "lib",
+    "repl"
 ]
 
 [profile.release]
