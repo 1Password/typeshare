@@ -1,5 +1,7 @@
 #![recursion_limit = "1024"]
+#![cfg(target_arch = "wasm32")]
 
+use crate::app::TypeshareReplApp;
 use crate::raw_html::RawHtml;
 use crate::theme::{PageTheme, PageThemeHandler};
 use console_error_panic_hook::set_once as set_panic_hook;
@@ -7,6 +9,7 @@ use std::rc::Rc;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
 use syntect::{highlighting::ThemeSet, parsing::SyntaxDefinition};
+use typeshare_core::language::Go;
 use typeshare_core::{
     language::{Kotlin, Swift, TypeScript},
     process_input,
@@ -17,6 +20,7 @@ use yewdux::prelude::*;
 
 const SWIFT_SYNTAX: &str = include_str!("../syntaxes/Swift.sublime-syntax");
 
+mod app;
 mod raw_html;
 mod theme;
 
@@ -177,5 +181,15 @@ impl Component for App {
 
 fn main() {
     set_panic_hook();
-    yew::start_app::<App>();
+    //yew::start_app::<App>();
+    let web_options = eframe::WebOptions::default();
+    let go = Go::default();
+    let kotlin = Kotlin::default();
+    let swift = Swift::default();
+    let typescript = TypeScript::default();
+    eframe::start_web(
+        "typeshare_repl",
+        web_options,
+        Box::new(|_| Box::new(TypeshareReplApp::new(typescript, swift, kotlin, go))),
+    );
 }

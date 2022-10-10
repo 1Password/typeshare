@@ -12,5 +12,7 @@ ybc = "0.2"
 yew = "0.18.0"
 yewdux = "0.6"
 serde = "1.0"
+egui = "0.19.0"
+eframe = "0.19.0"
 typeshare-core = { path = "../core" }
 syntect = { version = "4.5.0", default-features = false, features = ["default-fancy"] }

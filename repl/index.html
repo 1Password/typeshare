@@ -1,22 +1,45 @@
 <!DOCTYPE html>
-<html data-theme="dark">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Typeshare REPL</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css"
-    />
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-    <link data-trunk rel="scss" href="src/index.scss" />
-    <link data-trunk rel="scss" data-inline href="src/inline-scss.scss" />
-    <link data-trunk rel="css" href="src/app.css" />
-    <link data-trunk rel="icon" href="src/1plogo.png" />
-    <link data-trunk rel="copy-file" href="src/1plogo.png" />
-    <base data-trunk-public-url />
-  </head>
-  <body>
-    <link data-trunk rel="rust" href="Cargo.toml" data-bin="typeshare-repl" />
-  </body>
+<!-- Disable zooming: -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<head>
+  <title>Typeshare REPL</title>
+
+  <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
+  <link data-trunk rel="rust" data-wasm-opt="2" />
+  <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
+  <base data-trunk-public-url />
+
+  <link data-trunk rel="icon" href="src/1plogo.png" />
+  <link data-trunk rel="copy-file" href="src/1plogo.png" />
+  <link data-trunk rel="css" href="src/app.css" />
+
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="white">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#404040">
+</head>
+
+<body>
+<!-- The WASM code will resize the canvas dynamically -->
+<!-- the id is hardcoded in main.rs . so, make sure both match. -->
+<canvas id="typeshare_repl"></canvas>
+
+<!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
+<!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
+<script>
+  // We disable caching during development so that we always view the latest version.
+  if ('serviceWorker' in navigator && window.location.hash !== "#dev") {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
+</body>
+
 </html>
+
+<!-- Powered by egui: https://github.com/emilk/egui/ -->
