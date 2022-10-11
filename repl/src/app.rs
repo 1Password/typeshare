@@ -1,9 +1,5 @@
-use eframe::emath::Vec2;
-use eframe::epaint::Rgba;
-use eframe::{App, Frame, Storage};
-use egui::panel::Side;
-use egui::{Align, Context, Layout, Ui, Visuals};
-use std::time::Duration;
+use eframe::{App, Frame};
+use egui::{Align, Context, Layout, Ui};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Theme, ThemeSet};
 use syntect::parsing::{SyntaxDefinition, SyntaxSet};
@@ -111,7 +107,7 @@ where
     K: Language,
     G: Language,
 {
-    fn update(&mut self, ctx: &Context, frame: &mut Frame) {
+    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         let old_user_source = self.user_source.clone();
         let old_lang_selected = self.selected_language.clone();
         let Self {
@@ -161,7 +157,6 @@ where
                     );
                 });
                 ui.with_layout(Layout::top_down(Align::Center), |ui| {
-                    let selected_language = selected_language.clone();
                     let mut output_layout = |ui: &Ui, text: &str, wrap_width: f32| {
                         let mut job = syntax_highlighter(
                             syntax_set,

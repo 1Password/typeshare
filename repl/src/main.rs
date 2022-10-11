@@ -3,18 +3,10 @@
 
 use crate::app::TypeshareReplApp;
 use console_error_panic_hook::set_once as set_panic_hook;
-use std::rc::Rc;
-use syntect::html::highlighted_html_for_string;
-use syntect::parsing::SyntaxSet;
-use syntect::{highlighting::ThemeSet, parsing::SyntaxDefinition};
-use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Swift, TypeScript},
-    process_input,
+    language::{Go, Kotlin, Swift, TypeScript},
 };
-use ybc::TileCtx::{Ancestor, Child, Parent};
-use yew::prelude::*;
-use yewdux::prelude::*;
+
 
 mod app;
 
