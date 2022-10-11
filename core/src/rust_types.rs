@@ -201,16 +201,18 @@ impl TryFrom<&syn::Type> for RustType {
                 };
                 match id.as_str() {
                     "Vec" => RustType::Special(SpecialRustType::Vec(
-                        parameters.into_iter().next().unwrap().into(),
+                        // unwrap_or_else so we avoid crashing the REPL
+                        parameters.into_iter().next().unwrap_or_else(|| RustType::Special(SpecialRustType::Unit)).into(),
                     )),
                     "Option" => RustType::Special(SpecialRustType::Option(
-                        parameters.into_iter().next().unwrap().into(),
-                    )),
+                        // unwrap_or_else so we avoid crashing the REPL
+                        parameters.into_iter().next().unwrap_or_else(|| RustType::Special(SpecialRustType::Unit)).into(),                    )),
                     "HashMap" => {
                         let mut params = parameters.into_iter();
                         RustType::Special(SpecialRustType::HashMap(
-                            params.next().unwrap().into(),
-                            params.next().unwrap().into(),
+                            // unwrap_or_else so we avoid crashing the REPL
+                            params.next().unwrap_or_else(|| RustType::Special(SpecialRustType::Unit)).into(),
+                            params.next().unwrap_or_else(|| RustType::Special(SpecialRustType::Unit)).into(),
                         ))
                     }
                     "str" | "String" => RustType::Special(SpecialRustType::String),
