@@ -159,6 +159,8 @@ fn main() {
         .expect("Failed to build override");
 
     let mut walker_builder = WalkBuilder::new(first_root);
+    // Sort walker output for deterministic output across platforms
+    walker_builder.sort_by_file_path(|a, b| a.cmp(b));
     walker_builder.types(types.build().expect("Failed to build types"));
     walker_builder.overrides(overrides);
 
