@@ -32,6 +32,7 @@ pub struct TypeScriptParams {
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(default)]
+#[cfg(feature = "go")]
 pub struct GoParams {
     pub package: String,
     pub type_mappings: HashMap<String, String>,
@@ -46,6 +47,7 @@ pub(crate) struct Config {
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
+    #[cfg(feature = "go")]
     pub go: GoParams,
 }
 

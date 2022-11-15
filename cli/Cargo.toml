@@ -8,6 +8,9 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
+[features]
+go = []
+
 [dependencies]
 clap = {version = "3", features = ["cargo"] }
 ignore = "0.4"

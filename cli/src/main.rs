@@ -8,8 +8,10 @@ use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs, path::Path};
+#[cfg(feature = "go")]
+use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Go, Kotlin, Language, Swift, TypeScript},
+    language::{Kotlin, Language, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -21,13 +23,21 @@ const ARG_TYPE: &str = "TYPE";
 const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
 const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
 const ARG_MODULE_NAME: &str = "MODULENAME";
+#[cfg(feature = "go")]
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 
+#[cfg(feature = "go")]
+const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "swift", "typescript", "go"];
+
+#[cfg(not(feature = "go"))]
+const AVAILABLE_LANGUAGES: [&str; 3] = ["kotlin", "swift", "typescript"];
+
+#[allow(unused_mut)]
 fn main() {
-    let options = command!()
+    let mut command = command!()
         .version(VERSION)
         .arg(
             Arg::new(ARG_TYPE)
@@ -35,7 +45,7 @@ fn main() {
                 .long("lang")
                 .help("Language of generated types")
                 .takes_value(true)
-                .possible_values(&["kotlin", "swift", "typescript", "go"])
+                .possible_values(AVAILABLE_LANGUAGES)
                 .required_unless(ARG_GENERATE_CONFIG),
         )
         .arg(
@@ -61,13 +71,6 @@ fn main() {
                 .help("Kotlin serializer module name")
                 .takes_value(true)
                 .required(false),
-        )
-        .arg(
-            Arg::new(ARG_GO_PACKAGE)
-                .long("go-package")
-                .help("Go package name")
-                .takes_value(true)
-                .required_if(ARG_TYPE, "go"),
         )
         .arg(
             Arg::new(ARG_CONFIG_FILE_NAME)
@@ -99,8 +102,20 @@ fn main() {
                 .help("Directories within which to recursively find and process rust files")
                 .required_unless(ARG_GENERATE_CONFIG)
                 .min_values(1),
-        )
-        .get_matches();
+        );
+
+    #[cfg(feature = "go")]
+    {
+        command = command.arg(
+            Arg::new(ARG_GO_PACKAGE)
+                .long("go-package")
+                .help("Go package name")
+                .takes_value(true)
+                .required_if(ARG_TYPE, "go"),
+        );
+    }
+
+    let options = command.get_matches();
 
     let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
     let config = config::load_config(config_file).unwrap_or_else(|error| {
@@ -134,11 +149,16 @@ fn main() {
         Some("typescript") => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
         }),
+        #[cfg(feature = "go")]
         Some("go") => Box::new(Go {
             package: config.go.package,
             type_mappings: config.go.type_mappings,
             uppercase_abbreviations: config.go.uppercase_abbreviations,
         }),
+        #[cfg(not(feature = "go"))]
+        Some("go") => {
+            panic!("go support is currently experimental enabled and must be enabled as a feature flag for typeshare-cli")
+        }
         _ => {
             panic!("argument parser didn't validate ARG_TYPE correctly");
         }
@@ -232,6 +252,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
         config.kotlin.module_name = module_name.to_string();
     }
 
+    #[cfg(feature = "go")]
     if let Some(go_package) = options.value_of(ARG_GO_PACKAGE) {
         config.go.package = go_package.to_string();
     }

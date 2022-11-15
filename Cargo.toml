@@ -6,6 +6,9 @@ members = [
     "lib"
 ]
 
+[profile.test]
+
+
 [profile.release]
 lto = false
 opt-level = 2
