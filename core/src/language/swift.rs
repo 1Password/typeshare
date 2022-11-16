@@ -375,7 +375,7 @@ impl Language for Swift {
             decs.join(", ")
         )?;
 
-        let coding_keys_info = self.write_enum_variants(w, e, &make_anonymous_struct_name)?;
+        let coding_keys_info = self.write_enum_variants(w, e, make_anonymous_struct_name)?;
 
         if !coding_keys_info.coding_keys.is_empty() {
             writeln!(
