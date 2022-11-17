@@ -434,7 +434,7 @@ tests! {
         },
         go {
             type_mappings: super::GO_MAPPINGS.clone(),
-            uppercase_abbreviations: vec!["URL".to_string()],
+            uppercase_acronyms: vec!["URL".to_string()],
         },
     ];
     test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, typescript, go ];
@@ -446,7 +446,7 @@ tests! {
         kotlin,
         typescript,
         go {
-            uppercase_abbreviations: vec!["ID".to_string()],
+            uppercase_acronyms: vec!["ID".to_string()],
         },
     ];
     can_handle_serde_rename_all: [swift, kotlin, typescript, go];
@@ -471,9 +471,9 @@ tests! {
     boxed_value: [kotlin, swift, typescript, go];
     recursive_enum_decorator: [kotlin, swift, typescript, go];
 
-    uppercase_go_abbreviations: [
+    uppercase_go_acronyms: [
         go {
-            uppercase_abbreviations: vec!["ID".to_string(), "url".to_string()],
+            uppercase_acronyms: vec!["ID".to_string(), "url".to_string()],
         },
     ];
     resolves_qualified_type: [

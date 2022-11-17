@@ -17,7 +17,7 @@ pub struct Go {
     /// Conversions from Rust type names to Go type names.
     pub type_mappings: HashMap<String, String>,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.
-    pub uppercase_abbreviations: Vec<String>,
+    pub uppercase_acronyms: Vec<String>,
 }
 
 impl Language for Go {
@@ -111,7 +111,7 @@ impl Language for Go {
         writeln!(
             w,
             "type {} {}\n",
-            self.abbreviations_to_uppercase(&ty.id.original),
+            self.acronyms_to_uppercase(&ty.id.original),
             self.format_type(&ty.r#type, &[])
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
         )?;
@@ -124,7 +124,7 @@ impl Language for Go {
         writeln!(
             w,
             "type {} struct {{",
-            self.abbreviations_to_uppercase(&rs.id.renamed)
+            self.acronyms_to_uppercase(&rs.id.renamed)
         )?;
 
         rs.fields
@@ -144,11 +144,7 @@ impl Go {
     ) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name = |variant_name: &str| {
-            self.abbreviations_to_uppercase(&format!(
-                "{}{}Inner",
-                &e.shared().id.original,
-                variant_name
-            ))
+            self.acronyms_to_uppercase(&format!("{}{}Inner", &e.shared().id.original, variant_name))
         };
 
         // Generate named types for any anonymous struct variants of this enum
@@ -161,7 +157,7 @@ impl Go {
                 writeln!(
                     w,
                     "type {} string",
-                    self.abbreviations_to_uppercase(&shared.id.original)
+                    self.acronyms_to_uppercase(&shared.id.original)
                 )?;
 
                 write!(w, "const (")?;
@@ -173,9 +169,9 @@ impl Go {
                         write!(
                             w,
                             "\t{}{} {} = \"{}\"",
-                            self.abbreviations_to_uppercase(&shared.id.original),
-                            self.abbreviations_to_uppercase(&variant_shared.id.original),
-                            self.abbreviations_to_uppercase(&shared.id.original),
+                            self.acronyms_to_uppercase(&shared.id.original),
+                            self.acronyms_to_uppercase(&variant_shared.id.original),
+                            self.acronyms_to_uppercase(&shared.id.original),
                             &variant_shared.id.renamed
                         )
                     }
@@ -190,14 +186,14 @@ impl Go {
                 shared,
                 ..
             } => {
-                let struct_name = self.abbreviations_to_uppercase(&shared.id.original);
+                let struct_name = self.acronyms_to_uppercase(&shared.id.original);
                 let content_field = content_key.to_string().to_camel_case();
                 let tag_field = self.format_field_name(tag_key.to_string(), true);
                 let struct_short_name = shared.id.original[..1].to_lowercase();
                 let variant_key_type = format!(
                     "{}{}s",
                     struct_name,
-                    self.abbreviations_to_uppercase(tag_key).to_pascal_case()
+                    self.acronyms_to_uppercase(tag_key).to_pascal_case()
                 );
 
                 writeln!(w, "type {} string", variant_key_type)?;
@@ -208,7 +204,7 @@ impl Go {
                 let mut variant_constructors = Vec::new();
 
                 for v in shared.variants.iter() {
-                    let variant_name = self.abbreviations_to_uppercase(&v.shared().id.original);
+                    let variant_name = self.acronyms_to_uppercase(&v.shared().id.original);
                     let variant_type = match v {
                         RustEnumVariant::Tuple { ty, .. } => {
                             Some(self.format_type(ty, &[]).unwrap())
@@ -221,7 +217,7 @@ impl Go {
                     let variant_type_const = format!(
                         "{}{}Variant{}",
                         struct_name,
-                        self.abbreviations_to_uppercase(&tag_key.to_string().to_pascal_case()),
+                        self.acronyms_to_uppercase(&tag_key.to_string().to_pascal_case()),
                         variant_name
                     );
                     decoding_cases.push(format!(
@@ -380,7 +376,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         }
 
         write_comments(w, 1, &field.comments)?;
-        let go_type = self.abbreviations_to_uppercase(
+        let go_type = self.acronyms_to_uppercase(
             &self
                 .format_type(&field.ty, generic_types)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
@@ -401,24 +397,24 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         Ok(())
     }
 
-    // Convert any of the configured abbreviations to uppercase to follow Go's formatting standard.
-    // If self.uppercase_abbreviations contains ID (or id), Id will get replaced by ID.
-    fn abbreviations_to_uppercase(&self, name: &str) -> String {
+    // Convert any of the configured acronyms to uppercase to follow Go's formatting standard.
+    // If self.uppercase_acronyms contains ID (or id), Id will get replaced by ID.
+    fn acronyms_to_uppercase(&self, name: &str) -> String {
         let mut res = name.to_string();
-        for a in &self.uppercase_abbreviations {
+        for a in &self.uppercase_acronyms {
             for (i, a) in name.match_indices(&a.to_string().to_pascal_case()) {
-                let abbreviation_len = a.chars().count();
+                let acronym_len = a.chars().count();
 
                 // Only perform the replacement if the matched string is not followed by a lowercase
                 // or its the end of the string.
                 // This prevents replacing Identity with IDentity.
                 if name
                     .chars()
-                    .nth(i + abbreviation_len)
+                    .nth(i + acronym_len)
                     .map(|c| !c.is_lowercase())
                     .unwrap_or(true)
                 {
-                    res.replace_range(i..i + abbreviation_len, &a.to_uppercase());
+                    res.replace_range(i..i + acronym_len, &a.to_uppercase());
                 }
             }
         }
@@ -430,7 +426,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             true => name.to_pascal_case(),
             false => name,
         };
-        self.abbreviations_to_uppercase(&name)
+        self.acronyms_to_uppercase(&name)
     }
 }
 

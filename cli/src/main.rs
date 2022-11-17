@@ -153,7 +153,7 @@ fn main() {
         Some("go") => Box::new(Go {
             package: config.go.package,
             type_mappings: config.go.type_mappings,
-            uppercase_abbreviations: config.go.uppercase_abbreviations,
+            uppercase_acronyms: config.go.uppercase_acronyms,
         }),
         #[cfg(not(feature = "go"))]
         Some("go") => {

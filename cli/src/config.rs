@@ -36,7 +36,7 @@ pub struct TypeScriptParams {
 pub struct GoParams {
     pub package: String,
     pub type_mappings: HashMap<String, String>,
-    pub uppercase_abbreviations: Vec<String>,
+    pub uppercase_acronyms: Vec<String>,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare
