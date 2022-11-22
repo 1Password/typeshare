@@ -175,67 +175,64 @@ impl TryFrom<&syn::Type> for RustType {
     fn try_from(ty: &syn::Type) -> Result<Self, Self::Error> {
         Ok(match ty {
             syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
-                RustType::Special(SpecialRustType::Unit)
+                Self::Special(SpecialRustType::Unit)
             }
             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
                 let segment = path.path.segments.iter().last().unwrap();
                 let id = segment.ident.to_string();
-                let parameters: Vec<RustType> = match &segment.arguments {
+                let parameters: Vec<Self> = match &segment.arguments {
                     syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
-                        let parameters: Result<Vec<RustType>, Self::Error> =
-                            angle_bracketed_arguments
-                                .args
-                                .iter()
-                                .filter_map(|arg| match arg {
-                                    syn::GenericArgument::Type(r#type) => {
-                                        Some(RustType::try_from(r#type))
-                                    }
-                                    _ => None,
-                                })
-                                .collect();
+                        let parameters: Result<Vec<Self>, Self::Error> = angle_bracketed_arguments
+                            .args
+                            .iter()
+                            .filter_map(|arg| match arg {
+                                syn::GenericArgument::Type(r#type) => Some(Self::try_from(r#type)),
+                                _ => None,
+                            })
+                            .collect();
                         parameters?
                     }
                     _ => Vec::default(),
                 };
                 match id.as_str() {
-                    "Vec" => RustType::Special(SpecialRustType::Vec(
+                    "Vec" => Self::Special(SpecialRustType::Vec(
                         parameters.into_iter().next().unwrap().into(),
                     )),
-                    "Option" => RustType::Special(SpecialRustType::Option(
+                    "Option" => Self::Special(SpecialRustType::Option(
                         parameters.into_iter().next().unwrap().into(),
                     )),
                     "HashMap" => {
                         let mut params = parameters.into_iter();
-                        RustType::Special(SpecialRustType::HashMap(
+                        Self::Special(SpecialRustType::HashMap(
                             params.next().unwrap().into(),
                             params.next().unwrap().into(),
                         ))
                     }
-                    "str" | "String" => RustType::Special(SpecialRustType::String),
+                    "str" | "String" => Self::Special(SpecialRustType::String),
                     // Since we do not need to box types in other languages, we treat this type
                     // as its inner type.
                     "Box" => parameters.into_iter().next().unwrap(),
-                    "bool" => RustType::Special(SpecialRustType::Bool),
-                    "u8" => RustType::Special(SpecialRustType::U8),
-                    "u16" => RustType::Special(SpecialRustType::U16),
-                    "u32" => RustType::Special(SpecialRustType::U32),
-                    "U53" => RustType::Special(SpecialRustType::U53),
+                    "bool" => Self::Special(SpecialRustType::Bool),
+                    "u8" => Self::Special(SpecialRustType::U8),
+                    "u16" => Self::Special(SpecialRustType::U16),
+                    "u32" => Self::Special(SpecialRustType::U32),
+                    "U53" => Self::Special(SpecialRustType::U53),
                     "u64" | "i64" | "usize" | "isize" => {
                         return Err(RustTypeParseError::UnsupportedType(vec![id]))
                     }
-                    "i8" => RustType::Special(SpecialRustType::I8),
-                    "i16" => RustType::Special(SpecialRustType::I16),
-                    "i32" => RustType::Special(SpecialRustType::I32),
-                    "I54" => RustType::Special(SpecialRustType::I54),
-                    "f32" => RustType::Special(SpecialRustType::F32),
-                    "f64" => RustType::Special(SpecialRustType::F64),
+                    "i8" => Self::Special(SpecialRustType::I8),
+                    "i16" => Self::Special(SpecialRustType::I16),
+                    "i32" => Self::Special(SpecialRustType::I32),
+                    "I54" => Self::Special(SpecialRustType::I54),
+                    "f32" => Self::Special(SpecialRustType::F32),
+                    "f64" => Self::Special(SpecialRustType::F64),
                     _ => {
                         if parameters.is_empty() {
-                            RustType::Simple { id }
+                            Self::Simple { id }
                         } else {
-                            RustType::Generic { id, parameters }
+                            Self::Generic { id, parameters }
                         }
                     }
                 }
@@ -273,21 +270,21 @@ impl RustType {
     }
     /// Check if the type is `Option<T>`
     pub fn is_optional(&self) -> bool {
-        matches!(self, RustType::Special(SpecialRustType::Option(_)))
+        matches!(self, Self::Special(SpecialRustType::Option(_)))
     }
     /// Check if the type is `Vec<T>`
     pub fn is_vec(&self) -> bool {
-        matches!(self, RustType::Special(SpecialRustType::Vec(_)))
+        matches!(self, Self::Special(SpecialRustType::Vec(_)))
     }
     /// Check if the type is `HashMap<K, V>`
     pub fn is_hash_map(&self) -> bool {
-        matches!(self, RustType::Special(SpecialRustType::HashMap(_, _)))
+        matches!(self, Self::Special(SpecialRustType::HashMap(_, _)))
     }
     /// Get the generic parameters for this type. Returns an empty iterator if there are none.
     /// For example, `Vec<String>`'s generic parameters would be `[String]`.
     /// Meanwhile, `HashMap<i64, u32>`'s generic parameters would be `[i64, u32]`.
     /// Finally, a type like `String` would have no generic parameters.
-    pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
+    pub fn parameters(&self) -> Box<dyn Iterator<Item = &Self> + '_> {
         match &self {
             Self::Simple { .. } => Box::new(std::iter::empty()),
             Self::Generic { parameters, .. } => Box::new(parameters.iter()),
@@ -431,8 +428,8 @@ impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
         match self {
-            RustEnum::Unit(shared) => shared,
-            RustEnum::Algebraic { shared, .. } => shared,
+            Self::Unit(shared) => shared,
+            Self::Algebraic { shared, .. } => shared,
         }
     }
 }
@@ -482,9 +479,9 @@ impl RustEnumVariant {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumVariantShared {
         match self {
-            RustEnumVariant::Unit(shared)
-            | RustEnumVariant::Tuple { shared, .. }
-            | RustEnumVariant::AnonymousStruct { shared, .. } => shared,
+            Self::Unit(shared)
+            | Self::Tuple { shared, .. }
+            | Self::AnonymousStruct { shared, .. } => shared,
         }
     }
 }

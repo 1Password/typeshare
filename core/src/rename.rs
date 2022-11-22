@@ -16,7 +16,7 @@ impl RenameExt for String {
     }
 
     fn to_pascal_case(&self) -> String {
-        let mut pascal = String::new();
+        let mut pascal = Self::new();
         let mut capitalize = true;
         let to_lowercase = {
             // Check if string is all uppercase, such as "URL" or "TOTP". In that case, we don't want
@@ -42,7 +42,7 @@ impl RenameExt for String {
     }
 
     fn to_snake_case(&self) -> String {
-        let mut snake = String::new();
+        let mut snake = Self::new();
         let is_uppercase = self.to_ascii_uppercase() == *self;
         for (i, ch) in self.char_indices() {
             if i > 0 && ch.is_uppercase() && !is_uppercase {
