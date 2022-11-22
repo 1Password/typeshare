@@ -357,8 +357,7 @@ impl SpecialRustType {
     /// if there are none.
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
         match &self {
-            Self::Vec(rtype) => Box::new(std::iter::once(rtype.as_ref())),
-            Self::Option(rtype) => Box::new(std::iter::once(rtype.as_ref())),
+            Self::Vec(rtype) | Self::Option(rtype) => Box::new(std::iter::once(rtype.as_ref())),
             Self::HashMap(rtype1, rtype2) => {
                 Box::new([rtype1.as_ref(), rtype2.as_ref()].into_iter())
             }
@@ -428,8 +427,7 @@ impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
         match self {
-            Self::Unit(shared) => shared,
-            Self::Algebraic { shared, .. } => shared,
+            Self::Unit(shared) | Self::Algebraic { shared, .. } => shared,
         }
     }
 }
