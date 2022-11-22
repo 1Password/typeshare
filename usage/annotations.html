@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Annotations - Typeshare</title>
+        <title>Annotations - The Typeshare Book</title>
 
 
         <!-- Custom HTML head -->
@@ -110,7 +110,7 @@
                         </button>
                     </div>
 
-                    <h1 class="menu-title">Typeshare</h1>
+                    <h1 class="menu-title">The Typeshare Book</h1>
 
                     <div class="right-buttons">
                         <a href="../print.html" title="Print this book" aria-label="Print this book">
@@ -161,11 +161,9 @@ enum MyEnum {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<h2 id="custom-behaviour"><a class="header" href="#custom-behaviour">Custom Behaviour</a></h2>
-<p>We can also use attributes to specify custom behaviour when generating the corresponding types in the output language.</p>
-<h3 id="the-typeshare-attribute"><a class="header" href="#the-typeshare-attribute">The <code>#[typeshare]</code> Attribute</a></h3>
+<h2 id="annotation-arguments"><a class="header" href="#annotation-arguments">Annotation arguments</a></h2>
 <p>We can add arguments to the <code>#[typeshare]</code> annotation to modify the generated definitions. </p>
-<h4 id="decorators"><a class="header" href="#decorators">Decorators</a></h4>
+<h3 id="decorators"><a class="header" href="#decorators">Decorators</a></h3>
 <p>It can be used to add decorators like Swift protocols or Kotlin interfaces to the generated output types. For example, we can do</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -177,7 +175,7 @@ pub enum BestHockeyTeams {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>will produce the following Swift definition.</p>
+<p>and this will produce the following Swift definition:</p>
 <pre><code class="language-swift">public enum OPBestHockeyTeams2: Codable, Comparable, Equatable, Hashable {
 	case montrealCanadiens
 	case lies(String)
@@ -220,12 +218,15 @@ pub enum BestHockeyTeams {
 	}
 }
 </code></pre>
-<h4 id="serialize-as-another-type"><a class="header" href="#serialize-as-another-type">Serialize as Another Type</a></h4>
-<p>You can also use the <code>serialized_as</code> argument to tell typeshare that, instead of generating a new type definition, it should use the specified type. For example, this Rust type</p>
+<h3 id="serialize-as-another-type"><a class="header" href="#serialize-as-another-type">Serialize as Another Type</a></h3>
+<p>You can also use the <code>serialized_as</code> argument to tell Typeshare to treat
+the serialized type as another Rust type. This is usually combined with
+custom serde attributes.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// Options that you could pick
 #[typeshare(serialized_as = &quot;String&quot;)]
+#[serde(try_from = &quot;String&quot;, into = &quot;String&quot;)]
 pub enum Options {
     /// Affirmative Response
     Yes,
@@ -236,11 +237,11 @@ pub enum Options {
 }
 <span class="boring">}
 </span></code></pre></pre>
-<p>would generate the following Kotlin.</p>
+<p>This would generate the following Kotlin code:</p>
 <pre><code class="language-kotlin">/// Options that you could pick
 typealias Options = String
 </code></pre>
-<h3 id="the-serde-attribute"><a class="header" href="#the-serde-attribute">The <code>#[serde]</code> Attribute</a></h3>
+<h2 id="the-serde-attribute"><a class="header" href="#the-serde-attribute">The <code>#[serde]</code> Attribute</a></h2>
 <p>Since Typeshare relies on the <a href="https://crates.io/crates/serde"><code>serde</code></a> crate for handling serialization and deserialization between Rust types and the generated foreign type definitions, we can use the annotations provided by <code>serde</code> on our Typeshare types. For example, the following Rust definition</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
