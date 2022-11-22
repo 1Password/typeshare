@@ -102,7 +102,9 @@ impl Language for Kotlin {
         self.write_comments(w, 0, &rs.comments)?;
         writeln!(w, "@Serializable")?;
 
-        if !rs.fields.is_empty() {
+        if rs.fields.is_empty() {
+            writeln!(w, "class {}\n", rs.id.renamed)?;
+        } else {
             writeln!(
                 w,
                 "data class {}{} (",
@@ -130,8 +132,6 @@ impl Language for Kotlin {
                 writeln!(w)?;
             }
             writeln!(w, ")\n")?;
-        } else {
-            writeln!(w, "class {}\n", rs.id.renamed)?;
         }
         Ok(())
     }
