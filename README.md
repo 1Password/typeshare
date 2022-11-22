@@ -97,7 +97,7 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 - Typescript
 - Go**
 
-If there is a language that you want Typescript to generate definitions for, you can either:
+If there is a language that you want Typeshare to generate definitions for, you can either:
 1. Open an issue in this repository requesting your language of choice.
 2. Implement support for that language and open a PR with your implementation. We would be eternally grateful! 🙏
 
