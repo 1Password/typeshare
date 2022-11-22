@@ -19,15 +19,11 @@ enum MyEnum {
 }
 ```
 
-## Custom Behaviour
-
-We can also use attributes to specify custom behaviour when generating the corresponding types in the output language.
-
-### The `#[typeshare]` Attribute
+## Annotation arguments
 
 We can add arguments to the `#[typeshare]` annotation to modify the generated definitions. 
 
-#### Decorators
+### Decorators
 
 It can be used to add decorators like Swift protocols or Kotlin interfaces to the generated output types. For example, we can do
 ```rust
@@ -38,7 +34,7 @@ pub enum BestHockeyTeams {
     Lies(String),
 }
 ```
-will produce the following Swift definition.
+and this will produce the following Swift definition:
 ```swift
 public enum OPBestHockeyTeams2: Codable, Comparable, Equatable, Hashable {
 	case montrealCanadiens
@@ -83,12 +79,15 @@ public enum OPBestHockeyTeams2: Codable, Comparable, Equatable, Hashable {
 }
 ```
 
-#### Serialize as Another Type
+### Serialize as Another Type
 
-You can also use the `serialized_as` argument to tell typeshare that, instead of generating a new type definition, it should use the specified type. For example, this Rust type
+You can also use the `serialized_as` argument to tell Typeshare to treat
+the serialized type as another Rust type. This is usually combined with
+custom serde attributes.
 ```rust
 /// Options that you could pick
 #[typeshare(serialized_as = "String")]
+#[serde(try_from = "String", into = "String")]
 pub enum Options {
     /// Affirmative Response
     Yes,
@@ -98,13 +97,15 @@ pub enum Options {
     Cool(String),
 }
 ```
-would generate the following Kotlin.
+This would generate the following Kotlin code:
 ```kotlin
 /// Options that you could pick
 typealias Options = String
 ```
 
-### The `#[serde]` Attribute
+
+
+## The `#[serde]` Attribute
 
 Since Typeshare relies on the [`serde`](https://crates.io/crates/serde) crate for handling serialization and deserialization between Rust types and the generated foreign type definitions, we can use the annotations provided by `serde` on our Typeshare types. For example, the following Rust definition
 ```rust

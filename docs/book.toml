@@ -1,6 +1,6 @@
 [book]
-authors = ["Josh Rampersad"]
+authors = ["Jane Lewis", "Josh Rampersad"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Typeshare"
+title = "The Typeshare Book"
