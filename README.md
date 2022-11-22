@@ -40,6 +40,10 @@ typeshare = "1.0.0"
 ```
 
 ## Using Typeshare
+We've put together a book that documents (almost) everything you can do.
+
+📚[Read the Typeshare book here!](https://1password.github.io/typeshare)
+
 To generate FFI definitions for a target language, run the `typeshare` command and specify the directory containing your rust code, the language you would like to generate for, and the file to which your generated definitions will be written:
 ```
 typeshare ./my_rust_project --type=kotlin --output-file=my_kotlin_definitions.kt
