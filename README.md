@@ -1,9 +1,12 @@
 # Typeshare
 
-[![crates.io version](https://img.shields.io/crates/v/typeshare.svg)](https://crates.io/crates/typeshare)
-[![crate documentation](https://docs.rs/typeshare/badge.svg)](https://docs.rs/typeshare)
-![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg)
-[![crates.io downloads](https://img.shields.io/crates/d/typeshare.svg)](https://crates.io/crates/typeshare)
+| Crate                | Status                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| typeshare            | [![crates.io version](https://img.shields.io/crates/v/typeshare.svg)](https://crates.io/crates/typeshare) [![crate documentation](https://docs.rs/typeshare/badge.svg)](https://docs.rs/typeshare) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare.svg)](https://crates.io/crates/typeshare)                                                                   |
+| typeshare-core       | [![crates.io version](https://img.shields.io/crates/v/typeshare-core.svg)](https://crates.io/crates/typeshare-core) [![crate documentation](https://docs.rs/typeshare-core/badge.svg)](https://docs.rs/typeshare-core) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-core.svg)](https://crates.io/crates/typeshare-core)                                     |
+| typeshare-annotation | [![crates.io version](https://img.shields.io/crates/v/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) [![crate documentation](https://docs.rs/typeshare-annotation/badge.svg)](https://docs.rs/typeshare-annotation) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) |
+| typeshare-cli        | [![crates.io version](https://img.shields.io/crates/v/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli)                                                                                                                                            |
+
 
 _One tool to rule the types,_
 
@@ -15,8 +18,10 @@ _And in the darkness, compile them_ 💍
 
 
 Do you like manually managing types that need to be passed through an FFI layer, so that your code doesn't archaically break at runtime? Be honest, nobody does. Typeshare is here to take that burden away from you! Leveraging the power of the `serde` library, Typeshare is a tool that converts your
-Rust types into their equivalent forms in Swift, Go, Kotlin, and Typescript, keeping
+Rust types into their equivalent forms in Swift, Go**, Kotlin, and Typescript, keeping
 your cross-language codebase in sync. With automatic implementation for serialization and deserialization on both sides of the FFI, Typeshare does all the heavy lifting for you. It can even handle generics and convert effortlessly between standard libraries in different languages!
+
+**A few caveats. See [here](#a-quick-refresher-on-supported-languages) for more details.
 
 ## Installation 
 
@@ -86,11 +91,13 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 - Kotlin
 - Swift
 - Typescript
-- Go
+- Go**
 
 If there is a language that you want Typescript to generate definitions for, you can either:
 1. Open an issue in this repository requesting your language of choice.
 2. Implement support for that language and open a PR with your implementation. We would be eternally grateful! 🙏
+
+** Right now, Go support is experimental. Enable the `go` feature when installing typeshare-cli if you want to use it.
 
 ## Credits
 
