@@ -1,0 +1,438 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Typeshare</title>
+        <meta name="robots" content="noindex" />
+
+
+        <!-- Custom HTML head -->
+        
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="usage/configuration.html"><strong aria-hidden="true">3.2.</strong> Configuration</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Typeshare</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
+<p>Typeshare is a tool for generating type definitions in other languages based on type definitions in Rust. This facilitates using foreign function interface (FFI) to allow Rust to interoperate with other languages.</p>
+<p>Typeshare was originally developed as an internal tool at <a href="1password.com">1Password</a>, but has been released as an open-source crate that you can use and contribute to.</p>
+<p>This guide describes how to install and use the Typeshare tools.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>The easiest way to install the Typeshare CLI is with <code>cargo</code>. Just run the following command:</p>
+<pre><code>cargo install typeshare-cli
+</code></pre>
+<p>Once you have the CLI installed, you then need to annotate the rust types that you want to generate FFI definitions for. In order to be able to use the <code>#[typeshare]</code> annotation, you will need to add <code>typeshare</code> as a dependency to your project's <code>Cargo.toml</code>.</p>
+<pre><code class="language-toml"># Cargo.toml
+
+[dependencies]
+typeshare = &quot;1.0.0&quot; # Use whichever version is the most recent
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="usage"><a class="header" href="#usage">Usage</a></h1>
+<p>This section will cover how to use Typeshare to generate type definitions for your project and how to interact with them across FFI. </p>
+<p>Typeshare provides a CLI tool that will perform the necessary generation for any types you annotate in your Rust code.</p>
+<p>To generate ffi definitions for a specific target language, run the <code>typeshare</code> command and specify the directory containing your rust code, the language you would like to generate for, and the file to which your generated definitions will be written:</p>
+<pre><code>typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
+typeshare ./my_rust_project --lang=swift --output-file=my_swift_definitions.swift
+typeshare ./my_rust_project --lang=typescript --output-file=my_typescript_definitions.ts
+</code></pre>
+<p>The first command-line argument is the name of the directory to search for Rust type definitions. The CLI will search all files in the specified directory tree for annotated Rust types. In addition to the input directory, you will also need to specify your desired target language and the output file to which the generated types will be written. This is done with the <code>--lang</code> and <code>--output-file</code> options respectively.</p>
+<p>The currently supported output languages are:</p>
+<ul>
+<li>Kotlin</li>
+<li>Typescript</li>
+<li>Swift</li>
+<li>Go</li>
+</ul>
+<hr />
+<p>If your favourite language is not in this list, consider opening an issue to request it or try implementing it yourself! See our <a href="usage/./contribution.html">contribution guidelines</a> for more details.</p>
+<hr />
+<p>In the following sections, we will learn how to customize the behaviour of Typeshare using the provided <code>#[typeshare]</code> attribute and configuration options.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="annotations"><a class="header" href="#annotations">Annotations</a></h1>
+<h2 id="annotating-types"><a class="header" href="#annotating-types">Annotating Types</a></h2>
+<p>Add the <code>#[typeshare]</code> attribute to any struct or enum you define to generate definitions for that type in the selected output language.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[typeshare]
+struct MyStruct {
+    my_name: String,
+    my_age: u32,
+}
+
+#[typeshare]
+enum MyEnum {
+    MyVariant,
+    MyOtherVariant,
+    MyNumber(u32),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<h2 id="custom-behaviour"><a class="header" href="#custom-behaviour">Custom Behaviour</a></h2>
+<p>We can also use attributes to specify custom behaviour when generating the corresponding types in the output language.</p>
+<h3 id="the-typeshare-attribute"><a class="header" href="#the-typeshare-attribute">The <code>#[typeshare]</code> Attribute</a></h3>
+<p>We can add arguments to the <code>#[typeshare]</code> annotation to modify the generated definitions. </p>
+<h4 id="decorators"><a class="header" href="#decorators">Decorators</a></h4>
+<p>It can be used to add decorators like Swift protocols or Kotlin interfaces to the generated output types. For example, we can do</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[typeshare(swift = &quot;Equatable, Codable, Comparable, Hashable&quot;)]
+#[serde(tag = &quot;type&quot;, content = &quot;content&quot;)]
+pub enum BestHockeyTeams {
+    MontrealCanadiens,
+    Lies(String),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>will produce the following Swift definition.</p>
+<pre><code class="language-swift">public enum OPBestHockeyTeams2: Codable, Comparable, Equatable, Hashable {
+	case montrealCanadiens
+	case lies(String)
+
+	enum CodingKeys: String, CodingKey, Codable {
+		case montrealCanadiens = &quot;MontrealCanadiens&quot;,
+			lies = &quot;Lies&quot;
+	}
+
+	private enum ContainerCodingKeys: String, CodingKey {
+		case type, content
+	}
+
+	public init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: ContainerCodingKeys.self)
+		if let type = try? container.decode(CodingKeys.self, forKey: .type) {
+			switch type {
+			case .montrealCanadiens:
+				self = .montrealCanadiens
+				return
+			case .lies:
+				if let content = try? container.decode(String.self, forKey: .content) {
+					self = .lies(content)
+					return
+				}
+			}
+		}
+		throw DecodingError.typeMismatch(OPBestHockeyTeams2.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: &quot;Wrong type for OPBestHockeyTeams&quot;))
+	}
+
+	public func encode(to encoder: Encoder) throws {
+		var container = encoder.container(keyedBy: ContainerCodingKeys.self)
+		switch self {
+		case .montrealCanadiens:
+			try container.encode(CodingKeys.montrealCanadiens, forKey: .type)
+		case .lies(let content):
+			try container.encode(CodingKeys.lies, forKey: .type)
+			try container.encode(content, forKey: .content)
+		}
+	}
+}
+</code></pre>
+<h4 id="serialize-as-another-type"><a class="header" href="#serialize-as-another-type">Serialize as Another Type</a></h4>
+<p>You can also use the <code>serialized_as</code> argument to tell typeshare that, instead of generating a new type definition, it should use the specified type. For example, this Rust type</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Options that you could pick
+#[typeshare(serialized_as = &quot;String&quot;)]
+pub enum Options {
+    /// Affirmative Response
+    Yes,
+    No,
+    Maybe,
+    /// Sends a string along
+    Cool(String),
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>would generate the following Kotlin.</p>
+<pre><code class="language-kotlin">/// Options that you could pick
+typealias Options = String
+</code></pre>
+<h3 id="the-serde-attribute"><a class="header" href="#the-serde-attribute">The <code>#[serde]</code> Attribute</a></h3>
+<p>Since Typeshare relies on the <a href="https://crates.io/crates/serde"><code>serde</code></a> crate for handling serialization and deserialization between Rust types and the generated foreign type definitions, we can use the annotations provided by <code>serde</code> on our Typeshare types. For example, the following Rust definition</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// This is a comment.
+/// Continued lovingly here
+#[typeshare]
+#[serde(rename_all = &quot;camelCase&quot;)]
+pub enum Colors {
+    Red = 0,
+    Blue = 1,
+    /// Green is a cool color
+    #[serde(rename = &quot;green-like&quot;)]
+    Green = 2,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>will become the following Typescript definition.</p>
+<pre><code class="language-typescript">/**
+ * This is a comment.
+ * Continued lovingly here
+ */
+export const enum Colors {
+	Red = &quot;red&quot;,
+	Blue = &quot;blue&quot;,
+	/** Green is a cool color */
+	Green = &quot;green-like&quot;,
+}
+</code></pre>
+<h3 id="skipping-fields"><a class="header" href="#skipping-fields">Skipping Fields</a></h3>
+<p>Within a Rust type, there may be fields or variants that you want Typeshare to ignore. These can be skipped using either the <code>#[serde(skip)]</code> annotation or the <code>#[typeshare(skip)]</code> annotation. For example, this Rust type</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[typeshare]
+pub struct MyStruct {
+    a: i32,
+    #[serde(skip)]
+    b: i32,
+    c: i32,
+    #[typeshare(skip)]
+    d: i32,
+}
+<span class="boring">}
+</span></code></pre></pre>
+<p>becomes the following Typescript definition.</p>
+<pre><code class="language-typescript">export interface MyStruct {
+	a: number;
+	c: number;
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>The behaviour of Typeshare can be customized by either passing options on the command line or in a configuration file. For any command line option that corresponds to a value in the configuration file, specifying the option on the command line will override the value in the configuration file.</p>
+<h2 id="command-line-options"><a class="header" href="#command-line-options">Command Line Options</a></h2>
+<ul>
+<li>
+<p><code>-t</code>, <code>--type</code> 
+(Required) The language you want your definitions to be generated in. Currently, this option can be set to either <code>kotlin</code>, <code>swift</code>, <code>go</code>, or <code>typescript</code>.</p>
+</li>
+<li>
+<p><code>-o</code>, <code>--output-file</code>
+(Required) The file path to which the generated definitions will be written.</p>
+</li>
+<li>
+<p><code>-s</code>, <code>--swift-prefix</code>
+Specify a prefix that will be appended to type names when generating types in Swift. </p>
+</li>
+<li>
+<p><code>-M</code>, <code>--module-name</code>
+Specify the name of the Kotlin module for generated Kotlin source code. </p>
+</li>
+<li>
+<p><code>-j</code>, <code>--java-package</code>
+Specify the name of the Java package for generated Kotlin types. </p>
+</li>
+<li>
+<p><code>-c</code>, <code>--config-file</code>
+Instead of searching for a <code>typeshare.toml</code> file, this option can be set to specify the path to the configuration file that Typeshare will use.</p>
+</li>
+<li>
+<p><code>-g</code>, <code>--generate-config-file</code>
+Instead of running Typeshare with the provided options, generate a configuration file called <code>typeshare.toml</code> containing the options currently specified as well as default configuration parameters.</p>
+</li>
+<li>
+<p><code>--directories</code>
+A list argument that you can pass any number of glob patterns to. All folders and files given will be searched recursively, and all Rust sources found will be used to create a singular language source file.</p>
+</li>
+<li>
+<p><code>--go-package</code>
+The name of the Go package for use with building for Go. This will be included in the header of the output file.</p>
+</li>
+</ul>
+<h2 id="configuration-file"><a class="header" href="#configuration-file">Configuration File</a></h2>
+<p>By default, Typeshare will look for a file called <code>typeshare.toml</code> in your current directory or any of its parent directories. Typeshare configuration files will look like this:</p>
+<pre><code class="language-toml">[swift]
+prefix = 'MyPrefix'
+
+[kotlin]
+module_name = 'myModule'
+package = 'com.example.package'
+
+[swift.type_mappings]
+&quot;DateTime&quot; = &quot;Date&quot;
+
+[typescript.type_mappings]
+&quot;DateTime&quot; = &quot;string&quot;
+
+[kotlin.type_mappings]
+&quot;DateTime&quot; = &quot;String&quot;
+</code></pre>
+<p>In the configuration file, you can specify the options you want to set so that they do not need to be specified when running Typeshare from the command line. You can also define custom type mappings to specify the foreign type that a given Rust type will correspond to.</p>
+<p>In order to create a config file you can run the following command to generate one in your current directory.</p>
+<pre><code>typeshare -g
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contributing-to-typeshare"><a class="header" href="#contributing-to-typeshare">Contributing to Typeshare</a></h1>
+<p>Thank you! If you would like to contribute to the project, go to <a href="https://github.com/1Password/typeshare">the GitHub repository</a>. There, you can open issues to report bugs and request features.</p>
+<p>If you want to contribute code, please send a <a href="https://github.com/1Password/typeshare/pull/new/master">GitHub Pull Request</a> to the repository with a clear list of your changes and the reasons for the changes. Before contributing, you should probably familiarize yourself with the internal documentation, if you haven't already. Make sure to look through the READMEs for each part of Typeshare you plan to contribute to, and double-check the Rust documentation on <code>docs.rs</code> if you want to know more about the API. And feel free to open an issue if you want to ask the 1Password team directly, or if the documentation is unclear.</p>
+<p>For larger changes, please open an RFC issue first in order to discuss the broader impacts of the proposed change with the other maintainers.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script type="text/javascript">
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+    </body>
+</html>
