@@ -237,7 +237,7 @@ mod tests {
         }
 
         let j = serde_json::to_string(&Person { age: I54::from(12) }).unwrap();
-        assert_eq!(j, r##"{"age":12}"##)
+        assert_eq!(j, r##"{"age":12}"##);
     }
 
     #[test]
@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<Person>(j).unwrap(),
             Person { age: I54::from(14) }
-        )
+        );
     }
 
     #[test]
@@ -262,7 +262,7 @@ mod tests {
         }
 
         let j = format!(r##"{{"age":{}}}"##, I54_MAX + 1);
-        assert!(serde_json::from_str::<Person>(j.as_str()).is_err())
+        assert!(serde_json::from_str::<Person>(j.as_str()).is_err());
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
         }
 
         let j = format!(r##"{{"age":{}}}"##, I54_MIN - 1);
-        assert!(serde_json::from_str::<Person>(j.as_str()).is_err())
+        assert!(serde_json::from_str::<Person>(j.as_str()).is_err());
     }
 
     #[test]

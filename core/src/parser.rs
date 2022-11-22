@@ -84,13 +84,13 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     for item in &source.items {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?)
+                parsed_data.push_rust_thing(parse_struct(s)?);
             }
             syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                parsed_data.push_rust_thing(parse_enum(e)?)
+                parsed_data.push_rust_thing(parse_enum(e)?);
             }
             syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                parsed_data.aliases.push(parse_type_alias(t)?)
+                parsed_data.aliases.push(parse_type_alias(t)?);
             }
             _ => {}
         }
