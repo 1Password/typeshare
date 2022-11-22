@@ -189,7 +189,7 @@ mod tests {
     #[test]
     #[allow(clippy::as_conversions)]
     fn test_i32_to_i54() {
-        assert_eq!(I54::from(i32::MAX), i32::MAX as i64);
+        assert_eq!(I54::from(i32::MAX), i64::from(i32::MAX));
     }
 
     // U53
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     #[allow(clippy::as_conversions)]
     fn test_u32_to_u53() {
-        assert_eq!(U53::from(u32::MAX), u32::MAX as u64);
+        assert_eq!(U53::from(u32::MAX), u64::from(u32::MAX));
     }
 
     #[test]
