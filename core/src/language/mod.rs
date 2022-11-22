@@ -27,15 +27,15 @@ pub trait Language {
     fn generate_types(&self, writable: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
-        for a in data.aliases.iter() {
+        for a in &data.aliases {
             self.write_type_alias(writable, a)?;
         }
 
-        for s in data.structs.iter() {
+        for s in &data.structs {
             self.write_struct(writable, s)?;
         }
 
-        for e in data.enums.iter() {
+        for e in &data.enums {
             self.write_enum(writable, e)?;
         }
 

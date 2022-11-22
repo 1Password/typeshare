@@ -178,7 +178,7 @@ impl Kotlin {
     fn write_enum_variants(&self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         match e {
             RustEnum::Unit(shared) => {
-                for v in shared.variants.iter() {
+                for v in &shared.variants {
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(w, "\t@SerialName(\"{}\")", &v.shared().id.renamed)?;
                     writeln!(
@@ -194,7 +194,7 @@ impl Kotlin {
                 shared,
                 ..
             } => {
-                for v in shared.variants.iter() {
+                for v in &shared.variants {
                     let printed_value = format!(r##""{}""##, &v.shared().id.renamed);
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(w, "\t@Serializable")?;
