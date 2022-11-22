@@ -422,9 +422,10 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     }
 
     fn format_field_name(&self, name: String, exported: bool) -> String {
-        let name = match exported {
-            true => name.to_pascal_case(),
-            false => name,
+        let name = if exported {
+            name.to_pascal_case()
+        } else {
+            name
         };
         self.acronyms_to_uppercase(&name)
     }
