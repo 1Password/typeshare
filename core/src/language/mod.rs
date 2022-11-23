@@ -101,10 +101,15 @@ pub trait Language {
                 "{}{}",
                 self.format_simple_type(base, generic_types)?,
                 (!parameters.is_empty())
-                    .then(|| format!("<{}>", parameters.into_iter().join(", ")))
+                    .then(|| self.format_generic_parameters(parameters))
                     .unwrap_or_default()
             ))
         }
+    }
+
+    /// Format generic parameters like <A, B, C>
+    fn format_generic_parameters(&self, parameters: Vec<String>) -> String {
+        format!("<{}>", parameters.into_iter().join(", "))
     }
 
     /// Format a base type that is classified as a SpecialRustType.
