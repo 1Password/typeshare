@@ -7,12 +7,14 @@ use std::{collections::HashMap, io::Write};
 
 mod go;
 mod kotlin;
+mod scala;
 mod swift;
 mod typescript;
 
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
+pub use scala::Scala;
 pub use swift::Swift;
 pub use typescript::TypeScript;
 
@@ -101,10 +103,16 @@ pub trait Language {
                 "{}{}",
                 self.format_simple_type(base, generic_types)?,
                 (!parameters.is_empty())
-                    .then(|| format!("<{}>", parameters.into_iter().join(", ")))
+                    .then(|| self.format_generic_parameters(parameters))
                     .unwrap_or_default()
             ))
         }
+    }
+
+    /// Format generic parameters into A<T,R> which is common for many supported languages.
+    /// Reimplement if other notations is used.
+    fn format_generic_parameters(&self, parameters: Vec<String>) -> String {
+        format!("<{}>", parameters.into_iter().join(", "))
     }
 
     /// Format a base type that is classified as a SpecialRustType.

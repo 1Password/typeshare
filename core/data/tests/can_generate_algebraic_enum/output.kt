@@ -24,6 +24,9 @@ sealed class AdvancedColors {
 	@SerialName("Number")
 	data class Number(val content: Int): AdvancedColors()
 	@Serializable
+	@SerialName("UnsignedNumber")
+	data class UnsignedNumber(val content: UInt): AdvancedColors()
+	@Serializable
 	@SerialName("NumberArray")
 	data class NumberArray(val content: List<Int>): AdvancedColors()
 	/// Comment on the last element
