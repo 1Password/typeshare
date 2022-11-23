@@ -13,6 +13,7 @@ go = []
 
 [dependencies]
 clap = {version = "3", features = ["cargo"] }
+clap_complete_command = "0.3"
 ignore = "0.4"
 once_cell = "1"
 rayon = "1.5"
