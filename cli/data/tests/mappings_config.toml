@@ -9,3 +9,6 @@
 
 [go.type_mappings]
 "DateTime" = "string"
+
+[python.type_mappings]
+"Url" = "str"

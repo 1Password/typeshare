@@ -10,6 +10,7 @@ readme = "README.md"
 
 [features]
 go = []
+python = ["typeshare-core/python"]
 
 [dependencies]
 clap = {version = "3", features = ["cargo"] }

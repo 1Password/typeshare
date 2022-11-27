@@ -32,6 +32,13 @@ pub struct TypeScriptParams {
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(default)]
+#[cfg(feature = "python")]
+pub struct PythonParams {
+    pub type_mappings: HashMap<String, String>,
+}
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
 #[cfg(feature = "go")]
 pub struct GoParams {
     pub package: String,
@@ -47,6 +54,8 @@ pub(crate) struct Config {
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
+    #[cfg(feature = "python")]
+    pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
 }
@@ -135,6 +144,7 @@ mod test {
         assert_eq!(config.swift.type_mappings["DateTime"], "Date");
         assert_eq!(config.kotlin.type_mappings["DateTime"], "String");
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
+        assert_eq!(config.python.type_mappings["Url"], "str");
         assert_eq!(config.go.type_mappings["DateTime"], "string");
     }
 

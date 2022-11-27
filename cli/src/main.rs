@@ -11,7 +11,7 @@ use std::{fs, path::Path};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Swift, TypeScript},
+    language::{Kotlin, Language, Python, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -30,10 +30,10 @@ const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "swift", "typescript", "go", "python"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 3] = ["kotlin", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "swift", "typescript", "python"];
 
 #[allow(unused_mut)]
 fn main() {
@@ -149,6 +149,7 @@ fn main() {
         Some("typescript") => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
         }),
+        Some("python") => Box::new(Python::new(config.python.type_mappings)),
         #[cfg(feature = "go")]
         Some("go") => Box::new(Go {
             package: config.go.package,
