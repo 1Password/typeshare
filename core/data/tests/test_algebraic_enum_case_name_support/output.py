@@ -10,22 +10,22 @@ from typing import List, Literal
 class ItemDetailsFieldValue(BaseModel):
     pass
 
-class AdvancedColorsString:
+class AdvancedColorsString(BaseModel):
     type: Literal["string"]
     content: str
 
 
-class AdvancedColorsNumber:
+class AdvancedColorsNumber(BaseModel):
     type: Literal["number"]
     content: int
 
 
-class AdvancedColorsNumberArray:
+class AdvancedColorsNumberArray(BaseModel):
     type: Literal["number-array"]
     content: List[int]
 
 
-class AdvancedColorsReallyCoolType:
+class AdvancedColorsReallyCoolType(BaseModel):
     type: Literal["reallyCoolType"]
     content: ItemDetailsFieldValue
 

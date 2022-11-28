@@ -3,9 +3,12 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Dict, Annotated, List
-from pydantic import Field, BaseModel
+from typing import Annotated, List, Dict, Optional
+from pydantic import BaseModel, Field
 
+
+class CustomType(BaseModel):
+    pass
 
 class Types(BaseModel):
     s: str
@@ -18,7 +21,4 @@ class Types(BaseModel):
     optional_dictionary: Optional[Dict[str, int]]
     custom_type: CustomType
 
-
-class CustomType(BaseModel):
-    pass
 

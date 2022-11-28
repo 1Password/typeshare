@@ -3,41 +3,45 @@
 """
 from __future__ import annotations
 
-from typing import List, Literal, Generic
-from pydantic.generics import GenericModel
 from pydantic import BaseModel
+from typing import Generic, TypeVar, List, Literal
+from pydantic.generics import GenericModel
+
+A = TypeVar("A")
+T = TypeVar("T")
+B = TypeVar("B")
 
 
-class GenericStructUsingGenericStruct(GenericModel, Generic[T]):
-    struct_field: GenericStruct[str, T]
-    second_struct_field: GenericStruct[T, str]
-    third_struct_field: GenericStruct[T, List[T]]
+class GenericStruct(GenericModel, Generic[A, B]):
+    field_a: A
+    field_b: List[B]
 
 
-class EnumUsingGenericStructVariantA:
+class EnumUsingGenericStructVariantA(BaseModel):
     type: Literal["VariantA"]
     content: GenericStruct[str, float]
 
 
-class EnumUsingGenericStructVariantB:
+class EnumUsingGenericStructVariantB(BaseModel):
     type: Literal["VariantB"]
     content: GenericStruct[str, int]
 
 
-class EnumUsingGenericStructVariantC:
+class EnumUsingGenericStructVariantC(BaseModel):
     type: Literal["VariantC"]
     content: GenericStruct[str, bool]
 
 
-class EnumUsingGenericStructVariantD:
+class EnumUsingGenericStructVariantD(BaseModel):
     type: Literal["VariantD"]
     content: GenericStructUsingGenericStruct[None]
 
 
 EnumUsingGenericStruct = EnumUsingGenericStructVariantA | EnumUsingGenericStructVariantB | EnumUsingGenericStructVariantC | EnumUsingGenericStructVariantD
 
-class GenericStruct(GenericModel, Generic[A, B]):
-    field_a: A
-    field_b: List[B]
+class GenericStructUsingGenericStruct(GenericModel, Generic[T]):
+    struct_field: GenericStruct[str, T]
+    second_struct_field: GenericStruct[T, str]
+    third_struct_field: GenericStruct[T, List[T]]
 
 

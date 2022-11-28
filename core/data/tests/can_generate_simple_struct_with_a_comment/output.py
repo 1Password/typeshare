@@ -4,11 +4,8 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional, List
 
-
-class Location(BaseModel):
-    pass
 
 class Person(BaseModel):
     """
@@ -23,4 +20,7 @@ class Person(BaseModel):
     emails: List[str]
     location: Location
 
+
+class Location(BaseModel):
+    pass
 

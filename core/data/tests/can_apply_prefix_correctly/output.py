@@ -4,39 +4,39 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from typing import List, Dict, Literal
+from typing import List, Literal, Dict
 
 
 class ItemDetailsFieldValue(BaseModel):
     hello: str
 
 
-class AdvancedColorsString:
+class AdvancedColorsString(BaseModel):
     t: Literal["String"]
     c: str
 
 
-class AdvancedColorsNumber:
+class AdvancedColorsNumber(BaseModel):
     t: Literal["Number"]
     c: int
 
 
-class AdvancedColorsNumberArray:
+class AdvancedColorsNumberArray(BaseModel):
     t: Literal["NumberArray"]
     c: List[int]
 
 
-class AdvancedColorsReallyCoolType:
+class AdvancedColorsReallyCoolType(BaseModel):
     t: Literal["ReallyCoolType"]
     c: ItemDetailsFieldValue
 
 
-class AdvancedColorsArrayReallyCoolType:
+class AdvancedColorsArrayReallyCoolType(BaseModel):
     t: Literal["ArrayReallyCoolType"]
     c: List[ItemDetailsFieldValue]
 
 
-class AdvancedColorsDictionaryReallyCoolType:
+class AdvancedColorsDictionaryReallyCoolType(BaseModel):
     t: Literal["DictionaryReallyCoolType"]
     c: Dict[str, ItemDetailsFieldValue]
 

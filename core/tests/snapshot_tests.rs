@@ -360,7 +360,8 @@ tests! {
             prefix: "Core".into(),
         },
         kotlin,
-        typescript, python
+        typescript,
+        python
     ];
     can_generate_generic_struct: [
         swift {

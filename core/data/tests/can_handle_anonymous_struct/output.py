@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import Literal
 from pydantic import BaseModel
+from typing import Literal
 
 
 class AutofilledByUsInner(BaseModel):
@@ -31,10 +31,6 @@ class AutofilledBySomethingElseInner(BaseModel):
     """
 
 
-
-
-
-
 AutofilledBy = AutofilledByUsInner | AutofilledBySomethingElseInner
 """
 Enum keeping track of who autofilled a field
@@ -57,26 +53,18 @@ class EnumWithManyVariantsAnotherAnonVariantInner(BaseModel):
 
 class EnumWithManyVariantsUnitVariant:
     type: Literal["UnitVariant"]
-
-
-class EnumWithManyVariantsTupleVariantString:
+class EnumWithManyVariantsTupleVariantString(BaseModel):
     type: Literal["TupleVariantString"]
     content: str
 
 
-
-
-class EnumWithManyVariantsTupleVariantInt:
+class EnumWithManyVariantsTupleVariantInt(BaseModel):
     type: Literal["TupleVariantInt"]
     content: int
 
 
 class EnumWithManyVariantsAnotherUnitVariant:
     type: Literal["AnotherUnitVariant"]
-
-
-
-
 EnumWithManyVariants = EnumWithManyVariantsUnitVariant | EnumWithManyVariantsTupleVariantString | EnumWithManyVariantsAnonVariantInner | EnumWithManyVariantsTupleVariantInt | EnumWithManyVariantsAnotherUnitVariant | EnumWithManyVariantsAnotherAnonVariantInner
 """
 This is a comment (yareek sameek wuz here)

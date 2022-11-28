@@ -3,11 +3,18 @@
 """
 from __future__ import annotations
 
-from typing import Annotated, Literal
-from pydantic import Field, BaseModel
+from typing import Literal, Annotated
+from pydantic import BaseModel, Field
 
 
-class EnumHasVoidTypeHasAUnit:
+class StructHasVoidType(BaseModel):
+    """
+    This struct has a unit field
+    """
+    this_is_a_unit: Annotated[None, Field(alias="thisIsAUnit")]
+
+
+class EnumHasVoidTypeHasAUnit(BaseModel):
     type: Literal["hasAUnit"]
     content: None
 
@@ -16,11 +23,4 @@ EnumHasVoidType = EnumHasVoidTypeHasAUnit
 """
 This enum has a variant associated with unit data
 """
-
-class StructHasVoidType(BaseModel):
-    """
-    This struct has a unit field
-    """
-    this_is_a_unit: Annotated[None, Field(alias="thisIsAUnit")]
-
 

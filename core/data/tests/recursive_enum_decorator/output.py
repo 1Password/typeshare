@@ -3,21 +3,21 @@
 """
 from __future__ import annotations
 
-from typing import Literal
 from pydantic import BaseModel
+from typing import Literal
 
 
-class OptionsRed:
+class OptionsRed(BaseModel):
     type: Literal["red"]
     content: bool
 
 
-class OptionsBanana:
+class OptionsBanana(BaseModel):
     type: Literal["banana"]
     content: str
 
 
-class OptionsVermont:
+class OptionsVermont(BaseModel):
     type: Literal["vermont"]
     content: Options
 
@@ -38,13 +38,9 @@ class MoreOptionsBuiltInner(BaseModel):
     top: MoreOptions
 
 
-class MoreOptionsNews:
+class MoreOptionsNews(BaseModel):
     type: Literal["news"]
     content: bool
-
-
-
-
 
 
 MoreOptions = MoreOptionsNews | MoreOptionsExactlyInner | MoreOptionsBuiltInner

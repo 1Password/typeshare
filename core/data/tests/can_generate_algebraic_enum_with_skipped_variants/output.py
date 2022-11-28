@@ -4,13 +4,12 @@
 from __future__ import annotations
 
 from typing import Literal
+from pydantic import BaseModel
 
 
 class SomeEnumA:
     type: Literal["A"]
-
-
-class SomeEnumC:
+class SomeEnumC(BaseModel):
     type: Literal["C"]
     content: int
 

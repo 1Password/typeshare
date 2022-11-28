@@ -3,9 +3,31 @@
 """
 from __future__ import annotations
 
-from typing import List, Literal
 from pydantic import BaseModel
+from typing import List, Literal
 
+
+class AdvancedColors2String(BaseModel):
+    type: Literal["string"]
+    content: str
+
+
+class AdvancedColors2Number(BaseModel):
+    type: Literal["number"]
+    content: int
+
+
+class AdvancedColors2NumberArray(BaseModel):
+    type: Literal["number-array"]
+    content: List[int]
+
+
+class AdvancedColors2ReallyCoolType(BaseModel):
+    type: Literal["really-cool-type"]
+    content: ItemDetailsFieldValue
+
+
+AdvancedColors2 = AdvancedColors2String | AdvancedColors2Number | AdvancedColors2NumberArray | AdvancedColors2ReallyCoolType
 
 class ItemDetailsFieldValue(BaseModel):
     """
@@ -13,44 +35,22 @@ class ItemDetailsFieldValue(BaseModel):
     """
     pass
 
-class AdvancedColors2String:
-    type: Literal["string"]
-    content: str
-
-
-class AdvancedColors2Number:
-    type: Literal["number"]
-    content: int
-
-
-class AdvancedColors2NumberArray:
-    type: Literal["number-array"]
-    content: List[int]
-
-
-class AdvancedColors2ReallyCoolType:
-    type: Literal["really-cool-type"]
-    content: ItemDetailsFieldValue
-
-
-AdvancedColors2 = AdvancedColors2String | AdvancedColors2Number | AdvancedColors2NumberArray | AdvancedColors2ReallyCoolType
-
-class AdvancedColorsString:
+class AdvancedColorsString(BaseModel):
     type: Literal["String"]
     content: str
 
 
-class AdvancedColorsNumber:
+class AdvancedColorsNumber(BaseModel):
     type: Literal["Number"]
     content: int
 
 
-class AdvancedColorsNumberArray:
+class AdvancedColorsNumberArray(BaseModel):
     type: Literal["NumberArray"]
     content: List[int]
 
 
-class AdvancedColorsReallyCoolType:
+class AdvancedColorsReallyCoolType(BaseModel):
     type: Literal["ReallyCoolType"]
     content: ItemDetailsFieldValue
 

@@ -32,11 +32,5 @@ class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     something_else: Annotated[bool, Field(alias="something-else")]
 
 
-
-
-
-
-
-
 AnonymousStructWithRename = AnonymousStructWithRenameListInner | AnonymousStructWithRenameLongFieldNamesInner | AnonymousStructWithRenameKebabCaseInner
 

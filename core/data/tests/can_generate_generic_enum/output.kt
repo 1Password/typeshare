@@ -10,11 +10,6 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-data class StructUsingGenericEnum (
-	var enum_field: GenericEnum<String, Short>
-)
-
-@Serializable
 sealed class GenericEnum<A, B> {
 	@Serializable
 	@SerialName("VariantA")
@@ -56,13 +51,6 @@ data class GenericEnumsUsingStructVariantsVariantHInner (
 	var non_generic: Int
 )
 
-/// Generated type representing the anonymous struct variant `VariantI` of the `GenericEnumsUsingStructVariants` Rust enum
-@Serializable
-data class GenericEnumsUsingStructVariantsVariantIInner<T, U> (
-	var vec: List<T>,
-	var action: MyType<T, U>
-)
-
 @Serializable
 sealed class GenericEnumsUsingStructVariants<T, U> {
 	@Serializable
@@ -74,8 +62,5 @@ sealed class GenericEnumsUsingStructVariants<T, U> {
 	@Serializable
 	@SerialName("VariantH")
 	data class VariantH<T, U>(val content: GenericEnumsUsingStructVariantsVariantHInner): GenericEnumsUsingStructVariants<T, U>()
-	@Serializable
-	@SerialName("VariantI")
-	data class VariantI<T, U>(val content: GenericEnumsUsingStructVariantsVariantIInner<T, U>): GenericEnumsUsingStructVariants<T, U>()
 }
 

@@ -3,21 +3,19 @@
 """
 from __future__ import annotations
 
-from pydantic import BaseModel
 from typing import Literal
+from pydantic import BaseModel
 
 
-class AddressDetails(BaseModel):
-    pass
-
-class AddressFixedAddress:
+class AddressFixedAddress(BaseModel):
     type: Literal["FixedAddress"]
     content: AddressDetails
 
 
 class AddressNoFixedAddress:
     type: Literal["NoFixedAddress"]
-
-
 Address = AddressFixedAddress | AddressNoFixedAddress
+
+class AddressDetails(BaseModel):
+    pass
 

@@ -4,17 +4,14 @@
 from __future__ import annotations
 
 from typing import Literal
+from pydantic import BaseModel
 
 
 class ColorsRed:
     type: Literal["Red"]
-
-
 class ColorsBlue:
     type: Literal["Blue"]
-
-
-class ColorsGreen:
+class ColorsGreen(BaseModel):
     type: Literal["Green"]
     content: str
 
