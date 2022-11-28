@@ -6,6 +6,11 @@ pub enum GenericEnum<A, B> {
 }
 
 #[typeshare]
+pub struct StructUsingGenericEnum {
+    enum_field: GenericEnum<String, i16>,
+}
+
+#[typeshare]
 #[serde(tag = "type", content = "content")]
 pub enum GenericEnumUsingGenericEnum<T> {
     VariantC(GenericEnum<T, T>),
@@ -19,5 +24,5 @@ pub enum GenericEnumsUsingStructVariants<T, U> {
     VariantF { action: T },
     VariantG { action: T, response: U },
     VariantH { non_generic: i32 },
-    // VariantI { vec: Vec<T>, action: MyType<T, U> },
+    VariantI { vec: Vec<T>, action: MyType<T, U> },
 }

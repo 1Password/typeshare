@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Annotated, List
 from pydantic import Field, BaseModel
+from typing import Optional, Annotated, List
 
 
 class OtherType(BaseModel):

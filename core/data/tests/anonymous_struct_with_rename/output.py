@@ -3,7 +3,7 @@
 """
 from __future__ import annotations
 
-from typing import Annotated, List
+from typing import List, Annotated
 from pydantic import Field, BaseModel
 
 

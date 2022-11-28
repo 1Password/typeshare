@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import Literal, Annotated
-from pydantic import BaseModel, Field
+from pydantic import Field, BaseModel
+from typing import Annotated, Literal
 
 
 class StructHasVoidType(BaseModel):

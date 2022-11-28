@@ -4,6 +4,14 @@
 
 import Foundation
 
+public struct CoreStructUsingGenericEnum: Codable {
+	public let enum_field: CoreGenericEnum<String, Int16>
+
+	public init(enum_field: CoreGenericEnum<String, Int16>) {
+		self.enum_field = enum_field
+	}
+}
+
 public enum CoreGenericEnum<A: Codable, B: Codable>: Codable {
 	case variantA(A)
 	case variantB(B)
@@ -133,15 +141,28 @@ public struct CoreGenericEnumsUsingStructVariantsVariantHInner: Codable {
 		self.non_generic = non_generic
 	}
 }
+
+/// Generated type representing the anonymous struct variant `VariantI` of the `GenericEnumsUsingStructVariants` Rust enum
+public struct CoreGenericEnumsUsingStructVariantsVariantIInner<T: Codable, U: Codable>: Codable {
+	public let vec: [T]
+	public let action: CoreMyType<T, U>
+
+	public init(vec: [T], action: CoreMyType<T, U>) {
+		self.vec = vec
+		self.action = action
+	}
+}
 public enum CoreGenericEnumsUsingStructVariants<T: Codable, U: Codable>: Codable {
 	case variantF(CoreGenericEnumsUsingStructVariantsVariantFInner<T>)
 	case variantG(CoreGenericEnumsUsingStructVariantsVariantGInner<T, U>)
 	case variantH(CoreGenericEnumsUsingStructVariantsVariantHInner)
+	case variantI(CoreGenericEnumsUsingStructVariantsVariantIInner<T, U>)
 
 	enum CodingKeys: String, CodingKey, Codable {
 		case variantF = "VariantF",
 			variantG = "VariantG",
-			variantH = "VariantH"
+			variantH = "VariantH",
+			variantI = "VariantI"
 	}
 
 	private enum ContainerCodingKeys: String, CodingKey {
@@ -167,6 +188,11 @@ public enum CoreGenericEnumsUsingStructVariants<T: Codable, U: Codable>: Codable
 					self = .variantH(content)
 					return
 				}
+			case .variantI:
+				if let content = try? container.decode(CoreGenericEnumsUsingStructVariantsVariantIInner<T, U>.self, forKey: .content) {
+					self = .variantI(content)
+					return
+				}
 			}
 		}
 		throw DecodingError.typeMismatch(CoreGenericEnumsUsingStructVariants.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for CoreGenericEnumsUsingStructVariants"))
@@ -183,6 +209,9 @@ public enum CoreGenericEnumsUsingStructVariants<T: Codable, U: Codable>: Codable
 			try container.encode(content, forKey: .content)
 		case .variantH(let content):
 			try container.encode(CodingKeys.variantH, forKey: .type)
+			try container.encode(content, forKey: .content)
+		case .variantI(let content):
+			try container.encode(CodingKeys.variantI, forKey: .type)
 			try container.encode(content, forKey: .content)
 		}
 	}

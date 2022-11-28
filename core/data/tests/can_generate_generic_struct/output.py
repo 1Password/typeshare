@@ -3,13 +3,13 @@
 """
 from __future__ import annotations
 
+from typing import Literal, TypeVar, Generic, List
 from pydantic import BaseModel
-from typing import Generic, TypeVar, List, Literal
 from pydantic.generics import GenericModel
 
-A = TypeVar("A")
 T = TypeVar("T")
 B = TypeVar("B")
+A = TypeVar("A")
 
 
 class GenericStruct(GenericModel, Generic[A, B]):

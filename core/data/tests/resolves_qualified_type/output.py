@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
+from typing import Dict, Optional, List
 from pydantic import BaseModel
-from typing import List, Dict, Optional
 
 
 class QualifiedTypes(BaseModel):

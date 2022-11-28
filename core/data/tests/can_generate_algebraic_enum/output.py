@@ -4,8 +4,14 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from typing import List, Literal
+from typing import Literal, List
 
+
+class ItemDetailsFieldValue(BaseModel):
+    """
+    Struct comment
+    """
+    pass
 
 class AdvancedColors2String(BaseModel):
     type: Literal["string"]
@@ -28,12 +34,6 @@ class AdvancedColors2ReallyCoolType(BaseModel):
 
 
 AdvancedColors2 = AdvancedColors2String | AdvancedColors2Number | AdvancedColors2NumberArray | AdvancedColors2ReallyCoolType
-
-class ItemDetailsFieldValue(BaseModel):
-    """
-    Struct comment
-    """
-    pass
 
 class AdvancedColorsString(BaseModel):
     type: Literal["String"]

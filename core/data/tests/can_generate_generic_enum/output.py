@@ -3,15 +3,16 @@
 """
 from __future__ import annotations
 
-from pydantic.generics import GenericModel
+from typing import TypeVar, Literal, Dict, List, Generic
 from pydantic import BaseModel
-from typing import Generic, Literal, TypeVar, Dict
+from pydantic.generics import GenericModel
 
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+T = TypeVar("T")
+A = TypeVar("A")
 B = TypeVar("B")
 U = TypeVar("U")
-T1 = TypeVar("T1")
-A = TypeVar("A")
-T = TypeVar("T")
 
 
 class GenericEnumVariantA(GenericModel, Generic[A]):
@@ -25,6 +26,27 @@ class GenericEnumVariantB(GenericModel, Generic[B]):
 
 
 GenericEnum = GenericEnumVariantA[A] | GenericEnumVariantB[B]
+
+class GenericEnumUsingGenericEnumVariantC(GenericModel, Generic[T]):
+    type: Literal["VariantC"]
+    content: GenericEnum[T, T]
+
+
+class GenericEnumUsingGenericEnumVariantD(GenericModel, Generic[T]):
+    type: Literal["VariantD"]
+    content: GenericEnum[str, Dict[str, T]]
+
+
+class GenericEnumUsingGenericEnumVariantE(BaseModel):
+    type: Literal["VariantE"]
+    content: GenericEnum[str, int]
+
+
+GenericEnumUsingGenericEnum = GenericEnumUsingGenericEnumVariantC[T] | GenericEnumUsingGenericEnumVariantD[T] | GenericEnumUsingGenericEnumVariantE
+
+class StructUsingGenericEnum(BaseModel):
+    enum_field: GenericEnum[str, int]
+
 
 class GenericEnumsUsingStructVariantsVariantFInner(GenericModel, Generic[T]):
     """
@@ -48,22 +70,13 @@ class GenericEnumsUsingStructVariantsVariantHInner(BaseModel):
     non_generic: int
 
 
-GenericEnumsUsingStructVariants = GenericEnumsUsingStructVariantsVariantFInner[T] | GenericEnumsUsingStructVariantsVariantGInner[T, T1] | GenericEnumsUsingStructVariantsVariantHInner
-
-class GenericEnumUsingGenericEnumVariantC(GenericModel, Generic[T]):
-    type: Literal["VariantC"]
-    content: GenericEnum[T, T]
-
-
-class GenericEnumUsingGenericEnumVariantD(GenericModel, Generic[T]):
-    type: Literal["VariantD"]
-    content: GenericEnum[str, Dict[str, T]]
+class GenericEnumsUsingStructVariantsVariantIInner(GenericModel, Generic[T, U]):
+    """
+    Generated type representing the anonymous struct variant `VariantI` of the `GenericEnumsUsingStructVariants` Rust enum
+    """
+    vec: List[T]
+    action: MyType[T, U]
 
 
-class GenericEnumUsingGenericEnumVariantE(BaseModel):
-    type: Literal["VariantE"]
-    content: GenericEnum[str, int]
-
-
-GenericEnumUsingGenericEnum = GenericEnumUsingGenericEnumVariantC[T] | GenericEnumUsingGenericEnumVariantD[T] | GenericEnumUsingGenericEnumVariantE
+GenericEnumsUsingStructVariants = GenericEnumsUsingStructVariantsVariantFInner[T] | GenericEnumsUsingStructVariantsVariantGInner[T, T1] | GenericEnumsUsingStructVariantsVariantHInner | GenericEnumsUsingStructVariantsVariantIInner[T, T1, T2]
 

@@ -3,12 +3,9 @@
 """
 from __future__ import annotations
 
-from typing import Annotated, List, Optional
 from pydantic import Field, BaseModel
+from typing import Optional, List, Annotated
 
-
-class OtherType(BaseModel):
-    pass
 
 class PersonTwo(BaseModel):
     """
@@ -21,4 +18,7 @@ class PersonTwo(BaseModel):
     non_standard_data_type: Annotated[OtherType, Field(alias="nonStandardDataType")]
     non_standard_data_type_in_array: Annotated[Optional[List[OtherType]], Field(alias="nonStandardDataTypeInArray")]
 
+
+class OtherType(BaseModel):
+    pass
 

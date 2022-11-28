@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from pydantic import BaseModel
 from pydantic.networks import AnyUrl
+from pydantic import BaseModel
 
 
 class Foo(BaseModel):

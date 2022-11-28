@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import Literal
 from pydantic import BaseModel
+from typing import Literal
 
 
 class ColorsRed:
