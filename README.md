@@ -107,6 +107,12 @@ If there is a language that you want Typeshare to generate definitions for, you 
 
 Made with ❤️ and ☕ by the [1Password](https://1password.com/) team.
 
+### Get a free 1Password account for your open source project
+
+Does your team need a secure way to manage passwords and other credentials for your open source project? Head on over to our [other repository](https://github.com/1Password/1password-teams-open-source) to get a 1Password Teams account on us:
+
+✨[1Password for Open Source Projects](https://github.com/1Password/1password-teams-open-source) 
+
 #### License
 
 <sup>
