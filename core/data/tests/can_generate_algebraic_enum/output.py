@@ -7,6 +7,31 @@ from pydantic import BaseModel
 from typing import List, Literal
 
 
+class AdvancedColorsString(BaseModel):
+    type: Literal["String"]
+    content: str
+
+
+class AdvancedColorsNumber(BaseModel):
+    type: Literal["Number"]
+    content: int
+
+
+class AdvancedColorsNumberArray(BaseModel):
+    type: Literal["NumberArray"]
+    content: List[int]
+
+
+class AdvancedColorsReallyCoolType(BaseModel):
+    type: Literal["ReallyCoolType"]
+    content: ItemDetailsFieldValue
+
+
+AdvancedColors = AdvancedColorsString | AdvancedColorsNumber | AdvancedColorsNumberArray | AdvancedColorsReallyCoolType
+"""
+Enum comment
+"""
+
 class AdvancedColors2String(BaseModel):
     type: Literal["string"]
     content: str
@@ -34,29 +59,4 @@ class ItemDetailsFieldValue(BaseModel):
     Struct comment
     """
     pass
-
-class AdvancedColorsString(BaseModel):
-    type: Literal["String"]
-    content: str
-
-
-class AdvancedColorsNumber(BaseModel):
-    type: Literal["Number"]
-    content: int
-
-
-class AdvancedColorsNumberArray(BaseModel):
-    type: Literal["NumberArray"]
-    content: List[int]
-
-
-class AdvancedColorsReallyCoolType(BaseModel):
-    type: Literal["ReallyCoolType"]
-    content: ItemDetailsFieldValue
-
-
-AdvancedColors = AdvancedColorsString | AdvancedColorsNumber | AdvancedColorsNumberArray | AdvancedColorsReallyCoolType
-"""
-Enum comment
-"""
 

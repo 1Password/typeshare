@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 from typing import Annotated, List, Optional
 
 
+class OtherType(BaseModel):
+    pass
+
 class PersonTwo(BaseModel):
     """
     This is a comment.
@@ -18,7 +21,4 @@ class PersonTwo(BaseModel):
     non_standard_data_type: Annotated[OtherType, Field(alias="nonStandardDataType")]
     non_standard_data_type_in_array: Annotated[Optional[List[OtherType]], Field(alias="nonStandardDataTypeInArray")]
 
-
-class OtherType(BaseModel):
-    pass
 

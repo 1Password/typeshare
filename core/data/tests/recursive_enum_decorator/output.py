@@ -7,23 +7,6 @@ from pydantic import BaseModel
 from typing import Literal
 
 
-class OptionsRed(BaseModel):
-    type: Literal["red"]
-    content: bool
-
-
-class OptionsBanana(BaseModel):
-    type: Literal["banana"]
-    content: str
-
-
-class OptionsVermont(BaseModel):
-    type: Literal["vermont"]
-    content: Options
-
-
-Options = OptionsRed | OptionsBanana | OptionsVermont
-
 class MoreOptionsExactlyInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
@@ -44,4 +27,21 @@ class MoreOptionsNews(BaseModel):
 
 
 MoreOptions = MoreOptionsNews | MoreOptionsExactlyInner | MoreOptionsBuiltInner
+
+class OptionsRed(BaseModel):
+    type: Literal["red"]
+    content: bool
+
+
+class OptionsBanana(BaseModel):
+    type: Literal["banana"]
+    content: str
+
+
+class OptionsVermont(BaseModel):
+    type: Literal["vermont"]
+    content: Options
+
+
+Options = OptionsRed | OptionsBanana | OptionsVermont
 

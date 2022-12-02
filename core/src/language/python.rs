@@ -45,7 +45,7 @@ impl Module {
         self.type_variables.insert(name);
     }
     fn get_type_vars(&mut self, n: usize) -> Vec<String> {
-        let vars: Vec<String> = (0..n)
+        let mut vars: Vec<String> = (0..n)
             .into_iter()
             .map(|i| {
                 if i == 0 {
@@ -71,7 +71,8 @@ impl Module {
         }
         let mut res: Vec<String> = Vec::new();
         loop {
-            let level = ts.pop_all();
+            let mut level = ts.pop_all();
+            level.sort();
             res.extend_from_slice(&level);
             if level.is_empty() {
                 if !ts.is_empty() {
@@ -81,12 +82,13 @@ impl Module {
             }
         }
         let existing: HashSet<&String> = HashSet::from_iter(res.iter());
-        let missing: Vec<String> = self
+        let mut missing: Vec<String> = self
             .globals
             .iter()
             .map(|(k, _)| k.clone())
             .filter(|k| !existing.contains(k))
             .collect();
+        missing.sort();
         res.extend(missing);
         Ok(res)
     }
@@ -312,8 +314,9 @@ impl Language for Python {
 
     fn begin_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
         let module = self.module.borrow();
-        let type_vars: Vec<String> = module
-            .type_variables
+        let mut type_var_names: Vec<String> = module.type_variables.iter().cloned().collect();
+        type_var_names.sort();
+        let type_vars: Vec<String> = type_var_names
             .iter()
             .map(|name| format!("{} = TypeVar(\"{}\")", name, name))
             .collect();

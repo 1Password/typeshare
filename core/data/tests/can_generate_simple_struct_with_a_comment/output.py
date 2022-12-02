@@ -7,6 +7,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+class Location(BaseModel):
+    pass
+
 class Person(BaseModel):
     """
     This is a comment.
@@ -20,7 +23,4 @@ class Person(BaseModel):
     emails: List[str]
     location: Location
 
-
-class Location(BaseModel):
-    pass
 
