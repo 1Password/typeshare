@@ -157,7 +157,7 @@ fn main() {
         }),
         #[cfg(not(feature = "go"))]
         Some("go") => {
-            panic!("go support is currently experimental enabled and must be enabled as a feature flag for typeshare-cli")
+            panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
         _ => {
             panic!("argument parser didn't validate ARG_TYPE correctly");
