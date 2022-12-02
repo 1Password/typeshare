@@ -46,9 +46,9 @@ We've put together a book that documents (almost) everything you can do.
 
 To generate FFI definitions for a target language, run the `typeshare` command and specify the directory containing your rust code, the language you would like to generate for, and the file to which your generated definitions will be written:
 ```
-typeshare ./my_rust_project --type=kotlin --output-file=my_kotlin_definitions.kt
-typeshare ./my_rust_project --type=swift --output-file=my_swift_definitions.swift
-typeshare ./my_rust_project --type=typescript --output-file=my_typescript_definitions.ts
+typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
+typeshare ./my_rust_project --lang=swift --output-file=my_swift_definitions.swift
+typeshare ./my_rust_project --lang=typescript --output-file=my_typescript_definitions.ts
 ```
 
 ### Annotating Types
