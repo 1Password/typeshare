@@ -3,46 +3,17 @@
 """
 from __future__ import annotations
 
-from typing import TypeVar, Literal, Dict, List, Generic
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
+from typing import Dict, Generic, List, Literal, TypeVar
 
-T1 = TypeVar("T1")
-T2 = TypeVar("T2")
 T = TypeVar("T")
+T2 = TypeVar("T2")
 A = TypeVar("A")
-B = TypeVar("B")
+T1 = TypeVar("T1")
 U = TypeVar("U")
+B = TypeVar("B")
 
-
-class GenericEnumVariantA(GenericModel, Generic[A]):
-    type: Literal["VariantA"]
-    content: A
-
-
-class GenericEnumVariantB(GenericModel, Generic[B]):
-    type: Literal["VariantB"]
-    content: B
-
-
-GenericEnum = GenericEnumVariantA[A] | GenericEnumVariantB[B]
-
-class GenericEnumUsingGenericEnumVariantC(GenericModel, Generic[T]):
-    type: Literal["VariantC"]
-    content: GenericEnum[T, T]
-
-
-class GenericEnumUsingGenericEnumVariantD(GenericModel, Generic[T]):
-    type: Literal["VariantD"]
-    content: GenericEnum[str, Dict[str, T]]
-
-
-class GenericEnumUsingGenericEnumVariantE(BaseModel):
-    type: Literal["VariantE"]
-    content: GenericEnum[str, int]
-
-
-GenericEnumUsingGenericEnum = GenericEnumUsingGenericEnumVariantC[T] | GenericEnumUsingGenericEnumVariantD[T] | GenericEnumUsingGenericEnumVariantE
 
 class StructUsingGenericEnum(BaseModel):
     enum_field: GenericEnum[str, int]
@@ -79,4 +50,33 @@ class GenericEnumsUsingStructVariantsVariantIInner(GenericModel, Generic[T, U]):
 
 
 GenericEnumsUsingStructVariants = GenericEnumsUsingStructVariantsVariantFInner[T] | GenericEnumsUsingStructVariantsVariantGInner[T, T1] | GenericEnumsUsingStructVariantsVariantHInner | GenericEnumsUsingStructVariantsVariantIInner[T, T1, T2]
+
+class GenericEnumUsingGenericEnumVariantC(GenericModel, Generic[T]):
+    type: Literal["VariantC"]
+    content: GenericEnum[T, T]
+
+
+class GenericEnumUsingGenericEnumVariantD(GenericModel, Generic[T]):
+    type: Literal["VariantD"]
+    content: GenericEnum[str, Dict[str, T]]
+
+
+class GenericEnumUsingGenericEnumVariantE(BaseModel):
+    type: Literal["VariantE"]
+    content: GenericEnum[str, int]
+
+
+GenericEnumUsingGenericEnum = GenericEnumUsingGenericEnumVariantC[T] | GenericEnumUsingGenericEnumVariantD[T] | GenericEnumUsingGenericEnumVariantE
+
+class GenericEnumVariantA(GenericModel, Generic[A]):
+    type: Literal["VariantA"]
+    content: A
+
+
+class GenericEnumVariantB(GenericModel, Generic[B]):
+    type: Literal["VariantB"]
+    content: B
+
+
+GenericEnum = GenericEnumVariantA[A] | GenericEnumVariantB[B]
 

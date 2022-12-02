@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import List, Annotated
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
+from typing import Annotated, List
 
 
 class AnonymousStructWithRenameListInner(BaseModel):

@@ -3,9 +3,38 @@
 """
 from __future__ import annotations
 
-from typing import Literal
 from pydantic import BaseModel
+from typing import Literal
 
+
+class AutofilledByUsInner(BaseModel):
+    """
+    Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum
+    """
+    uuid: str
+    """
+    The UUID for the fill
+    """
+
+
+class AutofilledBySomethingElseInner(BaseModel):
+    """
+    Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
+    """
+    uuid: str
+    """
+    The UUID for the fill
+    """
+    thing: int
+    """
+    Some other thing
+    """
+
+
+AutofilledBy = AutofilledByUsInner | AutofilledBySomethingElseInner
+"""
+Enum keeping track of who autofilled a field
+"""
 
 class EnumWithManyVariantsAnonVariantInner(BaseModel):
     """
@@ -39,34 +68,5 @@ class EnumWithManyVariantsAnotherUnitVariant:
 EnumWithManyVariants = EnumWithManyVariantsUnitVariant | EnumWithManyVariantsTupleVariantString | EnumWithManyVariantsAnonVariantInner | EnumWithManyVariantsTupleVariantInt | EnumWithManyVariantsAnotherUnitVariant | EnumWithManyVariantsAnotherAnonVariantInner
 """
 This is a comment (yareek sameek wuz here)
-"""
-
-class AutofilledByUsInner(BaseModel):
-    """
-    Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum
-    """
-    uuid: str
-    """
-    The UUID for the fill
-    """
-
-
-class AutofilledBySomethingElseInner(BaseModel):
-    """
-    Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
-    """
-    uuid: str
-    """
-    The UUID for the fill
-    """
-    thing: int
-    """
-    Some other thing
-    """
-
-
-AutofilledBy = AutofilledByUsInner | AutofilledBySomethingElseInner
-"""
-Enum keeping track of who autofilled a field
 """
 

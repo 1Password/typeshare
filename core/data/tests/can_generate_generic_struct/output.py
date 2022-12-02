@@ -3,18 +3,19 @@
 """
 from __future__ import annotations
 
-from typing import Literal, TypeVar, Generic, List
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
+from typing import Generic, List, Literal, TypeVar
 
-T = TypeVar("T")
 B = TypeVar("B")
+T = TypeVar("T")
 A = TypeVar("A")
 
 
-class GenericStruct(GenericModel, Generic[A, B]):
-    field_a: A
-    field_b: List[B]
+class GenericStructUsingGenericStruct(GenericModel, Generic[T]):
+    struct_field: GenericStruct[str, T]
+    second_struct_field: GenericStruct[T, str]
+    third_struct_field: GenericStruct[T, List[T]]
 
 
 class EnumUsingGenericStructVariantA(BaseModel):
@@ -39,9 +40,8 @@ class EnumUsingGenericStructVariantD(BaseModel):
 
 EnumUsingGenericStruct = EnumUsingGenericStructVariantA | EnumUsingGenericStructVariantB | EnumUsingGenericStructVariantC | EnumUsingGenericStructVariantD
 
-class GenericStructUsingGenericStruct(GenericModel, Generic[T]):
-    struct_field: GenericStruct[str, T]
-    second_struct_field: GenericStruct[T, str]
-    third_struct_field: GenericStruct[T, List[T]]
+class GenericStruct(GenericModel, Generic[A, B]):
+    field_a: A
+    field_b: List[B]
 
 

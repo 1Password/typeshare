@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-from typing import Annotated, Optional
 from pydantic import BaseModel, Field
+from typing import Annotated, Optional
 
 
 class Things(BaseModel):

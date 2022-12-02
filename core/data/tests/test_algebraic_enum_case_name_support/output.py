@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from pydantic import BaseModel
-from typing import Literal, List
+from typing import List, Literal
 
 
 class AdvancedColorsString(BaseModel):
