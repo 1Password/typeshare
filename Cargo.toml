@@ -5,7 +5,7 @@ members = [
     "core",
     "lib"
 ]
-exclude = ["foo"]
+
 
 [profile.test]
 
