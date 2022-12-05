@@ -1,7 +1,7 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::{command, Arg, ArgMatches};
+use clap::{command, Arg, ArgMatches, Command};
 use config::Config;
 use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
@@ -35,10 +35,22 @@ const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "swift", "typescript", "go"];
 #[cfg(not(feature = "go"))]
 const AVAILABLE_LANGUAGES: [&str; 3] = ["kotlin", "swift", "typescript"];
 
-#[allow(unused_mut)]
-fn main() {
-    let mut command = command!()
+fn build_command() -> Command<'static> {
+    command!("typeshare")
         .version(VERSION)
+        .args_conflicts_with_subcommands(true)
+        .subcommand_negates_reqs(true)
+        .subcommand(
+            Command::new("completions")
+                .about("Generate shell completions")
+                .arg(
+                    Arg::new("shell")
+                        .value_name("SHELL")
+                        .help("The shell to generate the completions for")
+                        .required(true)
+                        .possible_values(clap_complete_command::Shell::possible_values()),
+                ),
+        )
         .arg(
             Arg::new(ARG_TYPE)
                 .short('l')
@@ -102,7 +114,12 @@ fn main() {
                 .help("Directories within which to recursively find and process rust files")
                 .required_unless(ARG_GENERATE_CONFIG)
                 .min_values(1),
-        );
+        )
+}
+
+fn main() {
+    #[allow(unused_mut)]
+    let mut command = build_command();
 
     #[cfg(feature = "go")]
     {
@@ -116,6 +133,14 @@ fn main() {
     }
 
     let options = command.get_matches();
+
+    if let Some(options) = options.subcommand_matches("completions") {
+        if let Ok(shell) = options.value_of_t::<clap_complete_command::Shell>("shell") {
+            let mut command = build_command();
+            shell.generate(&mut command, &mut std::io::stdout());
+        }
+        return;
+    }
 
     let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
     let config = config::load_config(config_file).unwrap_or_else(|error| {
