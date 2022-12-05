@@ -8,6 +8,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
+[[bin]]
+name = "typeshare"
+path = "src/main.rs"
+
 [features]
 go = []
 
