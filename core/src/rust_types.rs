@@ -112,6 +112,8 @@ pub enum SpecialRustType {
     HashMap(Box<RustType>, Box<RustType>),
     /// Represents `Option<T>` from the standard library
     Option(Box<RustType>),
+    /// Represents chrono::DateTime<?> from chrono
+    DateTime,
     /// Represents `()`
     Unit,
     /// Represents `String` from the standard library
@@ -213,6 +215,7 @@ impl TryFrom<&syn::Type> for RustType {
                             params.next().unwrap().into(),
                         ))
                     }
+                    "DateTime" => RustType::Special(SpecialRustType::DateTime),
                     "str" | "String" => RustType::Special(SpecialRustType::String),
                     // Since we do not need to box types in other languages, we treat this type
                     // as its inner type.
@@ -311,7 +314,8 @@ impl SpecialRustType {
         match &self {
             Self::Vec(rty) | Self::Option(rty) => rty.contains_type(ty),
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
-            Self::Unit
+            Self::DateTime
+            | Self::Unit
             | Self::String
             | Self::I8
             | Self::I16
@@ -340,6 +344,7 @@ impl SpecialRustType {
             Self::Vec(_) => "Vec",
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
+            Self::DateTime => "DateTime",
             Self::String => "String",
             Self::Bool => "bool",
             Self::I8 => "i8",
@@ -365,7 +370,8 @@ impl SpecialRustType {
             Self::HashMap(rtype1, rtype2) => {
                 Box::new([rtype1.as_ref(), rtype2.as_ref()].into_iter())
             }
-            Self::Unit
+            Self::DateTime
+            | Self::Unit
             | Self::String
             | Self::I8
             | Self::I16

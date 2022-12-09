@@ -44,7 +44,8 @@ impl Language for Kotlin {
                     self.format_type(rtype1, generic_types)?,
                     self.format_type(rtype2, generic_types)?
                 )
-            }
+            },
+            SpecialRustType::DateTime => "java.time.Instant".into(),
             SpecialRustType::Unit => "Unit".into(),
             SpecialRustType::String => "String".into(),
             // https://kotlinlang.org/docs/basic-types.html#integer-types
@@ -70,11 +71,19 @@ impl Language for Kotlin {
             writeln!(w, " */")?;
             writeln!(w)?;
             writeln!(w, "@file:NoLiveLiterals")?;
+            writeln!(w, "@file:UseSerializers(JavaInstantSerializer::class)")?;
             writeln!(w)?;
             writeln!(w, "package {}", self.package)?;
             writeln!(w)?;
             writeln!(w, "import androidx.compose.runtime.NoLiveLiterals")?;
             writeln!(w, "import kotlinx.serialization.*")?;
+            writeln!(w)?;
+            writeln!(w, r#"object JavaInstantSerializer : KSerializer<java.time.Instant> {{
+    override val descriptor = PrimitiveDescriptor("Instant", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: java.time.Instant) = encoder.encodeString(value)
+    override fun deserialize(decoder: Decoder): java.time.Instant = java.time.Instant.parse(decoder.decodeString())
+}}
+"# )?;
             writeln!(w)?;
         }
 
