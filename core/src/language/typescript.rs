@@ -5,6 +5,7 @@ use crate::{
     language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed to generate Typescript type-code
@@ -15,6 +16,7 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    pub has_date: AtomicBool,
 }
 
 impl Language for TypeScript {
@@ -52,7 +54,10 @@ impl Language for TypeScript {
                 },
                 self.format_type(rtype2, generic_types)?
             )),
-            SpecialRustType::DateTime => todo!(),
+            SpecialRustType::DateTime => {
+                self.has_date.store(true, Ordering::SeqCst);
+                Ok("Date".into())
+            }
             SpecialRustType::Unit => Ok("null".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
@@ -83,6 +88,15 @@ impl Language for TypeScript {
             writeln!(w)?;
         }
         Ok(())
+    }
+
+    fn end_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        if self.has_date.load(Ordering::SeqCst) {
+            writeln!(w, "export function TypeshareDateReviver(key, value): Date {{ return new Date(value); }}")?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {

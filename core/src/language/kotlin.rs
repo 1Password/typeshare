@@ -8,6 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -22,6 +23,8 @@ pub struct Kotlin {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether we've outputted a Date (requires custom serializer)
+    pub has_date: AtomicBool,
 }
 
 impl Language for Kotlin {
@@ -50,8 +53,11 @@ impl Language for Kotlin {
                     self.format_type(rtype1, generic_types)?,
                     self.format_type(rtype2, generic_types)?
                 )
-            },
-            SpecialRustType::DateTime => "java.time.Instant".into(),
+            }
+            SpecialRustType::DateTime => {
+                self.has_date.store(true, Ordering::SeqCst);
+                "java.time.Instant".into()
+            }
             SpecialRustType::Unit => "Unit".into(),
             SpecialRustType::String => "String".into(),
             // https://kotlinlang.org/docs/basic-types.html#integer-types
@@ -79,23 +85,33 @@ impl Language for Kotlin {
                 writeln!(w)?;
             }
             writeln!(w, "@file:NoLiveLiterals")?;
-            writeln!(w, "@file:UseSerializers(JavaInstantSerializer::class)")?;
             writeln!(w)?;
             writeln!(w, "package {}", self.package)?;
             writeln!(w)?;
             writeln!(w, "import androidx.compose.runtime.NoLiveLiterals")?;
-            writeln!(w, "import kotlinx.serialization.*")?;
-            writeln!(w)?;
-            writeln!(w, r#"object JavaInstantSerializer : KSerializer<java.time.Instant> {{
-    override val descriptor = PrimitiveDescriptor("Instant", PrimitiveKind.STRING)
-    override fun serialize(encoder: Encoder, value: java.time.Instant) = encoder.encodeString(value)
-    override fun deserialize(decoder: Decoder): java.time.Instant = java.time.Instant.parse(decoder.decodeString())
-}}
-"# )?;
             writeln!(w)?;
         }
 
         Ok(())
+    }
+
+    fn end_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        if self.has_date.load(Ordering::SeqCst) {
+            writeln!(w, "import kotlinx.serialization.*")?;
+            writeln!(w)?;
+            writeln!(
+                w,
+                r#"object JavaInstantSerializer : KSerializer<java.time.Instant> {{
+    override val descriptor = PrimitiveDescriptor("Instant", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: java.time.Instant) = encoder.encodeString(value)
+    override fun deserialize(decoder: Decoder): java.time.Instant = java.time.Instant.parse(decoder.decodeString())
+}}
+"#
+            )?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
