@@ -3,6 +3,7 @@ use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed to generate Typescript type-code
@@ -10,6 +11,7 @@ use std::{collections::HashMap, io::Write};
 pub struct TypeScript {
     /// Mappings from Rust type names to Typescript type names
     pub type_mappings: HashMap<String, String>,
+    pub has_date: AtomicBool,
 }
 
 impl Language for TypeScript {
@@ -38,7 +40,10 @@ impl Language for TypeScript {
                 },
                 self.format_type(rtype2, generic_types)?
             )),
-            SpecialRustType::DateTime => todo!(),
+            SpecialRustType::DateTime => {
+                self.has_date.store(true, Ordering::SeqCst);
+                Ok("Date".into())
+            }
             SpecialRustType::Unit => Ok("undefined".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
@@ -67,6 +72,15 @@ impl Language for TypeScript {
         writeln!(w, "*/")?;
         writeln!(w)?;
         Ok(())
+    }
+
+    fn end_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        if self.has_date.load(Ordering::SeqCst) {
+            writeln!(w, "export function TypeshareDateReviver(key, value): Date {{ return new Date(value); }}")?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     fn write_type_alias(&self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {

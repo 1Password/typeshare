@@ -72,7 +72,7 @@ impl Language for Go {
                 self.format_type(rtype1, generic_types)?,
                 self.format_type(rtype2, generic_types)?
             ),
-            SpecialRustType::DateTime => todo!(),
+            SpecialRustType::DateTime => "Time".into(),
             SpecialRustType::Unit => "struct{}".into(),
             SpecialRustType::String => "string".into(),
             SpecialRustType::I8
@@ -101,7 +101,13 @@ impl Language for Go {
         )?;
         writeln!(w, "package {}", self.package)?;
         writeln!(w)?;
-        writeln!(w, "import \"encoding/json\"")?;
+        writeln!(
+            w,
+            r#"import (
+    "encoding/json"
+    "time"
+)"#
+        )?;
         writeln!(w)?;
         Ok(())
     }

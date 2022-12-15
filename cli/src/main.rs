@@ -170,9 +170,11 @@ fn main() {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
             type_mappings: config.kotlin.type_mappings,
+            ..Default::default()
         }),
         Some("typescript") => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            ..Default::default()
         }),
         #[cfg(feature = "go")]
         Some("go") => Box::new(Go {
