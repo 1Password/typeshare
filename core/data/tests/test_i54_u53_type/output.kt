@@ -11,7 +11,7 @@ import kotlinx.serialization.*
 
 @Serializable
 data class Foo (
-	var a: Long,
-	var b: ULong
+	val a: Long,
+	val b: ULong
 )
 

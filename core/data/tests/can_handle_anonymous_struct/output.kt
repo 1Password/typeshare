@@ -13,16 +13,16 @@ import kotlinx.serialization.*
 @Serializable
 data class AutofilledByUsInner (
 	/// The UUID for the fill
-	var uuid: String
+	val uuid: String
 )
 
 /// Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
 @Serializable
 data class AutofilledBySomethingElseInner (
 	/// The UUID for the fill
-	var uuid: String,
+	val uuid: String,
 	/// Some other thing
-	var thing: Int
+	val thing: Int
 )
 
 /// Enum keeping track of who autofilled a field
@@ -41,14 +41,14 @@ sealed class AutofilledBy {
 /// Generated type representing the anonymous struct variant `AnonVariant` of the `EnumWithManyVariants` Rust enum
 @Serializable
 data class EnumWithManyVariantsAnonVariantInner (
-	var uuid: String
+	val uuid: String
 )
 
 /// Generated type representing the anonymous struct variant `AnotherAnonVariant` of the `EnumWithManyVariants` Rust enum
 @Serializable
 data class EnumWithManyVariantsAnotherAnonVariantInner (
-	var uuid: String,
-	var thing: Int
+	val uuid: String,
+	val thing: Int
 )
 
 /// This is a comment (yareek sameek wuz here)

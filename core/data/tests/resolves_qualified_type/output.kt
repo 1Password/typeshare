@@ -11,11 +11,11 @@ import kotlinx.serialization.*
 
 @Serializable
 data class QualifiedTypes (
-	var unqualified: String,
-	var qualified: String,
-	var qualified_vec: List<String>,
-	var qualified_hashmap: HashMap<String, String>,
-	var qualified_optional: String? = null,
-	var qualfied_optional_hashmap_vec: HashMap<String, List<String>>? = null
+	val unqualified: String,
+	val qualified: String,
+	val qualified_vec: List<String>,
+	val qualified_hashmap: HashMap<String, String>,
+	val qualified_optional: String? = null,
+	val qualfied_optional_hashmap_vec: HashMap<String, List<String>>? = null
 )
 

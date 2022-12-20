@@ -25,13 +25,13 @@ sealed class Options {
 /// Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 @Serializable
 data class MoreOptionsExactlyInner (
-	var config: String
+	val config: String
 )
 
 /// Generated type representing the anonymous struct variant `Built` of the `MoreOptions` Rust enum
 @Serializable
 data class MoreOptionsBuiltInner (
-	var top: MoreOptions
+	val top: MoreOptions
 )
 
 @Serializable

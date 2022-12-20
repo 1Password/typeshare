@@ -11,7 +11,7 @@ import kotlinx.serialization.*
 
 @Serializable
 data class StructUsingGenericEnum (
-	var enum_field: GenericEnum<String, Short>
+	val enum_field: GenericEnum<String, Short>
 )
 
 @Serializable
@@ -40,27 +40,27 @@ sealed class GenericEnumUsingGenericEnum<T> {
 /// Generated type representing the anonymous struct variant `VariantF` of the `GenericEnumsUsingStructVariants` Rust enum
 @Serializable
 data class GenericEnumsUsingStructVariantsVariantFInner<T> (
-	var action: T
+	val action: T
 )
 
 /// Generated type representing the anonymous struct variant `VariantG` of the `GenericEnumsUsingStructVariants` Rust enum
 @Serializable
 data class GenericEnumsUsingStructVariantsVariantGInner<T, U> (
-	var action: T,
-	var response: U
+	val action: T,
+	val response: U
 )
 
 /// Generated type representing the anonymous struct variant `VariantH` of the `GenericEnumsUsingStructVariants` Rust enum
 @Serializable
 data class GenericEnumsUsingStructVariantsVariantHInner (
-	var non_generic: Int
+	val non_generic: Int
 )
 
 /// Generated type representing the anonymous struct variant `VariantI` of the `GenericEnumsUsingStructVariants` Rust enum
 @Serializable
 data class GenericEnumsUsingStructVariantsVariantIInner<T, U> (
-	var vec: List<T>,
-	var action: MyType<T, U>
+	val vec: List<T>,
+	val action: MyType<T, U>
 )
 
 @Serializable

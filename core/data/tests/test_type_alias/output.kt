@@ -13,6 +13,6 @@ typealias Bar = String
 
 @Serializable
 data class Foo (
-	var bar: Bar
+	val bar: Bar
 )
 

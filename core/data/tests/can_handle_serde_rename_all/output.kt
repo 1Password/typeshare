@@ -12,18 +12,18 @@ import kotlinx.serialization.*
 /// This is a Person struct with camelCase rename
 @Serializable
 data class Person (
-	var firstName: String,
-	var lastName: String,
-	var age: UByte,
-	var extraSpecialField1: Int,
-	var extraSpecialField2: List<String>? = null
+	val firstName: String,
+	val lastName: String,
+	val age: UByte,
+	val extraSpecialField1: Int,
+	val extraSpecialField2: List<String>? = null
 )
 
 /// This is a Person2 struct with UPPERCASE rename
 @Serializable
 data class Person2 (
-	var FIRST_NAME: String,
-	var LAST_NAME: String,
-	var AGE: UByte
+	val FIRST_NAME: String,
+	val LAST_NAME: String,
+	val AGE: UByte
 )
 

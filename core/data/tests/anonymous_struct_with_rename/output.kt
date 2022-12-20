@@ -12,26 +12,26 @@ import kotlinx.serialization.*
 /// Generated type representing the anonymous struct variant `List` of the `AnonymousStructWithRename` Rust enum
 @Serializable
 data class AnonymousStructWithRenameListInner (
-	var list: List<String>
+	val list: List<String>
 )
 
 /// Generated type representing the anonymous struct variant `LongFieldNames` of the `AnonymousStructWithRename` Rust enum
 @Serializable
 data class AnonymousStructWithRenameLongFieldNamesInner (
-	var some_long_field_name: String,
-	var and: Boolean,
-	var but_one_more: List<String>
+	val some_long_field_name: String,
+	val and: Boolean,
+	val but_one_more: List<String>
 )
 
 /// Generated type representing the anonymous struct variant `KebabCase` of the `AnonymousStructWithRename` Rust enum
 @Serializable
 data class AnonymousStructWithRenameKebabCaseInner (
 	@SerialName("another-list")
-	var another_list: List<String>,
+	val another_list: List<String>,
 	@SerialName("camelCaseStringField")
-	var camelCaseStringField: String,
+	val camelCaseStringField: String,
 	@SerialName("something-else")
-	var something_else: Boolean
+	val something_else: Boolean
 )
 
 @Serializable
