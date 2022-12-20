@@ -309,7 +309,7 @@ impl Kotlin {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         write!(
             w,
-            "\tvar {}: {}{}",
+            "\tval {}: {}{}",
             remove_dash_from_identifier(&f.id.renamed),
             ty,
             (f.has_default && !f.ty.is_optional())
