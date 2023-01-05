@@ -11,6 +11,6 @@ import kotlinx.serialization.*
 
 @Serializable
 data class Foo (
-	var bar: Boolean? = null
+	val bar: Boolean? = null
 )
 

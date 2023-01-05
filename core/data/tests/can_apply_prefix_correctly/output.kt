@@ -11,7 +11,7 @@ import kotlinx.serialization.*
 
 @Serializable
 data class ItemDetailsFieldValue (
-	var hello: String
+	val hello: String
 )
 
 @Serializable

@@ -11,15 +11,15 @@ import kotlinx.serialization.*
 
 @Serializable
 data class GenericStruct<A, B> (
-	var field_a: A,
-	var field_b: List<B>
+	val field_a: A,
+	val field_b: List<B>
 )
 
 @Serializable
 data class GenericStructUsingGenericStruct<T> (
-	var struct_field: GenericStruct<String, T>,
-	var second_struct_field: GenericStruct<T, String>,
-	var third_struct_field: GenericStruct<T, List<T>>
+	val struct_field: GenericStruct<String, T>,
+	val second_struct_field: GenericStruct<T, String>,
+	val third_struct_field: GenericStruct<T, List<T>>
 )
 
 @Serializable

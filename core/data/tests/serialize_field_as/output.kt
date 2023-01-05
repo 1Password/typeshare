@@ -11,8 +11,8 @@ import kotlinx.serialization.*
 
 @Serializable
 data class EditItemViewModelSaveRequest (
-	var context: String,
-	var values: List<EditItemSaveValue>,
-	var fill_action: AutoFillItemActionRequest? = null
+	val context: String,
+	val values: List<EditItemSaveValue>,
+	val fill_action: AutoFillItemActionRequest? = null
 )
 

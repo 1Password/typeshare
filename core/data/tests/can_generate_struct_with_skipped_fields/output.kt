@@ -11,7 +11,7 @@ import kotlinx.serialization.*
 
 @Serializable
 data class MyStruct (
-	var a: Int,
-	var c: Int
+	val a: Int,
+	val c: Int
 )
 

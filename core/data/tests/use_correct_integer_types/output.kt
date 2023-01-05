@@ -12,11 +12,11 @@ import kotlinx.serialization.*
 /// This is a comment.
 @Serializable
 data class Foo (
-	var a: Byte,
-	var b: Short,
-	var c: Int,
-	var e: UByte,
-	var f: UShort,
-	var g: UInt
+	val a: Byte,
+	val b: Short,
+	val c: Int,
+	val e: UByte,
+	val f: UShort,
+	val g: UInt
 )
 
