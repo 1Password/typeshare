@@ -404,7 +404,7 @@ tests! {
     test_serde_default_struct: [swift, kotlin, typescript, go];
     test_serde_iso8601: [
         swift {
-            prefix: "".to_string(),
+            prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
         },
         kotlin {
@@ -421,7 +421,7 @@ tests! {
     ];
     test_serde_url: [
         swift {
-            prefix: "".to_string(),
+            prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
         },
         kotlin {
