@@ -451,6 +451,7 @@ tests! {
     ];
     can_handle_serde_rename_all: [swift, kotlin, typescript, go];
     can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, typescript, go];
+    can_generate_unit_structs: [swift, kotlin, typescript, go];
     kebab_case_rename: [swift, kotlin, typescript, go];
 
     /// Other

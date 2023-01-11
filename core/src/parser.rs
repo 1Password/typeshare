@@ -54,8 +54,6 @@ pub enum ParseError {
     UnsupportedType(String),
     #[error("tuple structs with more than one field are currently unsupported")]
     ComplexTupleStruct,
-    #[error("unit structs are currently unsupported")]
-    UnitStruct,
     #[error("multiple unnamed associated types are not currently supported")]
     MultipleUnnamedAssociatedTypes,
     #[error("the serde tag attribute is not supported for non-algebraic enums: {enum_ident}")]
@@ -191,7 +189,13 @@ fn parse_struct(s: &ItemStruct) -> Result<RustThing, ParseError> {
             })
         }
         // Unit structs or `None`
-        Fields::Unit => return Err(ParseError::UnitStruct),
+        Fields::Unit => RustThing::Struct(RustStruct {
+            id: get_ident(Some(&s.ident), &s.attrs, &None),
+            generic_types,
+            fields: vec![],
+            comments: parse_comment_attrs(&s.attrs),
+            decorators: get_decorators(&s.attrs),
+        }),
     })
 }
 
