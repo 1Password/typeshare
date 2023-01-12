@@ -21,7 +21,7 @@ pub struct Go {
 }
 
 impl Language for Go {
-    fn generate_types(&self, w: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(&mut self, w: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
         let mut types_mapping_to_struct = HashSet::new();
@@ -53,12 +53,12 @@ impl Language for Go {
         Ok(())
     }
 
-    fn type_map(&self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
     }
 
     fn format_special_type(
-        &self,
+        &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
@@ -90,7 +90,7 @@ impl Language for Go {
         })
     }
 
-    fn begin_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
         // This comment is specifically formatted to satisfy gosec's template for a generated file,
         // so the generated Go file can be ignored with `gosec -exclude-generated`.
         writeln!(
@@ -105,7 +105,7 @@ impl Language for Go {
         Ok(())
     }
 
-    fn write_type_alias(&self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
+    fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
         write_comments(w, 0, &ty.comments)?;
 
         writeln!(
@@ -119,7 +119,7 @@ impl Language for Go {
         Ok(())
     }
 
-    fn write_struct(&self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
+    fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
         write_comments(w, 0, &rs.comments)?;
         writeln!(
             w,
@@ -137,7 +137,7 @@ impl Language for Go {
 
 impl Go {
     fn write_enum(
-        &self,
+        &mut self,
         w: &mut dyn Write,
         e: &RustEnum,
         custom_structs: &HashSet<&str>,
@@ -362,7 +362,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     }
 
     fn write_field(
-        &self,
+        &mut self,
         w: &mut dyn Write,
         field: &RustField,
         generic_types: &[String],
@@ -421,7 +421,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         res
     }
 
-    fn format_field_name(&self, name: String, exported: bool) -> String {
+    fn format_field_name(&mut self, name: String, exported: bool) -> String {
         let name = if exported {
             name.to_pascal_case()
         } else {
