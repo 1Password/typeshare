@@ -10,7 +10,7 @@ The behaviour of Typeshare can be customized by either passing options on the co
     (Required) The file path to which the generated definitions will be written.
 
 - `-s`, `--swift-prefix`
-    Specify a prefix that will be appended to type names when generating types in Swift. 
+    Specify a prefix that will be prepended to type names when generating types in Swift. 
 
 - `-M`, `--module-name`
     Specify the name of the Kotlin module for generated Kotlin source code. 
