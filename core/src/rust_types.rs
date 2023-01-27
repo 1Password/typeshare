@@ -58,9 +58,10 @@ pub struct RustConst {
 /// boundary.
 #[derive(Debug, Clone)]
 pub enum RustConstExpr {
-    Int(i64),
+    Int(i128),
     Float(f64),
-    String(String)
+    Boolean(bool),
+    String(String),
 }
 
 /// Rust type alias.
