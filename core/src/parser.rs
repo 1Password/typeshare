@@ -412,17 +412,13 @@ fn parse_const(c: &ItemConst) -> Result<RustConst, ParseError> {
     } else {
         RustType::try_from(c.ty.as_ref())?
     } {
-        RustType::Special(SpecialRustType::HashMap(_, _)) => {
-            todo!()
-        }
-        RustType::Special(SpecialRustType::Vec(_)) => {
-            todo!()
-        }
-        RustType::Special(SpecialRustType::Option(_)) => {
-            todo!()
+        RustType::Special(SpecialRustType::HashMap(_, _))
+        | RustType::Special(SpecialRustType::Vec(_))
+        | RustType::Special(SpecialRustType::Option(_)) => {
+            return Err(ParseError::RustConstTypeInvalid);
         }
         RustType::Special(s) => s,
-        _ => todo!(),
+        _ => return Err(ParseError::RustConstTypeInvalid),
     };
     Ok(RustConst {
         id: get_ident(Some(&c.ident), &c.attrs, &None),
