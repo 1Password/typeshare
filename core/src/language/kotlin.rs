@@ -103,7 +103,8 @@ impl Language for Kotlin {
         writeln!(w, "@Serializable")?;
 
         if rs.fields.is_empty() {
-            writeln!(w, "class {}\n", rs.id.renamed)?;
+            // If the struct has no fields, we can define it as an static object.
+            writeln!(w, "object {}\n", rs.id.renamed)?;
         } else {
             writeln!(
                 w,
