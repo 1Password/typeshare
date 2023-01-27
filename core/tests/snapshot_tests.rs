@@ -438,6 +438,7 @@ tests! {
         },
     ];
     test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, typescript, go ];
+    test_optional_type_alias: [swift, kotlin, typescript, go];
     test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, typescript ];
     test_serialized_as_tuple: [
         swift {

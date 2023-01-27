@@ -77,13 +77,16 @@ impl Language for TypeScript {
 
         writeln!(
             w,
-            "export type {}{}{} = {};\n",
+            "export type {}{} = {}{};\n",
             ty.id.renamed,
             (!ty.generic_types.is_empty())
                 .then(|| format!("<{}>", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
-            ty.r#type.is_optional().then(|| "?").unwrap_or_default(),
             r#type,
+            ty.r#type
+                .is_optional()
+                .then(|| " | undefined")
+                .unwrap_or_default(),
         )?;
 
         Ok(())
