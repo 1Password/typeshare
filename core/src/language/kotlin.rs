@@ -1,5 +1,5 @@
 use super::Language;
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustTypeFormatError, SpecialRustType};
 use crate::{
     parser::remove_dash_from_identifier,
     rename::RenameExt,
@@ -96,6 +96,10 @@ impl Language for Kotlin {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {

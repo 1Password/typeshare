@@ -1,4 +1,4 @@
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -87,6 +87,10 @@ impl Language for TypeScript {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {

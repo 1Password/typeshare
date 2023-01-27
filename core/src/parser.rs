@@ -2,14 +2,15 @@ use crate::{
     rename::RenameExt,
     rust_types::{
         Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField,
-        RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+        RustStruct, RustType, RustTypeAlias, RustTypeParseError, RustConst, SpecialRustType
     },
 };
 use proc_macro2::{Ident, Span};
 use std::{collections::HashMap, convert::TryFrom};
-use syn::GenericParam;
+use syn::{Expr, GenericParam, ItemConst};
 use syn::{Fields, ItemEnum, ItemStruct, ItemType};
 use thiserror::Error;
+use crate::rust_types::RustConstExpr;
 
 // TODO: parsing is very opinionated and makes some decisions that should be
 // getting made at code generation time. Fix this.
@@ -23,6 +24,8 @@ pub struct ParsedData {
     pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+    /// Constant variables defined in the source
+    pub consts: Vec<RustConst>,
 }
 
 impl ParsedData {
@@ -31,6 +34,7 @@ impl ParsedData {
         self.structs.append(&mut other.structs);
         self.enums.append(&mut other.enums);
         self.aliases.append(&mut other.aliases);
+        self.consts.append(&mut other.consts);
     }
 
     fn push_rust_thing(&mut self, rust_thing: RustThing) {
@@ -38,6 +42,7 @@ impl ParsedData {
             RustThing::Struct(s) => self.structs.push(s),
             RustThing::Enum(e) => self.enums.push(e),
             RustThing::Alias(a) => self.aliases.push(a),
+            RustThing::Const(c) => self.consts.push(c),
         }
     }
 }
@@ -90,6 +95,9 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
             syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
                 parsed_data.aliases.push(parse_type_alias(t)?);
             }
+            syn::Item::Const(c) if has_typeshare_annotation(&c.attrs) => {
+                parsed_data.consts.push(parse_const(c)?)
+            }
             _ => {}
         }
     }
@@ -103,6 +111,7 @@ enum RustThing {
     Struct(RustStruct),
     Enum(RustEnum),
     Alias(RustTypeAlias),
+    Const(RustConst),
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -384,6 +393,40 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
     })
+}
+
+fn parse_const(c: &ItemConst) -> Result<RustConst, ParseError> {
+    let expr = parse_const_expr(&c.expr)?;
+
+
+    // serialized_as needs to be supported in case the user wants to use a different type
+    // for the constant variable in a different language
+    let ty = match if let Some(ty) = get_serialized_as_type(&c.attrs) {
+        ty.parse()?
+    } else {
+        RustType::try_from(c.ty.as_ref())?
+    } {
+       RustType::Special(SpecialRustType::HashMap(_, _)) => {
+           todo!()
+       },
+        RustType::Special(SpecialRustType::Vec(_)) => {
+            todo!()
+        },
+        RustType::Special(SpecialRustType::Option(_)) => {
+            todo!()
+        },
+        RustType::Special(s) => s,
+        _ => todo!()
+    };
+    Ok(RustConst {
+        id: get_ident(Some(&c.ident), &c.attrs, &None),
+        r#type: ty,
+        expr
+    })
+}
+
+fn parse_const_expr(c: &Expr) -> Result<RustConstExpr, ParseError> {
+    todo!()
 }
 
 // Helpers

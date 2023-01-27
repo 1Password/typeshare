@@ -41,6 +41,28 @@ pub struct RustStruct {
     pub decorators: HashMap<String, Vec<String>>,
 }
 
+/// Rust const variable.
+///
+/// Typeshare can only handle numeric and string constants.
+/// ```
+/// pub const MY_CONST: &str = "constant value";
+/// ```
+#[derive(Debug, Clone)]
+pub struct RustConst {
+    pub id: Id,
+    pub r#type: SpecialRustType,
+    pub expr: RustConstExpr,
+}
+
+/// A constant expression that can be shared via a constant variable across the typeshare
+/// boundary.
+#[derive(Debug, Clone)]
+pub enum RustConstExpr {
+    Int(i64),
+    Float(f64),
+    String(String)
+}
+
 /// Rust type alias.
 /// ```
 /// pub struct MasterPassword(String);

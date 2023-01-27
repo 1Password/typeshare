@@ -1,4 +1,4 @@
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     parser::remove_dash_from_identifier,
@@ -193,6 +193,10 @@ impl Language for Swift {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {

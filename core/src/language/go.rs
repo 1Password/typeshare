@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -117,6 +117,10 @@ impl Language for Go {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
