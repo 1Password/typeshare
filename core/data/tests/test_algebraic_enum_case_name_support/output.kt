@@ -10,7 +10,7 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class ItemDetailsFieldValue
+object ItemDetailsFieldValue
 
 @Serializable
 sealed class AdvancedColors {

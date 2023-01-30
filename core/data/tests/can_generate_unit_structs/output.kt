@@ -10,5 +10,5 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class UnitStruct
+object UnitStruct
 

@@ -10,7 +10,7 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class AddressDetails
+object AddressDetails
 
 @Serializable
 sealed class Address {
