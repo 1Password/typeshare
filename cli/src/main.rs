@@ -160,7 +160,7 @@ fn main() {
     let mut directories = options.values_of("directories").unwrap();
     let outfile = Path::new(options.value_of(ARG_OUTPUT_FILE).unwrap());
 
-    let lang: Box<dyn Language> = match language_type {
+    let mut lang: Box<dyn Language> = match language_type {
         Some("swift") => Box::new(Swift {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,

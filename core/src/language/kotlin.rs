@@ -175,7 +175,7 @@ impl Language for Kotlin {
 }
 
 impl Kotlin {
-    fn write_enum_variants(&self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
+    fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         match e {
             RustEnum::Unit(shared) => {
                 for v in &shared.variants {
@@ -294,7 +294,7 @@ impl Kotlin {
     }
 
     fn write_element(
-        &self,
+        &mut self,
         w: &mut dyn Write,
         f: &RustField,
         generic_types: &[String],
