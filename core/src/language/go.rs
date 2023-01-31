@@ -143,8 +143,12 @@ impl Go {
         custom_structs: &HashSet<&str>,
     ) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
+        let uppercase_acronyms = self.uppercase_acronyms.clone();
         let make_anonymous_struct_name = |variant_name: &str| {
-            self.acronyms_to_uppercase(&format!("{}{}Inner", &e.shared().id.original, variant_name))
+            convert_acronyms_to_uppercase(
+                uppercase_acronyms.clone(),
+                &format!("{}{}Inner", &e.shared().id.original, variant_name),
+            )
         };
 
         // Generate named types for any anonymous struct variants of this enum
@@ -376,11 +380,10 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         }
 
         write_comments(w, 1, &field.comments)?;
-        let go_type = self.acronyms_to_uppercase(
-            &self
-                .format_type(&field.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-        );
+        let type_name = self
+            .format_type(&field.ty, generic_types)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let go_type = self.acronyms_to_uppercase(&type_name);
         let is_optional = field.ty.is_optional() || field.has_default;
         writeln!(
             w,
@@ -400,25 +403,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     // Convert any of the configured acronyms to uppercase to follow Go's formatting standard.
     // If self.uppercase_acronyms contains ID (or id), Id will get replaced by ID.
     fn acronyms_to_uppercase(&self, name: &str) -> String {
-        let mut res = name.to_string();
-        for a in &self.uppercase_acronyms {
-            for (i, a) in name.match_indices(&a.to_string().to_pascal_case()) {
-                let acronym_len = a.chars().count();
-
-                // Only perform the replacement if the matched string is not followed by a lowercase
-                // or its the end of the string.
-                // This prevents replacing Identity with IDentity.
-                if name
-                    .chars()
-                    .nth(i + acronym_len)
-                    .map(|c| !c.is_lowercase())
-                    .unwrap_or(true)
-                {
-                    res.replace_range(i..i + acronym_len, &a.to_uppercase());
-                }
-            }
-        }
-        res
+        convert_acronyms_to_uppercase(self.uppercase_acronyms.clone(), name)
     }
 
     fn format_field_name(&mut self, name: String, exported: bool) -> String {
@@ -440,4 +425,26 @@ fn write_comments(w: &mut dyn Write, indent: usize, comments: &[String]) -> std:
     comments
         .iter()
         .try_for_each(|comment| write_comment(w, indent, comment))
+}
+
+fn convert_acronyms_to_uppercase(uppercase_acronyms: Vec<String>, name: &str) -> String {
+    let mut res = name.to_string();
+    for a in &uppercase_acronyms {
+        for (i, a) in name.match_indices(&a.to_string().to_pascal_case()) {
+            let acronym_len = a.chars().count();
+
+            // Only perform the replacement if the matched string is not followed by a lowercase
+            // or its the end of the string.
+            // This prevents replacing Identity with IDentity.
+            if name
+                .chars()
+                .nth(i + acronym_len)
+                .map(|c| !c.is_lowercase())
+                .unwrap_or(true)
+            {
+                res.replace_range(i..i + acronym_len, &a.to_uppercase());
+            }
+        }
+    }
+    res
 }

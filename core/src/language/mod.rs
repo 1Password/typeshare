@@ -24,7 +24,11 @@ pub use typescript::TypeScript;
 pub trait Language {
     /// Given `data`, generate type-code for this language and write it out to `writable`.
     /// Returns whether or not writing was successful.
-    fn generate_types(&mut self, writable: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        writable: &mut dyn Write,
+        data: &ParsedData,
+    ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
         for a in &data.aliases {
