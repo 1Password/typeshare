@@ -10,7 +10,7 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class OtherType
+object OtherType
 
 /// This is a comment.
 @Serializable
