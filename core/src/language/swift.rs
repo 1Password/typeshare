@@ -231,7 +231,7 @@ impl Language for Swift {
             decs.join(", ")
         )?;
 
-        for f in rs.fields.iter() {
+        for f in &rs.fields {
             self.write_comments(w, 1, &f.comments)?;
 
             // Create coding keys for serialization / deserialization
@@ -284,7 +284,7 @@ impl Language for Swift {
         }
 
         let mut init_params: Vec<String> = Vec::new();
-        for f in rs.fields.iter() {
+        for f in &rs.fields {
             let swift_ty = self
                 .format_type(&f.ty, rs.generic_types.as_slice())
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -299,7 +299,7 @@ impl Language for Swift {
         }
 
         write!(w, "\tpublic init({}) {{", init_params.join(", "))?;
-        for f in rs.fields.iter() {
+        for f in &rs.fields {
             write!(
                 w,
                 "\n\t\tself.{} = {}",
@@ -440,7 +440,7 @@ impl Swift {
 
         match e {
             RustEnum::Unit(shared) => {
-                for v in shared.variants.iter() {
+                for v in &shared.variants {
                     let variant_name = v.shared().id.original.to_camel_case();
 
                     self.write_comments(w, 1, &v.shared().comments)?;
@@ -464,7 +464,7 @@ impl Swift {
                 shared,
             } => {
                 let generics = &shared.generic_types;
-                for v in shared.variants.iter() {
+                for v in &shared.variants {
                     self.write_comments(w, 1, &v.shared().comments)?;
 
                     let variant_name = {

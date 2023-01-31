@@ -446,7 +446,7 @@ tests! {
     test_serde_default_struct: [swift, kotlin, scala,  typescript, go];
     test_serde_iso8601: [
         swift {
-            prefix: "".to_string(),
+            prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
         },
         kotlin {
@@ -468,7 +468,7 @@ tests! {
     ];
     test_serde_url: [
         swift {
-            prefix: "".to_string(),
+            prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
         },
         kotlin {
@@ -490,6 +490,7 @@ tests! {
         },
     ];
     test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
+    test_optional_type_alias: [swift, kotlin, scala, typescript, go];
     test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript];
     test_serialized_as_tuple: [
         swift {
@@ -504,6 +505,7 @@ tests! {
     ];
     can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go];
     can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go];
+    can_generate_unit_structs: [swift, kotlin, scala, typescript, go];
     kebab_case_rename: [swift, kotlin, scala,  typescript, go];
 
     /// Other

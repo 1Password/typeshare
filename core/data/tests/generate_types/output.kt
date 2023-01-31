@@ -14,14 +14,14 @@ class CustomType
 
 @Serializable
 data class Types (
-	var s: String,
-	var static_s: String,
-	var int8: Byte,
-	var float: Float,
-	var double: Double,
-	var array: List<String>,
-	var dictionary: HashMap<String, Int>,
-	var optional_dictionary: HashMap<String, Int>? = null,
-	var custom_type: CustomType
+	val s: String,
+	val static_s: String,
+	val int8: Byte,
+	val float: Float,
+	val double: Double,
+	val array: List<String>,
+	val dictionary: HashMap<String, Int>,
+	val optional_dictionary: HashMap<String, Int>? = null,
+	val custom_type: CustomType
 )
 

@@ -13,10 +13,10 @@ import kotlinx.serialization.*
 @Serializable
 data class Things (
 	@SerialName("bla")
-	var bla: String,
+	val bla: String,
 	@SerialName("label")
-	var label: String? = null,
+	val label: String? = null,
 	@SerialName("label-left")
-	var label_left: String? = null
+	val label_left: String? = null
 )
 

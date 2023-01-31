@@ -12,7 +12,7 @@ import kotlinx.serialization.*
 /// This struct has a unit field
 @Serializable
 data class StructHasVoidType (
-	var thisIsAUnit: Unit
+	val thisIsAUnit: Unit
 )
 
 /// This enum has a variant associated with unit data

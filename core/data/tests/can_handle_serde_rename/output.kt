@@ -15,11 +15,11 @@ class OtherType
 /// This is a comment.
 @Serializable
 data class Person (
-	var name: String,
-	var age: UByte,
-	var extraSpecialFieldOne: Int,
-	var extraSpecialFieldTwo: List<String>? = null,
-	var nonStandardDataType: OtherType,
-	var nonStandardDataTypeInArray: List<OtherType>? = null
+	val name: String,
+	val age: UByte,
+	val extraSpecialFieldOne: Int,
+	val extraSpecialFieldTwo: List<String>? = null,
+	val nonStandardDataType: OtherType,
+	val nonStandardDataTypeInArray: List<OtherType>? = null
 )
 

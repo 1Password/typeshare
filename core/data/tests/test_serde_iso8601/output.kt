@@ -11,6 +11,6 @@ import kotlinx.serialization.*
 
 @Serializable
 data class Foo (
-	var time: String
+	val time: String
 )
 

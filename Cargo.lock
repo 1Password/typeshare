@@ -60,9 +60,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.11.0"
+version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1ad822118d20d2c234f427000d5acc36eabe1e29a348c89b63dd60b13f28e5d"
+checksum = "0d261e256854913907f67ed06efbc3338dfe6179796deefc1ff763fc1aee5535"
 
 [[package]]
 name = "cfg-if"
@@ -98,6 +98,36 @@ dependencies = [
  "strsim",
  "termcolor",
  "textwrap",
+]
+
+[[package]]
+name = "clap_complete"
+version = "3.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f7a2e0a962c45ce25afce14220bc24f9dade0a1787f185cecf96bfba7847cd8"
+dependencies = [
+ "clap",
+]
+
+[[package]]
+name = "clap_complete_command"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d77159b3389b97ee638bb2a1d572069a7d9088a55e6281e3c76fc17b9cd51227"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "clap_complete_fig",
+]
+
+[[package]]
+name = "clap_complete_fig"
+version = "3.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed37b4c0c1214673eba6ad8ea31666626bf72be98ffb323067d973c48b4964b9"
+dependencies = [
+ "clap",
+ "clap_complete",
 ]
 
 [[package]]
@@ -571,9 +601,10 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap",
+ "clap_complete_command",
  "ignore",
  "once_cell",
  "rayon",

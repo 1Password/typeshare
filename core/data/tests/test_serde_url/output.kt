@@ -11,6 +11,6 @@ import kotlinx.serialization.*
 
 @Serializable
 data class Foo (
-	var url: String
+	val url: String
 )
 

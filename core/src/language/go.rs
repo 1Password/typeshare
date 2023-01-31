@@ -25,10 +25,10 @@ impl Language for Go {
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
         let mut types_mapping_to_struct = HashSet::new();
-        for s in data.structs.iter() {
+        for s in &data.structs {
             types_mapping_to_struct.insert(s.id.original.as_str());
         }
-        for alias in data.aliases.iter() {
+        for alias in &data.aliases {
             if types_mapping_to_struct.contains(&alias.r#type.id()) {
                 types_mapping_to_struct.insert(alias.id.original.as_str());
             }
@@ -36,15 +36,15 @@ impl Language for Go {
 
         self.begin_file(w)?;
 
-        for a in data.aliases.iter() {
+        for a in &data.aliases {
             self.write_type_alias(w, a)?;
         }
 
-        for s in data.structs.iter() {
+        for s in &data.structs {
             self.write_struct(w, s)?;
         }
 
-        for e in data.enums.iter() {
+        for e in &data.enums {
             self.write_enum(w, e, &types_mapping_to_struct)?;
         }
 
@@ -203,7 +203,7 @@ impl Go {
                 let mut variant_accessors = Vec::new();
                 let mut variant_constructors = Vec::new();
 
-                for v in shared.variants.iter() {
+                for v in &shared.variants {
                     let variant_name = self.acronyms_to_uppercase(&v.shared().id.original);
                     let variant_type = match v {
                         RustEnumVariant::Tuple { ty, .. } => {
@@ -422,9 +422,10 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     }
 
     fn format_field_name(&self, name: String, exported: bool) -> String {
-        let name = match exported {
-            true => name.to_pascal_case(),
-            false => name,
+        let name = if exported {
+            name.to_pascal_case()
+        } else {
+            name
         };
         self.acronyms_to_uppercase(&name)
     }

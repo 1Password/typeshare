@@ -16,10 +16,10 @@ class Location
 @Serializable
 data class Person (
 	/// This is another comment
-	var name: String,
-	var age: UByte,
-	var info: String? = null,
-	var emails: List<String>,
-	var location: Location
+	val name: String,
+	val age: UByte,
+	val info: String? = null,
+	val emails: List<String>,
+	val location: Location
 )
 

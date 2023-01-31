@@ -20,7 +20,7 @@ The currently supported output languages are:
 - Go
 
 ---
-If your favourite language is not in this list, consider opening an issue to request it or try implementing it yourself! See our [contribution guidelines](./contribution.md) for more details.
+If your favourite language is not in this list, consider opening an issue to request it or try implementing it yourself! See our [contribution guidelines](../contributing.md) for more details.
 
 ---
 

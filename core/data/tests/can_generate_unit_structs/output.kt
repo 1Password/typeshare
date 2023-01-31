@@ -10,8 +10,5 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-data class MyStruct (
-	val a: Int,
-	val c: Int
-)
+class UnitStruct
 
