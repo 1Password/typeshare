@@ -10,7 +10,7 @@ mod kotlin;
 mod swift;
 mod typescript;
 
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use swift::Swift;
@@ -130,6 +130,15 @@ pub trait Language {
     /// type MyTypeAlias = String;
     /// ```
     fn write_type_alias(&self, _w: &mut dyn Write, _t: &RustTypeAlias) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    /// Write a constant variable.
+    /// Example of a constant variable:
+    /// ```
+    /// const ANSWER_TO_EVERYTHING: u32 = 42;
+    /// ```
+    fn write_const(&self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
         Ok(())
     }
 
