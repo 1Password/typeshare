@@ -20,7 +20,7 @@ mod blocklisted_types {
 
         let mut out: Vec<u8> = Vec::new();
         assert!(matches!(
-            process_input(&source, &TypeScript::default(), &mut out),
+            process_input(&source, &mut TypeScript::default(), &mut out),
             Err(ProcessInputError::ParseError(
                 ParseError::RustTypeParseError(RustTypeParseError::UnsupportedType(contents))
             )) if contents == vec![blocklisted_type.to_owned()]
@@ -79,7 +79,7 @@ mod serde_attributes_on_enums {
 
         let mut out: Vec<u8> = Vec::new();
         assert!(matches!(
-            process_input(source, &TypeScript::default(), &mut out).unwrap_err(),
+            process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeContentNotAllowed { enum_ident }) if enum_ident == "Foo"
         ));
     }
@@ -97,7 +97,7 @@ mod serde_attributes_on_enums {
 
         let mut out: Vec<u8> = Vec::new();
         assert!(matches!(
-            process_input(source, &TypeScript::default(), &mut out).unwrap_err(),
+            process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeTagNotAllowed { enum_ident }) if enum_ident == "Foo"
         ));
     }
@@ -115,7 +115,7 @@ mod serde_attributes_on_enums {
 
         let mut out: Vec<u8> = Vec::new();
         assert!(matches!(
-            process_input(source, &TypeScript::default(), &mut out).unwrap_err(),
+            process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeTagNotAllowed { enum_ident }) if enum_ident == "Foo"
         ));
     }

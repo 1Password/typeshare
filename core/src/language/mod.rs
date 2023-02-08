@@ -24,7 +24,11 @@ pub use typescript::TypeScript;
 pub trait Language {
     /// Given `data`, generate type-code for this language and write it out to `writable`.
     /// Returns whether or not writing was successful.
-    fn generate_types(&self, writable: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        writable: &mut dyn Write,
+        data: &ParsedData,
+    ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
         for a in &data.aliases {
@@ -45,11 +49,11 @@ pub trait Language {
     }
 
     /// Get the type mapping for this language `(Rust type name -> lang type name)`
-    fn type_map(&self) -> &HashMap<String, String>;
+    fn type_map(&mut self) -> &HashMap<String, String>;
 
     /// Convert a Rust type into a type from this language.
     fn format_type(
-        &self,
+        &mut self,
         ty: &RustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
@@ -68,7 +72,7 @@ pub trait Language {
     /// need to differentiate between a user-defined type and a generic type (for example: Swift)
     #[allow(clippy::ptr_arg)]
     fn format_simple_type(
-        &self,
+        &mut self,
         base: &String,
         _generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
@@ -84,7 +88,7 @@ pub trait Language {
     /// may be recursive.
     #[allow(clippy::ptr_arg)]
     fn format_generic_type(
-        &self,
+        &mut self,
         base: &String,
         parameters: &[RustType],
         generic_types: &[String],
@@ -109,18 +113,18 @@ pub trait Language {
 
     /// Format a base type that is classified as a SpecialRustType.
     fn format_special_type(
-        &self,
+        &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError>;
 
     /// Implementors can use this function to write a header for typeshared code
-    fn begin_file(&self, _w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
         Ok(())
     }
 
     /// Implementors can use this function to write a footer for typeshared code
-    fn end_file(&self, _w: &mut dyn Write) -> std::io::Result<()> {
+    fn end_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
         Ok(())
     }
 
@@ -129,7 +133,7 @@ pub trait Language {
     /// ```
     /// type MyTypeAlias = String;
     /// ```
-    fn write_type_alias(&self, _w: &mut dyn Write, _t: &RustTypeAlias) -> std::io::Result<()> {
+    fn write_type_alias(&mut self, _w: &mut dyn Write, _t: &RustTypeAlias) -> std::io::Result<()> {
         Ok(())
     }
 
@@ -142,7 +146,7 @@ pub trait Language {
     ///     bar: String
     /// }
     /// ```
-    fn write_struct(&self, _w: &mut dyn Write, _rs: &RustStruct) -> std::io::Result<()> {
+    fn write_struct(&mut self, _w: &mut dyn Write, _rs: &RustStruct) -> std::io::Result<()> {
         Ok(())
     }
 
@@ -157,7 +161,7 @@ pub trait Language {
     ///     Buzz { yep_this_works: bool }
     /// }
     /// ```
-    fn write_enum(&self, _w: &mut dyn Write, _e: &RustEnum) -> std::io::Result<()> {
+    fn write_enum(&mut self, _w: &mut dyn Write, _e: &RustEnum) -> std::io::Result<()> {
         Ok(())
     }
 
@@ -186,7 +190,7 @@ pub trait Language {
     /// given the variant name and asked to return whatever struct name works best
     /// for your language.
     fn write_types_for_anonymous_structs(
-        &self,
+        &mut self,
         w: &mut dyn Write,
         e: &RustEnum,
         make_struct_name: &dyn Fn(&str) -> String,

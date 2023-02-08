@@ -26,7 +26,7 @@ pub enum ProcessInputError {
 /// Parse and generate types for a single Rust input file.
 pub fn process_input(
     input: &str,
-    language: &dyn Language,
+    language: &mut dyn Language,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
     let parsed_data = parser::parse(input)?;

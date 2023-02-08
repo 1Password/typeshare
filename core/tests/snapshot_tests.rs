@@ -52,7 +52,7 @@ fn load_file(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
 fn check(
     test_name: &str,
     file_name: impl AsRef<Path>,
-    lang: Box<dyn Language>,
+    mut lang: Box<dyn Language>,
 ) -> Result<(), anyhow::Error> {
     let _extension = file_name
         .as_ref()
