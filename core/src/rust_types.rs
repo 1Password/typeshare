@@ -272,6 +272,16 @@ impl RustType {
     pub fn is_optional(&self) -> bool {
         matches!(self, Self::Special(SpecialRustType::Option(_)))
     }
+
+    /// Check if the type is `Option<Option<T>>`
+    pub fn is_double_optional(&self) -> bool {
+        match &self {
+            RustType::Special(SpecialRustType::Option(t)) => {
+                matches!(t.as_ref(), RustType::Special(SpecialRustType::Option(_)))
+            }
+            _ => false,
+        }
+    }
     /// Check if the type is `Vec<T>`
     pub fn is_vec(&self) -> bool {
         matches!(self, Self::Special(SpecialRustType::Vec(_)))
