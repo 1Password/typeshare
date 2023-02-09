@@ -6,7 +6,10 @@ use crate::{
     },
 };
 use proc_macro2::{Ident, Span};
-use std::{collections::HashMap, convert::TryFrom};
+use std::{
+    collections::{HashMap, HashSet},
+    convert::TryFrom,
+};
 use syn::{Attribute, Fields, ItemEnum, ItemStruct, ItemType};
 use syn::{GenericParam, Meta, NestedMeta};
 use thiserror::Error;
@@ -153,12 +156,14 @@ fn parse_struct(s: &ItemStruct) -> Result<RustThing, ParseError> {
                     };
 
                     let has_default = serde_default(&f.attrs);
+                    let decorators = get_field_decorators(&f.attrs);
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &serde_rename_all),
                         ty,
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
+                        decorators,
                     })
                 })
                 .collect::<Result<_, ParseError>>()?;
@@ -348,12 +353,14 @@ fn parse_enum_variant(
                     };
 
                     let has_default = serde_default(&f.attrs);
+                    let decorators = get_field_decorators(&f.attrs);
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &variant_serde_rename_all),
                         ty: field_type,
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
+                        decorators,
                     })
                 })
                 .collect::<Result<Vec<_>, ParseError>>()?,
@@ -531,6 +538,48 @@ fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
     get_typeshare_name_value_meta_items(attrs, "serialized_as")
         .next()
         .and_then(literal_as_string)
+}
+
+/// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
+/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, HashSet<decoration_words>>`, where `language` and `decoration_words` are `String`s
+fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<String, HashSet<String>> {
+    let languages: HashSet<String> = ["typescript", "kotlin", "go", "swift"]
+        .iter()
+        .map(|l| l.to_string())
+        .collect();
+
+    attrs
+        .iter()
+        .flat_map(get_typeshare_meta_items)
+        .flat_map(|meta| {
+            if let NestedMeta::Meta(Meta::List(list)) = meta {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .flat_map(|list| match list.path.get_ident() {
+            Some(ident) if languages.contains(&ident.to_string()) => {
+                Some((ident.to_string(), list.nested))
+            }
+            _ => None,
+        })
+        .map(|(language, list)| {
+            (
+                language,
+                list.iter()
+                    .flat_map(|nested| match nested {
+                        NestedMeta::Meta(Meta::Path(path)) => path.get_ident(),
+                        _ => None,
+                    })
+                    .map(|ident| ident.to_string())
+                    .collect::<HashSet<String>>(),
+            )
+        })
+        .fold(HashMap::new(), |mut acc, (language, decorators)| {
+            acc.entry(language).or_default().extend(decorators);
+            acc
+        })
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`

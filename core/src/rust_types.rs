@@ -1,4 +1,5 @@
 use quote::ToTokens;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
@@ -70,6 +71,9 @@ pub struct RustField {
     /// Even if the field's type is not optional, we need to make it optional
     /// for the languages we generate code for.
     pub has_default: bool,
+    /// Language-specific decorators assigned to a given field.
+    /// The keys are language names (e.g. typescript), the values are decorators (e.g. readonly)
+    pub decorators: HashMap<String, HashSet<String>>,
 }
 
 /// A Rust type.

@@ -220,9 +220,15 @@ impl TypeScript {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
+        let is_readonly = field
+            .decorators
+            .get("typescript")
+            .filter(|v| v.contains(&"readonly".to_string()))
+            .is_some();
         writeln!(
             w,
-            "\t{}{}: {}{};",
+            "\t{}{}{}: {}{};",
+            is_readonly.then(|| "readonly ").unwrap_or_default(),
             typescript_property_aware_rename(&field.id.renamed),
             optional.then(|| "?").unwrap_or_default(),
             ts_ty,
