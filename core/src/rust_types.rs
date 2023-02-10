@@ -4,7 +4,7 @@ use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Id {
     /// The original identifier name
     pub original: String,
@@ -25,7 +25,7 @@ impl std::fmt::Display for Id {
 }
 
 /// Rust struct.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustStruct {
     /// The identifier for the struct.
     pub id: Id,
@@ -45,7 +45,7 @@ pub struct RustStruct {
 /// ```
 /// pub struct MasterPassword(String);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustTypeAlias {
     /// The identifier for the alias.
     pub id: Id,
@@ -58,7 +58,7 @@ pub struct RustTypeAlias {
 }
 
 /// Rust field definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustField {
     /// Identifier for the field.
     pub id: Id,
@@ -383,7 +383,7 @@ impl SpecialRustType {
 }
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RustEnum {
     /// A unit enum
     ///
@@ -433,7 +433,7 @@ impl RustEnum {
 }
 
 /// Enum information shared among different enum types
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RustEnumShared {
     /// The enum's ident
     pub id: Id,
@@ -453,7 +453,7 @@ pub struct RustEnumShared {
 }
 
 /// Parsed information about a Rust enum variant
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RustEnumVariant {
     /// A unit variant
     Unit(RustEnumVariantShared),
@@ -485,10 +485,17 @@ impl RustEnumVariant {
 }
 
 /// Variant information shared among different variant types
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RustEnumVariantShared {
     /// The variant's ident
     pub id: Id,
     /// Comments applied to the variant
     pub comments: Vec<String>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RustThing<'a> {
+    Enum(&'a RustEnum),
+    TypeAlias(&'a RustTypeAlias),
+    Struct(&'a RustStruct),
 }

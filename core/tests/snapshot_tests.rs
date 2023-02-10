@@ -455,6 +455,9 @@ tests! {
     can_generate_unit_structs: [swift, kotlin, typescript, go];
     kebab_case_rename: [swift, kotlin, typescript, go];
 
+    /// Globals get topologically sorted
+    orders_types: [swift, kotlin, go];
+
     /// Other
     use_correct_integer_types: [swift, kotlin, typescript, go];
     // Only swift supports generating types with keywords

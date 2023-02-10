@@ -1,6 +1,7 @@
 use crate::{
     parser::ParsedData,
-    rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustThing, RustTypeAlias},
+    topsort::topsort,
 };
 use itertools::Itertools;
 use std::{collections::HashMap, io::Write};
@@ -31,16 +32,28 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
+        let mut things: Vec<RustThing> = vec![];
+
         for a in &data.aliases {
-            self.write_type_alias(writable, a)?;
+            things.push(RustThing::TypeAlias(a))
         }
 
         for s in &data.structs {
-            self.write_struct(writable, s)?;
+            things.push(RustThing::Struct(s))
         }
 
         for e in &data.enums {
-            self.write_enum(writable, e)?;
+            things.push(RustThing::Enum(e))
+        }
+
+        let sorted = topsort(things.iter().collect());
+
+        for &thing in &sorted {
+            match thing {
+                RustThing::Enum(e) => self.write_enum(writable, e)?,
+                RustThing::Struct(s) => self.write_struct(writable, s)?,
+                RustThing::TypeAlias(a) => self.write_type_alias(writable, a)?,
+            }
         }
 
         self.end_file(writable)?;

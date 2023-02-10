@@ -79,6 +79,7 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]
     let source = syn::parse_file(input)?;
+
     for item in &source.items {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
