@@ -219,12 +219,14 @@ impl TypeScript {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let optional = field.ty.is_optional() || field.has_default;
+        let double_optional = field.ty.is_double_optional();
         writeln!(
             w,
-            "\t{}{}: {};",
+            "\t{}{}: {}{};",
             typescript_property_aware_rename(&field.id.renamed),
             optional.then(|| "?").unwrap_or_default(),
-            ts_ty
+            ts_ty,
+            double_optional.then(|| " | null").unwrap_or_default()
         )?;
 
         Ok(())

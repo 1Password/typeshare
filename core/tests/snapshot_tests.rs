@@ -359,6 +359,9 @@ tests! {
         go
     ];
     can_generate_bare_string_enum: [swift, kotlin, typescript];
+    can_generate_double_option_pattern: [
+        typescript
+    ];
     test_simple_enum_case_name_support: [swift, kotlin, typescript];
     test_algebraic_enum_case_name_support: [
         swift {
