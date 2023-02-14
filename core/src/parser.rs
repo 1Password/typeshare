@@ -14,6 +14,9 @@ use thiserror::Error;
 // TODO: parsing is very opinionated and makes some decisions that should be
 // getting made at code generation time. Fix this.
 
+const SERDE: &str = "serde";
+const TYPESHARE: &str = "typeshare";
+
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
 pub struct ParsedData {
@@ -565,7 +568,18 @@ fn serde_default(attrs: &[syn::Attribute]) -> bool {
 // TODO: for now, this is a workaround until we can integrate serde_derive_internal
 // into our parser.
 pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
-    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != "serde" {
+    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != SERDE {
+        return Vec::default();
+    }
+
+    match attr.parse_meta() {
+        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+pub fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
+    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != TYPESHARE {
         return Vec::default();
     }
 
@@ -577,32 +591,22 @@ pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
 fn is_skipped(attrs: &[syn::Attribute]) -> bool {
-    let idents = [
-        Ident::new("serde", Span::call_site()),
-        Ident::new("typeshare", Span::call_site()),
-    ];
-
-    attrs
-        .iter()
-        // Filter to only identifiers in `idents`
-        .filter(|attr| {
-            attr.path
-                .segments
-                .iter()
-                .next()
-                .map_or(Default::default(), |segment| {
-                    idents.contains(&segment.ident)
-                })
-        })
-        .map(|attr| attr.tokens.to_string())
-        // Check if any attr values are `skip`
-        .any(|attr| {
-            if let Some(values) = parse_attr(&attr) {
-                values.contains(&"skip")
-            } else {
-                false
-            }
-        })
+    let skip = Ident::new("skip", Span::call_site());
+    attrs.iter().any(|attr| {
+        get_serde_meta_items(attr)
+            .into_iter()
+            .chain(get_typeshare_meta_items(attr).into_iter())
+            .any(|arg| match arg {
+                NestedMeta::Meta(Meta::Path(path)) => {
+                    if let Some(ident) = path.get_ident() {
+                        *ident == skip
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            })
+    })
 }
 
 /*
