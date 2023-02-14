@@ -7,8 +7,8 @@ use crate::{
 };
 use proc_macro2::{Ident, Span};
 use std::{collections::HashMap, convert::TryFrom};
-use syn::GenericParam;
 use syn::{Fields, ItemEnum, ItemStruct, ItemType};
+use syn::{GenericParam, Meta, NestedMeta};
 use thiserror::Error;
 
 // TODO: parsing is very opinionated and makes some decisions that should be
@@ -546,8 +546,33 @@ fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
 }
 
 fn serde_default(attrs: &[syn::Attribute]) -> bool {
-    const PREFIX: &str = "default";
-    attr_value("serde", attrs, PREFIX, "").is_some()
+    let default = Ident::new("default", Span::call_site());
+
+    attrs.iter().any(|attr| {
+        get_serde_meta_items(attr).iter().any(|arg| match arg {
+            NestedMeta::Meta(Meta::Path(path)) => {
+                if let Some(ident) = path.get_ident() {
+                    *ident == default
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        })
+    })
+}
+
+// TODO: for now, this is a workaround until we can integrate serde_derive_internal
+// into our parser.
+pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
+    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != "serde" {
+        return Vec::default();
+    }
+
+    match attr.parse_meta() {
+        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
+        _ => Vec::new(),
+    }
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
