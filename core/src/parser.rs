@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use proc_macro2::{Ident, Span};
+use quote::ToTokens;
 use std::{collections::HashMap, convert::TryFrom};
 use syn::{Fields, ItemEnum, ItemStruct, ItemType};
 use syn::{GenericParam, Meta, NestedMeta};
@@ -451,16 +452,75 @@ fn rename_all_to_case(original: String, case: &Option<String>) -> String {
     }
 }
 
+fn literal_as_string(lit: syn::Lit) -> Option<String> {
+    match lit {
+        syn::Lit::Str(str) => Some(str.value()),
+        _ => None,
+    }
+}
+
+fn get_typeshare_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Option<syn::Lit> {
+    attrs
+        .iter()
+        .map(|attr| {
+            get_typeshare_meta_items(attr)
+                .iter()
+                .filter_map(|arg| match arg {
+                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                        if let Some(ident) = name_value.path.get_ident() {
+                            if ident.to_string() == name {
+                                Some(name_value.lit.clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .next()
+}
+
+fn get_serde_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Option<syn::Lit> {
+    attrs
+        .iter()
+        .map(|attr| {
+            get_serde_meta_items(attr)
+                .iter()
+                .filter_map(|arg| match arg {
+                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                        if let Some(ident) = name_value.path.get_ident() {
+                            if ident.to_string() == name {
+                                println!(
+                                    "meta name-value! {:?}",
+                                    name_value.to_token_stream().to_string()
+                                );
+                                Some(name_value.lit.clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        })
+        .flatten()
+        .next()
+}
+
 fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"serialized_as = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("typeshare", attrs, PREFIX, SUFFIX)
+    get_typeshare_name_value_meta_item(attrs, "serialized_as").and_then(literal_as_string)
 }
 
 fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"serialized_as = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("typeshare", attrs, PREFIX, SUFFIX)
+    get_typeshare_name_value_meta_item(attrs, "serialized_as").and_then(literal_as_string)
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
@@ -525,27 +585,19 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"tag = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_item(attrs, "tag").and_then(literal_as_string)
 }
 
 fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"content = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_item(attrs, "content").and_then(literal_as_string)
 }
 
 fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"rename = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_item(attrs, "rename").and_then(literal_as_string)
 }
 
 fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"rename_all = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_item(attrs, "rename_all").and_then(literal_as_string)
 }
 
 fn serde_default(attrs: &[syn::Attribute]) -> bool {
@@ -656,6 +708,7 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     ]
     ```
 */
+#[deprecated]
 fn attr_value(
     ident: &str,
     attrs: &[syn::Attribute],
@@ -694,6 +747,7 @@ fn parse_attr(attr: &str) -> Option<Vec<&str>> {
     None
 }
 
+#[deprecated]
 pub(crate) fn remove_prefix_suffix<'a>(
     src: &'a str,
     prefix: &'static str,

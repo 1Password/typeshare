@@ -451,7 +451,7 @@ impl Swift {
                         // We do need to handle renaming
                         writeln!(
                             w,
-                            "\tcase {} = \"{}\"",
+                            "\tcase {} = {:?}",
                             swift_keyword_aware_rename(&variant_name),
                             &v.shared().id.renamed
                         )?;
