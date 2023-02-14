@@ -6,7 +6,6 @@ use crate::{
     },
 };
 use proc_macro2::{Ident, Span};
-use quote::ToTokens;
 use std::{collections::HashMap, convert::TryFrom};
 use syn::{Fields, ItemEnum, ItemStruct, ItemType};
 use syn::{GenericParam, Meta, NestedMeta};
@@ -495,10 +494,6 @@ fn get_serde_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Optio
                     NestedMeta::Meta(Meta::NameValue(name_value)) => {
                         if let Some(ident) = name_value.path.get_ident() {
                             if ident.to_string() == name {
-                                println!(
-                                    "meta name-value! {:?}",
-                                    name_value.to_token_stream().to_string()
-                                );
                                 Some(name_value.lit.clone())
                             } else {
                                 None
@@ -661,80 +656,7 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
-/*
-    Process attributes and return value of the matching attribute, if found.
-    ```
-    [
-    Attribute
-        {
-            pound_token: Pound,
-            style: Outer,
-            bracket_token: Bracket,
-            path: Path {
-                leading_colon: None,
-                segments: [
-                    PathSegment { ident: Ident(doc), arguments: None }
-                ]
-            },
-            tts: TokenStream [
-                Punct { op: '=', spacing: Alone },
-                Literal { lit: " This is a comment." }]
-        },
-
-    Attribute
-        {
-            pound_token: Pound,
-            style: Outer,
-            bracket_token: Bracket,
-            path: Path {
-                leading_colon: None,
-                segments: [
-                    PathSegment { ident: Ident(serde), arguments: None }
-                ]
-            }
-            tts: TokenStream [
-                Group {
-                    delimiter: Parenthesis,
-                    stream: TokenStream [
-                        Ident { sym: default },
-                        Punct { op: ',', spacing: Alone },
-                        Ident { sym: rename_all },
-                        Punct { op: '=', spacing: Alone },
-                        Literal { lit: "camelCase" }
-                    ]
-                }
-            ]
-        }
-    ]
-    ```
-*/
 #[deprecated]
-fn attr_value(
-    ident: &str,
-    attrs: &[syn::Attribute],
-    prefix: &'static str,
-    suffix: &'static str,
-) -> Option<String> {
-    for a in attrs {
-        if let Some(segment) = a.path.segments.iter().next() {
-            if segment.ident != Ident::new(ident, Span::call_site()) {
-                continue;
-            }
-
-            let attr_as_string = a.tokens.to_string();
-            let values = parse_attr(&attr_as_string)?;
-
-            for v in values {
-                if v.starts_with(prefix) && v.ends_with(suffix) {
-                    return Some(remove_prefix_suffix(v, prefix, suffix).to_string());
-                }
-            }
-        }
-    }
-
-    None
-}
-
 fn parse_attr(attr: &str) -> Option<Vec<&str>> {
     const ATTR_PREFIX: &str = "(";
     const ATTR_SUFFIX: &str = ")";
