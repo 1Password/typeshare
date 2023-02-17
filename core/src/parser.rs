@@ -461,13 +461,13 @@ fn literal_as_string(lit: syn::Lit) -> Option<String> {
 fn get_typeshare_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Option<syn::Lit> {
     attrs
         .iter()
-        .map(|attr| {
+        .flat_map(|attr| {
             get_typeshare_meta_items(attr)
                 .iter()
                 .filter_map(|arg| match arg {
                     NestedMeta::Meta(Meta::NameValue(name_value)) => {
                         if let Some(ident) = name_value.path.get_ident() {
-                            if ident.to_string() == name {
+                            if *ident == name {
                                 Some(name_value.lit.clone())
                             } else {
                                 None
@@ -480,20 +480,19 @@ fn get_typeshare_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> O
                 })
                 .collect::<Vec<_>>()
         })
-        .flatten()
         .next()
 }
 
 fn get_serde_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Option<syn::Lit> {
     attrs
         .iter()
-        .map(|attr| {
+        .flat_map(|attr| {
             get_serde_meta_items(attr)
                 .iter()
                 .filter_map(|arg| match arg {
                     NestedMeta::Meta(Meta::NameValue(name_value)) => {
                         if let Some(ident) = name_value.path.get_ident() {
-                            if ident.to_string() == name {
+                            if *ident == name {
                                 Some(name_value.lit.clone())
                             } else {
                                 None
@@ -506,7 +505,6 @@ fn get_serde_name_value_meta_item(attrs: &[syn::Attribute], name: &str) -> Optio
                 })
                 .collect::<Vec<_>>()
         })
-        .flatten()
         .next()
 }
 
@@ -615,7 +613,7 @@ fn serde_default(attrs: &[syn::Attribute]) -> bool {
 // TODO: for now, this is a workaround until we can integrate serde_derive_internal
 // into our parser.
 pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
-    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != SERDE {
+    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != SERDE {
         return Vec::default();
     }
 
@@ -626,7 +624,7 @@ pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
 }
 
 pub fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
-    if attr.path.get_ident().is_none() || attr.path.get_ident().unwrap().to_string() != TYPESHARE {
+    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != TYPESHARE {
         return Vec::default();
     }
 
