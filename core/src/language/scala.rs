@@ -62,7 +62,7 @@ impl Language for Scala {
         &self.type_mappings
     }
 
-    fn format_generic_parameters(&self, parameters: Vec<String>) -> String {
+    fn format_generic_parameters(&mut self, parameters: Vec<String>) -> String {
         format!("[{}]", parameters.into_iter().join(", "))
     }
 

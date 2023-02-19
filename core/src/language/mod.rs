@@ -115,7 +115,7 @@ pub trait Language {
 
     /// Format generic parameters into A<T,R> which is common for many supported languages.
     /// Reimplement if other notations is used.
-    fn format_generic_parameters(&self, parameters: Vec<String>) -> String {
+    fn format_generic_parameters(&mut self, parameters: Vec<String>) -> String {
         format!("<{}>", parameters.into_iter().join(", "))
     }
 
