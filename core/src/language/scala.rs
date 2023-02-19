@@ -22,7 +22,11 @@ pub struct Scala {
 }
 
 impl Language for Scala {
-    fn generate_types(&mut self, writable: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        writable: &mut dyn Write,
+        data: &ParsedData,
+    ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
         // Package object to hold type aliases: aliases must be in class or object in Scala 2)
