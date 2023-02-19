@@ -7,7 +7,7 @@ use crate::{
 };
 use proc_macro2::{Ident, Span};
 use std::{collections::HashMap, convert::TryFrom};
-use syn::{Fields, ItemEnum, ItemStruct, ItemType};
+use syn::{Attribute, Fields, ItemEnum, ItemStruct, ItemType};
 use syn::{GenericParam, Meta, NestedMeta};
 use thiserror::Error;
 
@@ -392,15 +392,28 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
 // Helpers
 
 /// Parses any comment out of the given slice of attributes
-fn parse_comment_attrs(attrs: &[syn::Attribute]) -> Vec<String> {
-    const COMMENT_PREFIX: &str = "= \" ";
-    const COMMENT_SUFFIX: &str = "\"";
-
+fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
+    const DOC_ATTR: &str = "doc";
     attrs
         .iter()
-        .map(|a| a.tokens.to_string())
-        .filter(|s| s.starts_with(COMMENT_PREFIX))
-        .map(|s| remove_prefix_suffix(&s, COMMENT_PREFIX, COMMENT_SUFFIX).to_string())
+        .map(Attribute::parse_meta)
+        .filter_map(Result::ok)
+        .filter_map(|attr| match attr {
+            Meta::NameValue(name_value) => {
+                if let Some(ident) = name_value.path.get_ident() {
+                    if *ident == DOC_ATTR {
+                        Some(name_value.lit)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .filter_map(literal_as_string)
+        .map(|string| string.trim().into())
         .collect()
 }
 
@@ -584,6 +597,7 @@ fn serde_default(attrs: &[syn::Attribute]) -> bool {
 
 // TODO: for now, this is a workaround until we can integrate serde_derive_internal
 // into our parser.
+/// Returns all arguments passed into `#[serde(...)]` attributes
 pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
     if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != SERDE {
         return Vec::default();
@@ -595,6 +609,7 @@ pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
     }
 }
 
+/// Returns all arguments passed into `#[typeshare(...)]` attributes
 pub fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
     if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != TYPESHARE {
         return Vec::default();
@@ -624,17 +639,6 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
                 _ => false,
             })
     })
-}
-
-#[deprecated]
-pub(crate) fn remove_prefix_suffix<'a>(
-    src: &'a str,
-    prefix: &'static str,
-    suffix: &'static str,
-) -> &'a str {
-    src.strip_prefix(prefix)
-        .and_then(|src| src.strip_suffix(suffix))
-        .map_or(src, |src| src.trim())
 }
 
 #[test]
