@@ -411,6 +411,7 @@ impl Scala {
     }
 
     fn unsigned_integer_used(&mut self, data: &ParsedData) -> bool {
+        let types_in_ariases = data.aliases.iter().map(|f| f.r#type.clone()).collect_vec();
         let types_in_structs = data
             .structs
             .iter()
@@ -430,8 +431,13 @@ impl Scala {
                 })
             })
             .collect_vec();
-        itertools::concat(vec![types_in_structs, types_in_enum])
+        itertools::concat(vec![types_in_ariases, types_in_structs, types_in_enum])
             .iter()
+            .flat_map(|ty| match ty {
+                RustType::Generic { id: _, parameters } => parameters.clone(),
+                RustType::Special(_) => vec![ty.clone()],
+                RustType::Simple { .. } => vec![],
+            })
             .any(|ty| {
                 matches!(
                     ty,
