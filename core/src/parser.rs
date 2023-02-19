@@ -458,74 +458,76 @@ fn literal_as_string(lit: syn::Lit) -> Option<String> {
     }
 }
 
-fn get_typeshare_name_value_meta_items<'a>(attrs: &'a [syn::Attribute], name: &'a str) -> impl Iterator<Item=syn::Lit> + 'a {
-    attrs
-        .iter()
-        .flat_map(move |attr| {
-            get_typeshare_meta_items(attr)
-                .iter()
-                .filter_map(|arg| match arg {
-                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                        if let Some(ident) = name_value.path.get_ident() {
-                            if *ident == name {
-                                Some(name_value.lit.clone())
-                            } else {
-                                None
-                            }
+fn get_typeshare_name_value_meta_items<'a>(
+    attrs: &'a [syn::Attribute],
+    name: &'a str,
+) -> impl Iterator<Item = syn::Lit> + 'a {
+    attrs.iter().flat_map(move |attr| {
+        get_typeshare_meta_items(attr)
+            .iter()
+            .filter_map(|arg| match arg {
+                NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                    if let Some(ident) = name_value.path.get_ident() {
+                        if *ident == name {
+                            Some(name_value.lit.clone())
                         } else {
                             None
                         }
+                    } else {
+                        None
                     }
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-        })
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    })
 }
 
-fn get_serde_name_value_meta_items<'a>(attrs: &'a [syn::Attribute], name: &'a str) -> impl Iterator<Item=syn::Lit> + 'a {
-    attrs
-        .iter()
-        .flat_map(move |attr| {
-            get_serde_meta_items(attr)
-                .iter()
-                .filter_map(|arg| match arg {
-                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                        if let Some(ident) = name_value.path.get_ident() {
-                            if *ident == name {
-                                Some(name_value.lit.clone())
-                            } else {
-                                None
-                            }
+fn get_serde_name_value_meta_items<'a>(
+    attrs: &'a [syn::Attribute],
+    name: &'a str,
+) -> impl Iterator<Item = syn::Lit> + 'a {
+    attrs.iter().flat_map(move |attr| {
+        get_serde_meta_items(attr)
+            .iter()
+            .filter_map(|arg| match arg {
+                NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                    if let Some(ident) = name_value.path.get_ident() {
+                        if *ident == name {
+                            Some(name_value.lit.clone())
                         } else {
                             None
                         }
+                    } else {
+                        None
                     }
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-        })
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    })
 }
 
 fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as").next().and_then(literal_as_string)
+    get_typeshare_name_value_meta_items(attrs, "serialized_as")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as").next().and_then(literal_as_string)
+    get_typeshare_name_value_meta_items(attrs, "serialized_as")
+        .next()
+        .and_then(literal_as_string)
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
 /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` and `decoration_words` are `String`s
 fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
-
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: HashMap<String, Vec<String>> = HashMap::new();
 
     for value in get_typeshare_name_value_meta_items(attrs, "swift").filter_map(literal_as_string) {
-        let decorators: Vec<String> = value
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .collect();
+        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
         // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
         let decs = out.entry("swift".to_string()).or_insert_with(Vec::new);
@@ -540,19 +542,27 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "tag").next().and_then(literal_as_string)
+    get_serde_name_value_meta_items(attrs, "tag")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "content").next().and_then(literal_as_string)
+    get_serde_name_value_meta_items(attrs, "content")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename").next().and_then(literal_as_string)
+    get_serde_name_value_meta_items(attrs, "rename")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename_all").next().and_then(literal_as_string)
+    get_serde_name_value_meta_items(attrs, "rename_all")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_default(attrs: &[syn::Attribute]) -> bool {
