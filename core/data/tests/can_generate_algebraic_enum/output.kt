@@ -11,7 +11,7 @@ import kotlinx.serialization.*
 
 /// Struct comment
 @Serializable
-class ItemDetailsFieldValue
+object ItemDetailsFieldValue
 
 /// Enum comment
 @Serializable

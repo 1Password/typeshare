@@ -7,12 +7,15 @@ use crate::{
 };
 use proc_macro2::{Ident, Span};
 use std::{collections::HashMap, convert::TryFrom};
-use syn::GenericParam;
-use syn::{Fields, ItemEnum, ItemStruct, ItemType};
+use syn::{Attribute, Fields, ItemEnum, ItemStruct, ItemType};
+use syn::{GenericParam, Meta, NestedMeta};
 use thiserror::Error;
 
 // TODO: parsing is very opinionated and makes some decisions that should be
 // getting made at code generation time. Fix this.
+
+const SERDE: &str = "serde";
+const TYPESHARE: &str = "typeshare";
 
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
@@ -389,15 +392,28 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
 // Helpers
 
 /// Parses any comment out of the given slice of attributes
-fn parse_comment_attrs(attrs: &[syn::Attribute]) -> Vec<String> {
-    const COMMENT_PREFIX: &str = "= \" ";
-    const COMMENT_SUFFIX: &str = "\"";
-
+fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
+    const DOC_ATTR: &str = "doc";
     attrs
         .iter()
-        .map(|a| a.tokens.to_string())
-        .filter(|s| s.starts_with(COMMENT_PREFIX))
-        .map(|s| remove_prefix_suffix(&s, COMMENT_PREFIX, COMMENT_SUFFIX).to_string())
+        .map(Attribute::parse_meta)
+        .filter_map(Result::ok)
+        .filter_map(|attr| match attr {
+            Meta::NameValue(name_value) => {
+                if let Some(ident) = name_value.path.get_ident() {
+                    if *ident == DOC_ATTR {
+                        Some(name_value.lit)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        })
+        .filter_map(literal_as_string)
+        .map(|string| string.trim().into())
         .collect()
 }
 
@@ -448,73 +464,90 @@ fn rename_all_to_case(original: String, case: &Option<String>) -> String {
     }
 }
 
+fn literal_as_string(lit: syn::Lit) -> Option<String> {
+    match lit {
+        syn::Lit::Str(str) => Some(str.value()),
+        _ => None,
+    }
+}
+
+fn get_typeshare_name_value_meta_items<'a>(
+    attrs: &'a [syn::Attribute],
+    name: &'a str,
+) -> impl Iterator<Item = syn::Lit> + 'a {
+    attrs.iter().flat_map(move |attr| {
+        get_typeshare_meta_items(attr)
+            .iter()
+            .filter_map(|arg| match arg {
+                NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                    if let Some(ident) = name_value.path.get_ident() {
+                        if *ident == name {
+                            Some(name_value.lit.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    })
+}
+
+fn get_serde_name_value_meta_items<'a>(
+    attrs: &'a [syn::Attribute],
+    name: &'a str,
+) -> impl Iterator<Item = syn::Lit> + 'a {
+    attrs.iter().flat_map(move |attr| {
+        get_serde_meta_items(attr)
+            .iter()
+            .filter_map(|arg| match arg {
+                NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                    if let Some(ident) = name_value.path.get_ident() {
+                        if *ident == name {
+                            Some(name_value.lit.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    })
+}
+
 fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"serialized_as = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("typeshare", attrs, PREFIX, SUFFIX)
+    get_typeshare_name_value_meta_items(attrs, "serialized_as")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"serialized_as = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("typeshare", attrs, PREFIX, SUFFIX)
+    get_typeshare_name_value_meta_items(attrs, "serialized_as")
+        .next()
+        .and_then(literal_as_string)
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
 /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` and `decoration_words` are `String`s
 fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
-    // delimiting const strings to split apart the decorators by language
-    const SWIFT_PREFIX: &str = r##"swift = ""##;
-    const SUFFIX: &str = r##"""##;
-
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: HashMap<String, Vec<String>> = HashMap::new();
 
-    // first go through the attributes and only work over the top level `#[typeshare...]`
-    for a in attrs {
-        if let Some(segment) = a.path.segments.iter().next() {
-            if segment.ident != Ident::new("typeshare", Span::call_site()) {
-                continue;
-            }
+    for value in get_typeshare_name_value_meta_items(attrs, "swift").filter_map(literal_as_string) {
+        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
-            // get the attribute as a string
-            let attr_as_string = a.tokens.to_string();
-            // parse the interior attributes, this basically removes the beginning and ending parentheses and
-            // splits by " , " which is the expected output of `syn`'s `tokens.to_string()`
-            // if there are interior attributes we should continue to parse, if not skip this attribute
-            let values = match parse_attr(&attr_as_string) {
-                Some(v) => v,
-                None => {
-                    continue;
-                }
-            };
-
-            // Now for each value of the interior attribute check if the value ends in '"' if not we do not have an assignment
-            // and we should just carry on
-            for v in values {
-                if !v.ends_with(SUFFIX) {
-                    continue;
-                }
-
-                // Using the swift const, check if we have a swift attribute and parse by getting the values and trimming (just in case whitespace is odd)
-                if v.starts_with(SWIFT_PREFIX) {
-                    let decorators: Vec<String> = remove_prefix_suffix(v, SWIFT_PREFIX, SUFFIX)
-                        .to_string()
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .collect();
-
-                    // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-                    let decs = out.entry("swift".to_string()).or_insert_with(Vec::new);
-                    decs.extend(decorators);
-                    // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
-                    decs.sort_unstable();
-                    decs.dedup(); //removing any duplicates just in case
-
-                    continue;
-                }
-            }
-        }
+        // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
+        let decs = out.entry("swift".to_string()).or_insert_with(Vec::new);
+        decs.extend(decorators);
+        // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
+        decs.sort_unstable();
+        decs.dedup(); //removing any duplicates just in case
     }
 
     //return our hashmap mapping of language -> Vec<decorators>
@@ -522,174 +555,90 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"tag = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_items(attrs, "tag")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"content = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_items(attrs, "content")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"rename = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_items(attrs, "rename")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
-    const PREFIX: &str = r##"rename_all = ""##;
-    const SUFFIX: &str = r##"""##;
-    attr_value("serde", attrs, PREFIX, SUFFIX)
+    get_serde_name_value_meta_items(attrs, "rename_all")
+        .next()
+        .and_then(literal_as_string)
 }
 
 fn serde_default(attrs: &[syn::Attribute]) -> bool {
-    const PREFIX: &str = "default";
-    attr_value("serde", attrs, PREFIX, "").is_some()
+    let default = Ident::new("default", Span::call_site());
+
+    attrs.iter().any(|attr| {
+        get_serde_meta_items(attr).iter().any(|arg| match arg {
+            NestedMeta::Meta(Meta::Path(path)) => {
+                if let Some(ident) = path.get_ident() {
+                    *ident == default
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        })
+    })
+}
+
+// TODO: for now, this is a workaround until we can integrate serde_derive_internal
+// into our parser.
+/// Returns all arguments passed into `#[serde(...)]` attributes
+pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
+    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != SERDE {
+        return Vec::default();
+    }
+
+    match attr.parse_meta() {
+        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Returns all arguments passed into `#[typeshare(...)]` attributes
+pub fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
+    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != TYPESHARE {
+        return Vec::default();
+    }
+
+    match attr.parse_meta() {
+        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
+        _ => Vec::new(),
+    }
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
 fn is_skipped(attrs: &[syn::Attribute]) -> bool {
-    let idents = [
-        Ident::new("serde", Span::call_site()),
-        Ident::new("typeshare", Span::call_site()),
-    ];
-
-    attrs
-        .iter()
-        // Filter to only identifiers in `idents`
-        .filter(|attr| {
-            attr.path
-                .segments
-                .iter()
-                .next()
-                .map_or(Default::default(), |segment| {
-                    idents.contains(&segment.ident)
-                })
-        })
-        .map(|attr| attr.tokens.to_string())
-        // Check if any attr values are `skip`
-        .any(|attr| {
-            if let Some(values) = parse_attr(&attr) {
-                values.contains(&"skip")
-            } else {
-                false
-            }
-        })
-}
-
-/*
-    Process attributes and return value of the matching attribute, if found.
-    ```
-    [
-    Attribute
-        {
-            pound_token: Pound,
-            style: Outer,
-            bracket_token: Bracket,
-            path: Path {
-                leading_colon: None,
-                segments: [
-                    PathSegment { ident: Ident(doc), arguments: None }
-                ]
-            },
-            tts: TokenStream [
-                Punct { op: '=', spacing: Alone },
-                Literal { lit: " This is a comment." }]
-        },
-
-    Attribute
-        {
-            pound_token: Pound,
-            style: Outer,
-            bracket_token: Bracket,
-            path: Path {
-                leading_colon: None,
-                segments: [
-                    PathSegment { ident: Ident(serde), arguments: None }
-                ]
-            }
-            tts: TokenStream [
-                Group {
-                    delimiter: Parenthesis,
-                    stream: TokenStream [
-                        Ident { sym: default },
-                        Punct { op: ',', spacing: Alone },
-                        Ident { sym: rename_all },
-                        Punct { op: '=', spacing: Alone },
-                        Literal { lit: "camelCase" }
-                    ]
+    let skip = Ident::new("skip", Span::call_site());
+    attrs.iter().any(|attr| {
+        get_serde_meta_items(attr)
+            .into_iter()
+            .chain(get_typeshare_meta_items(attr).into_iter())
+            .any(|arg| match arg {
+                NestedMeta::Meta(Meta::Path(path)) => {
+                    if let Some(ident) = path.get_ident() {
+                        *ident == skip
+                    } else {
+                        false
+                    }
                 }
-            ]
-        }
-    ]
-    ```
-*/
-fn attr_value(
-    ident: &str,
-    attrs: &[syn::Attribute],
-    prefix: &'static str,
-    suffix: &'static str,
-) -> Option<String> {
-    for a in attrs {
-        if let Some(segment) = a.path.segments.iter().next() {
-            if segment.ident != Ident::new(ident, Span::call_site()) {
-                continue;
-            }
-
-            let attr_as_string = a.tokens.to_string();
-            let values = parse_attr(&attr_as_string)?;
-
-            for v in values {
-                if v.starts_with(prefix) && v.ends_with(suffix) {
-                    return Some(remove_prefix_suffix(v, prefix, suffix).to_string());
-                }
-            }
-        }
-    }
-
-    None
-}
-
-fn parse_attr(attr: &str) -> Option<Vec<&str>> {
-    const ATTR_PREFIX: &str = "(";
-    const ATTR_SUFFIX: &str = ")";
-
-    if attr.starts_with(ATTR_PREFIX) && attr.ends_with(ATTR_SUFFIX) {
-        let attr = remove_prefix_suffix(attr, ATTR_PREFIX, ATTR_SUFFIX);
-        return Some(attr.split(" , ").collect());
-    }
-
-    None
-}
-
-pub(crate) fn remove_prefix_suffix<'a>(
-    src: &'a str,
-    prefix: &'static str,
-    suffix: &'static str,
-) -> &'a str {
-    src.strip_prefix(prefix)
-        .and_then(|src| src.strip_suffix(suffix))
-        .map_or(src, |src| src.trim())
-}
-
-#[test]
-fn test_serde_parse_attr() {
-    let expected = Some(vec![r#"tag = "type", content = "content""#]);
-
-    assert_eq!(
-        parse_attr(r#"( tag = "type", content = "content" )"#),
-        expected,
-        "Expected to parse serde attribute correctly with spaces"
-    );
-
-    assert_eq!(
-        parse_attr(r#"(tag = "type", content = "content")"#),
-        expected,
-        "Expected to parse serde attribute correctly without spaces",
-    );
+                _ => false,
+            })
+    })
 }
 
 #[test]

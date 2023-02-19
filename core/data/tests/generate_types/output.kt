@@ -10,7 +10,7 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class CustomType
+object CustomType
 
 @Serializable
 data class Types (

@@ -10,7 +10,7 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-class Location
+object Location
 
 /// This is a comment.
 @Serializable
