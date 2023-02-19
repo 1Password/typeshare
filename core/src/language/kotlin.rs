@@ -181,10 +181,10 @@ impl Kotlin {
             RustEnum::Unit(shared) => {
                 for v in &shared.variants {
                     self.write_comments(w, 1, &v.shared().comments)?;
-                    writeln!(w, "\t@SerialName(\"{}\")", &v.shared().id.renamed)?;
+                    writeln!(w, "\t@SerialName({:?})", &v.shared().id.renamed)?;
                     writeln!(
                         w,
-                        "\t{}(\"{}\"),",
+                        "\t{}({:?}),",
                         &v.shared().id.original,
                         v.shared().id.renamed
                     )?;
@@ -303,7 +303,7 @@ impl Kotlin {
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
         if requires_serial_name {
-            writeln!(w, "\t@SerialName(\"{}\")", &f.id.renamed)?;
+            writeln!(w, "\t@SerialName({:?})", &f.id.renamed)?;
         }
         let ty = self
             .format_type(&f.ty, generic_types)

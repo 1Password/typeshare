@@ -172,7 +172,7 @@ impl Go {
                         write_comments(w, 1, &variant_shared.comments)?;
                         write!(
                             w,
-                            "\t{}{} {} = \"{}\"",
+                            "\t{}{} {} = {:?}",
                             self.acronyms_to_uppercase(&shared.id.original),
                             self.acronyms_to_uppercase(&variant_shared.id.original),
                             self.acronyms_to_uppercase(&shared.id.original),
@@ -295,7 +295,7 @@ impl Go {
                     write_comments(w, 1, &v.shared().comments)?;
                     writeln!(
                         w,
-                        "\t{} {} = \"{}\"",
+                        "\t{} {} = {:?}",
                         variant_type_const,
                         variant_key_type,
                         &v.shared().id.original
@@ -307,7 +307,7 @@ impl Go {
                 writeln!(w, "type {} struct{{ ", struct_name)?;
                 writeln!(
                     w,
-                    "\t{} {} `json:\"{}\"`",
+                    "\t{} {} `json:{:?}`",
                     self.format_field_name(tag_key.to_string(), true),
                     variant_key_type,
                     tag_key,
@@ -385,6 +385,8 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let go_type = self.acronyms_to_uppercase(&type_name);
         let is_optional = field.ty.is_optional() || field.has_default;
+        let formatted_renamed_id = format!("{:?}", &field.id.renamed);
+        let renamed_id = &formatted_renamed_id[1..formatted_renamed_id.len() - 1];
         writeln!(
             w,
             "\t{} {}{} `json:\"{}{}\"`",
@@ -393,7 +395,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
                 .then(|| "*")
                 .unwrap_or_default(),
             go_type,
-            &field.id.renamed,
+            renamed_id,
             option_symbol(is_optional),
         )?;
 
