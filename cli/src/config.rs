@@ -19,6 +19,14 @@ pub struct KotlinParams {
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
+pub struct ScalaParams {
+    pub package: String,
+    pub module_name: String,
+    pub type_mappings: HashMap<String, String>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
     pub type_mappings: HashMap<String, String>,
@@ -47,6 +55,7 @@ pub(crate) struct Config {
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
+    pub scala: ScalaParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
 }

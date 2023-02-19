@@ -14,6 +14,7 @@ public enum OPAdvancedColors: Codable {
 	/// This is a case comment
 	case string(String)
 	case number(Int32)
+	case unsignedNumber(UInt32)
 	case numberArray([Int32])
 	/// Comment on the last element
 	case reallyCoolType(OPItemDetailsFieldValue)
@@ -21,6 +22,7 @@ public enum OPAdvancedColors: Codable {
 	enum CodingKeys: String, CodingKey, Codable {
 		case string = "String",
 			number = "Number",
+			unsignedNumber = "UnsignedNumber",
 			numberArray = "NumberArray",
 			reallyCoolType = "ReallyCoolType"
 	}
@@ -41,6 +43,11 @@ public enum OPAdvancedColors: Codable {
 			case .number:
 				if let content = try? container.decode(Int32.self, forKey: .content) {
 					self = .number(content)
+					return
+				}
+			case .unsignedNumber:
+				if let content = try? container.decode(UInt32.self, forKey: .content) {
+					self = .unsignedNumber(content)
 					return
 				}
 			case .numberArray:
@@ -66,6 +73,9 @@ public enum OPAdvancedColors: Codable {
 			try container.encode(content, forKey: .content)
 		case .number(let content):
 			try container.encode(CodingKeys.number, forKey: .type)
+			try container.encode(content, forKey: .content)
+		case .unsignedNumber(let content):
+			try container.encode(CodingKeys.unsignedNumber, forKey: .type)
 			try container.encode(content, forKey: .content)
 		case .numberArray(let content):
 			try container.encode(CodingKeys.numberArray, forKey: .type)

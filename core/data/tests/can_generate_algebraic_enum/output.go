@@ -12,6 +12,7 @@ const (
 	// This is a case comment
 	AdvancedColorsTypeVariantString AdvancedColorsTypes = "String"
 	AdvancedColorsTypeVariantNumber AdvancedColorsTypes = "Number"
+	AdvancedColorsTypeVariantUnsignedNumber AdvancedColorsTypes = "UnsignedNumber"
 	AdvancedColorsTypeVariantNumberArray AdvancedColorsTypes = "NumberArray"
 	// Comment on the last element
 	AdvancedColorsTypeVariantReallyCoolType AdvancedColorsTypes = "ReallyCoolType"
@@ -37,6 +38,9 @@ func (a *AdvancedColors) UnmarshalJSON(data []byte) error {
 		a.content = &res
 	case AdvancedColorsTypeVariantNumber:
 		var res int
+		a.content = &res
+	case AdvancedColorsTypeVariantUnsignedNumber:
+		var res uint32
 		a.content = &res
 	case AdvancedColorsTypeVariantNumberArray:
 		var res []int
@@ -71,6 +75,10 @@ func (a AdvancedColors) Number() int {
 	res, _ := a.content.(*int)
 	return *res
 }
+func (a AdvancedColors) UnsignedNumber() uint32 {
+	res, _ := a.content.(*uint32)
+	return *res
+}
 func (a AdvancedColors) NumberArray() []int {
 	res, _ := a.content.(*[]int)
 	return *res
@@ -89,6 +97,12 @@ func NewAdvancedColorsTypeVariantString(content string) AdvancedColors {
 func NewAdvancedColorsTypeVariantNumber(content int) AdvancedColors {
     return AdvancedColors{
         Type: AdvancedColorsTypeVariantNumber,
+        content: &content,
+    }
+}
+func NewAdvancedColorsTypeVariantUnsignedNumber(content uint32) AdvancedColors {
+    return AdvancedColors{
+        Type: AdvancedColorsTypeVariantUnsignedNumber,
         content: &content,
     }
 }

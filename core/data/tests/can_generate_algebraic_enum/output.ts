@@ -11,6 +11,7 @@ export type AdvancedColors =
 	/** This is a case comment */
 	| { type: "String", content: string }
 	| { type: "Number", content: number }
+	| { type: "UnsignedNumber", content: number }
 	| { type: "NumberArray", content: number[] }
 	/** Comment on the last element */
 	| { type: "ReallyCoolType", content: ItemDetailsFieldValue };

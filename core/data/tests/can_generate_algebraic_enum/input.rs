@@ -9,6 +9,7 @@ pub enum AdvancedColors {
     /// This is a case comment
     String(String),
     Number(i32),
+    UnsignedNumber(u32),
     NumberArray(Vec<i32>),
     /// Comment on the last element
     ReallyCoolType(ItemDetailsFieldValue),
