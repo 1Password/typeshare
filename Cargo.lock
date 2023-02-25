@@ -583,7 +583,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "serde",
@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-annotation"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "quote",
  "syn",
