@@ -15,3 +15,10 @@ opt-level = 2
 debug-assertions = false
 codegen-units = 16
 incremental = true
+
+[profile.dist]
+lto = false
+opt-level = 2
+debug-assertions = false
+codegen-units = 16
+incremental = true
