@@ -593,7 +593,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-annotation"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "quote",
  "syn",
