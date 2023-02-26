@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-annotation"
-version = "1.0.0"
+version = "1.0.2"
 rust-version = "1.57"
 edition = "2021"
 license = "MIT OR Apache-2.0"

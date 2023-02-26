@@ -18,7 +18,6 @@ incremental = true
 
 [profile.dist]
 inherits = "release"
-features=["go"]
 
 [workspace.metadata.dist]
 # The preferred Rust toolchain to use in CI (rustup toolchain syntax)
