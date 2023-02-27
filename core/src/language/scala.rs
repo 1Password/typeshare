@@ -8,6 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::ops::Deref;
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Scala type-code
@@ -411,6 +412,7 @@ impl Scala {
     }
 
     fn unsigned_integer_used(&mut self, data: &ParsedData) -> bool {
+        let types_in_aliases = data.aliases.iter().map(|f| f.r#type.clone()).collect_vec();
         let types_in_structs = data
             .structs
             .iter()
@@ -430,8 +432,19 @@ impl Scala {
                 })
             })
             .collect_vec();
-        itertools::concat(vec![types_in_structs, types_in_enum])
+        itertools::concat(vec![types_in_aliases, types_in_structs, types_in_enum])
             .iter()
+            .flat_map(|ty| match ty {
+                RustType::Generic { id: _, parameters } => parameters.clone(),
+                RustType::Special(SpecialRustType::Option(ty) | SpecialRustType::Vec(ty)) => {
+                    vec![ty.deref().clone()]
+                }
+                RustType::Special(SpecialRustType::HashMap(kty, vty)) => {
+                    vec![kty.deref().clone(), vty.deref().clone()]
+                }
+                RustType::Special(_) => vec![ty.clone()],
+                RustType::Simple { .. } => vec![],
+            })
             .any(|ty| {
                 matches!(
                     ty,
