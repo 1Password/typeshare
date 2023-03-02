@@ -385,6 +385,9 @@ tests! {
         scala,
         typescript
     ];
+    can_generate_readonly_fields: [
+        typescript
+    ];
     can_generate_simple_enum: [
         swift {
             prefix: "TypeShare".to_string(),
