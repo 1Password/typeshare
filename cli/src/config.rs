@@ -30,6 +30,7 @@ pub struct ScalaParams {
 pub struct SwiftParams {
     pub prefix: String,
     pub type_mappings: HashMap<String, String>,
+    pub default_decorators: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -146,6 +147,15 @@ mod test {
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
+    }
+
+    #[test]
+    fn decorators_test() {
+        let path = config_file_path("decorators_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.swift.default_decorators.len(), 1);
+        assert_eq!(config.swift.default_decorators[0], "Sendable");
     }
 
     #[test]
