@@ -164,6 +164,7 @@ fn main() {
         Some("swift") => Box::new(Swift {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,
+            default_decorators: config.swift.default_decorators,
             ..Default::default()
         }),
         Some("kotlin") => Box::new(Kotlin {

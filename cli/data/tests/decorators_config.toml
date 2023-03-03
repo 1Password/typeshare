@@ -1,0 +1,2 @@
+[swift]
+default_decorators = ["Sendable"]

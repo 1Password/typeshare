@@ -19,9 +19,18 @@ pub struct KotlinParams {
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
+pub struct ScalaParams {
+    pub package: String,
+    pub module_name: String,
+    pub type_mappings: HashMap<String, String>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
     pub type_mappings: HashMap<String, String>,
+    pub default_decorators: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -47,6 +56,7 @@ pub(crate) struct Config {
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
+    pub scala: ScalaParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
 }
@@ -137,6 +147,15 @@ mod test {
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
+    }
+
+    #[test]
+    fn decorators_test() {
+        let path = config_file_path("decorators_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.swift.default_decorators.len(), 1);
+        assert_eq!(config.swift.default_decorators[0], "Sendable");
     }
 
     #[test]

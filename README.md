@@ -18,7 +18,7 @@ _And in the darkness, compile them_ 💍
 
 
 Do you like manually managing types that need to be passed through an FFI layer, so that your code doesn't archaically break at runtime? Be honest, nobody does. Typeshare is here to take that burden away from you! Leveraging the power of the `serde` library, Typeshare is a tool that converts your
-Rust types into their equivalent forms in Swift, Go**, Kotlin, and Typescript, keeping
+Rust types into their equivalent forms in Swift, Go**, Kotlin, Scala and Typescript, keeping
 your cross-language codebase in sync. With automatic implementation for serialization and deserialization on both sides of the FFI, Typeshare does all the heavy lifting for you. It can even handle generics and convert effortlessly between standard libraries in different languages!
 
 **A few caveats. See [here](#a-quick-refresher-on-supported-languages) for more details.
@@ -48,6 +48,7 @@ To generate FFI definitions for a target language, run the `typeshare` command a
 ```
 typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
 typeshare ./my_rust_project --lang=swift --output-file=my_swift_definitions.swift
+typeshare ./my_rust_project --lang=scala --output-file=my_scala_definitions.scala
 typeshare ./my_rust_project --lang=typescript --output-file=my_typescript_definitions.ts
 ```
 
@@ -93,6 +94,7 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 ## A Quick Refresher on Supported Languages
 
 - Kotlin
+- Scala
 - Swift
 - Typescript
 - Go**

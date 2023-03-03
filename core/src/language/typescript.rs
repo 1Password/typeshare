@@ -155,7 +155,7 @@ impl TypeScript {
                 RustEnumVariant::Unit(shared) => {
                     writeln!(w)?;
                     self.write_comments(w, 1, &shared.comments)?;
-                    write!(w, "\t{} = \"{}\",", shared.id.original, &shared.id.renamed)
+                    write!(w, "\t{} = {:?},", shared.id.original, &shared.id.renamed)
                 }
                 _ => unreachable!(),
             }),
@@ -172,7 +172,7 @@ impl TypeScript {
                 match v {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
-                        "\t| {{ {}: \"{}\", {}?: undefined }}",
+                        "\t| {{ {}: {:?}, {}?: undefined }}",
                         tag_key, shared.id.renamed, content_key
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {
@@ -181,7 +181,7 @@ impl TypeScript {
                             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                         write!(
                             w,
-                            "\t| {{ {}: \"{}\", {}{}: {} }}",
+                            "\t| {{ {}: {:?}, {}{}: {} }}",
                             tag_key,
                             shared.id.renamed,
                             content_key,
@@ -192,7 +192,7 @@ impl TypeScript {
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
                         writeln!(
                             w,
-                            "\t| {{ {}: \"{}\", {}: {{",
+                            "\t| {{ {}: {:?}, {}: {{",
                             tag_key, shared.id.renamed, content_key
                         )?;
 
@@ -219,12 +219,20 @@ impl TypeScript {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let optional = field.ty.is_optional() || field.has_default;
+        let double_optional = field.ty.is_double_optional();
+        let is_readonly = field
+            .decorators
+            .get("typescript")
+            .filter(|v| v.contains(&"readonly".to_string()))
+            .is_some();
         writeln!(
             w,
-            "\t{}{}: {};",
+            "\t{}{}{}: {}{};",
+            is_readonly.then(|| "readonly ").unwrap_or_default(),
             typescript_property_aware_rename(&field.id.renamed),
             optional.then(|| "?").unwrap_or_default(),
-            ts_ty
+            ts_ty,
+            double_optional.then(|| " | null").unwrap_or_default()
         )?;
 
         Ok(())
@@ -262,7 +270,7 @@ impl TypeScript {
 
 fn typescript_property_aware_rename(name: &str) -> String {
     if name.chars().any(|c| c == '-') {
-        return format!("\"{}\"", name);
+        return format!("{:?}", name);
     }
     name.to_string()
 }

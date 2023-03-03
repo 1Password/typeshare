@@ -1,4 +1,5 @@
 use quote::ToTokens;
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
@@ -70,6 +71,9 @@ pub struct RustField {
     /// Even if the field's type is not optional, we need to make it optional
     /// for the languages we generate code for.
     pub has_default: bool,
+    /// Language-specific decorators assigned to a given field.
+    /// The keys are language names (e.g. typescript), the values are decorators (e.g. readonly)
+    pub decorators: HashMap<String, HashSet<String>>,
 }
 
 /// A Rust type.
@@ -271,6 +275,16 @@ impl RustType {
     /// Check if the type is `Option<T>`
     pub fn is_optional(&self) -> bool {
         matches!(self, Self::Special(SpecialRustType::Option(_)))
+    }
+
+    /// Check if the type is `Option<Option<T>>`
+    pub fn is_double_optional(&self) -> bool {
+        match &self {
+            RustType::Special(SpecialRustType::Option(t)) => {
+                matches!(t.as_ref(), RustType::Special(SpecialRustType::Option(_)))
+            }
+            _ => false,
+        }
     }
     /// Check if the type is `Vec<T>`
     pub fn is_vec(&self) -> bool {
