@@ -1,4 +1,5 @@
 use crate::{
+    language::SupportedLanguage,
     rename::RenameExt,
     rust_types::{
         Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField,
@@ -56,6 +57,8 @@ pub enum ParseError {
     SynError(#[from] syn::Error),
     #[error("failed to parse a rust type: {0}")]
     RustTypeParseError(#[from] RustTypeParseError),
+    #[error("unsupported language encountered: {0}")]
+    UnsupportedLanguage(String),
     #[error("unsupported type encountered: {0}")]
     UnsupportedType(String),
     #[error("tuple structs with more than one field are currently unsupported")]
@@ -541,12 +544,17 @@ fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, HashSet<decoration_words>>`, where `language` and `decoration_words` are `String`s
-fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<String, HashSet<String>> {
-    let languages: HashSet<String> = ["typescript", "kotlin", "go", "swift"]
-        .iter()
-        .map(|l| l.to_string())
-        .collect();
+/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, HashSet<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
+fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, HashSet<String>> {
+    let languages: HashSet<SupportedLanguage> = [
+        SupportedLanguage::Go,
+        SupportedLanguage::TypeScript,
+        SupportedLanguage::Kotlin,
+        SupportedLanguage::Swift,
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     attrs
         .iter()
@@ -559,8 +567,8 @@ fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<String, HashSet<Str
             }
         })
         .flat_map(|list| match list.path.get_ident() {
-            Some(ident) if languages.contains(&ident.to_string()) => {
-                Some((ident.to_string(), list.nested))
+            Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
+                Some((ident.try_into().unwrap(), list.nested))
             }
             _ => None,
         })
@@ -583,16 +591,16 @@ fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<String, HashSet<Str
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` and `decoration_words` are `String`s
-fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<String, Vec<String>> {
+/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
+fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
 
     for value in get_typeshare_name_value_meta_items(attrs, "swift").filter_map(literal_as_string) {
         let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
         // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry("swift".to_string()).or_insert_with(Vec::new);
+        let decs = out.entry(SupportedLanguage::Swift).or_insert_with(Vec::new);
         decs.extend(decorators);
         // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
         decs.sort_unstable();
