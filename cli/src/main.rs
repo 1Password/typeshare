@@ -11,10 +11,9 @@ use std::{fs, path::Path};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Swift, TypeScript},
+    language::{Kotlin, Language, Scala, Swift, TypeScript},
     parser::ParsedData,
 };
-use typeshare_core::language::Scala;
 
 mod config;
 
