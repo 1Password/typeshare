@@ -1,9 +1,10 @@
 use crate::{
-    parser::ParsedData,
+    parser::{ParseError, ParsedData},
     rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
-use std::{collections::HashMap, io::Write};
+use proc_macro2::Ident;
+use std::{collections::HashMap, fmt::Debug, io::Write, str::FromStr};
 
 mod go;
 mod kotlin;
@@ -17,6 +18,40 @@ pub use kotlin::Kotlin;
 pub use scala::Scala;
 pub use swift::Swift;
 pub use typescript::TypeScript;
+
+/// All supported programming languages.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum SupportedLanguage {
+    Go,
+    Kotlin,
+    Scala,
+    Swift,
+    TypeScript,
+}
+
+impl FromStr for SupportedLanguage {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "go" => Ok(Self::Go),
+            "kotlin" => Ok(Self::Kotlin),
+            "scala" => Ok(Self::Scala),
+            "swift" => Ok(Self::Swift),
+            "typescript" => Ok(Self::TypeScript),
+            _ => Err(ParseError::UnsupportedLanguage(s.into())),
+        }
+    }
+}
+
+impl TryFrom<&Ident> for SupportedLanguage {
+    type Error = ParseError;
+
+    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
+        Self::from_str(ident.to_string().as_str())
+    }
+}
 
 /// Language-specific state and processing.
 ///
@@ -182,7 +217,7 @@ pub trait Language {
     ///     AnonymousStruct {
     ///         field: String,
     ///         another_field: bool,
-    ///     },    
+    ///     },
     /// }
     /// ```
     ///

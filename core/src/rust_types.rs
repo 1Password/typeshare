@@ -4,6 +4,8 @@ use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use thiserror::Error;
 
+use crate::language::SupportedLanguage;
+
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone)]
 pub struct Id {
@@ -39,7 +41,7 @@ pub struct RustStruct {
     /// so we need to collect them here.
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
-    pub decorators: HashMap<String, Vec<String>>,
+    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
 }
 
 /// Rust type alias.
@@ -72,8 +74,8 @@ pub struct RustField {
     /// for the languages we generate code for.
     pub has_default: bool,
     /// Language-specific decorators assigned to a given field.
-    /// The keys are language names (e.g. typescript), the values are decorators (e.g. readonly)
-    pub decorators: HashMap<String, HashSet<String>>,
+    /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are decorators (e.g. readonly)
+    pub decorators: HashMap<SupportedLanguage, HashSet<String>>,
 }
 
 /// A Rust type.
@@ -407,7 +409,7 @@ pub enum RustEnum {
     /// enum UnitEnum {
     ///     Variant,
     ///     AnotherVariant,
-    ///     Yay,    
+    ///     Yay,
     /// }
     /// ```
     Unit(RustEnumShared),
@@ -424,7 +426,7 @@ pub enum RustEnum {
     ///     AnonymousStruct {
     ///         field: String,
     ///         another_field: bool,
-    ///     },    
+    ///     },
     /// }
     /// ```
     Algebraic {
@@ -460,7 +462,7 @@ pub struct RustEnumShared {
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<String, Vec<String>>,
+    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,

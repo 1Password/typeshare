@@ -1,6 +1,6 @@
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
-    language::Language,
+    language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use std::{collections::HashMap, io::Write};
@@ -222,7 +222,7 @@ impl TypeScript {
         let double_optional = field.ty.is_double_optional();
         let is_readonly = field
             .decorators
-            .get("typescript")
+            .get(&SupportedLanguage::TypeScript)
             .filter(|v| v.contains(&"readonly".to_string()))
             .is_some();
         writeln!(
