@@ -520,6 +520,7 @@ impl Swift {
                             ));
                         }
                         RustEnumVariant::Tuple { ty, .. } => {
+                            let content_optional = ty.is_optional();
                             let case_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
                                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -529,12 +530,17 @@ impl Swift {
                                 "
 			case .{case_name}:
 				if let content = try? container.decode({case_type}.self, forKey: .{content_key}) {{
-					self = .{case_name}(content)
+					self = .{case_name}({content_switch})
 					return
 				}}",
                                 content_key = content_key,
                                 case_type = swift_keyword_aware_rename(&case_type),
                                 case_name = &variant_name,
+                                content_switch = if content_optional {
+                                    r#"content == "null" ? nil : content"#
+                                } else {
+                                    "content"
+                                }
                             ));
 
                             encoding_cases.push(format!(
