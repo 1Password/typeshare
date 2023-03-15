@@ -88,7 +88,6 @@ fn build_command() -> Command<'static> {
         )
         .arg(
             Arg::new(ARG_SCALA_PACKAGE)
-                .short('S')
                 .long("scala-package")
                 .help("Scala package name")
                 .takes_value(true)
@@ -96,7 +95,6 @@ fn build_command() -> Command<'static> {
         )
         .arg(
             Arg::new(ARG_SCALA_MODULE_NAME)
-                .short('M')
                 .long("scala-module-name")
                 .help("Scala serializer module name")
                 .takes_value(true)
