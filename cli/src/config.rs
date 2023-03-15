@@ -144,6 +144,7 @@ mod test {
 
         assert_eq!(config.swift.type_mappings["DateTime"], "Date");
         assert_eq!(config.kotlin.type_mappings["DateTime"], "String");
+        assert_eq!(config.scala.type_mappings["DateTime"], "String");
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");

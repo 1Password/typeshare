@@ -5,6 +5,10 @@ prefix = ''
 module_name = ''
 package = ''
 
+[scala]
+module_name = ''
+package = ''
+
 [typescript]
 
 [go]
@@ -14,3 +18,5 @@ package = ''
 [typescript.type_mappings]
 
 [kotlin.type_mappings]
+
+[scala.type_mappings]

@@ -11,7 +11,7 @@ use std::{fs, path::Path};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, SupportedLanguage, Swift, TypeScript},
+    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -23,6 +23,8 @@ const ARG_TYPE: &str = "TYPE";
 const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
 const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
 const ARG_MODULE_NAME: &str = "MODULENAME";
+const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
+const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 #[cfg(feature = "go")]
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
@@ -30,10 +32,10 @@ const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 3] = ["kotlin", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
 
 fn build_command() -> Command<'static> {
     command!("typeshare")
@@ -81,6 +83,20 @@ fn build_command() -> Command<'static> {
                 .short('m')
                 .long("module-name")
                 .help("Kotlin serializer module name")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new(ARG_SCALA_PACKAGE)
+                .long("scala-package")
+                .help("Scala package name")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new(ARG_SCALA_MODULE_NAME)
+                .long("scala-module-name")
+                .help("Scala serializer module name")
                 .takes_value(true)
                 .required(false),
         )
@@ -174,6 +190,11 @@ fn main() {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
             type_mappings: config.kotlin.type_mappings,
+        }),
+        Some(SupportedLanguage::Scala) => Box::new(Scala {
+            package: config.scala.package,
+            module_name: config.scala.module_name,
+            type_mappings: config.scala.type_mappings,
         }),
         Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
@@ -279,6 +300,14 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 
     if let Some(module_name) = options.value_of(ARG_MODULE_NAME) {
         config.kotlin.module_name = module_name.to_string();
+    }
+
+    if let Some(scala_package) = options.value_of(ARG_SCALA_PACKAGE) {
+        config.scala.package = scala_package.to_string();
+    }
+
+    if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
+        config.scala.module_name = scala_module_name.to_string();
     }
 
     #[cfg(feature = "go")]
