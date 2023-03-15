@@ -11,7 +11,7 @@ use std::{fs, path::Path};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Scala, Swift, TypeScript},
+    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -174,38 +174,41 @@ fn main() {
         return;
     }
 
-    let language_type = options.value_of(ARG_TYPE);
     let mut directories = options.values_of("directories").unwrap();
     let outfile = Path::new(options.value_of(ARG_OUTPUT_FILE).unwrap());
+    let language_type = options
+        .value_of(ARG_TYPE)
+        .map(|lang| lang.parse().ok())
+        .and_then(|parsed| parsed);
 
     let mut lang: Box<dyn Language> = match language_type {
-        Some("swift") => Box::new(Swift {
+        Some(SupportedLanguage::Swift) => Box::new(Swift {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,
             default_decorators: config.swift.default_decorators,
             ..Default::default()
         }),
-        Some("kotlin") => Box::new(Kotlin {
+        Some(SupportedLanguage::Kotlin) => Box::new(Kotlin {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
             type_mappings: config.kotlin.type_mappings,
         }),
-        Some("scala") => Box::new(Scala {
+        Some(SupportedLanguage::Scala) => Box::new(Scala {
             package: config.scala.package,
             module_name: config.scala.module_name,
             type_mappings: config.scala.type_mappings,
         }),
-        Some("typescript") => Box::new(TypeScript {
+        Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
         }),
         #[cfg(feature = "go")]
-        Some("go") => Box::new(Go {
+        Some(SupportedLanguage::Go) => Box::new(Go {
             package: config.go.package,
             type_mappings: config.go.type_mappings,
             uppercase_acronyms: config.go.uppercase_acronyms,
         }),
         #[cfg(not(feature = "go"))]
-        Some("go") => {
+        Some(SupportedLanguage::Go) => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
         _ => {

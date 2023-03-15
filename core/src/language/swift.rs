@@ -1,6 +1,6 @@
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
-    language::Language,
+    language::{Language, SupportedLanguage},
     parser::remove_dash_from_identifier,
     rename::RenameExt,
     rust_types::{RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
@@ -210,10 +210,7 @@ impl Language for Swift {
         let mut decs = self.get_default_decorators();
 
         // Check if this struct's decorators contains swift in the hashmap
-        if rs.decorators.contains_key("swift") {
-            // this unwrap is safe since we just checked if we contain the key
-            let swift_decs = rs.decorators.get("swift").unwrap();
-
+        if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
             // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
             // Note: the list received from `rs.decorators` is already deduped
@@ -331,7 +328,7 @@ impl Language for Swift {
                 .for_each(|dec| decs.push(dec));
 
             // Check if this enum's decorators contains swift in the hashmap
-            if let Some(swift_decs) = e.shared().decorators.get("swift") {
+            if let Some(swift_decs) = e.shared().decorators.get(&SupportedLanguage::Swift) {
                 // Add any decorators from the typeshared enum
                 decs.extend(
                     // Note: `swift_decs` is already deduped
