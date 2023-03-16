@@ -28,7 +28,7 @@ targets = [
 
 
 [profile.release]
-lto = false
+lto = 'thin'
 opt-level = 2
 debug-assertions = false
 codegen-units = 16
@@ -37,4 +37,3 @@ incremental = true
 # The profile that 'cargo dist' will build with
 [profile.dist]
 inherits = "release"
-lto = "thin"
