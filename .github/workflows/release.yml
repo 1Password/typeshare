@@ -52,7 +52,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
-        run: rustup update 1.57.1 --no-self-update && rustup default 1.57.1
+        run: rustup update 1.57 --no-self-update && rustup default 1.57
       - name: Install cargo-dist
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
       - id: create-release
@@ -104,7 +104,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Rust
-        run: rustup update 1.57.1 --no-self-update && rustup default 1.57.1
+        run: rustup update 1.57 --no-self-update && rustup default 1.57
       - name: Install cargo-dist
         run: ${{ matrix.install-dist }}
       - name: Run cargo-dist
