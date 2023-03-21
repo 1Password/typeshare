@@ -402,11 +402,11 @@ tests! {
         typescript,
         go
     ];
-    can_generate_bare_string_enum: [swift, kotlin, scala, typescript];
+    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go ];
     can_generate_double_option_pattern: [
         typescript
     ];
-    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript];
+    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go ];
     test_algebraic_enum_case_name_support: [
         swift {
             prefix: "OP".to_string(),
@@ -503,7 +503,7 @@ tests! {
     ];
     test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
     test_optional_type_alias: [swift, kotlin, scala, typescript, go];
-    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript];
+    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
     test_serialized_as_tuple: [
         swift {
             prefix: "OP".to_string(),
