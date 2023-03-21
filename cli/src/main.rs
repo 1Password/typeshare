@@ -190,20 +190,24 @@ fn main() {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
             type_mappings: config.kotlin.type_mappings,
+            ..Default::default()
         }),
         Some(SupportedLanguage::Scala) => Box::new(Scala {
             package: config.scala.package,
             module_name: config.scala.module_name,
             type_mappings: config.scala.type_mappings,
+            ..Default::default()
         }),
         Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            ..Default::default()
         }),
         #[cfg(feature = "go")]
         Some(SupportedLanguage::Go) => Box::new(Go {
             package: config.go.package,
             type_mappings: config.go.type_mappings,
             uppercase_acronyms: config.go.uppercase_acronyms,
+            ..Default::default()
         }),
         #[cfg(not(feature = "go"))]
         Some(SupportedLanguage::Go) => {

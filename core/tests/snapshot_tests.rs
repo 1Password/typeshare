@@ -143,6 +143,7 @@ macro_rules! language_instance {
     (kotlin {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Kotlin {
+            no_version_header: true,
             $($field: $val,)*
             ..Default::default()
         })
@@ -161,6 +162,7 @@ macro_rules! language_instance {
     (scala {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Scala {
+            no_version_header: true,
             $($field: $val,)*
             ..Default::default()
         })
@@ -175,6 +177,7 @@ macro_rules! language_instance {
     (swift {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Swift {
+            no_version_header: true,
             $($field: $val,)*
             ..Default::default()
         })
@@ -189,6 +192,7 @@ macro_rules! language_instance {
     (typescript {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::TypeScript {
+            no_version_header: true,
             $($field: $val,)*
             ..Default::default()
         })
@@ -204,6 +208,7 @@ macro_rules! language_instance {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Go {
              package: "proto".to_string(),
+             no_version_header: true,
              $($field: $val,)*
             ..Default::default()
         })
