@@ -526,22 +526,35 @@ impl Swift {
                                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                             write!(w, "({})", swift_keyword_aware_rename(&case_type))?;
 
-                            decoding_cases.push(format!(
-                                "
-			case .{case_name}:
+                            if content_optional {
+                                decoding_cases.push(format!(
+                                    "
+            case .{case_name}:
 				if let content = try? container.decode({case_type}.self, forKey: .{content_key}) {{
-					self = .{case_name}({content_switch})
+					self = .{case_name}(content)
+					return
+				}}
+				else if let isNil = try? container.decodeNil(forKey: .{content_key}), isNil {{
+					self = .{case_name}(nil)
 					return
 				}}",
-                                content_key = content_key,
-                                case_type = swift_keyword_aware_rename(&case_type),
-                                case_name = &variant_name,
-                                content_switch = if content_optional {
-                                    r#"content == "null" ? nil : content"#
-                                } else {
-                                    "content"
-                                }
-                            ));
+                                    content_key = content_key,
+                                    case_type = swift_keyword_aware_rename(&case_type),
+                                    case_name = &variant_name
+                                ))
+                            } else {
+                                decoding_cases.push(format!(
+                                    "
+			case .{case_name}:
+				if let content = try? container.decode({case_type}.self, forKey: .{content_key}) {{
+					self = .{case_name}(content)
+					return
+				}}",
+                                    content_key = content_key,
+                                    case_type = swift_keyword_aware_rename(&case_type),
+                                    case_name = &variant_name,
+                                ));
+                            }
 
                             encoding_cases.push(format!(
                                 "
