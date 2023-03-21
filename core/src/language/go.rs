@@ -20,7 +20,7 @@ pub struct Go {
     pub uppercase_acronyms: Vec<String>,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
-    pub no_version_header: bool
+    pub no_version_header: bool,
 }
 
 impl Language for Go {
