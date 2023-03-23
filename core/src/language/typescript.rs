@@ -41,7 +41,7 @@ impl Language for TypeScript {
                 },
                 self.format_type(rtype2, generic_types)?
             )),
-            SpecialRustType::Unit => Ok("undefined".into()),
+            SpecialRustType::Unit => Ok("null".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
             | SpecialRustType::U8
@@ -177,7 +177,7 @@ impl TypeScript {
                 match v {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
-                        "\t| {{ {}: {:?}, {}?: undefined }}",
+                        "\t| {{ {}: {:?}, {}: null }}",
                         tag_key, shared.id.renamed, content_key
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {
