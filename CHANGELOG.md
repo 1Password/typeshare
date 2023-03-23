@@ -1,3 +1,10 @@
+# Version 1.3.0
+
+This release brings minor changes to snapshot testing by adding an additional option to remove version headers from generated code. This will make our snapshot tests more robust by preventing test breakage that used to occur when updating our version.
+
+* `typeshare-core`
+  * Each language implementation now has an additional public variable that can be set to remove version headers from generated code.
+
 # Version 1.2.0
 
 This release brings Scala functionality to the CLI, support for Apple Silicon as a pre-built binary, and refactors how
