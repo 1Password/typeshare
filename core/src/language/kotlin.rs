@@ -95,7 +95,7 @@ impl Language for Kotlin {
         Ok(())
     }
 
-    fn end_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
         if self.has_date.load(Ordering::SeqCst) {
             writeln!(w, "import kotlinx.serialization.*")?;
             writeln!(w)?;

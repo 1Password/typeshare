@@ -90,7 +90,7 @@ impl Language for TypeScript {
         Ok(())
     }
 
-    fn end_file(&self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
         if self.has_date.load(Ordering::SeqCst) {
             writeln!(w, "export function TypeshareDateReviver(key, value): Date {{ return new Date(value); }}")?;
             Ok(())
