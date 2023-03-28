@@ -1,8 +1,6 @@
 use crate::{
-    parser::ParsedData,
     parser::{ParseError, ParsedData},
     rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustThing, RustTypeAlias},
-    rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
 use itertools::Itertools;
