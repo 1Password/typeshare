@@ -9,6 +9,7 @@ To generate ffi definitions for a specific target language, run the `typeshare` 
 typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
 typeshare ./my_rust_project --lang=swift --output-file=my_swift_definitions.swift
 typeshare ./my_rust_project --lang=typescript --output-file=my_typescript_definitions.ts
+typeshare ./my_rust_project --lang=scala --output-file=my_scala_definitions.scala
 ```
 The first command-line argument is the name of the directory to search for Rust type definitions. The CLI will search all files in the specified directory tree for annotated Rust types. In addition to the input directory, you will also need to specify your desired target language and the output file to which the generated types will be written. This is done with the `--lang` and `--output-file` options respectively.
 
@@ -17,6 +18,7 @@ The currently supported output languages are:
 - Kotlin
 - Typescript
 - Swift
+- Scala
 - Go
 
 ---

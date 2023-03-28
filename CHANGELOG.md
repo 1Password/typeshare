@@ -1,3 +1,29 @@
+# Version 1.3.0
+
+This release brings minor changes to snapshot testing by adding an additional option to remove version headers from generated code. This will make our snapshot tests more robust by preventing test breakage that used to occur when updating our version.
+
+* `typeshare-core`
+  * Each language implementation now has an additional public variable that can be set to remove version headers from generated code.
+
+# Version 1.2.0
+
+This release brings Scala functionality to the CLI, support for Apple Silicon as a pre-built binary, and refactors how
+we handle language variants internally to be more type-safe.
+
+* `typeshare-cli`
+  * Scala is now a language generation target! Try it out with `typeshare --lang=scala --scala-package=com.your.package.here some/file.rs`
+  * Future releases (including this one) now support aarch64-apple-darwin as an additional architecture.
+* `typeshare-core`
+  * Language variants are now represented as enums instead of strings.
+
+### Community contributors
+
+Thank you to the following community contributors for your work on this release:
+* [jclmnop](https://github.com/jclmnop)
+* [oeb25](https://github.com/oeb25)
+* [DuhPesky](https://github.com/DuhPesky)
+* [exoego](https://github.com/exoego)
+
 # Version 1.1.0
 
 This release brings major new additions, the largest of which is support for Scala as a language generation target. 
