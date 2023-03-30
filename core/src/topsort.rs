@@ -180,7 +180,7 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
     res
 }
 
-pub(crate) fn topsort<'a>(things: Vec<&'a RustItem>) -> Vec<&'a RustItem> {
+pub(crate) fn topsort(things: Vec<&RustItem>) -> Vec<&RustItem> {
     let types = HashMap::from_iter(things.iter().map(|&thing| {
         let id = match thing {
             RustItem::Enum(e) => match e {

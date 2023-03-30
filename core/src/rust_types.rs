@@ -514,7 +514,10 @@ pub struct RustEnumVariantShared {
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum RustItem {
+    /// A `struct` definition
     Struct(RustStruct),
+    /// An `enum` definition
     Enum(RustEnum),
+    /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
 }
