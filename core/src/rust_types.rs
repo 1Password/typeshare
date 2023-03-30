@@ -399,7 +399,7 @@ impl SpecialRustType {
 }
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RustEnum {
     /// A unit enum
     ///
@@ -449,7 +449,7 @@ impl RustEnum {
 }
 
 /// Enum information shared among different enum types
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustEnumShared {
     /// The enum's ident
     pub id: Id,
@@ -469,7 +469,7 @@ pub struct RustEnumShared {
 }
 
 /// Parsed information about a Rust enum variant
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RustEnumVariant {
     /// A unit variant
     Unit(RustEnumVariantShared),
@@ -501,7 +501,7 @@ impl RustEnumVariant {
 }
 
 /// Variant information shared among different variant types
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustEnumVariantShared {
     /// The variant's ident
     pub id: Id,
@@ -509,9 +509,12 @@ pub struct RustEnumVariantShared {
     pub comments: Vec<String>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum RustThing<'a> {
-    Enum(&'a RustEnum),
-    TypeAlias(&'a RustTypeAlias),
-    Struct(&'a RustStruct),
+/// An enum that encapsulates units of code generation for Typeshare.
+/// Analogous to `syn::Item`, even though our variants are more limited.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
+pub enum RustItem {
+    Struct(RustStruct),
+    Enum(RustEnum),
+    Alias(RustTypeAlias),
 }

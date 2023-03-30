@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustThing, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -40,27 +40,27 @@ impl Language for Go {
 
         self.begin_file(w)?;
 
-        let mut things: Vec<RustThing> = vec![];
+        let mut items: Vec<RustItem> = vec![];
 
         for a in &data.aliases {
-            things.push(RustThing::TypeAlias(a))
+            items.push(RustItem::Alias(a.clone()))
         }
 
         for s in &data.structs {
-            things.push(RustThing::Struct(s))
+            items.push(RustItem::Struct(s.clone()))
         }
 
         for e in &data.enums {
-            things.push(RustThing::Enum(e))
+            items.push(RustItem::Enum(e.clone()))
         }
 
-        let sorted = topsort(things.iter().collect());
+        let sorted = topsort(items.iter().collect());
 
         for &thing in &sorted {
             match thing {
-                RustThing::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
-                RustThing::Struct(s) => self.write_struct(w, s)?,
-                RustThing::TypeAlias(a) => self.write_type_alias(w, a)?,
+                RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
+                RustItem::Struct(s) => self.write_struct(w, s)?,
+                RustItem::Alias(a) => self.write_type_alias(w, a)?,
             }
         }
 

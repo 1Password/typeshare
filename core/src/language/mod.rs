@@ -1,6 +1,6 @@
 use crate::{
     parser::{ParseError, ParsedData},
-    rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustThing, RustTypeAlias},
+    rust_types::{Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
 use itertools::Itertools;
@@ -69,27 +69,27 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
-        let mut things: Vec<RustThing> = vec![];
+        let mut items: Vec<RustItem> = vec![];
 
         for a in &data.aliases {
-            things.push(RustThing::TypeAlias(a))
+            items.push(RustItem::Alias(a.clone()))
         }
 
         for s in &data.structs {
-            things.push(RustThing::Struct(s))
+            items.push(RustItem::Struct(s.clone()))
         }
 
         for e in &data.enums {
-            things.push(RustThing::Enum(e))
+            items.push(RustItem::Enum(e.clone()))
         }
 
-        let sorted = topsort(things.iter().collect());
+        let sorted = topsort(items.iter().collect());
 
         for &thing in &sorted {
             match thing {
-                RustThing::Enum(e) => self.write_enum(writable, e)?,
-                RustThing::Struct(s) => self.write_struct(writable, s)?,
-                RustThing::TypeAlias(a) => self.write_type_alias(writable, a)?,
+                RustItem::Enum(e) => self.write_enum(writable, e)?,
+                RustItem::Struct(s) => self.write_struct(writable, s)?,
+                RustItem::Alias(a) => self.write_type_alias(writable, a)?,
             }
         }
 
