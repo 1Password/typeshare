@@ -13,6 +13,7 @@ pub mod language;
 pub mod parser;
 /// Codifying Rust types and how they convert to various languages.
 pub mod rust_types;
+mod topsort;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]

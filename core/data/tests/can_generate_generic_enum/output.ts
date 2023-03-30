@@ -1,10 +1,10 @@
-export interface StructUsingGenericEnum {
-	enum_field: GenericEnum<string, number>;
-}
-
 export type GenericEnum<A, B> = 
 	| { type: "VariantA", content: A }
 	| { type: "VariantB", content: B };
+
+export interface StructUsingGenericEnum {
+	enum_field: GenericEnum<string, number>;
+}
 
 export type GenericEnumUsingGenericEnum<T> = 
 	| { type: "VariantC", content: GenericEnum<T, T> }

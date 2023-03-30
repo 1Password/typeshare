@@ -6,11 +6,6 @@ import androidx.compose.runtime.NoLiveLiterals
 import kotlinx.serialization.*
 
 @Serializable
-data class StructUsingGenericEnum (
-	val enum_field: GenericEnum<String, Short>
-)
-
-@Serializable
 sealed class GenericEnum<A, B> {
 	@Serializable
 	@SerialName("VariantA")
@@ -19,6 +14,11 @@ sealed class GenericEnum<A, B> {
 	@SerialName("VariantB")
 	data class VariantB<A, B>(val content: B): GenericEnum<A, B>()
 }
+
+@Serializable
+data class StructUsingGenericEnum (
+	val enum_field: GenericEnum<String, Short>
+)
 
 @Serializable
 sealed class GenericEnumUsingGenericEnum<T> {

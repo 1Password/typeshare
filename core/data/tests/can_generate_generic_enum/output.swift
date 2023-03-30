@@ -1,13 +1,5 @@
 import Foundation
 
-public struct CoreStructUsingGenericEnum: Codable {
-	public let enum_field: CoreGenericEnum<String, Int16>
-
-	public init(enum_field: CoreGenericEnum<String, Int16>) {
-		self.enum_field = enum_field
-	}
-}
-
 public enum CoreGenericEnum<A: Codable, B: Codable>: Codable {
 	case variantA(A)
 	case variantB(B)
@@ -50,6 +42,14 @@ public enum CoreGenericEnum<A: Codable, B: Codable>: Codable {
 			try container.encode(CodingKeys.variantB, forKey: .type)
 			try container.encode(content, forKey: .content)
 		}
+	}
+}
+
+public struct CoreStructUsingGenericEnum: Codable {
+	public let enum_field: CoreGenericEnum<String, Int16>
+
+	public init(enum_field: CoreGenericEnum<String, Int16>) {
+		self.enum_field = enum_field
 	}
 }
 

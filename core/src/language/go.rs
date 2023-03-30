@@ -2,10 +2,11 @@ use std::io::Write;
 
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    topsort::topsort,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -39,16 +40,28 @@ impl Language for Go {
 
         self.begin_file(w)?;
 
+        let mut items: Vec<RustItem> = vec![];
+
         for a in &data.aliases {
-            self.write_type_alias(w, a)?;
+            items.push(RustItem::Alias(a.clone()))
         }
 
         for s in &data.structs {
-            self.write_struct(w, s)?;
+            items.push(RustItem::Struct(s.clone()))
         }
 
         for e in &data.enums {
-            self.write_enum(w, e, &types_mapping_to_struct)?;
+            items.push(RustItem::Enum(e.clone()))
+        }
+
+        let sorted = topsort(items.iter().collect());
+
+        for &thing in &sorted {
+            match thing {
+                RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
+                RustItem::Struct(s) => self.write_struct(w, s)?,
+                RustItem::Alias(a) => self.write_type_alias(w, a)?,
+            }
         }
 
         self.end_file(w)?;

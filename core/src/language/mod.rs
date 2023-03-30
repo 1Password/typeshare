@@ -1,6 +1,7 @@
 use crate::{
     parser::{ParseError, ParsedData},
-    rust_types::{Id, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustTypeAlias},
+    topsort::topsort,
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
@@ -68,16 +69,28 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable)?;
 
+        let mut items: Vec<RustItem> = vec![];
+
         for a in &data.aliases {
-            self.write_type_alias(writable, a)?;
+            items.push(RustItem::Alias(a.clone()))
         }
 
         for s in &data.structs {
-            self.write_struct(writable, s)?;
+            items.push(RustItem::Struct(s.clone()))
         }
 
         for e in &data.enums {
-            self.write_enum(writable, e)?;
+            items.push(RustItem::Enum(e.clone()))
+        }
+
+        let sorted = topsort(items.iter().collect());
+
+        for &thing in &sorted {
+            match thing {
+                RustItem::Enum(e) => self.write_enum(writable, e)?,
+                RustItem::Struct(s) => self.write_struct(writable, s)?,
+                RustItem::Alias(a) => self.write_type_alias(writable, a)?,
+            }
         }
 
         self.end_file(writable)?;
