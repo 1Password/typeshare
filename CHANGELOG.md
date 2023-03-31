@@ -10,7 +10,6 @@ This release brings topological sorting of types based on dependencies to genera
 ### Community contributors
 
 Thank you to the following community contributors for your work on this release:
-* [kevinbhayes](https://github.com/kevinbhayes)
 * [adriangb](https://github.com/adriangb)
 
 # Version 1.3.0
