@@ -79,6 +79,9 @@ impl Language for Scala {
             SpecialRustType::Vec(rtype) => {
                 format!("Vector[{}]", self.format_type(rtype, generic_types)?)
             }
+            SpecialRustType::Array(rtype, _) => {
+                format!("Vector[{}]", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("Option[{}]", self.format_type(rtype, generic_types)?)
             }

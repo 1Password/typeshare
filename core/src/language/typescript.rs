@@ -1,3 +1,5 @@
+use joinery::JoinableIterator;
+
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::{Language, SupportedLanguage},
@@ -28,6 +30,15 @@ impl Language for TypeScript {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
+            }
+            SpecialRustType::Array(rtype, len) => {
+                let formatted_type = self.format_type(rtype, generic_types)?;
+                Ok(format!(
+                    "[{}]",
+                    std::iter::repeat(&formatted_type)
+                        .take(*len)
+                        .join_with(", ")
+                ))
             }
             // We add optionality above the type formatting level
             SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),

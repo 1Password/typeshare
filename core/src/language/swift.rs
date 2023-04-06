@@ -127,6 +127,9 @@ impl Language for Swift {
     ) -> Result<String, RustTypeFormatError> {
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => format!("[{}]", self.format_type(rtype, generic_types)?),
+            SpecialRustType::Array(rtype, _) => {
+                format!("[{}]", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("{}?", self.format_type(rtype, generic_types)?)
             }
