@@ -80,6 +80,9 @@ impl Language for Go {
     ) -> Result<String, RustTypeFormatError> {
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
+            SpecialRustType::Array(rtype, len) => {
+                format!("[{len}]{}", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("*{}", self.format_type(rtype, generic_types)?)
             }

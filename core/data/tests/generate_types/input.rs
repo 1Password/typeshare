@@ -9,6 +9,7 @@ pub struct Types {
     pub float: f32,
     pub double: f64,
     pub array: Vec<String>,
+    pub fixed_length_array: [String; 4],
     pub dictionary: HashMap<String, i32>,
     pub optional_dictionary: Option<HashMap<String, i32>>,
     pub custom_type: CustomType,
