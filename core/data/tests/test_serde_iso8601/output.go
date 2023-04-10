@@ -6,5 +6,5 @@ import (
 )
 
 type Foo struct {
-	Time string `json:"time"`
+	Time Time `json:"time"`
 }
