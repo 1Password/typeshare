@@ -16,6 +16,8 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether the generated code includes a date type
+    /// (this means we need to output a reviver function as well)
     pub has_date: AtomicBool,
 }
 
