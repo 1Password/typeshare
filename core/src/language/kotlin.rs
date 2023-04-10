@@ -89,6 +89,7 @@ impl Language for Kotlin {
             writeln!(w, "package {}", self.package)?;
             writeln!(w)?;
             writeln!(w, "import androidx.compose.runtime.NoLiveLiterals")?;
+            writeln!(w, "import kotlinx.serialization.*")?;
             writeln!(w)?;
         }
 
@@ -97,7 +98,6 @@ impl Language for Kotlin {
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
         if self.has_date.load(Ordering::SeqCst) {
-            writeln!(w, "import kotlinx.serialization.*")?;
             writeln!(w)?;
             writeln!(
                 w,
