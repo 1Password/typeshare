@@ -8,6 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     io::Write,
@@ -74,6 +75,8 @@ const SWIFT_KEYWORDS: &[&str] = &[
 
 const CODABLE: &str = "Codable";
 
+const GENERIC_DECORATORS: &str = "generic_decorators";
+
 /// Information on serialization/deserialization coding keys.
 /// TODO: expand on this.
 #[derive(Debug)]
@@ -81,6 +84,33 @@ struct CodingKeysInfo {
     decoding_cases: Vec<String>,
     encoding_cases: Vec<String>,
     coding_keys: Vec<String>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct GenericDecorators {
+    decorators: HashSet<String>,
+}
+
+impl GenericDecorators {
+    pub fn from_config(decorators: Vec<String>) -> Self {
+        Self {
+            decorators: decorators
+                .into_iter()
+                .flat_map(|d| Self::split_decorators(d))
+                .collect(),
+        }
+    }
+    pub fn add(&mut self, decorators: String) {
+        for decorator in Self::split_decorators(decorators).into_iter() {
+            self.decorators.insert(decorator);
+        }
+    }
+    pub fn get_decorators(&self) -> impl Iterator<Item = &String> {
+        self.decorators.iter()
+    }
+    fn split_decorators(decorators: String) -> Vec<String> {
+        decorators.split('&').map(|s| s.trim().to_owned()).collect()
+    }
 }
 
 /// All information needed to generate Swift type-code
@@ -92,6 +122,8 @@ pub struct Swift {
     pub type_mappings: HashMap<String, String>,
     /// Default decorators that will be applied to all typeshared types
     pub default_decorators: Vec<String>,
+    /// Default type constraints that will be applied to all generic parameters of typeshared types
+    pub default_generic_decorators: GenericDecorators,
     /// Will be set to true if one of your typeshared Rust type contains the unit type `()`.
     /// This will add a definition of a `CodableVoid` type to the generated Swift code and
     /// use `CodableVoid` to replace `()`.
@@ -216,6 +248,7 @@ impl Language for Swift {
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         let mut decs = self.get_default_decorators();
 
+        let mut default_generic_decorators = self.default_generic_decorators.clone();
         // Check if this struct's decorators contains swift in the hashmap
         if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
@@ -225,14 +258,32 @@ impl Language for Swift {
                 .iter()
                 .filter(|d| d.as_str() != CODABLE)
                 .for_each(|d| decs.push(d.clone()));
+            swift_decs
+                .iter()
+                .filter(|d| d.as_str() == GENERIC_DECORATORS)
+                .for_each(|d| default_generic_decorators.add(d.clone()))
         }
+
+        let generic_dec_string = default_generic_decorators.get_decorators().join(" & ");
 
         writeln!(
             w,
             "public struct {}{}: {} {{",
             type_name,
             (!rs.generic_types.is_empty())
-                .then(|| format!("<{}: Codable>", rs.generic_types.join(": Codable, ")))
+                .then(|| format!(
+                    "<{}>",
+                    rs.generic_types
+                        .iter()
+                        .map(|t| format!(
+                            "{}{}",
+                            t,
+                            (!generic_dec_string.is_empty())
+                                .then(|| format!(": {}", generic_dec_string))
+                                .unwrap_or_default()
+                        ))
+                        .join(", ")
+                ))
                 .unwrap_or_default(),
             decs.join(", ")
         )?;

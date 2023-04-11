@@ -8,6 +8,7 @@ use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs, path::Path};
+use typeshare_core::language::GenericDecorators;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -184,6 +185,9 @@ fn main() {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,
             default_decorators: config.swift.default_decorators,
+            default_generic_decorators: GenericDecorators::from_config(
+                config.swift.default_generic_decorators,
+            ),
             ..Default::default()
         }),
         Some(SupportedLanguage::Kotlin) => Box::new(Kotlin {
