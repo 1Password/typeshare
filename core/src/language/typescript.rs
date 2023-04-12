@@ -5,7 +5,6 @@ use crate::{
     language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed to generate Typescript type-code
@@ -18,7 +17,7 @@ pub struct TypeScript {
     pub no_version_header: bool,
     /// Whether the generated code includes a date type
     /// (this means we need to output a reviver function as well)
-    pub has_date: AtomicBool,
+    pub has_date: bool,
 }
 
 impl Language for TypeScript {
@@ -57,7 +56,7 @@ impl Language for TypeScript {
                 self.format_type(rtype2, generic_types)?
             )),
             SpecialRustType::DateTime => {
-                self.has_date.store(true, Ordering::SeqCst);
+                self.has_date = true;
                 Ok("Date".into())
             }
             SpecialRustType::Unit => Ok("null".into()),
@@ -93,7 +92,7 @@ impl Language for TypeScript {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if self.has_date.load(Ordering::SeqCst) {
+        if self.has_date {
             writeln!(w, "export function TypeshareDateReviver(key, value): Date {{ return new Date(value); }}")?;
             Ok(())
         } else {
