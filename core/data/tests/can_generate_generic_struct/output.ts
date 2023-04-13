@@ -13,5 +13,5 @@ export type EnumUsingGenericStruct =
 	| { type: "VariantA", content: GenericStruct<string, number> }
 	| { type: "VariantB", content: GenericStruct<string, number> }
 	| { type: "VariantC", content: GenericStruct<string, boolean> }
-	| { type: "VariantD", content: GenericStructUsingGenericStruct<null> };
+	| { type: "VariantD", content: GenericStructUsingGenericStruct<undefined> };
 
