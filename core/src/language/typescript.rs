@@ -59,7 +59,7 @@ impl Language for TypeScript {
                 self.has_date = true;
                 Ok("Date".into())
             }
-            SpecialRustType::Unit => Ok("null".into()),
+            SpecialRustType::Unit => Ok("undefined".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
             | SpecialRustType::U8
@@ -204,7 +204,7 @@ impl TypeScript {
                 match v {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
-                        "\t| {{ {}: {:?}, {}: null }}",
+                        "\t| {{ {}: {:?}, {}?: undefined }}",
                         tag_key, shared.id.renamed, content_key
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {

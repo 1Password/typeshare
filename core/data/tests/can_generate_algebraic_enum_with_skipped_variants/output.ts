@@ -1,4 +1,4 @@
 export type SomeEnum = 
-	| { type: "A", content: null }
+	| { type: "A", content?: undefined }
 	| { type: "C", content: number };
 

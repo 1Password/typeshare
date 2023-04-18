@@ -1,6 +1,6 @@
 /** This is a comment. */
 export type Colors = 
-	| { type: "Red", content: null }
-	| { type: "Blue", content: null }
+	| { type: "Red", content?: undefined }
+	| { type: "Blue", content?: undefined }
 	| { type: "Green", content: string };
 

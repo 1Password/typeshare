@@ -3,5 +3,5 @@ export interface AddressDetails {
 
 export type Address = 
 	| { type: "FixedAddress", content: AddressDetails }
-	| { type: "NoFixedAddress", content: null };
+	| { type: "NoFixedAddress", content?: undefined };
 

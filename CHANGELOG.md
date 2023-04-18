@@ -1,3 +1,22 @@
+# Version 1.5.0
+
+This release brings support for fixed-length arrays and fixes some premature changes made in 1.4.0 involving the
+representation of unit types and enum variants in Typescript.
+
+* `typeshare-core`
+  * Fixed-length arrays in the form of `[T; N]` are now supported.
+  * Reverted changes made to the representation of unit types in Typescript.<sup>1</sup>
+
+<sup>1</sup> We apologize for the premature changes to the representation of unit types. This was done to improve
+correctness and compatibility with various JSON libraries, however it ended up causing a regression by invalidating
+certain usages. For now, we've reverted the changes so your projects can get back on track, and we are working to bring
+these improvements while mitigating the issues discovered. Thank you for bringing this to our attention.
+
+### Community contributors
+
+Thank you to the following community contributors for your work on this release:
+* [ccouzens](https://github.com/ccouzens)
+
 # Version 1.4.0
 
 This release brings topological sorting of types based on dependencies to generated files, as well as fixes several bugs.
