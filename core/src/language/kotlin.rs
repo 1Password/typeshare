@@ -8,7 +8,6 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -24,7 +23,7 @@ pub struct Kotlin {
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
     /// Whether we've outputted a Date (requires custom serializer)
-    pub has_date: AtomicBool,
+    pub has_date: bool,
 }
 
 impl Language for Kotlin {
@@ -55,7 +54,7 @@ impl Language for Kotlin {
                 )
             }
             SpecialRustType::DateTime => {
-                self.has_date.store(true, Ordering::SeqCst);
+                self.has_date = true;
                 "java.time.Instant".into()
             }
             SpecialRustType::Unit => "Unit".into(),
@@ -97,14 +96,14 @@ impl Language for Kotlin {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if self.has_date.load(Ordering::SeqCst) {
+        if self.has_date {
             writeln!(w)?;
             writeln!(
                 w,
                 r#"object JavaInstantSerializer : KSerializer<java.time.Instant> {{
-    override val descriptor = PrimitiveDescriptor("Instant", PrimitiveKind.STRING)
-    override fun serialize(encoder: Encoder, value: java.time.Instant) = encoder.encodeString(value)
-    override fun deserialize(decoder: Decoder): java.time.Instant = java.time.Instant.parse(decoder.decodeString())
+    override val descriptor = kotlinx.serialization.descriptors.PrimitiveSerialDescriptor("Instant", kotlinx.serialization.descriptors.PrimitiveKind.STRING)
+    override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: java.time.Instant) = encoder.encodeString(value.toString())
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): java.time.Instant = java.time.Instant.parse(decoder.decodeString())
 }}
 "#
             )?;
@@ -338,6 +337,10 @@ impl Kotlin {
         if requires_serial_name {
             writeln!(w, "\t@SerialName({:?})", &f.id.renamed)?;
         }
+
+        if f.ty.contains_type("DateTime") {
+            writeln!(w, "\t@Serializable(with = JavaInstantSerializer::class)")?;
+        }
         let ty = self
             .format_type(&f.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -346,6 +349,7 @@ impl Kotlin {
             "\tval {}: {}{}",
             remove_dash_from_identifier(&f.id.renamed),
             ty,
+
             (f.has_default && !f.ty.is_optional())
                 .then(|| "? = null")
                 .or_else(|| f.ty.is_optional().then(|| " = null"))
