@@ -96,7 +96,7 @@ impl GenericDecorators {
         Self {
             decorators: decorators
                 .into_iter()
-                .flat_map(|d| Self::split_decorators(d))
+                .flat_map(Self::split_decorators)
                 .collect(),
         }
     }
