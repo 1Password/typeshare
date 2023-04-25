@@ -107,6 +107,8 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     Ok(parsed_data)
 }
 
+/// Given an iterator over items, will return an iterator that flattens the contents of embedded
+/// module items into the iterator.
 fn flatten_items<'a>(items: impl Iterator<Item=&'a syn::Item>) -> impl Iterator<Item=&'a syn::Item> {
     items.flat_map(|item| match item {
         syn::Item::Mod(syn::ItemMod { content: Some((_, items)), .. }) => {
