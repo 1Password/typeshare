@@ -110,7 +110,7 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
 fn flatten_items<'a>(items: impl Iterator<Item=&'a syn::Item>) -> impl Iterator<Item=&'a syn::Item> {
     items.flat_map(|item| match item {
         syn::Item::Mod(syn::ItemMod { content: Some((_, items)), .. }) => {
-            items.iter().collect()
+            flatten_items(items.iter()).collect()
         },
         item => vec![item]
     }.into_iter())
