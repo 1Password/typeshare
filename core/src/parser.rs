@@ -88,7 +88,8 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]
     let source = syn::parse_file(input)?;
-    for item in &source.items {
+
+    for item in flatten_items(source.items.iter()) {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
                 parsed_data.push_rust_thing(parse_struct(s)?);
@@ -104,6 +105,15 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     }
 
     Ok(parsed_data)
+}
+
+fn flatten_items<'a>(items: impl Iterator<Item=&'a syn::Item>) -> impl Iterator<Item=&'a syn::Item> {
+    items.flat_map(|item| match item {
+        syn::Item::Mod(syn::ItemMod { content: Some((_, items)), .. }) => {
+            items.iter().collect()
+        },
+        item => vec![item]
+    }.into_iter())
 }
 
 /// Parses a struct into a definition that more succinctly represents what
