@@ -177,7 +177,15 @@ impl Language for Swift {
                 w,
                 r"/// () isn't codable, so we use this instead to represent Rust's unit type"
             )?;
-            writeln!(w, r"public struct CodableVoid: Codable {{}}")?;
+
+            let mut decs = self.get_default_decorators();
+
+            // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
+            if !decs.contains(&CODABLE.to_string()) {
+                decs.push(CODABLE.to_string());
+            }
+
+            writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))?;
         }
 
         Ok(())
