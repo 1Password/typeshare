@@ -73,6 +73,8 @@ pub enum ParseError {
     SerdeTagRequired { enum_ident: String },
     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
     SerdeContentRequired { enum_ident: String },
+    #[error("the serde flatten attribute is not currently supported")]
+    SerdeFlattenNotAllowed,
 }
 
 /// Parse the given Rust source string into `ParsedData`.
@@ -149,6 +151,10 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                     } else {
                         RustType::try_from(&f.ty)?
                     };
+
+                    if serde_flatten(&f.attrs) {
+                        return Err(ParseError::SerdeFlattenNotAllowed);
+                    }
 
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
@@ -627,14 +633,12 @@ fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
         .and_then(literal_as_string)
 }
 
-fn serde_default(attrs: &[syn::Attribute]) -> bool {
-    let default = Ident::new("default", Span::call_site());
-
+fn serde_attr(attrs: &[syn::Attribute], ident: &Ident) -> bool {
     attrs.iter().any(|attr| {
         get_serde_meta_items(attr).iter().any(|arg| match arg {
             NestedMeta::Meta(Meta::Path(path)) => {
-                if let Some(ident) = path.get_ident() {
-                    *ident == default
+                if let Some(this_ident) = path.get_ident() {
+                    *this_ident == *ident
                 } else {
                     false
                 }
@@ -642,6 +646,14 @@ fn serde_default(attrs: &[syn::Attribute]) -> bool {
             _ => false,
         })
     })
+}
+
+fn serde_default(attrs: &[syn::Attribute]) -> bool {
+    serde_attr(attrs, &Ident::new("default", Span::call_site()))
+}
+
+fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
+    serde_attr(attrs, &Ident::new("flatten", Span::call_site()))
 }
 
 // TODO: for now, this is a workaround until we can integrate serde_derive_internal
