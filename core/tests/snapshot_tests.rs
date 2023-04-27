@@ -406,6 +406,9 @@ tests! {
     can_generate_double_option_pattern: [
         typescript
     ];
+    can_recognize_types_inside_modules: [
+        swift, kotlin, scala, typescript, go
+    ];
     test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go ];
     test_algebraic_enum_case_name_support: [
         swift {
