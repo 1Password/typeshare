@@ -68,9 +68,7 @@ impl Language for TypeScript {
             SpecialRustType::U64
             | SpecialRustType::I64
             | SpecialRustType::ISize
-            | SpecialRustType::USize => {
-                panic!("64 bit types not allowed in Typeshare")
-            }
+            | SpecialRustType::USize => Ok("bigint".into()),
         }
     }
 
