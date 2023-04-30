@@ -68,7 +68,17 @@ impl Language for TypeScript {
             SpecialRustType::U64
             | SpecialRustType::I64
             | SpecialRustType::ISize
-            | SpecialRustType::USize => Ok("bigint".into()),
+            | SpecialRustType::USize => {
+                println!(
+                    r#"WARNING: 
+                         64bit types are not supported by the default JSON lib for JS/TS! This will lead to memory safety issues when passing data between JS/TS and Rust.
+                         If your intended encpoint is for JSON parsing/serializing between JS/TS & Rust, please consider using a custom JSON parser that supports 64 bit static types. 
+                         An open-source option is available with superjson 
+                         `https://github.com/blitz-js/superjson`
+                         `https://www.npmjs.com/package/superjson`"#,
+                );
+                Ok("bigint".into())
+            }
         }
     }
 
