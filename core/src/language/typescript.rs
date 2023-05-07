@@ -160,6 +160,10 @@ impl Language for TypeScript {
             }
         }
     }
+
+    fn supports_flatten(&self) -> bool {
+        true
+    }
 }
 
 impl TypeScript {

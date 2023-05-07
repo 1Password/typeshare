@@ -181,6 +181,10 @@ impl Language for Kotlin {
 
         writeln!(w, "}}\n")
     }
+
+    fn supports_flatten(&self) -> bool {
+        false
+    }
 }
 
 impl Kotlin {

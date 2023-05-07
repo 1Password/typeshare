@@ -293,4 +293,5 @@ pub trait Language {
 
         Ok(())
     }
+    fn supports_flatten(&self) -> bool;
 }

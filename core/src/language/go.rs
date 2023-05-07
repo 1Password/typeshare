@@ -154,6 +154,10 @@ impl Language for Go {
 
         writeln!(w, "}}")
     }
+
+    fn supports_flatten(&self) -> bool {
+        false
+    }
 }
 
 impl Go {
