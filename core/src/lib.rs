@@ -30,7 +30,7 @@ pub fn process_input(
     language: &mut dyn Language,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
-    let parsed_data = parser::parse(input)?;
+    let parsed_data = parser::parse(input, language.supports_flatten())?;
     language.generate_types(out, &parsed_data)?;
     Ok(())
 }

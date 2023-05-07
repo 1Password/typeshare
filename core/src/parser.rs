@@ -78,7 +78,7 @@ pub enum ParseError {
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
+pub fn parse(input: &str, supports_flatten: bool) -> Result<ParsedData, ParseError> {
     let mut parsed_data = ParsedData::default();
 
     // We will only produce output for files that contain the `#[typeshare]`
@@ -94,7 +94,7 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     for item in flatten_items(source.items.iter()) {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?);
+                parsed_data.push_rust_thing(parse_struct(s, supports_flatten)?);
             }
             syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
                 parsed_data.push_rust_thing(parse_enum(e)?);
@@ -131,7 +131,7 @@ fn flatten_items<'a>(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+fn parse_struct(s: &ItemStruct, supports_flatten: bool) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
