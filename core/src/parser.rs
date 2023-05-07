@@ -156,6 +156,7 @@ fn parse_struct(s: &ItemStruct, supports_flatten: bool) -> Result<RustItem, Pars
         }));
     }
 
+    let mut flattened: bool = false;
     Ok(match &s.fields {
         // Structs
         Fields::Named(f) => {
@@ -170,9 +171,14 @@ fn parse_struct(s: &ItemStruct, supports_flatten: bool) -> Result<RustItem, Pars
                         RustType::try_from(&f.ty)?
                     };
 
-                    if serde_flatten(&f.attrs) {
-                        return Err(ParseError::SerdeFlattenNotAllowed);
-                    }
+                    flattened = if serde_flatten(&f.attrs) {
+                        if !supports_flatten {
+                            return Err(ParseError::SerdeFlattenNotAllowed);
+                        }
+                        true
+                    } else {
+                        false
+                    };
 
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
@@ -183,6 +189,7 @@ fn parse_struct(s: &ItemStruct, supports_flatten: bool) -> Result<RustItem, Pars
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
                         decorators,
+                        flattened,
                     })
                 })
                 .collect::<Result<_, ParseError>>()?;
@@ -380,6 +387,7 @@ fn parse_enum_variant(
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
                         decorators,
+                        flattened: false,
                     })
                 })
                 .collect::<Result<Vec<_>, ParseError>>()?,
