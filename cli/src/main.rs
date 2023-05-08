@@ -28,6 +28,7 @@ const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 #[cfg(feature = "go")]
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
+const ARG_TYPESCRIPT_UNSAFE_TYPES: &str = "TYPESCRIPTUNSAFE";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 
@@ -78,6 +79,14 @@ fn build_command() -> Command<'static> {
                 .takes_value(true)
                 .required(false),
         )
+        .arg(
+            Arg::new(ARG_TYPESCRIPT_UNSAFE_TYPES)
+                .short('u')
+                .long("unsafe-types")
+                .help("Generate unsafe (64bit) types for TypeScript (true/false). Default false.")
+                .takes_value(true)
+                .required(false),
+            )
         .arg(
             Arg::new(ARG_MODULE_NAME)
                 .short('m')
@@ -200,6 +209,7 @@ fn main() {
         }),
         Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            unsafe_types: config.typescript.unsafe_types,
             ..Default::default()
         }),
         #[cfg(feature = "go")]
@@ -296,6 +306,14 @@ fn main() {
 fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     if let Some(swift_prefix) = options.value_of(ARG_SWIFT_PREFIX) {
         config.swift.prefix = swift_prefix.to_string();
+    }
+
+    if let Some(typescript_unsafe) = options.value_of(ARG_TYPESCRIPT_UNSAFE_TYPES) {
+        config.typescript.unsafe_types = match typescript_unsafe {
+            "true" => true,
+            "false" => false,
+            _ => false,
+        }
     }
 
     if let Some(java_package) = options.value_of(ARG_JAVA_PACKAGE) {

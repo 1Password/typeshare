@@ -3,7 +3,7 @@ use crate::{
     rename::RenameExt,
     rust_types::{
         Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField, RustItem,
-        RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+        RustStruct, RustType, RustTypeAlias, RustTypeFormatError, RustTypeParseError,
     },
 };
 use proc_macro2::{Ident, Span};
@@ -61,6 +61,8 @@ pub enum ParseError {
     UnsupportedLanguage(String),
     #[error("unsupported type encountered: {0}")]
     UnsupportedType(String),
+    #[error("failed to format a rust type: {0}")]
+    RustTypeFormatError(#[from] RustTypeFormatError),
     #[error("tuple structs with more than one field are currently unsupported")]
     ComplexTupleStruct,
     #[error("multiple unnamed associated types are not currently supported")]

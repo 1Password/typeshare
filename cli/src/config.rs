@@ -37,6 +37,7 @@ pub struct SwiftParams {
 #[serde(default)]
 pub struct TypeScriptParams {
     pub type_mappings: HashMap<String, String>,
+    pub unsafe_types: bool,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]

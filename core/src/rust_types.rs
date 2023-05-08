@@ -336,6 +336,8 @@ pub enum RustTypeFormatError {
     GenericsForbiddenInGo(String),
     #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
     GenericKeyForbiddenInTS(String),
+    #[error("Generic type `{0}` cannot be used in Typescript")]
+    GenericsForbiddenInTS(String),
 }
 
 impl SpecialRustType {

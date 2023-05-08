@@ -1,5 +1,5 @@
 use typeshare_core::{
-    language::TypeScript, parser::ParseError, process_input, rust_types::RustTypeParseError,
+    language::TypeScript, parser::ParseError, process_input, rust_types::RustTypeFormatError,
     ProcessInputError,
 };
 
@@ -20,46 +20,117 @@ mod blocklisted_types {
 
         let mut out: Vec<u8> = Vec::new();
         assert!(matches!(
-            process_input(&source, &mut TypeScript::default(), &mut out),
+            process_input(&source, &mut (TypeScript {
+                unsafe_types: false,
+                ..Default::default()
+            }), &mut out),
             Err(ProcessInputError::ParseError(
-                ParseError::RustTypeParseError(RustTypeParseError::UnsupportedType(contents))
-            )) if contents == vec![blocklisted_type.to_owned()]
-        ));
+                ParseError::RustTypeFormatError(RustTypeFormatError::GenericsForbiddenInTS(contents))
+            )) if contents == blocklisted_type.to_owned()
+        ))
     }
+
+    fn assert_type_is_unblocklisted(ty: &str) {
+        let source = format!(
+            r##"
+    #[typeshare]
+    #[serde(default, rename_all = "camelCase")]
+    pub struct Foo {{
+        pub bar: {ty},
+    }}
+    "##,
+            ty = ty
+        );
+
+        let mut out: Vec<u8> = Vec::new();
+        assert!(matches!(
+            process_input(
+                &source,
+                &mut (TypeScript {
+                    unsafe_types: true,
+                    ..Default::default()
+                }),
+                &mut out
+            ),
+            Ok(contents) if contents == ()
+        ))
+    }
+
+    /// Right now the support for testing "Warning" messages
+    /// written to stdout is poor. Possible solutions exist if you
+    /// pass in a "writer" from the beginning. However, I worked around
+    /// this by passing an option that defaults to false.
 
     #[test]
     fn test_i64_blocklisted_struct() {
-        assert_type_is_blocklisted("i64", "i64");
+        assert_type_is_blocklisted("i64", "i64")
     }
 
     #[test]
     fn test_u64_blocklisted_struct() {
-        assert_type_is_blocklisted("u64", "u64");
+        assert_type_is_blocklisted("u64", "u64")
     }
 
     #[test]
     fn test_isize_blocklisted_struct() {
-        assert_type_is_blocklisted("isize", "isize");
+        assert_type_is_blocklisted("isize", "isize")
     }
 
     #[test]
     fn test_usize_blocklisted_in_struct() {
-        assert_type_is_blocklisted("usize", "usize");
+        assert_type_is_blocklisted("usize", "usize")
     }
 
     #[test]
     fn test_optional_blocklisted_struct() {
-        assert_type_is_blocklisted("Option<i64>", "i64");
+        assert_type_is_blocklisted("Option<i64>", "i64")
     }
 
     #[test]
     fn test_vec_blocklisted_struct() {
-        assert_type_is_blocklisted("Vec<i64>", "i64");
+        assert_type_is_blocklisted("Vec<i64>", "i64")
     }
 
     #[test]
     fn test_hashmap_blocklisted_struct() {
-        assert_type_is_blocklisted("HashMap<String, i64>", "i64");
+        assert_type_is_blocklisted("HashMap<String, i64>", "i64")
+    }
+
+    /// Unblocklisted types
+
+    #[test]
+    fn test_i64_unblocklisted_struct() {
+        assert_type_is_unblocklisted("i64")
+    }
+
+    #[test]
+    fn test_u64_unblocklisted_struct() {
+        assert_type_is_unblocklisted("u64")
+    }
+
+    #[test]
+    fn test_isize_unblocklisted_struct() {
+        assert_type_is_unblocklisted("isize")
+    }
+
+    #[test]
+    fn test_usize_unblocklisted_in_struct() {
+        assert_type_is_unblocklisted("usize")
+    }
+
+    #[test]
+    fn test_optional_unblocklisted_struct() {
+        assert_type_is_unblocklisted("Option<i64>")
+    }
+
+    #[test]
+    fn test_vec_unblocklisted_struct() {
+        assert_type_is_unblocklisted("Vec<i64>")
+    }
+
+    #[test]
+    fn test_hashmap_unblocklisted_struct() {
+        assert_type_is_unblocklisted("HashMap<String, i64>")
     }
 }
 
@@ -81,7 +152,7 @@ mod serde_attributes_on_enums {
         assert!(matches!(
             process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeContentNotAllowed { enum_ident }) if enum_ident == "Foo"
-        ));
+        ))
     }
 
     #[test]
@@ -99,7 +170,7 @@ mod serde_attributes_on_enums {
         assert!(matches!(
             process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeTagNotAllowed { enum_ident }) if enum_ident == "Foo"
-        ));
+        ))
     }
 
     #[test]
@@ -117,6 +188,6 @@ mod serde_attributes_on_enums {
         assert!(matches!(
             process_input(source, &mut TypeScript::default(), &mut out).unwrap_err(),
             ProcessInputError::ParseError(ParseError::SerdeTagNotAllowed { enum_ident }) if enum_ident == "Foo"
-        ));
+        ))
     }
 }

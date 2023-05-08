@@ -15,6 +15,8 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not to print unsafe types in typescript.
+    pub unsafe_types: bool,
 }
 
 impl Language for TypeScript {
@@ -69,15 +71,21 @@ impl Language for TypeScript {
             | SpecialRustType::I64
             | SpecialRustType::ISize
             | SpecialRustType::USize => {
-                println!(
-                    r#"WARNING: 
+                if self.unsafe_types {
+                    println!(
+                        r#"WARNING: 
         64bit types are not supported by the default JSON lib for JS/TS! This will lead to memory safety issues when passing data between JS/TS and Rust.
         If your intended encpoint is for JSON parsing/serializing between JS/TS & Rust, please consider using a custom JSON parser that supports 64 bit static types. 
         An open-source option is available with superjson 
         `https://github.com/blitz-js/superjson`
         `https://www.npmjs.com/package/superjson`"#,
-                );
-                Ok("bigint".into())
+                    );
+                    Ok("bigint".into())
+                } else {
+                    Err(RustTypeFormatError::GenericsForbiddenInTS(
+                        special_ty.id().clone().to_string(),
+                    ))
+                }
             }
         }
     }
