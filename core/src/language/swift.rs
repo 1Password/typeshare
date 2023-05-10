@@ -75,8 +75,6 @@ const SWIFT_KEYWORDS: &[&str] = &[
 
 const CODABLE: &str = "Codable";
 
-const GENERIC_DECORATORS: &str = "generic_decorators";
-
 /// Information on serialization/deserialization coding keys.
 /// TODO: expand on this.
 #[derive(Debug)]
@@ -248,7 +246,7 @@ impl Language for Swift {
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         let mut decs = self.get_default_decorators();
 
-        let mut default_generic_decorators = self.default_generic_decorators.clone();
+        let default_generic_decorators = self.default_generic_decorators.clone();
         // Check if this struct's decorators contains swift in the hashmap
         if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
@@ -258,10 +256,6 @@ impl Language for Swift {
                 .iter()
                 .filter(|d| d.as_str() != CODABLE)
                 .for_each(|d| decs.push(d.clone()));
-            swift_decs
-                .iter()
-                .filter(|d| d.as_str() == GENERIC_DECORATORS)
-                .for_each(|d| default_generic_decorators.add(d.clone()))
         }
 
         let generic_dec_string = default_generic_decorators.get_decorators().join(" & ");
