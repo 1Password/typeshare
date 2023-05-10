@@ -173,6 +173,15 @@ mod test {
     }
 
     #[test]
+    fn constraints_test() {
+        let path = config_file_path("constraints_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.swift.default_generic_constraints.len(), 1);
+        assert_eq!(config.swift.default_generic_constraints[0], "Sendable");
+    }
+
+    #[test]
     fn swift_prefix_test() {
         let path = config_file_path("swift_prefix_config.toml");
         let config = load_config(Some(path)).unwrap();
