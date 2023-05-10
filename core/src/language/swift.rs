@@ -8,7 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::{
     collections::HashMap,
     io::Write,
@@ -87,7 +87,7 @@ struct CodingKeysInfo {
 /// A container for generic constraints.
 #[derive(Debug, Clone)]
 pub struct GenericConstraints {
-    constraints: HashSet<String>,
+    constraints: BTreeSet<String>,
 }
 
 impl GenericConstraints {
