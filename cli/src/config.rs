@@ -25,25 +25,13 @@ pub struct ScalaParams {
     pub type_mappings: HashMap<String, String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
     pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
-}
-
-impl Default for SwiftParams {
-    fn default() -> Self {
-        let default_generic_constraints = vec!["Codable".into()];
-        Self {
-            prefix: Default::default(),
-            type_mappings: Default::default(),
-            default_decorators: Default::default(),
-            default_generic_constraints,
-        }
-    }
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]

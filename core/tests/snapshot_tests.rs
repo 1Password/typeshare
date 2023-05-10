@@ -178,7 +178,6 @@ macro_rules! language_instance {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Swift {
             no_version_header: true,
-            default_generic_constraints: typeshare_core::language::GenericDecorators::from_config(vec!["Codable".into()]),
             $($field: $val,)*
             ..Default::default()
         })
@@ -455,6 +454,7 @@ tests! {
     // TODO: kotlin and typescript don't appear to support this yet
     generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go];
     test_default_decorators: [swift { default_decorators: vec!["Sendable".into(), "Identifiable".into()]}];
+    test_default_generic_constraints: [swift { default_generic_constraints: typeshare_core::language::GenericConstraints::from_config(vec!["Sendable".into(), "Identifiable".into()]) }];
     test_i54_u53_type: [swift, kotlin, scala,  typescript, go];
     test_serde_default_struct: [swift, kotlin, scala,  typescript, go];
     test_serde_iso8601: [

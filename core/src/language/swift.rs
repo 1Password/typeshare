@@ -85,20 +85,19 @@ struct CodingKeysInfo {
 }
 
 /// A container for generic constraints.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct GenericConstraints {
-    decorators: HashSet<String>,
+    constraints: HashSet<String>,
 }
 
 impl GenericConstraints {
     /// Create a container for generic constraints from a list of strings.
     /// Each string will be broken up by `&`, the syntax that Swift uses to combine constraints,
     /// and the complete list will be de-duplicated.
-    pub fn from_config(decorators: Vec<String>) -> Self {
+    pub fn from_config(constraints: Vec<String>) -> Self {
         Self {
-            decorators: decorators
-                .into_iter()
-                .flat_map(Self::split_constraints)
+            constraints: std::iter::once(CODABLE.into())
+                .chain(constraints.into_iter().flat_map(Self::split_constraints))
                 .collect(),
         }
     }
@@ -106,12 +105,12 @@ impl GenericConstraints {
     /// This expression will be broken up by `&`, the syntax that Swift uses to combine constraints.
     pub fn add(&mut self, constraints: String) {
         for decorator in Self::split_constraints(constraints).into_iter() {
-            self.decorators.insert(decorator);
+            self.constraints.insert(decorator);
         }
     }
     /// Get an iterator over all constraints.
     pub fn get_constraints(&self) -> impl Iterator<Item = &String> {
-        self.decorators.iter()
+        self.constraints.iter()
     }
 
     fn split_constraints(constraints: String) -> Vec<String> {
@@ -119,6 +118,12 @@ impl GenericConstraints {
             .split('&')
             .map(|s| s.trim().to_owned())
             .collect()
+    }
+}
+
+impl Default for GenericConstraints {
+    fn default() -> Self {
+        Self::from_config(vec![])
     }
 }
 
