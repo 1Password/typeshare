@@ -84,30 +84,41 @@ struct CodingKeysInfo {
     coding_keys: Vec<String>,
 }
 
+/// A container for generic constraints.
 #[derive(Default, Debug, Clone)]
-pub struct GenericDecorators {
+pub struct GenericConstraints {
     decorators: HashSet<String>,
 }
 
-impl GenericDecorators {
+impl GenericConstraints {
+    /// Create a container for generic constraints from a list of strings.
+    /// Each string will be broken up by `&`, the syntax that Swift uses to combine constraints,
+    /// and the complete list will be de-duplicated.
     pub fn from_config(decorators: Vec<String>) -> Self {
         Self {
             decorators: decorators
                 .into_iter()
-                .flat_map(Self::split_decorators)
+                .flat_map(Self::split_constraints)
                 .collect(),
         }
     }
-    pub fn add(&mut self, decorators: String) {
-        for decorator in Self::split_decorators(decorators).into_iter() {
+    /// Add a new constraint expression to this container.
+    /// This expression will be broken up by `&`, the syntax that Swift uses to combine constraints.
+    pub fn add(&mut self, constraints: String) {
+        for decorator in Self::split_constraints(constraints).into_iter() {
             self.decorators.insert(decorator);
         }
     }
-    pub fn get_decorators(&self) -> impl Iterator<Item = &String> {
+    /// Get an iterator over all constraints.
+    pub fn get_constraints(&self) -> impl Iterator<Item = &String> {
         self.decorators.iter()
     }
-    fn split_decorators(decorators: String) -> Vec<String> {
-        decorators.split('&').map(|s| s.trim().to_owned()).collect()
+
+    fn split_constraints(constraints: String) -> Vec<String> {
+        constraints
+            .split('&')
+            .map(|s| s.trim().to_owned())
+            .collect()
     }
 }
 
@@ -121,7 +132,7 @@ pub struct Swift {
     /// Default decorators that will be applied to all typeshared types
     pub default_decorators: Vec<String>,
     /// Default type constraints that will be applied to all generic parameters of typeshared types
-    pub default_generic_decorators: GenericDecorators,
+    pub default_generic_constraints: GenericConstraints,
     /// Will be set to true if one of your typeshared Rust type contains the unit type `()`.
     /// This will add a definition of a `CodableVoid` type to the generated Swift code and
     /// use `CodableVoid` to replace `()`.
@@ -246,7 +257,7 @@ impl Language for Swift {
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         let mut decs = self.get_default_decorators();
 
-        let default_generic_decorators = self.default_generic_decorators.clone();
+        let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
         if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
@@ -258,7 +269,7 @@ impl Language for Swift {
                 .for_each(|d| decs.push(d.clone()));
         }
 
-        let generic_dec_string = default_generic_decorators.get_decorators().join(" & ");
+        let generic_constraint_string = default_generic_constraints.get_constraints().join(" & ");
 
         writeln!(
             w,
@@ -272,8 +283,8 @@ impl Language for Swift {
                         .map(|t| format!(
                             "{}{}",
                             t,
-                            (!generic_dec_string.is_empty())
-                                .then(|| format!(": {}", generic_dec_string))
+                            (!generic_constraint_string.is_empty())
+                                .then(|| format!(": {}", generic_constraint_string))
                                 .unwrap_or_default()
                         ))
                         .join(", ")

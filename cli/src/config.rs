@@ -31,17 +31,17 @@ pub struct SwiftParams {
     pub prefix: String,
     pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
-    pub default_generic_decorators: Vec<String>,
+    pub default_generic_constraints: Vec<String>,
 }
 
 impl Default for SwiftParams {
     fn default() -> Self {
-        let default_generic_decorators = vec!["Codable".into()];
+        let default_generic_constraints = vec!["Codable".into()];
         Self {
             prefix: Default::default(),
             type_mappings: Default::default(),
             default_decorators: Default::default(),
-            default_generic_decorators,
+            default_generic_constraints,
         }
     }
 }

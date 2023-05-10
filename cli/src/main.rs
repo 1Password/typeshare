@@ -8,7 +8,7 @@ use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs, path::Path};
-use typeshare_core::language::GenericDecorators;
+use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -185,8 +185,8 @@ fn main() {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,
             default_decorators: config.swift.default_decorators,
-            default_generic_decorators: GenericDecorators::from_config(
-                config.swift.default_generic_decorators,
+            default_generic_constraints: GenericConstraints::from_config(
+                config.swift.default_generic_constraints,
             ),
             ..Default::default()
         }),

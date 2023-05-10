@@ -17,7 +17,7 @@ use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use scala::Scala;
-pub use swift::GenericDecorators;
+pub use swift::GenericConstraints;
 pub use swift::Swift;
 pub use typescript::TypeScript;
 

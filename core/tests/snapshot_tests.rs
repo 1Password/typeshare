@@ -178,7 +178,7 @@ macro_rules! language_instance {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Swift {
             no_version_header: true,
-            default_generic_decorators: typeshare_core::language::GenericDecorators::from_config(vec!["Codable".into()]),
+            default_generic_constraints: typeshare_core::language::GenericDecorators::from_config(vec!["Codable".into()]),
             $($field: $val,)*
             ..Default::default()
         })
