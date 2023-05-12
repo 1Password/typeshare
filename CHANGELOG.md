@@ -1,12 +1,20 @@
+# Version 1.6.0
+
+This release brings support for more architectures for Nix and configurable generic constraints in Swift
+
+- The Nix flake now supports all default Nix platforms, rather than only `x86_64-linux`. [#113](https://github.com/1Password/typeshare/pull/113)
+- `typeshare-core`
+  - It is now possible to add your own set of generic constraints to Swift generics. This is done with a field called `default_generic_constraints` under `[swift]` in `typeshare.toml`. [#95](https://github.com/1Password/typeshare/pull/95/)
+
 # Version 1.5.1
 
 This release brings support for standalone installations into Nix, as well as corrections for certain unusual edge case behaviors.
 
 - Added a Nix flake, which allows for installing typeshare outside of NixPkgs
 - `typeshare-core`
-  - Now supports types in inline modules. [#109]
-  - Now throws an error if `#[serde(flatten)]` is used, instead of silently generating incorrect types [#108]
-  - When generating the `CodableVoid` type in swift, we now always include the `Codable` decorator, even if it's omitted from the list of `default_decorators` in `typeshare.toml` [#107]
+  - Now supports types in inline modules. [#109](https://github.com/1Password/typeshare/pull/109)
+  - Now throws an error if `#[serde(flatten)]` is used, instead of silently generating incorrect types [#108](https://github.com/1Password/typeshare/pull/108)
+  - When generating the `CodableVoid` type in swift, we now always include the `Codable` decorator, even if it's omitted from the list of `default_decorators` in `typeshare.toml` [#107](https://github.com/1Password/typeshare/pull/107)
 
 ### Community contributors
 
