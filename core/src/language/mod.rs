@@ -33,6 +33,7 @@ pub enum SupportedLanguage {
 }
 
 impl SupportedLanguage {
+    /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
         [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
