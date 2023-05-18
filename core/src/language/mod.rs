@@ -32,6 +32,13 @@ pub enum SupportedLanguage {
     TypeScript,
 }
 
+impl SupportedLanguage {
+    pub fn all_languages() -> impl Iterator<Item = Self> {
+        use SupportedLanguage::*;
+        [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+    }
+}
+
 impl FromStr for SupportedLanguage {
     type Err = ParseError;
 

@@ -1,6 +1,6 @@
 use joinery::JoinableIterator;
 
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{FieldDecorator, RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -239,7 +239,7 @@ impl TypeScript {
         let is_readonly = field
             .decorators
             .get(&SupportedLanguage::TypeScript)
-            .filter(|v| v.contains(&"readonly".to_string()))
+            .filter(|v| v.contains(&FieldDecorator::Word("readonly".to_string())))
             .is_some();
         writeln!(
             w,
