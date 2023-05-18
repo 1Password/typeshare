@@ -1,3 +1,4 @@
+use crate::rust_types::FieldDecorator;
 use crate::{
     language::SupportedLanguage,
     rename::RenameExt,
@@ -7,6 +8,7 @@ use crate::{
     },
 };
 use proc_macro2::{Ident, Span};
+use std::collections::BTreeSet;
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
@@ -560,17 +562,12 @@ fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, HashSet<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, HashSet<String>> {
-    let languages: HashSet<SupportedLanguage> = [
-        SupportedLanguage::Go,
-        SupportedLanguage::TypeScript,
-        SupportedLanguage::Kotlin,
-        SupportedLanguage::Swift,
-    ]
-    .iter()
-    .cloned()
-    .collect();
+/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, BTreeSet<decorator>>`, where `language` is `SupportedLanguage`
+/// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
+fn get_field_decorators(
+    attrs: &[Attribute],
+) -> HashMap<SupportedLanguage, BTreeSet<FieldDecorator>> {
+    let languages: HashSet<SupportedLanguage> = SupportedLanguage::all_languages().collect();
 
     attrs
         .iter()
@@ -593,11 +590,18 @@ fn get_field_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, 
                 language,
                 list.iter()
                     .flat_map(|nested| match nested {
-                        NestedMeta::Meta(Meta::Path(path)) => path.get_ident(),
+                        NestedMeta::Meta(Meta::Path(path)) => {
+                            Some(FieldDecorator::Word(path.get_ident()?.to_string()))
+                        }
+                        NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                            Some(FieldDecorator::NameValue(
+                                name_value.path.get_ident()?.to_string(),
+                                literal_as_string(name_value.lit.clone())?,
+                            ))
+                        }
                         _ => None,
                     })
-                    .map(|ident| ident.to_string())
-                    .collect::<HashSet<String>>(),
+                    .collect::<BTreeSet<_>>(),
             )
         })
         .fold(HashMap::new(), |mut acc, (language, decorators)| {

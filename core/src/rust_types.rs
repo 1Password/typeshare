@@ -1,5 +1,5 @@
 use quote::ToTokens;
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use syn::{Expr, ExprLit, Lit, TypeArray};
@@ -75,8 +75,17 @@ pub struct RustField {
     /// for the languages we generate code for.
     pub has_default: bool,
     /// Language-specific decorators assigned to a given field.
-    /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are decorators (e.g. readonly)
-    pub decorators: HashMap<SupportedLanguage, HashSet<String>>,
+    /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are field decorators (e.g. readonly)
+    pub decorators: HashMap<SupportedLanguage, BTreeSet<FieldDecorator>>,
+}
+
+/// A single decorator on a field in Rust code.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FieldDecorator {
+    /// A boolean flag enabled by its existence as a decorator: for example, `readonly`.
+    Word(String),
+    /// A key-value pair, such as `type = "any"`.
+    NameValue(String, String),
 }
 
 /// A Rust type.
