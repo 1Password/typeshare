@@ -346,6 +346,20 @@ impl RustType {
     }
 }
 
+impl RustField {
+    pub fn type_override(&self, language: SupportedLanguage) -> Option<String> {
+        self.decorators
+            .get(&language)
+            .and_then(|decs| {
+                decs.iter().find_map(|fd| match fd {
+                    FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty),
+                    _ => None,
+                })
+            })
+            .cloned()
+    }
+}
+
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum RustTypeFormatError {

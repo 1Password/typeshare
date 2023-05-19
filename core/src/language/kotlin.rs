@@ -1,4 +1,5 @@
 use super::Language;
+use crate::language::SupportedLanguage;
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     parser::remove_dash_from_identifier,
@@ -313,9 +314,14 @@ impl Kotlin {
         if requires_serial_name {
             writeln!(w, "\t@SerialName({:?})", &f.id.renamed)?;
         }
-        let ty = self
-            .format_type(&f.ty, generic_types)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let ty: String;
+        if let Some(r#override) = f.type_override(SupportedLanguage::Kotlin) {
+            ty = r#override;
+        } else {
+            ty = self
+                .format_type(&f.ty, generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        }
         write!(
             w,
             "\tval {}: {}{}",

@@ -329,9 +329,14 @@ impl Language for Swift {
                 )));
             }
 
-            let case_type = self
-                .format_type(&f.ty, rs.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let case_type: String;
+            if let Some(r#override) = f.type_override(SupportedLanguage::Swift) {
+                case_type = r#override;
+            } else {
+                case_type = self
+                    .format_type(&f.ty, rs.generic_types.as_slice())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
             writeln!(
                 w,
                 "\tpublic let {}: {}{}",
@@ -360,9 +365,14 @@ impl Language for Swift {
 
         let mut init_params: Vec<String> = Vec::new();
         for f in &rs.fields {
-            let swift_ty = self
-                .format_type(&f.ty, rs.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let swift_ty: String;
+            if let Some(r#override) = f.type_override(SupportedLanguage::Swift) {
+                swift_ty = r#override;
+            } else {
+                swift_ty = self
+                    .format_type(&f.ty, rs.generic_types.as_slice())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            }
             init_params.push(format!(
                 "{}: {}{}",
                 remove_dash_from_identifier(&f.id.renamed),

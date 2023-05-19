@@ -441,6 +441,7 @@ tests! {
         typescript,
         go
     ];
+    can_override_types: [swift, kotlin, scala, typescript, go];
 
     /// Structs
     can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala,  go];

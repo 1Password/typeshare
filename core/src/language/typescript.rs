@@ -231,9 +231,15 @@ impl TypeScript {
         generic_types: &[String],
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &field.comments)?;
-        let ts_ty = self
-            .format_type(&field.ty, generic_types)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let ts_ty: String;
+        if let Some(r#override) = field.type_override(SupportedLanguage::TypeScript) {
+            ts_ty = r#override;
+        } else {
+            ts_ty = self
+                .format_type(&field.ty, generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        }
+
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
         let is_readonly = field
