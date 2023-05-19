@@ -347,6 +347,7 @@ impl RustType {
 }
 
 impl RustField {
+    /// Returns an type override, if it exists, on this field for a given language.
     pub fn type_override(&self, language: SupportedLanguage) -> Option<String> {
         self.decorators
             .get(&language)
