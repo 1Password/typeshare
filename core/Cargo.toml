@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-core"
-version = "1.5.1"
+version = "1.6.0"
 rust-version = "1.57"
 license = "MIT OR Apache-2.0"
 edition = "2021"

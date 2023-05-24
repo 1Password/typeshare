@@ -8,6 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::collections::BTreeSet;
 use std::{
     collections::HashMap,
     io::Write,
@@ -83,6 +84,49 @@ struct CodingKeysInfo {
     coding_keys: Vec<String>,
 }
 
+/// A container for generic constraints.
+#[derive(Debug, Clone)]
+pub struct GenericConstraints {
+    constraints: BTreeSet<String>,
+}
+
+impl GenericConstraints {
+    /// Create a container for generic constraints from a list of strings.
+    /// Each string will be broken up by `&`, the syntax that Swift uses to combine constraints,
+    /// and the complete list will be de-duplicated.
+    pub fn from_config(constraints: Vec<String>) -> Self {
+        Self {
+            constraints: std::iter::once(CODABLE.into())
+                .chain(constraints.into_iter().flat_map(Self::split_constraints))
+                .collect(),
+        }
+    }
+    /// Add a new constraint expression to this container.
+    /// This expression will be broken up by `&`, the syntax that Swift uses to combine constraints.
+    pub fn add(&mut self, constraints: String) {
+        for decorator in Self::split_constraints(constraints).into_iter() {
+            self.constraints.insert(decorator);
+        }
+    }
+    /// Get an iterator over all constraints.
+    pub fn get_constraints(&self) -> impl Iterator<Item = &String> {
+        self.constraints.iter()
+    }
+
+    fn split_constraints(constraints: String) -> Vec<String> {
+        constraints
+            .split('&')
+            .map(|s| s.trim().to_owned())
+            .collect()
+    }
+}
+
+impl Default for GenericConstraints {
+    fn default() -> Self {
+        Self::from_config(vec![])
+    }
+}
+
 /// All information needed to generate Swift type-code
 #[derive(Default)]
 pub struct Swift {
@@ -92,6 +136,8 @@ pub struct Swift {
     pub type_mappings: HashMap<String, String>,
     /// Default decorators that will be applied to all typeshared types
     pub default_decorators: Vec<String>,
+    /// Default type constraints that will be applied to all generic parameters of typeshared types
+    pub default_generic_constraints: GenericConstraints,
     /// Will be set to true if one of your typeshared Rust type contains the unit type `()`.
     /// This will add a definition of a `CodableVoid` type to the generated Swift code and
     /// use `CodableVoid` to replace `()`.
@@ -224,6 +270,7 @@ impl Language for Swift {
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         let mut decs = self.get_default_decorators();
 
+        let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
         if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
@@ -235,12 +282,26 @@ impl Language for Swift {
                 .for_each(|d| decs.push(d.clone()));
         }
 
+        let generic_constraint_string = default_generic_constraints.get_constraints().join(" & ");
+
         writeln!(
             w,
             "public struct {}{}: {} {{",
             type_name,
             (!rs.generic_types.is_empty())
-                .then(|| format!("<{}: Codable>", rs.generic_types.join(": Codable, ")))
+                .then(|| format!(
+                    "<{}>",
+                    rs.generic_types
+                        .iter()
+                        .map(|t| format!(
+                            "{}{}",
+                            t,
+                            (!generic_constraint_string.is_empty())
+                                .then(|| format!(": {}", generic_constraint_string))
+                                .unwrap_or_default()
+                        ))
+                        .join(", ")
+                ))
                 .unwrap_or_default(),
             decs.join(", ")
         )?;
