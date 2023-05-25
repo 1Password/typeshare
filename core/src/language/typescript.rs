@@ -114,10 +114,9 @@ impl Language for TypeScript {
         let mut count = 0;
         for field in rs.fields.iter() {
             if field.flattened {
-                let ts_ty = match self.format_type(&field.ty, rs.generic_types.as_slice()) {
-                    Ok(v) => v,
-                    Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, e)),
-                };
+                let ts_ty = self
+                    .format_type(&field.ty, rs.generic_types.as_slice())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
                 if count >= 1 {
                     inheritance.push_str(", ");
                 }
