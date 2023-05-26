@@ -89,9 +89,10 @@ pub enum FieldDecorator {
 }
 
 impl FieldDecorator {
+    /// Returns the name of the field decorator. For a word decorator, this is just the identifier.
     pub fn name(&self) -> &str {
         match self {
-            Self::Word(name) | Self::NameValue(name, _) => &name,
+            Self::Word(name) | Self::NameValue(name, _) => name,
         }
     }
 }
