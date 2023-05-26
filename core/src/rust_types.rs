@@ -88,6 +88,14 @@ pub enum FieldDecorator {
     NameValue(String, String),
 }
 
+impl FieldDecorator {
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Word(name) | Self::NameValue(name, _) => &name,
+        }
+    }
+}
+
 /// A Rust type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RustType {
