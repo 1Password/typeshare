@@ -440,6 +440,17 @@ impl Language for Swift {
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &make_anonymous_struct_name)?;
 
+        let codable = CODABLE.to_string();
+        let mut default_generic_constraints = self
+            .default_generic_constraints
+            .constraints
+            .iter()
+            .map(|s| s.clone())
+            .collect::<Vec<_>>();
+        if !default_generic_constraints.contains(&codable) {
+            default_generic_constraints.push(codable);
+        }
+
         self.write_comments(w, 0, &shared.comments)?;
         let indirect = if shared.is_recursive { "indirect " } else { "" };
         writeln!(
@@ -449,8 +460,9 @@ impl Language for Swift {
             enum_name,
             (!e.shared().generic_types.is_empty())
                 .then(|| format!(
-                    "<{}: Codable>",
-                    e.shared().generic_types.join(": Codable, ")
+                    "<{}: {}>",
+                    e.shared().generic_types.join(": Codable, "),
+                    default_generic_constraints.join(" & ")
                 ))
                 .unwrap_or_default(),
             decs.join(", ")
