@@ -442,6 +442,10 @@ impl Language for Swift {
 
         self.write_comments(w, 0, &shared.comments)?;
         let indirect = if shared.is_recursive { "indirect " } else { "" };
+        let generic_constraint_string = self
+            .default_generic_constraints
+            .get_constraints()
+            .join(" & ");
         writeln!(
             w,
             "public {}enum {}{}: {} {{",
@@ -449,8 +453,18 @@ impl Language for Swift {
             enum_name,
             (!e.shared().generic_types.is_empty())
                 .then(|| format!(
-                    "<{}: Codable>",
-                    e.shared().generic_types.join(": Codable, ")
+                    "<{}>",
+                    e.shared()
+                        .generic_types
+                        .iter()
+                        .map(|t| format!(
+                            "{}{}",
+                            t,
+                            (!generic_constraint_string.is_empty())
+                                .then(|| format!(": {}", generic_constraint_string))
+                                .unwrap_or_default()
+                        ))
+                        .join(", ")
                 ))
                 .unwrap_or_default(),
             decs.join(", ")
