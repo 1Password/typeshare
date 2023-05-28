@@ -77,6 +77,9 @@ pub struct RustField {
     /// Language-specific decorators assigned to a given field.
     /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are decorators (e.g. readonly)
     pub decorators: HashMap<SupportedLanguage, HashSet<String>>,
+    /// Whether the field should be flattened or not,
+    /// as per `#[serde(flatten)]` definition.
+    pub flattened: bool,
 }
 
 /// A Rust type.

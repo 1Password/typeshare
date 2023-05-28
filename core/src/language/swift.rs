@@ -520,6 +520,10 @@ impl Language for Swift {
 
         writeln!(w, "}}")
     }
+
+    fn supports_flatten(&self) -> bool {
+        false
+    }
 }
 
 impl Swift {
