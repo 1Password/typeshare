@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 // This is a comment.
 type Colors string

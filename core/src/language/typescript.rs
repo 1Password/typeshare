@@ -15,6 +15,9 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether the generated code includes a date type
+    /// (this means we need to output a reviver function as well)
+    pub has_date: bool,
 }
 
 impl Language for TypeScript {
@@ -52,6 +55,10 @@ impl Language for TypeScript {
                 },
                 self.format_type(rtype2, generic_types)?
             )),
+            SpecialRustType::DateTime => {
+                self.has_date = true;
+                Ok("Date".into())
+            }
             SpecialRustType::Unit => Ok("undefined".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
@@ -82,6 +89,15 @@ impl Language for TypeScript {
             writeln!(w)?;
         }
         Ok(())
+    }
+
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+        if self.has_date {
+            writeln!(w, "export function TypeshareDateReviver(key: string, value: string): Date {{ return new Date(value); }}")?;
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {

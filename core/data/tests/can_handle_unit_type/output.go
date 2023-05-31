@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 // This struct has a unit field
 type StructHasVoidType struct {

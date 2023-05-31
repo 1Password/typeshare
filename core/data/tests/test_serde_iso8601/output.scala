@@ -3,7 +3,7 @@ package com.agilebits
 package onepassword {
 
 case class Foo (
-	time: String
+	time: java.time.Instant
 )
 
 }

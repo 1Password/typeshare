@@ -92,6 +92,7 @@ impl Language for Scala {
                     self.format_type(rtype2, generic_types)?
                 )
             }
+            SpecialRustType::DateTime => "java.time.Instant".into(),
             SpecialRustType::Unit => "Unit".into(),
             SpecialRustType::String => "String".into(),
             // https://docs.scala-lang.org/scala3/book/first-look-at-types.html#scalas-value-types

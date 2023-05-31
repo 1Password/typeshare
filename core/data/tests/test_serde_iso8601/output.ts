@@ -1,4 +1,5 @@
 export interface Foo {
-	time: string;
+	time: Date;
 }
 
+export function TypeshareDateReviver(key, value): Date { return new Date(value); }
