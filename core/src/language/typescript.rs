@@ -12,6 +12,8 @@ use std::{collections::HashMap, io::Write};
 pub struct TypeScript {
     /// Mappings from Rust type names to Typescript type names
     pub type_mappings: HashMap<String, String>,
+    /// Whether to generate "readonly" types
+    pub readonly: bool,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
@@ -28,13 +30,16 @@ impl Language for TypeScript {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
-            SpecialRustType::Vec(rtype) => {
-                Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
-            }
+            SpecialRustType::Vec(rtype) => Ok(format!(
+                "{}{}[]",
+                self.readonly_prefix(),
+                self.format_type(rtype, generic_types)?
+            )),
             SpecialRustType::Array(rtype, len) => {
                 let formatted_type = self.format_type(rtype, generic_types)?;
                 Ok(format!(
-                    "[{}]",
+                    "{}[{}]",
+                    self.readonly_prefix(),
                     std::iter::repeat(&formatted_type)
                         .take(*len)
                         .join_with(", ")
@@ -42,16 +47,20 @@ impl Language for TypeScript {
             }
             // We add optionality above the type formatting level
             SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),
-            SpecialRustType::HashMap(rtype1, rtype2) => Ok(format!(
-                "Record<{}, {}>",
-                match rtype1.as_ref() {
+            SpecialRustType::HashMap(rtype1, rtype2) => {
+                let key_type = match rtype1.as_ref() {
                     RustType::Simple { id } if generic_types.contains(id) => {
                         return Err(RustTypeFormatError::GenericKeyForbiddenInTS(id.clone()));
                     }
                     _ => self.format_type(rtype1, generic_types)?,
-                },
-                self.format_type(rtype2, generic_types)?
-            )),
+                };
+                let value_type = self.format_type(rtype2, generic_types)?;
+                Ok(if self.readonly {
+                    format!("Readonly<Record<{}, {}>>", key_type, value_type)
+                } else {
+                    format!("Record<{}, {}>", key_type, value_type)
+                })
+            }
             SpecialRustType::Unit => Ok("undefined".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::I8
@@ -163,6 +172,13 @@ impl Language for TypeScript {
 }
 
 impl TypeScript {
+    fn readonly_prefix(&self) -> &'static str {
+        if self.readonly {
+            "readonly "
+        } else {
+            ""
+        }
+    }
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         match e {
             // Write all the unit variants out (there can only be unit variants in
@@ -188,8 +204,12 @@ impl TypeScript {
                 match v {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
-                        "\t| {{ {}: {:?}, {}?: undefined }}",
-                        tag_key, shared.id.renamed, content_key
+                        "\t| {{ {}{}: {:?}, {}{}?: undefined }}",
+                        self.readonly_prefix(),
+                        tag_key,
+                        shared.id.renamed,
+                        self.readonly_prefix(),
+                        content_key
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
@@ -197,9 +217,11 @@ impl TypeScript {
                             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                         write!(
                             w,
-                            "\t| {{ {}: {:?}, {}{}: {} }}",
+                            "\t| {{ {}{}: {:?}, {}{}{}: {} }}",
+                            self.readonly_prefix(),
                             tag_key,
                             shared.id.renamed,
+                            self.readonly_prefix(),
                             content_key,
                             ty.is_optional().then(|| "?").unwrap_or_default(),
                             r#type
@@ -208,8 +230,12 @@ impl TypeScript {
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
                         writeln!(
                             w,
-                            "\t| {{ {}: {:?}, {}: {{",
-                            tag_key, shared.id.renamed, content_key
+                            "\t| {{ {}{}: {:?}, {}{}: {{",
+                            self.readonly_prefix(),
+                            tag_key,
+                            shared.id.renamed,
+                            self.readonly_prefix(),
+                            content_key
                         )?;
 
                         fields.iter().try_for_each(|f| {
@@ -240,7 +266,8 @@ impl TypeScript {
             .decorators
             .get(&SupportedLanguage::TypeScript)
             .filter(|v| v.contains(&"readonly".to_string()))
-            .is_some();
+            .is_some()
+            || self.readonly;
         writeln!(
             w,
             "\t{}{}{}: {}{};",
