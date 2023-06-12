@@ -204,6 +204,7 @@ fn main() {
         }),
         Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            readonly: config.typescript.readonly,
             ..Default::default()
         }),
         #[cfg(feature = "go")]

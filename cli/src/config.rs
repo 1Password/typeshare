@@ -38,6 +38,8 @@ pub struct SwiftParams {
 #[serde(default)]
 pub struct TypeScriptParams {
     pub type_mappings: HashMap<String, String>,
+    #[serde(default)]
+    pub readonly: bool,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
