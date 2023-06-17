@@ -348,16 +348,14 @@ impl RustType {
 
 impl RustField {
     /// Returns an type override, if it exists, on this field for a given language.
-    pub fn type_override(&self, language: SupportedLanguage) -> Option<String> {
+    pub fn type_override(&self, language: SupportedLanguage) -> Option<&str> {
         self.decorators
-            .get(&language)
-            .and_then(|decs| {
-                decs.iter().find_map(|fd| match fd {
-                    FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty),
-                    _ => None,
-                })
+            .get(&language)?
+            .iter()
+            .find_map(|fd| match fd {
+                FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty.as_str()),
+                _ => None,
             })
-            .cloned()
     }
 }
 

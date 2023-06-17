@@ -402,14 +402,14 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         }
 
         write_comments(w, 1, &field.comments)?;
-        let type_name: String;
-        if let Some(r#override) = field.type_override(SupportedLanguage::Go) {
-            type_name = r#override;
-        } else {
-            type_name = self
+
+        let type_name = match field.type_override(SupportedLanguage::Go) {
+            Some(type_override) => type_override.to_owned(),
+            None => self
                 .format_type(&field.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        }
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+        };
+
         let go_type = self.acronyms_to_uppercase(&type_name);
         let is_optional = field.ty.is_optional() || field.has_default;
         let formatted_renamed_id = format!("{:?}", &field.id.renamed);

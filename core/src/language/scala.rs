@@ -343,14 +343,14 @@ impl Scala {
         generic_types: &[String],
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
-        let ty: String;
-        if let Some(r#override) = f.type_override(SupportedLanguage::Scala) {
-            ty = r#override;
-        } else {
-            ty = self
+
+        let ty = match f.type_override(SupportedLanguage::Scala) {
+            Some(type_override) => type_override.to_owned(),
+            None => self
                 .format_type(&f.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        }
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+        };
+
         write!(
             w,
             "\t{}: {}{}",
