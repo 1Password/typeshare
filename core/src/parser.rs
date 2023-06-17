@@ -588,22 +588,20 @@ fn get_field_decorators(
         .map(|(language, list)| {
             (
                 language,
-                list.into_iter()
-                    .filter_map(|nested| match nested {
-                        NestedMeta::Meta(Meta::Path(path)) if path.segments.len() == 1 => {
-                            Some(FieldDecorator::Word(path.get_ident()?.to_string()))
-                        }
-                        NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                            Some(FieldDecorator::NameValue(
-                                name_value.path.get_ident()?.to_string(),
-                                literal_as_string(name_value.lit)?,
-                            ))
-                        }
-                        // TODO: this should throw a visible error since it suggests a malformed
-                        //       attribute.
-                        _ => None,
-                    })
-                    .collect::<BTreeSet<_>>(),
+                list.into_iter().filter_map(|nested| match nested {
+                    NestedMeta::Meta(Meta::Path(path)) if path.segments.len() == 1 => {
+                        Some(FieldDecorator::Word(path.get_ident()?.to_string()))
+                    }
+                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
+                        Some(FieldDecorator::NameValue(
+                            name_value.path.get_ident()?.to_string(),
+                            literal_as_string(name_value.lit)?,
+                        ))
+                    }
+                    // TODO: this should throw a visible error since it suggests a malformed
+                    //       attribute.
+                    _ => None,
+                }),
             )
         })
         .fold(HashMap::new(), |mut acc, (language, decorators)| {
