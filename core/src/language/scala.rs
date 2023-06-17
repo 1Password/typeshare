@@ -1,4 +1,5 @@
 use super::Language;
+use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
@@ -342,9 +343,14 @@ impl Scala {
         generic_types: &[String],
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
-        let ty = self
-            .format_type(&f.ty, generic_types)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        let ty = match f.type_override(SupportedLanguage::Scala) {
+            Some(type_override) => type_override.to_owned(),
+            None => self
+                .format_type(&f.ty, generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+        };
+
         write!(
             w,
             "\t{}: {}{}",
