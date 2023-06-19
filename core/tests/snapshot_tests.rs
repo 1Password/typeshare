@@ -430,7 +430,8 @@ tests! {
     can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go];
     can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go];
     enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];
-    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go];
+    can_handle_tuple_struct_without_fields: [swift, kotlin, typescript, go];
+    can_handle_quote_in_serde_rename: [swift, kotlin, scala, typescript, go];
     can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go];
     anonymous_struct_with_rename: [
         swift {

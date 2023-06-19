@@ -1,4 +1,4 @@
-use crate::rust_types::FieldDecorator;
+use crate::rust_types::{FieldDecorator, SpecialRustType};
 use crate::{
     language::SupportedLanguage,
     rename::RenameExt,
@@ -202,6 +202,16 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             if f.unnamed.len() > 1 {
                 return Err(ParseError::ComplexTupleStruct);
             }
+
+            if f.unnamed.is_empty() {
+                return Ok(RustItem::Alias(RustTypeAlias {
+                    id: get_ident(Some(&s.ident), &s.attrs, &None),
+                    r#type: RustType::Special(SpecialRustType::Unit),
+                    comments: parse_comment_attrs(&s.attrs),
+                    generic_types,
+                }));
+            }
+
             let f = &f.unnamed[0];
 
             let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
