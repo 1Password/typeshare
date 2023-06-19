@@ -140,6 +140,7 @@ fn get_index(thing: &RustItem, things: &[&RustItem]) -> usize {
         .expect("Unable to find thing in things!")
 }
 
+#[allow(clippy::ptr_arg)] // Ignored due to false positive
 fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
     fn inner(
         graph: &Vec<Vec<usize>>,

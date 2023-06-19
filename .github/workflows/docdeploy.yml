@@ -9,12 +9,16 @@ jobs:
   deploy-docs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - 1.57.0
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
       - run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4" mdbook)
       - run: mdbook build docs
       - uses: JamesIves/github-pages-deploy-action@4.1.7

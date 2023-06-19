@@ -16,7 +16,6 @@ jobs:
       matrix:
         rust:
           - stable
-          # MSRV
           - 1.57.0
     steps:
       - uses: actions/checkout@v2
@@ -24,50 +23,56 @@ jobs:
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - run: rustup run ${{ matrix.rust }} cargo check
+
 
   test:
     name: Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - 1.57.0
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
+          toolchain: ${{ matrix.rust }}
+      - run: rustup run ${{ matrix.rust }} cargo test --all-features
+
 
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - 1.57.0
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
           components: rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: rustup run ${{ matrix.rust }} cargo fmt --all -- --check
+
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
           components: clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D clippy::dbg_macro -D warnings -D missing_docs -F unused_must_use
+      - run: rustup run ${{ matrix.rust }} cargo clippy -- -D clippy::dbg_macro -D warnings -D missing_docs -F unused_must_use
