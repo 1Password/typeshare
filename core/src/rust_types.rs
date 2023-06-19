@@ -143,6 +143,8 @@ pub enum SpecialRustType {
     Unit,
     /// Represents `String` from the standard library
     String,
+    /// Represents `char`
+    Char,
     /// Represents `i8`
     I8,
     /// Represents `i16`
@@ -244,6 +246,7 @@ impl TryFrom<&syn::Type> for RustType {
                     // as its inner type.
                     "Box" => parameters.into_iter().next().unwrap(),
                     "bool" => Self::Special(SpecialRustType::Bool),
+                    "char" => Self::Special(SpecialRustType::Char),
                     "u8" => Self::Special(SpecialRustType::U8),
                     "u16" => Self::Special(SpecialRustType::U16),
                     "u32" => Self::Special(SpecialRustType::U32),
@@ -376,6 +379,7 @@ impl SpecialRustType {
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
             Self::Unit
             | Self::String
+            | Self::Char
             | Self::I8
             | Self::I16
             | Self::I32
@@ -405,6 +409,7 @@ impl SpecialRustType {
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
             Self::String => "String",
+            Self::Char => "char",
             Self::Bool => "bool",
             Self::I8 => "i8",
             Self::I16 => "i16",
@@ -432,6 +437,7 @@ impl SpecialRustType {
             }
             Self::Unit
             | Self::String
+            | Self::Char
             | Self::I8
             | Self::I16
             | Self::I32

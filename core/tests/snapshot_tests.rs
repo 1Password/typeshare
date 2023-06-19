@@ -432,6 +432,7 @@ tests! {
     enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];
     can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go];
     can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go];
+    test_generate_char: [swift, kotlin, scala, typescript, go];
     anonymous_struct_with_rename: [
         swift {
             prefix: "Core".to_string(),

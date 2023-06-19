@@ -190,6 +190,7 @@ impl Language for Swift {
                 "CodableVoid".into()
             }
             SpecialRustType::String => "String".into(),
+            SpecialRustType::Char => "Unicode.Scalar".into(),
             SpecialRustType::I8 => "Int8".into(),
             SpecialRustType::U8 => "UInt8".into(),
             SpecialRustType::I16 => "Int16".into(),
