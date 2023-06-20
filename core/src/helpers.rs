@@ -24,55 +24,24 @@ pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename_all").next()
-}
-
-pub(crate) fn get_serde_name_value_meta_items<'a>(
-    attrs: &'a [syn::Attribute],
-    name: &'a str,
-) -> impl Iterator<Item = String> + 'a {
-    attrs.iter().flat_map(move |attr| {
-        get_serde_meta_items(attr)
-            .iter()
-            .filter_map(|arg| match arg {
-                Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
-                    expr_to_string(&name_value.value)
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-    })
-}
-
-// TODO: for now, this is a workaround until we can integrate serde_derive_internal
-// into our parser.
-/// Returns all arguments passed into `#[serde(...)]` attributes
-pub(crate) fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<Meta> {
-    if attr.path().is_ident(SERDE) {
-        attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .unwrap()
-            .iter()
-            .cloned()
-            .collect()
-    } else {
-        Vec::default()
-    }
+    get_name_value_meta_items(attrs, "rename_all", SERDE).next()
 }
 
 pub(crate) fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as").next()
+    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
 }
 
 pub(crate) fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as").next()
+    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
 }
 
-pub(crate) fn get_typeshare_name_value_meta_items<'a>(
+pub(crate) fn get_name_value_meta_items<'a>(
     attrs: &'a [syn::Attribute],
     name: &'a str,
+    ident: &'static str,
 ) -> impl Iterator<Item = String> + 'a {
     attrs.iter().flat_map(move |attr| {
-        get_typeshare_meta_items(attr)
+        get_meta_items(attr, ident)
             .iter()
             .filter_map(|arg| match arg {
                 Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
@@ -84,9 +53,9 @@ pub(crate) fn get_typeshare_name_value_meta_items<'a>(
     })
 }
 
-/// Returns all arguments passed into `#[typeshare(...)]` attributes
-pub(crate) fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<Meta> {
-    if attr.path().is_ident(TYPESHARE) {
+/// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
+pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
+    if attr.path().is_ident(ident) {
         attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
             .iter()
             .flat_map(|meta| meta.iter())
@@ -131,7 +100,7 @@ pub(crate) fn rename_all_to_case(original: String, case: &Option<String>) -> Str
 }
 
 pub(crate) fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename").next()
+    get_name_value_meta_items(attrs, "rename", SERDE).next()
 }
 
 /// Parses any comment out of the given slice of attributes
@@ -151,16 +120,16 @@ pub(crate) fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 // `#[typeshare(skip)]` or `#[serde(skip)]`
 pub(crate) fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
-        get_serde_meta_items(attr)
+        get_meta_items(attr, SERDE)
             .into_iter()
-            .chain(get_typeshare_meta_items(attr).into_iter())
+            .chain(get_meta_items(attr, TYPESHARE).into_iter())
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     })
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     attrs.iter().any(|attr| {
-        get_serde_meta_items(attr)
+        get_meta_items(attr, SERDE)
             .iter()
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
@@ -184,7 +153,7 @@ pub(crate) fn get_field_decorators(
 
     attrs
         .iter()
-        .flat_map(get_typeshare_meta_items)
+        .flat_map(|attr| get_meta_items(attr, TYPESHARE))
         .flat_map(|meta| {
             if let Meta::List(list) = meta {
                 Some(list)
@@ -287,7 +256,7 @@ pub(crate) fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLangu
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
 
-    for value in get_typeshare_name_value_meta_items(attrs, "swift") {
+    for value in get_name_value_meta_items(attrs, "swift", TYPESHARE) {
         let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
         // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
@@ -303,15 +272,39 @@ pub(crate) fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLangu
 }
 
 pub(crate) fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "tag").next()
+    get_name_value_meta_items(attrs, "tag", SERDE).next()
 }
 
 pub(crate) fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "content").next()
+    get_name_value_meta_items(attrs, "content", SERDE).next()
 }
 
 /// Removes `-` characters from identifiers
 pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
     // Dashes are not valid in identifiers, so we map them to underscores
     name.replace('-', "_")
+}
+
+#[test]
+fn test_rename_all_to_case() {
+    let test_word = "test_case";
+
+    let tests = [
+        ("lowercase", "test_case"),
+        ("UPPERCASE", "TEST_CASE"),
+        ("PascalCase", "TestCase"),
+        ("camelCase", "testCase"),
+        ("snake_case", "test_case"),
+        ("SCREAMING_SNAKE_CASE", "TEST_CASE"),
+        ("kebab-case", "test-case"),
+        ("SCREAMING-KEBAB-CASE", "TEST-CASE"),
+        ("invalid case", "test_case"),
+    ];
+
+    for test in tests {
+        assert_eq!(
+            rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
+            test.1
+        );
+    }
 }
