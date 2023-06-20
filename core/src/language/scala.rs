@@ -3,7 +3,7 @@ use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
-    parser::remove_dash_from_identifier,
+    helpers::remove_dash_from_identifier,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;

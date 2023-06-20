@@ -1,7 +1,7 @@
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
+    helpers::remove_dash_from_identifier,
     language::{Language, SupportedLanguage},
-    parser::remove_dash_from_identifier,
     rename::RenameExt,
     rust_types::{RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
 };

@@ -1,55 +1,21 @@
-use crate::rust_types::FieldDecorator;
-use crate::{
-    language::SupportedLanguage,
-    rename::RenameExt,
-    rust_types::{
-        Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField, RustItem,
-        RustStruct, RustType, RustTypeAlias, RustTypeParseError,
-    },
+use crate::helpers::{
+    get_content_key, get_decorators, get_field_decorators, get_field_type_override, get_ident,
+    get_serialized_as_type, get_tag_key, has_typeshare_annotation, is_skipped, parse_comment_attrs,
+    serde_default, serde_flatten, serde_rename_all,
 };
-use proc_macro2::{Ident, Span};
-use std::collections::BTreeSet;
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
+
+use crate::rust_types::{
+    RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField, RustItem,
+    RustStruct, RustType, RustTypeAlias, RustTypeParseError,
 };
-use syn::{Attribute, Fields, ItemEnum, ItemStruct, ItemType};
-use syn::{GenericParam, Meta, NestedMeta};
+
+use std::convert::TryFrom;
+
+use syn::GenericParam;
+use syn::{Fields, Item, ItemEnum, ItemStruct, ItemType};
 use thiserror::Error;
 
-// TODO: parsing is very opinionated and makes some decisions that should be
-// getting made at code generation time. Fix this.
-
-const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
-
-/// The results of parsing Rust source input.
-#[derive(Default, Debug)]
-pub struct ParsedData {
-    /// Structs defined in the source
-    pub structs: Vec<RustStruct>,
-    /// Enums defined in the source
-    pub enums: Vec<RustEnum>,
-    /// Type aliases defined in the source
-    pub aliases: Vec<RustTypeAlias>,
-}
-
-impl ParsedData {
-    /// Add the parsed data from `other` to `self`.
-    pub fn add(&mut self, mut other: Self) {
-        self.structs.append(&mut other.structs);
-        self.enums.append(&mut other.enums);
-        self.aliases.append(&mut other.aliases);
-    }
-
-    fn push_rust_thing(&mut self, rust_thing: RustItem) {
-        match rust_thing {
-            RustItem::Struct(s) => self.structs.push(s),
-            RustItem::Enum(e) => self.enums.push(e),
-            RustItem::Alias(a) => self.aliases.push(a),
-        }
-    }
-}
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -79,33 +45,67 @@ pub enum ParseError {
     SerdeFlattenNotAllowed,
 }
 
+/// The results of parsing Rust source input.
+#[derive(Default, Debug)]
+pub struct ParsedData {
+    /// Structs defined in the source
+    pub structs: Vec<RustStruct>,
+    /// Enums defined in the source
+    pub enums: Vec<RustEnum>,
+    /// Type aliases defined in the source
+    pub aliases: Vec<RustTypeAlias>,
+}
+
+impl ParsedData {
+    /// Add the parsed data from `other` to `self`.
+    pub fn add(&mut self, mut other: Self) {
+        self.structs.append(&mut other.structs);
+        self.enums.append(&mut other.enums);
+        self.aliases.append(&mut other.aliases);
+    }
+
+    fn push(&mut self, rust_thing: RustItem) {
+        match rust_thing {
+            RustItem::Struct(s) => self.structs.push(s),
+            RustItem::Enum(e) => self.enums.push(e),
+            RustItem::Alias(a) => self.aliases.push(a),
+        }
+    }
+
+    fn parse(&mut self, item: &Item) -> Result<(), ParseError> {
+        match item {
+            syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
+                self.push(parse_struct(s)?);
+            }
+            syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
+                self.push(parse_enum(e)?);
+            }
+            syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
+                self.aliases.push(parse_type_alias(t)?);
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+}
+
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     let mut parsed_data = ParsedData::default();
 
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !input.contains("typeshare") {
+    if !input.contains(TYPESHARE) {
         return Ok(parsed_data);
     }
 
     // Parse and process the input, ensuring we parse only items marked with
-    // `#[typeshare]
+    // `#[typeshare]`
     let source = syn::parse_file(input)?;
 
     for item in flatten_items(source.items.iter()) {
-        match item {
-            syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?);
-            }
-            syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                parsed_data.push_rust_thing(parse_enum(e)?);
-            }
-            syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                parsed_data.aliases.push(parse_type_alias(t)?);
-            }
-            _ => {}
-        }
+        parsed_data.parse(item)?;
     }
 
     Ok(parsed_data)
