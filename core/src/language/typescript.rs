@@ -41,6 +41,9 @@ impl Language for TypeScript {
                         .join_with(", ")
                 ))
             }
+            SpecialRustType::Slice(rtype) => {
+                Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
+            }
             // We add optionality above the type formatting level
             SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),
             SpecialRustType::HashMap(rtype1, rtype2) => Ok(format!(

@@ -2,7 +2,7 @@ use quote::ToTokens;
 use std::collections::BTreeSet;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
-use syn::{Expr, ExprLit, Lit, TypeArray};
+use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
 use crate::language::SupportedLanguage;
@@ -135,6 +135,8 @@ pub enum SpecialRustType {
     Vec(Box<RustType>),
     /// Represents `[T; N]` from the standard library
     Array(Box<RustType>, usize),
+    /// Represents `&[T]` from the standard library
+    Slice(Box<RustType>),
     /// Represents `HashMap<K, V>` from the standard library
     HashMap(Box<RustType>, Box<RustType>),
     /// Represents `Option<T>` from the standard library
@@ -280,6 +282,12 @@ impl TryFrom<&syn::Type> for RustType {
                     .base10_parse()
                     .map_err(RustTypeParseError::NumericLiteral)?,
             )),
+            syn::Type::Slice(TypeSlice {
+                bracket_token: _,
+                elem,
+            }) => Self::Special(SpecialRustType::Slice(
+                Self::try_from(elem.as_ref())?.into(),
+            )),
             _ => {
                 return Err(RustTypeParseError::UnexpectedToken(
                     ty.to_token_stream().to_string(),
@@ -372,7 +380,9 @@ impl SpecialRustType {
     /// Check if this type is equivalent to or contains `ty` in one of its generic parameters.
     pub fn contains_type(&self, ty: &str) -> bool {
         match &self {
-            Self::Vec(rty) | Self::Array(rty, _) | Self::Option(rty) => rty.contains_type(ty),
+            Self::Vec(rty) | Self::Array(rty, _) | Self::Slice(rty) | Self::Option(rty) => {
+                rty.contains_type(ty)
+            }
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
             Self::Unit
             | Self::String
@@ -402,6 +412,7 @@ impl SpecialRustType {
             Self::F32 => "f32",
             Self::Vec(_) => "Vec",
             Self::Array(_, _) => "[]",
+            Self::Slice(_) => "&[]",
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
             Self::String => "String",
@@ -424,7 +435,7 @@ impl SpecialRustType {
     /// if there are none.
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
         match &self {
-            Self::Vec(rtype) | Self::Array(rtype, _) | Self::Option(rtype) => {
+            Self::Vec(rtype) | Self::Array(rtype, _) | Self::Slice(rtype) | Self::Option(rtype) => {
                 Box::new(std::iter::once(rtype.as_ref()))
             }
             Self::HashMap(rtype1, rtype2) => {

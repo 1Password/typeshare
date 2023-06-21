@@ -177,6 +177,9 @@ impl Language for Swift {
             SpecialRustType::Array(rtype, _) => {
                 format!("[{}]", self.format_type(rtype, generic_types)?)
             }
+            SpecialRustType::Slice(rtype) => {
+                format!("[{}]", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("{}?", self.format_type(rtype, generic_types)?)
             }

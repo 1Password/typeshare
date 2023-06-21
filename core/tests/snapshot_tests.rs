@@ -390,6 +390,7 @@ tests! {
         scala,
         typescript
     ];
+    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go];
     can_generate_readonly_fields: [
         typescript
     ];
