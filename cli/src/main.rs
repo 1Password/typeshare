@@ -262,8 +262,7 @@ fn main() {
         .par_iter()
         .map(|filepath| {
             let data = std::fs::read_to_string(filepath)
-                .map_err(|e| format!("{filepath}, {e}"))
-                .unwrap();
+                .unwrap_or_else(|e| panic!("failed to read file at {filepath:?}: {e}"));
             let parsed_data = typeshare_core::parser::parse(&data);
             if parsed_data.is_err() {
                 panic!("{}", parsed_data.err().unwrap());
