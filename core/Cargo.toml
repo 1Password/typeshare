@@ -11,7 +11,7 @@ repository = "https://github.com/1Password/typeshare"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2.0.18", features = ["full"] }
-thiserror = "1"
+thiserror = "1.0.40"
 itertools = "0.10"
 lazy_format = "1.8"
 joinery = "2"
