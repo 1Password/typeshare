@@ -7,6 +7,13 @@ case class GenericStruct[A, B] (
 	field_b: Vector[B]
 )
 
+case class UnusedGenericsStruct (
+	field_a: Float,
+	field_b: Float
+)
+
+case class UnusedGenericsEmptyStruct ()
+
 case class GenericStructUsingGenericStruct[T] (
 	struct_field: GenericStruct[String, T],
 	second_struct_field: GenericStruct[T, String],

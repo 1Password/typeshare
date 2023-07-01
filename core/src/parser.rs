@@ -158,19 +158,27 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
         }));
     }
 
+    let mut used_generic_types = Vec::new();
+
     Ok(match &s.fields {
         // Structs
         Fields::Named(f) => {
             let fields = f
                 .named
                 .iter()
-                .filter(|field| !is_skipped(&field.attrs))
+                .filter(|field| !is_skipped(&field.attrs) && !is_phantom_data(&field.ty))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
                     } else {
                         RustType::try_from(&f.ty)?
                     };
+
+                    for generic_type in &generic_types {
+                        if ty.contains_type(generic_type) {
+                            used_generic_types.push(generic_type.clone());
+                        }
+                    }
 
                     if serde_flatten(&f.attrs) {
                         return Err(ParseError::SerdeFlattenNotAllowed);
@@ -191,7 +199,10 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 
             RustItem::Struct(RustStruct {
                 id: get_ident(Some(&s.ident), &s.attrs, &None),
-                generic_types,
+                generic_types: generic_types
+                    .into_iter()
+                    .filter(|gt| used_generic_types.contains(gt))
+                    .collect(),
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators: get_decorators(&s.attrs),
@@ -722,6 +733,16 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
                 _ => false,
             })
     })
+}
+
+fn is_phantom_data(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(path) = ty {
+        if let Some(segment) = path.path.segments.last() {
+            return segment.ident == "PhantomData";
+        }
+    }
+
+    false
 }
 
 #[test]
