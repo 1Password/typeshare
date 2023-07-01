@@ -84,6 +84,9 @@ impl Language for Go {
             SpecialRustType::Array(rtype, len) => {
                 format!("[{}]{}", len, self.format_type(rtype, generic_types)?)
             }
+            SpecialRustType::Slice(rtype) => {
+                format!("[]{}", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("*{}", self.format_type(rtype, generic_types)?)
             }

@@ -42,6 +42,9 @@ impl Language for Kotlin {
             SpecialRustType::Array(rtype, _) => {
                 format!("List<{}>", self.format_type(rtype, generic_types)?)
             }
+            SpecialRustType::Slice(rtype) => {
+                format!("List<{}>", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Option(rtype) => {
                 format!("{}?", self.format_type(rtype, generic_types)?)
             }
