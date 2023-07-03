@@ -261,7 +261,8 @@ fn main() {
     let parsed_data = glob_paths
         .par_iter()
         .map(|filepath| {
-            let data = std::fs::read_to_string(filepath).unwrap();
+            let data = std::fs::read_to_string(filepath)
+                .unwrap_or_else(|e| panic!("failed to read file at {filepath:?}: {e}"));
             let parsed_data = typeshare_core::parser::parse(&data);
             if parsed_data.is_err() {
                 panic!("{}", parsed_data.err().unwrap());
