@@ -1,7 +1,73 @@
 import Foundation
 
 /// This is a comment.
-public enum Colors: Codable {
+public struct ArcyColors: Codable {
+	public let red: UInt8
+	public let blue: String
+	public let green: [String]
+
+	public init(red: UInt8, blue: String, green: [String]) {
+		self.red = red
+		self.blue = blue
+		self.green = green
+	}
+}
+
+/// This is a comment.
+public struct MutexyColors: Codable {
+	public let blue: [String]
+	public let green: String
+
+	public init(blue: [String], green: String) {
+		self.blue = blue
+		self.green = green
+	}
+}
+
+/// This is a comment.
+public struct RcyColors: Codable {
+	public let red: String
+	public let blue: [String]
+	public let green: String
+
+	public init(red: String, blue: [String], green: String) {
+		self.red = red
+		self.blue = blue
+		self.green = green
+	}
+}
+
+/// This is a comment.
+public struct CellyColors: Codable {
+	public let red: String
+	public let blue: [String]
+
+	public init(red: String, blue: [String]) {
+		self.red = red
+		self.blue = blue
+	}
+}
+
+/// This is a comment.
+public struct LockyColors: Codable {
+	public let red: String
+
+	public init(red: String) {
+		self.red = red
+	}
+}
+
+/// This is a comment.
+public struct CowyColors: Codable {
+	public let lifetime: String
+
+	public init(lifetime: String) {
+		self.lifetime = lifetime
+	}
+}
+
+/// This is a comment.
+public enum BoxyColors: Codable {
 	case red
 	case blue
 	case green(String)
@@ -33,7 +99,7 @@ public enum Colors: Codable {
 				}
 			}
 		}
-		throw DecodingError.typeMismatch(Colors.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for Colors"))
+		throw DecodingError.typeMismatch(BoxyColors.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for BoxyColors"))
 	}
 
 	public func encode(to encoder: Encoder) throws {
