@@ -97,6 +97,7 @@ impl Language for Go {
             ),
             SpecialRustType::Unit => "struct{}".into(),
             SpecialRustType::String => "string".into(),
+            SpecialRustType::Char => "rune".into(),
             SpecialRustType::I8
             | SpecialRustType::U8
             | SpecialRustType::U16

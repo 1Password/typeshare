@@ -58,6 +58,7 @@ impl Language for TypeScript {
             )),
             SpecialRustType::Unit => Ok("undefined".into()),
             SpecialRustType::String => Ok("string".into()),
+            SpecialRustType::Char => Ok("string".into()),
             SpecialRustType::I8
             | SpecialRustType::U8
             | SpecialRustType::I16

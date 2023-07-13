@@ -98,6 +98,8 @@ impl Language for Scala {
             }
             SpecialRustType::Unit => "Unit".into(),
             SpecialRustType::String => "String".into(),
+            // Char in Scala is 16 bits long, so we need to use String
+            SpecialRustType::Char => "String".into(),
             // https://docs.scala-lang.org/scala3/book/first-look-at-types.html#scalas-value-types
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),
