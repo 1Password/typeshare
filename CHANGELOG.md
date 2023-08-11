@@ -1,3 +1,21 @@
+# Version 1.7.0
+
+This release brings support for more rust primitive types (slices and chars), as well as support for manually overriding the output type in the `#[typeshare]` annotations
+
+- Added support for the Rust slice type, which is treated as a sequence. [#131](https://github.com/1Password/typeshare/pull/131)
+- Added support for the Rust char type, which is treated as a string. [#128](https://github.com/1Password/typeshare/pull/128)
+- Better error messages when there's an error reading a file. [#117](https://github.com/1Password/typeshare/pull/117)
+- It is now possible to manually override the output type for specific fields using the `#[typeshare]` annotation. [#119](https://github.com/1Password/typeshare/pull/119), [#118](https://github.com/1Password/typeshare/pull/118)
+- Fixed: in Swift, apply generic constraints to enums, in addition to structs. [#122](https://github.com/1Password/typeshare/pull/122)
+- In an effort to ensure we don't accidentally break compatibility with our Minimum Supported Rust Version, we added a `rust-toolchain.toml` to the rust crates, forcing builds and tests to use that version of rust. [#129](https://github.com/1Password/typeshare/pull/129), [#135](https://github.com/1Password/typeshare/pull/135). This change should have no effect on end users.
+
+### Community contributors
+
+Thank you to the following community contributors for your work on this release:
+
+- [czocher](https://github.com/czocher)
+- [xhain](https://github.com/xhain)
+
 # Version 1.6.0
 
 This release brings support for more architectures for Nix and configurable generic constraints in Swift
