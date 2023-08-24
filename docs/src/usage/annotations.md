@@ -103,7 +103,26 @@ This would generate the following Kotlin code:
 typealias Options = String
 ```
 
+### Override Type for a Field
 
+You can also use language-specific arguments to tell Typeshare to treat
+the a field as a type in a particular output language. For example,
+```rust
+#[typeshare]
+struct MyStruct {
+    #[typeshare(typescript(type = "0 | 1"))]
+    oneOrZero: u8,
+}
+```
+would generate the following Typescript code:
+```typescript
+export interface MyStruct {
+	oneOrZero: 0 | 1;
+}
+```
+The `type` argument is supported for all output languages, however Typescript
+also supports the optional `readonly` argument (e.g. `typescript(readonly, type= "0 | 1")`)
+to make the output property readonly.
 
 ## The `#[serde]` Attribute
 
