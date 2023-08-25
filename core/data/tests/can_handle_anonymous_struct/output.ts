@@ -15,13 +15,13 @@ export type AutofilledBy =
 
 /** This is a comment (yareek sameek wuz here) */
 export type EnumWithManyVariants = 
-	| { type: "UnitVariant", content?: undefined }
+	| { type: "UnitVariant", content: null }
 	| { type: "TupleVariantString", content: string }
 	| { type: "AnonVariant", content: {
 	uuid: string;
 }}
 	| { type: "TupleVariantInt", content: number }
-	| { type: "AnotherUnitVariant", content?: undefined }
+	| { type: "AnotherUnitVariant", content: null }
 	| { type: "AnotherAnonVariant", content: {
 	uuid: string;
 	thing: number;
