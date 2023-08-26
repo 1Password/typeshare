@@ -124,6 +124,43 @@ The `type` argument is supported for all output languages, however Typescript
 also supports the optional `readonly` argument (e.g. `typescript(readonly, type= "0 | 1")`)
 to make the output property readonly.
 
+### Special Note on 64 Bit Integer Types
+
+The default behavior for 64 bit integer types when outputting TypeScript is to
+panic. The reasoning behind this is that in JavaScript runtimes integers are not
+sufficient to fully represent the set of all 64 bit integers, that is,
+`Number.MIN_SAFE_INTEGER` and `Number.MAX_SAFE_INTEGER` are less in magnitude
+than `i64::MIN` and `u64::MAX`, respectively. There are a few ways one can still
+use 64 bit integer types, however, and a Typeshare attribute to override the
+field type can be applied to accomodate the particular approach one chooses to
+take. Here are a few examples:
+
+**Serializing 64 bit integer fields to strings using `serde(with = ...)`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "string"))]
+    #[serde(with = "my_string_serde_impl")]
+    my_field: u64
+}
+```
+
+**Using a third-party JSON parser that provides support for larger integer types via `bigint`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "bigint"))]
+    my_field: u64
+}
+```
+
+**Throwing all caution to the wind and just using `number`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "number"))]
+    my_field: u64
+}
+```
+
+
 ## The `#[serde]` Attribute
 
 Since Typeshare relies on the [`serde`](https://crates.io/crates/serde) crate for handling serialization and deserialization between Rust types and the generated foreign type definitions, we can use the annotations provided by `serde` on our Typeshare types. For example, the following Rust definition
