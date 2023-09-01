@@ -260,6 +260,10 @@ pub trait Language {
         e: &RustEnum,
         make_struct_name: &dyn Fn(&str) -> String,
     ) -> std::io::Result<()> {
+        if let RustEnum::FlattenedAlgebraic { .. } = e {
+            return Ok(());
+        }
+
         for (fields, shared) in e.shared().variants.iter().filter_map(|v| match v {
             RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
             _ => None,

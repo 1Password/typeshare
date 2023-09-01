@@ -4,7 +4,7 @@ use crate::parser::{remove_dash_from_identifier, ParsedData};
 use crate::rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias};
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use itertools::Itertools;
-use joinery::JoinableIterator;
+use joinery::{Joinable, JoinableIterator};
 use lazy_format::lazy_format;
 use std::ops::Deref;
 use std::{collections::HashMap, io::Write};
@@ -197,7 +197,7 @@ impl Language for Scala {
                     shared.id.renamed, generic_parameters
                 )?;
             }
-            RustEnum::Algebraic { shared, .. } => {
+            RustEnum::Algebraic { shared, .. } | RustEnum::FlattenedAlgebraic { shared, .. } => {
                 writeln!(
                     w,
                     "sealed trait {}{} {{",
@@ -319,6 +319,70 @@ impl Scala {
                             )?;
                             write!(w, ")")?;
                         }
+                    }
+
+                    writeln!(
+                        w,
+                        " extends {}{} {{",
+                        e.shared().id.original,
+                        (!e.shared().generic_types.is_empty())
+                            .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
+                            .unwrap_or_default()
+                    )?;
+                    writeln!(w, "\t\tval serialName: String = {}", printed_value)?;
+                    writeln!(w, "\t}}")?;
+                }
+            }
+            RustEnum::FlattenedAlgebraic { shared, .. } => {
+                for v in shared.variants.iter() {
+                    let printed_value = format!(r##"{:?}"##, &v.shared().id.renamed);
+                    self.write_comments(w, 1, &v.shared().comments)?;
+
+                    let variant_name = {
+                        let mut variant_name = v.shared().id.original.to_string();
+
+                        if variant_name
+                            .chars()
+                            .next()
+                            .map(|c| c.is_ascii_digit())
+                            .unwrap_or(false)
+                        {
+                            // If the name starts with a digit just add an underscore
+                            // to the front and make it valid
+                            variant_name = format!("_{}", variant_name);
+                        }
+
+                        variant_name
+                    };
+
+                    match v {
+                        RustEnumVariant::Unit(_) => {
+                            write!(w, "\tcase object {}", variant_name)?;
+                        }
+                        RustEnumVariant::AnonymousStruct { fields, .. } => {
+                            write!(
+                                w,
+                                "\tcase class {}{}(",
+                                variant_name,
+                                (!e.shared().generic_types.is_empty())
+                                    .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
+                                    .unwrap_or_default()
+                            )?;
+
+                            let mut fields_declarations = Vec::with_capacity(fields.len());
+                            for field in fields {
+                                let field_type = self
+                                    .format_type(&field.ty, e.shared().generic_types.as_slice())
+                                    .map_err(|e| {
+                                        std::io::Error::new(std::io::ErrorKind::Other, e)
+                                    })?;
+                                fields_declarations
+                                    .push(format!("{}: {}", field.id.renamed, field_type))
+                            }
+
+                            write!(w, "{})", fields_declarations.join_with(", "))?;
+                        }
+                        _ => unreachable!(),
                     }
 
                     writeln!(

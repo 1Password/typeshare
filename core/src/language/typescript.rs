@@ -150,7 +150,7 @@ impl Language for TypeScript {
 
                 writeln!(w, "\n}}\n")
             }
-            RustEnum::Algebraic { shared, .. } => {
+            RustEnum::Algebraic { shared, .. } | RustEnum::FlattenedAlgebraic { shared, .. } => {
                 write!(
                     w,
                     "export type {}{} = ",
@@ -226,6 +226,30 @@ impl TypeScript {
                     }
                 }
             }),
+
+            // Write all the flattenned algebraic variants out (there can only be
+            // unit and anonymous struct variants in this case)
+            RustEnum::FlattenedAlgebraic { tag_key, shared } => {
+                shared.variants.iter().try_for_each(|v| {
+                    writeln!(w)?;
+                    self.write_comments(w, 1, &v.shared().comments)?;
+                    match v {
+                        RustEnumVariant::Unit(shared) => {
+                            write!(w, "\t| {{ {}: {:?} }}", tag_key, shared.id.renamed)
+                        }
+                        RustEnumVariant::AnonymousStruct { fields, shared } => {
+                            writeln!(w, "\t| {{ {}: {:?},", tag_key, shared.id.renamed)?;
+
+                            fields.iter().try_for_each(|f| {
+                                self.write_field(w, f, e.shared().generic_types.as_slice())
+                            })?;
+
+                            write!(w, "}}")
+                        }
+                        RustEnumVariant::Tuple { .. } => unreachable!(),
+                    }
+                })
+            }
         }
     }
 

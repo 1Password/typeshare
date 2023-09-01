@@ -6,9 +6,9 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
-use joinery::JoinableIterator;
+use joinery::{Joinable, JoinableIterator};
 use lazy_format::lazy_format;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::io;
 use std::{
     collections::HashMap,
@@ -83,6 +83,7 @@ struct CodingKeysInfo {
     decoding_cases: Vec<String>,
     encoding_cases: Vec<String>,
     coding_keys: Vec<String>,
+    container_coding_keys: Vec<String>,
 }
 
 /// A container for generic constraints.
@@ -441,7 +442,9 @@ impl Language for Swift {
                 always_present.append(&mut self.get_default_decorators());
                 always_present
             }
-            RustEnum::Algebraic { .. } => self.get_default_decorators(),
+            RustEnum::Algebraic { .. } | RustEnum::FlattenedAlgebraic { .. } => {
+                self.get_default_decorators()
+            }
         };
         let decs = determine_decorators(&always_present, e);
         // Make a suitable name for an anonymous struct enum variant
@@ -531,6 +534,36 @@ impl Language for Swift {
             )?;
         }
 
+        if let RustEnum::FlattenedAlgebraic { tag_key, .. } = e {
+            writeln!(
+                w,
+                r#"
+	private enum ContainerCodingKeys: String, CodingKey {{
+		case {tag_key}, {container_coding_keys}
+	}}
+
+	public init(from decoder: Decoder) throws {{
+		let container = try decoder.container(keyedBy: ContainerCodingKeys.self)
+		if let type = try? container.decode(CodingKeys.self, forKey: .{tag_key}) {{
+			switch type {{{decoding_switch}
+			}}
+		}}
+		throw DecodingError.typeMismatch({type_name}.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for {type_name}"))
+	}}
+
+	public func encode(to encoder: Encoder) throws {{
+		var container = encoder.container(keyedBy: ContainerCodingKeys.self)
+		switch self {{{encoding_switch}
+		}}
+	}}"#,
+                tag_key = tag_key,
+                container_coding_keys = coding_keys_info.container_coding_keys.join_with(", "),
+                type_name = enum_name,
+                decoding_switch = coding_keys_info.decoding_cases.join(""),
+                encoding_switch = coding_keys_info.encoding_cases.join(""),
+            )?;
+        }
+
         writeln!(w, "}}")
     }
 }
@@ -545,6 +578,7 @@ impl Swift {
         let mut decoding_cases = Vec::new();
         let mut encoding_cases = Vec::new();
         let mut coding_keys = Vec::new();
+        let mut container_coding_keys = Vec::new();
 
         match e {
             RustEnum::Unit(shared) => {
@@ -723,12 +757,192 @@ impl Swift {
                     writeln!(w)?;
                 }
             }
+            RustEnum::FlattenedAlgebraic { tag_key, shared } => {
+                let generics = &shared.generic_types;
+                for v in &shared.variants {
+                    self.write_comments(w, 1, &v.shared().comments)?;
+
+                    let variant_name = {
+                        let mut variant_name = v.shared().id.original.to_camel_case();
+
+                        if variant_name
+                            .chars()
+                            .next()
+                            .map(|c| c.is_ascii_digit())
+                            .unwrap_or(false)
+                        {
+                            // If the name starts with a digit just add an underscore
+                            // to the front and make it valid
+                            variant_name = format!("_{}", variant_name);
+                        }
+
+                        variant_name
+                    };
+
+                    coding_keys.push(if variant_name == v.shared().id.renamed {
+                        swift_keyword_aware_rename(&variant_name)
+                    } else {
+                        format!(
+                            r##"{} = "{}""##,
+                            swift_keyword_aware_rename(&variant_name),
+                            &v.shared().id.renamed
+                        )
+                    });
+
+                    write!(w, "\tcase {}", swift_keyword_aware_rename(&variant_name))?;
+
+                    match v {
+                        RustEnumVariant::Unit(_) => {
+                            decoding_cases.push(format!(
+                                "
+			case .{case_name}:
+				self = .{case_name}
+				return",
+                                case_name = &variant_name,
+                            ));
+
+                            encoding_cases.push(format!(
+                                "
+		case .{case_name}:
+			try container.encode(CodingKeys.{case_name}, forKey: .{tag_key})",
+                                tag_key = tag_key,
+                                case_name = swift_keyword_aware_rename(&variant_name),
+                            ));
+                        }
+                        RustEnumVariant::AnonymousStruct { shared: _, fields } => {
+                            let mut fields_names = Vec::with_capacity(fields.len());
+                            let mut fields_declarations = Vec::with_capacity(fields.len());
+                            let mut fields_optional_decoding = Vec::with_capacity(fields.len());
+                            let mut fields_mandatory_decoding = Vec::with_capacity(fields.len());
+                            let mut fields_encoding = Vec::with_capacity(fields.len());
+                            for field in fields {
+                                let field_name = swift_keyword_aware_rename(&field.id.renamed);
+                                let field_type = self
+                                    .format_type(&field.ty, generics)
+                                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+                                fields_declarations.push(format!(
+                                    "{}: {}",
+                                    &field_name,
+                                    swift_keyword_aware_rename(&field_type)
+                                ));
+
+                                if field.ty.is_optional() {
+                                    fields_optional_decoding.push(format!("let {field_name} = try? container.decodeIfPresent({field_type}.self, forKey: .{field_name})",
+                                        field_name = &field_name,
+                                        field_type = swift_keyword_aware_rename(&field_type)
+                                    ));
+                                } else {
+                                    fields_mandatory_decoding
+                                        .push(format!("let {field_name} = try? container.decode({field_type}.self, forKey: .{field_name})",
+                                            field_name = &field_name,
+                                            field_type = swift_keyword_aware_rename(&field_type)
+                                        ));
+                                }
+
+                                fields_encoding.push(format!(
+                                    "try container.encode({field_name}, forKey: .{field_name})",
+                                    field_name = &field_name
+                                ));
+
+                                fields_names.push(field_name.clone());
+                                container_coding_keys.push(field_name);
+                            }
+
+                            write!(w, "(")?;
+                            write!(w, "{}", fields_declarations.join_with(", "))?;
+                            write!(w, ")")?;
+
+                            decoding_cases.push(
+                                match (
+                                    fields_mandatory_decoding.is_empty(),
+                                    fields_optional_decoding.is_empty(),
+                                ) {
+                                    (false, true) => format!(
+                                        "
+			case .{case_name}:
+				if
+					{fields_mandatory_decoding}
+				{{
+					self = .{case_name}({fields_names})
+					return
+				}}",
+                                        fields_mandatory_decoding =
+                                            &fields_mandatory_decoding.join_with(",\n					"),
+                                        case_name = &variant_name,
+                                        fields_names = &fields_names
+                                            .iter()
+                                            .map(|x| format!("{}: {}", x, x))
+                                            .join_with(", ")
+                                    ),
+                                    (true, false) => format!(
+                                        "
+			case .{case_name}:
+				{fields_optional_decoding}
+				self = .{case_name}({fields_names})
+				return",
+                                        fields_optional_decoding =
+                                            &fields_optional_decoding.join_with(";\n				"),
+                                        case_name = &variant_name,
+                                        fields_names = &fields_names
+                                            .iter()
+                                            .map(|x| format!("{}: {}", x, x))
+                                            .join_with(", ")
+                                    ),
+                                    (_, _) => format!(
+                                        "
+			case .{case_name}:
+				{fields_optional_decoding}
+				if
+					{fields_mandatory_decoding}
+				{{
+					self = .{case_name}({fields_names})
+					return
+				}}",
+                                        fields_optional_decoding =
+                                            &fields_optional_decoding.join_with(";\n				"),
+                                        fields_mandatory_decoding =
+                                            &fields_mandatory_decoding.join_with(",\n					"),
+                                        case_name = &variant_name,
+                                        fields_names = &fields_names
+                                            .iter()
+                                            .map(|x| format!("{}: {}", x, x))
+                                            .join_with(", ")
+                                    ),
+                                },
+                            );
+
+                            encoding_cases.push(format!(
+                                "
+		case .{case_name}({field_names}):
+			try container.encode(CodingKeys.{case_name}, forKey: .{tag_key})
+			{fields_encoding}",
+                                field_names = &fields_names
+                                    .iter()
+                                    .map(|x| format!("let {}", x))
+                                    .join_with(", "),
+                                tag_key = tag_key,
+                                case_name = &variant_name,
+                                fields_encoding = fields_encoding.join_with("\n			")
+                            ));
+                        }
+                        RustEnumVariant::Tuple { .. } => unreachable!(),
+                    }
+
+                    writeln!(w)?;
+                }
+            }
         }
+
+        // Deduplicate container coding keys
+        let mut set = HashSet::new();
+        container_coding_keys.retain(|e| set.insert(e.clone()));
 
         Ok(CodingKeysInfo {
             decoding_cases,
             encoding_cases,
             coding_keys,
+            container_coding_keys,
         })
     }
 

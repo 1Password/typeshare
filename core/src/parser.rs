@@ -315,8 +315,31 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         }
 
         Ok(RustItem::Enum(RustEnum::Unit(shared)))
+    } else if !shared
+        .variants
+        .iter()
+        .any(|v| matches!(v, RustEnumVariant::Tuple { .. }))
+    {
+        // All enum variants are unit-type or anonymous structs
+
+        let tag_key = maybe_tag_key.ok_or_else(|| ParseError::SerdeTagRequired {
+            enum_ident: original_enum_ident.clone(),
+        })?;
+
+        if let Some(content_key) = maybe_content_key {
+            Ok(RustItem::Enum(RustEnum::Algebraic {
+                tag_key,
+                content_key,
+                shared,
+            }))
+        } else {
+            Ok(RustItem::Enum(RustEnum::FlattenedAlgebraic {
+                tag_key,
+                shared,
+            }))
+        }
     } else {
-        // At least one enum variant is either a tuple or an anonymous struct
+        // At least one enum variant is a tuple
 
         let tag_key = maybe_tag_key.ok_or_else(|| ParseError::SerdeTagRequired {
             enum_ident: original_enum_ident.clone(),

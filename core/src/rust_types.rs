@@ -508,13 +508,37 @@ pub enum RustEnum {
         /// Shared context for this enum.
         shared: RustEnumShared,
     },
+    /// A flattened algebraic enum
+    ///
+    /// An example of such an enum:
+    ///
+    /// ```
+    /// enum AlgebraicEnum {
+    ///     UnitVariant,
+    ///     AnonymousStruct {
+    ///         field: String,
+    ///         another_field: bool,
+    ///     },
+    ///     AnonymousStruct2 {
+    ///         yet_another_field: String,
+    ///     },
+    /// }
+    /// ```
+    FlattenedAlgebraic {
+        /// The parsed value of the `#[serde(tag = "...")]` attribute
+        tag_key: String,
+        /// Shared context for this enum.
+        shared: RustEnumShared,
+    },
 }
 
 impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
         match self {
-            Self::Unit(shared) | Self::Algebraic { shared, .. } => shared,
+            Self::Unit(shared)
+            | Self::Algebraic { shared, .. }
+            | Self::FlattenedAlgebraic { shared, .. } => shared,
         }
     }
 }
