@@ -5,63 +5,11 @@ use crate::{
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
+use std::ops::Deref;
 use std::{collections::HashMap, fmt::Debug, io::Write, str::FromStr};
 
-mod go;
-mod kotlin;
-mod scala;
-mod swift;
-mod typescript;
-
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
-pub use go::Go;
-pub use kotlin::Kotlin;
-pub use scala::Scala;
-pub use swift::GenericConstraints;
-pub use swift::Swift;
-pub use typescript::TypeScript;
-
-/// All supported programming languages.
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum SupportedLanguage {
-    Go,
-    Kotlin,
-    Scala,
-    Swift,
-    TypeScript,
-}
-
-impl SupportedLanguage {
-    /// Returns an iterator over all supported language variants.
-    pub fn all_languages() -> impl Iterator<Item = Self> {
-        use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
-    }
-}
-
-impl FromStr for SupportedLanguage {
-    type Err = ParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "go" => Ok(Self::Go),
-            "kotlin" => Ok(Self::Kotlin),
-            "scala" => Ok(Self::Scala),
-            "swift" => Ok(Self::Swift),
-            "typescript" => Ok(Self::TypeScript),
-            _ => Err(ParseError::UnsupportedLanguage(s.into())),
-        }
-    }
-}
-
-impl TryFrom<&Ident> for SupportedLanguage {
-    type Error = ParseError;
-
-    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
-        Self::from_str(ident.to_string().as_str())
-    }
-}
+use crate::type_mapping::TypeMapping;
 
 /// Language-specific state and processing.
 ///
@@ -108,7 +56,7 @@ pub trait Language {
     }
 
     /// Get the type mapping for this language `(Rust type name -> lang type name)`
-    fn type_map(&mut self) -> &HashMap<String, String>;
+    fn type_map(&mut self) -> &TypeMapping;
 
     /// Convert a Rust type into a type from this language.
     fn format_type(
@@ -136,7 +84,7 @@ pub trait Language {
         _generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         Ok(if let Some(mapped) = self.type_map().get(base) {
-            mapped.into()
+            mapped.to_string().into()
         } else {
             base.into()
         })
@@ -153,7 +101,7 @@ pub trait Language {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_map().get(base) {
-            Ok(mapped.into())
+            Ok(mapped.to_string())
         } else {
             let parameters: Result<Vec<String>, RustTypeFormatError> = parameters
                 .iter()

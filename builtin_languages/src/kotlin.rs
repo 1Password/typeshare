@@ -1,15 +1,11 @@
-use super::Language;
-use crate::language::SupportedLanguage;
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
-use crate::{
-    parser::remove_dash_from_identifier,
-    rename::RenameExt,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
-};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::{collections::HashMap, io::Write};
+use std::io::Write;
+use typeshare_core::language::Language;
+use typeshare_core::language::SupportedLanguage;
+use typeshare_core::rust_types::{RustTypeFormatError, SpecialRustType};
+use typeshare_core::type_mapping::TypeMapping;
 
 /// All information needed for Kotlin type-code
 #[derive(Default)]
@@ -19,14 +15,14 @@ pub struct Kotlin {
     /// Name of the Kotlin module
     pub module_name: String,
     /// Conversions from Rust type names to Kotlin type names.
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: TypeMapping,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
 }
 
 impl Language for Kotlin {
-    fn type_map(&mut self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &TypeMapping {
         &self.type_mappings
     }
 

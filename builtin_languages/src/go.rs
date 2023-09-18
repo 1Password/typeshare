@@ -1,15 +1,11 @@
 use std::io::Write;
 
-use crate::language::SupportedLanguage;
-use crate::parser::ParsedData;
-use crate::rename::RenameExt;
-use crate::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
-use crate::{
-    language::Language,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
-    topsort::topsort,
-};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use typeshare_core::language::SupportedLanguage;
+use typeshare_core::parser::ParsedData;
+use typeshare_core::rename::RenameExt;
+use typeshare_core::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
+use typeshare_core::type_mapping::TypeMapping;
 
 /// All information needed to generate Go type-code
 #[derive(Default)]
@@ -17,7 +13,7 @@ pub struct Go {
     /// Name of the Go package.
     pub package: String,
     /// Conversions from Rust type names to Go type names.
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: TypeMapping,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.
     pub uppercase_acronyms: Vec<String>,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
@@ -70,7 +66,7 @@ impl Language for Go {
         Ok(())
     }
 
-    fn type_map(&mut self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &TypeMapping {
         &self.type_mappings
     }
 

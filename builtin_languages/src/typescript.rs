@@ -1,25 +1,32 @@
 use joinery::JoinableIterator;
 
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
-use crate::{
-    language::{Language, SupportedLanguage},
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
-};
+use serde::{Deserialize, Serialize};
 use std::io;
-use std::{collections::HashMap, io::Write};
+use std::io::Write;
+use typeshare_core::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use typeshare_core::type_mapping::TypeMapping;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum EnumWriteMethod {
+    OneType,
+    #[default]
+    ManyTypes,
+}
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
 pub struct TypeScript {
     /// Mappings from Rust type names to Typescript type names
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: TypeMapping,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+
+    pub enum_write_method: EnumWriteMethod,
 }
 
 impl Language for TypeScript {
-    fn type_map(&mut self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &TypeMapping {
         &self.type_mappings
     }
 
@@ -28,6 +35,9 @@ impl Language for TypeScript {
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(type_override) = self.type_mappings.get(special_ty.id()) {
+            return Ok(type_override.to_string());
+        }
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
@@ -154,6 +164,36 @@ impl Language for TypeScript {
                 writeln!(w, "\n}}\n")
             }
             RustEnum::Algebraic { shared, .. } => {
+                if EnumWriteMethod::ManyTypes == self.enum_write_method {
+                    self.write_comments(w, 0, &shared.comments)?;
+                    for variant in &shared.variants {
+                        match variant {
+                            RustEnumVariant::AnonymousStruct {
+                                shared: variant_shared,
+                                fields,
+                            } => {
+                                let variant_name =
+                                    format!("{}{}", shared.id.original, variant_shared.id.original);
+
+                                self.write_comments(w, 0, &shared.comments)?;
+                                writeln!(
+                                    w,
+                                    "export interface {}{} {{",
+                                    variant_name,
+                                    (!shared.generic_types.is_empty())
+                                        .then(|| format!("<{}>", shared.generic_types.join(", ")))
+                                        .unwrap_or_default()
+                                )?;
+
+                                fields.iter().try_for_each(|f| {
+                                    self.write_field(w, f, shared.generic_types.as_slice())
+                                })?;
+                                writeln!(w, "}}\n")?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
                 write!(
                     w,
                     "export type {}{} = ",
@@ -213,19 +253,27 @@ impl TypeScript {
                             r#type
                         )
                     }
-                    RustEnumVariant::AnonymousStruct { fields, shared } => {
-                        writeln!(
+                    RustEnumVariant::AnonymousStruct {
+                        fields,
+                        shared: variant_shared,
+                    } => {
+                        write!(
                             w,
-                            "\t| {{ {}: {:?}, {}: {{",
-                            tag_key, shared.id.renamed, content_key
+                            "\t| {{ {}: {:?}, {}: ",
+                            tag_key, variant_shared.id.renamed, content_key
                         )?;
 
-                        fields.iter().try_for_each(|f| {
-                            self.write_field(w, f, e.shared().generic_types.as_slice())
-                        })?;
+                        if EnumWriteMethod::ManyTypes == self.enum_write_method {
+                            write!(w, "{}{}", shared.id.original, variant_shared.id.original,)?;
+                        } else {
+                            write!(w, "{{")?;
+                            fields.iter().try_for_each(|f| {
+                                self.write_field(w, f, e.shared().generic_types.as_slice())
+                            })?;
 
-                        write!(w, "}}")?;
-                        write!(w, "}}")
+                            write!(w, "}}")?;
+                        }
+                        write!(w, "}}\n")
                     }
                 }
             }),
@@ -238,7 +286,14 @@ impl TypeScript {
         field: &RustField,
         generic_types: &[String],
     ) -> io::Result<()> {
-        self.write_comments(w, 1, &field.comments)?;
+        if field.comments.is_empty() {
+            if let Some(comments) = self.type_mappings.get_comments(&field.ty.id()) {
+                let comments = comments.clone();
+                self.write_comments(w, 1, &comments)?;
+            }
+        } else {
+            self.write_comments(w, 1, &field.comments)?;
+        }
         let ts_ty: String = match field.type_override(SupportedLanguage::TypeScript) {
             Some(type_override) => type_override.to_owned(),
             None => self

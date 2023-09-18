@@ -1,12 +1,24 @@
-# Typeshare
+# Typeshare - Fork
+
+This is a fork of TypeShare. 
+I currently have no intention of merging this into the main project. 
+
+This fork is supposed to be more dynamic and allow for more customization.
+
+# Changes
+
+- Better TypeMapping values for the typeshare.toml file.
+- Based on PR [140](https://github.com/1Password/typeshare/pull/140)
+- Set directories in typeshare.toml
+- Minimum Rust Version 1.72
+- Clap is using the latest version. This does break the CLI for some commands.
 
 | Crate                | Status                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | typeshare            | [![crates.io version](https://img.shields.io/crates/v/typeshare.svg)](https://crates.io/crates/typeshare) [![crate documentation](https://docs.rs/typeshare/badge.svg)](https://docs.rs/typeshare) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare.svg)](https://crates.io/crates/typeshare)                                                                   |
 | typeshare-core       | [![crates.io version](https://img.shields.io/crates/v/typeshare-core.svg)](https://crates.io/crates/typeshare-core) [![crate documentation](https://docs.rs/typeshare-core/badge.svg)](https://docs.rs/typeshare-core) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-core.svg)](https://crates.io/crates/typeshare-core)                                     |
 | typeshare-annotation | [![crates.io version](https://img.shields.io/crates/v/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) [![crate documentation](https://docs.rs/typeshare-annotation/badge.svg)](https://docs.rs/typeshare-annotation) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) |
 | typeshare-cli        | [![crates.io version](https://img.shields.io/crates/v/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli)                                                                                                                                            |
-
 
 _One tool to rule the types,_
 
@@ -16,17 +28,16 @@ _One tool to parse your Rust,_
 
 _And in the darkness, compile them_ 💍
 
-
 Do you like manually managing types that need to be passed through an FFI layer, so that your code doesn't archaically break at runtime? Be honest, nobody does. Typeshare is here to take that burden away from you! Leveraging the power of the `serde` library, Typeshare is a tool that converts your
 Rust types into their equivalent forms in Swift, Go**, Kotlin, Scala and Typescript, keeping
 your cross-language codebase in sync. With automatic implementation for serialization and deserialization on both sides of the FFI, Typeshare does all the heavy lifting for you. It can even handle generics and convert effortlessly between standard libraries in different languages!
 
 **A few caveats. See [here](#a-quick-refresher-on-supported-languages) for more details.
 
-## Installation 
-
+## Installation
 
 To install the CLI (Command Line Interface):
+
 ```
 cargo install typeshare-cli
 ```
@@ -40,11 +51,13 @@ typeshare = "1.0.0"
 ```
 
 ## Using Typeshare
+
 We've put together a book that documents (almost) everything you can do.
 
 📚[Read the Typeshare book here!](https://1password.github.io/typeshare)
 
 To generate FFI definitions for a target language, run the `typeshare` command and specify the directory containing your rust code, the language you would like to generate for, and the file to which your generated definitions will be written:
+
 ```
 typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
 typeshare ./my_rust_project --lang=swift --output-file=my_swift_definitions.swift
@@ -73,6 +86,7 @@ enum MyEnum {
     MyNumber(u32),
 }
 ```
+
 ```typescript
 // Generated Typescript definitions
 
@@ -100,6 +114,7 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 - Go**
 
 If there is a language that you want Typeshare to generate definitions for, you can either:
+
 1. Open an issue in this repository requesting your language of choice.
 2. Implement support for that language and open a PR with your implementation. We would be eternally grateful! 🙏
 

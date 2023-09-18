@@ -1,188 +1,140 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::{command, Arg, ArgMatches, Command};
+use crate::config::{KotlinParams, ScalaParams, SwiftParams, DEFAULT_CONFIG_FILE_NAME};
+use clap::{command, Arg, ArgMatches, Command, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap_complete::Shell;
 use config::Config;
 use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::{fs, path::Path};
+use std::collections::VecDeque;
+use std::path::PathBuf;
+use std::{fs, mem};
 use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{Kotlin, Language, Scala, Swift, TypeScript},
     parser::ParsedData,
 };
 
 mod config;
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const ARG_TYPE: &str = "TYPE";
-const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
-const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
-const ARG_MODULE_NAME: &str = "MODULENAME";
-const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
-const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
-#[cfg(feature = "go")]
-const ARG_GO_PACKAGE: &str = "GOPACKAGE";
-const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
-const ARG_GENERATE_CONFIG: &str = "generate-config-file";
-const ARG_OUTPUT_FILE: &str = "output-file";
-
-#[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
-
-#[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
-
-fn build_command() -> Command<'static> {
-    command!("typeshare")
-        .version(VERSION)
-        .args_conflicts_with_subcommands(true)
-        .subcommand_negates_reqs(true)
-        .subcommand(
-            Command::new("completions")
-                .about("Generate shell completions")
-                .arg(
-                    Arg::new("shell")
-                        .value_name("SHELL")
-                        .help("The shell to generate the completions for")
-                        .required(true)
-                        .possible_values(clap_complete_command::Shell::possible_values()),
-                ),
-        )
-        .arg(
-            Arg::new(ARG_TYPE)
-                .short('l')
-                .long("lang")
-                .help("Language of generated types")
-                .takes_value(true)
-                .possible_values(AVAILABLE_LANGUAGES)
-                .required_unless(ARG_GENERATE_CONFIG),
-        )
-        .arg(
-            Arg::new(ARG_SWIFT_PREFIX)
-                .short('s')
-                .long("swift-prefix")
-                .help("Prefix for generated Swift types")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_JAVA_PACKAGE)
-                .short('j')
-                .long("java-package")
-                .help("JAVA package name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_MODULE_NAME)
-                .short('m')
-                .long("module-name")
-                .help("Kotlin serializer module name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_SCALA_PACKAGE)
-                .long("scala-package")
-                .help("Scala package name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_SCALA_MODULE_NAME)
-                .long("scala-module-name")
-                .help("Scala serializer module name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_CONFIG_FILE_NAME)
-                .short('c')
-                .long("config-file")
-                .help("Configuration file for typeshare")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_GENERATE_CONFIG)
-                .short('g')
-                .long("generate-config-file")
-                .help("Generates a configuration file based on the other options specified. The file will be written to typeshare.toml by default or to the file path specified by the --config-file option.")
-                .takes_value(false)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_OUTPUT_FILE)
-                .short('o')
-                .long("output-file")
-                .help("File to write output to. mtime will be preserved if the file contents don't change")
-                .required_unless(ARG_GENERATE_CONFIG)
-                .takes_value(true)
-                .long(ARG_OUTPUT_FILE)
-        )
-        .arg(
-            Arg::new("directories")
-                .help("Directories within which to recursively find and process rust files")
-                .required_unless(ARG_GENERATE_CONFIG)
-                .min_values(1),
-        )
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, ValueEnum)]
+pub enum LanguageOption {
+    #[cfg(feature = "go")]
+    Go,
+    Kotlin,
+    Scala,
+    Swift,
+    TypeScript,
 }
 
-fn main() {
-    #[allow(unused_mut)]
-    let mut command = build_command();
-
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[clap(long, short = 'c')]
+    config_file: Option<PathBuf>,
+    #[clap(subcommand)]
+    subcmd: Option<Commands>,
+}
+#[derive(Parser)]
+pub struct GenerateCommandWithConfig {
+    #[clap(long, short = 'c')]
+    config_file: Option<PathBuf>,
+    #[clap(flatten)]
+    generate: GenerateCommand,
+}
+#[derive(Parser)]
+pub struct GenerateCommand {
+    #[clap(long, short = 'l')]
+    lang: LanguageOption,
+    #[clap(flatten)]
+    kotlin: KotlinParams,
+    #[clap(flatten)]
+    scala: ScalaParams,
+    #[clap(flatten)]
+    swift: SwiftParams,
     #[cfg(feature = "go")]
-    {
-        command = command.arg(
-            Arg::new(ARG_GO_PACKAGE)
-                .long("go-package")
-                .help("Go package name")
-                .takes_value(true)
-                .required_if(ARG_TYPE, "go"),
-        );
-    }
+    #[clap(flatten)]
+    go: config::GoParams,
+    #[clap(long, short = 'o')]
+    output_file: PathBuf,
+    directories: Vec<String>,
+}
 
-    let options = command.get_matches();
-
-    if let Some(options) = options.subcommand_matches("completions") {
-        if let Ok(shell) = options.value_of_t::<clap_complete_command::Shell>("shell") {
-            let mut command = build_command();
-            shell.generate(&mut command, &mut std::io::stdout());
+#[derive(Subcommand)]
+enum Commands {
+    #[clap(
+        about = "Initialize a typeshare.toml file in the current directory or the directory specified by -c"
+    )]
+    Init,
+    #[clap(about = "Generate code from the Rust files in the specified directories")]
+    Generate(GenerateCommand),
+    #[clap(about = "Generate completion scripts for your shell")]
+    Completions { generator: Option<Shell> },
+}
+fn main() {
+    let mut command = Cli::parse();
+    let (mut generate, config_path) = if let Some(subcommand) = command.subcmd {
+        let config_path = if let Some(config_file) = command.config_file {
+            config_file
+        } else {
+            PathBuf::from(DEFAULT_CONFIG_FILE_NAME)
+        };
+        match subcommand {
+            Commands::Init => {
+                if config_path.exists() {
+                    println!("Config file already exists at {:?}", config_path);
+                    return;
+                }
+                let config = Config::default();
+                let config_string = toml::to_string_pretty(&config).unwrap();
+                fs::write(config_path, config_string).unwrap();
+                return;
+            }
+            Commands::Generate(generate) => (generate, config_path),
+            Commands::Completions { generator } => {
+                let generator = generator.unwrap_or_else(|| {
+                    let option = Shell::from_env();
+                    eprintln!(
+                        "No shell specified. Pulling from environment. (SHELL={:?})",
+                        option
+                    );
+                    option.unwrap()
+                });
+                let mut command = Cli::command();
+                clap_complete::generate(
+                    generator,
+                    &mut command,
+                    "typeshare",
+                    &mut std::io::stdout(),
+                );
+                return;
+            }
         }
-        return;
-    }
+    } else {
+        let config1 = GenerateCommandWithConfig::parse();
+        let config_path = if let Some(config_file) = command.config_file {
+            config_file
+        } else {
+            PathBuf::from(DEFAULT_CONFIG_FILE_NAME)
+        };
+        (config1.generate, config_path)
+    };
 
-    let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
-    let config = config::load_config(config_file).unwrap_or_else(|error| {
+    let config = config::load_config(config_path).unwrap_or_else(|error| {
         panic!("Unable to read configuration file due to error: {}", error);
     });
-    let config = override_configuration(config, &options);
+    let config = override_configuration(config, &mut generate);
 
-    if options.is_present(ARG_GENERATE_CONFIG) {
-        let config = override_configuration(Config::default(), &options);
-        let file_path = options.value_of(ARG_CONFIG_FILE_NAME);
-        config::store_config(&config, file_path)
-            .unwrap_or_else(|e| panic!("Failed to create new config file due to: {}", e));
-        return;
-    }
+    let outfile = generate.output_file;
 
-    let mut directories = options.values_of("directories").unwrap();
-    let outfile = Path::new(options.value_of(ARG_OUTPUT_FILE).unwrap());
-    let language_type = options
-        .value_of(ARG_TYPE)
-        .map(|lang| lang.parse().ok())
-        .and_then(|parsed| parsed);
-
-    let mut lang: Box<dyn Language> = match language_type {
-        Some(SupportedLanguage::Swift) => Box::new(Swift {
-            prefix: config.swift.prefix,
+    let mut lang: Box<dyn Language> = match generate.lang {
+        LanguageOption::Swift => Box::new(Swift {
+            prefix: config.swift.prefix.unwrap_or_default(),
             type_mappings: config.swift.type_mappings,
             default_decorators: config.swift.default_decorators,
             default_generic_constraints: GenericConstraints::from_config(
@@ -190,46 +142,43 @@ fn main() {
             ),
             ..Default::default()
         }),
-        Some(SupportedLanguage::Kotlin) => Box::new(Kotlin {
-            package: config.kotlin.package,
-            module_name: config.kotlin.module_name,
+        LanguageOption::Kotlin => Box::new(Kotlin {
+            package: config.kotlin.java_package.unwrap_or_default(),
+            module_name: config.kotlin.kotlin_module_name.unwrap_or_default(),
             type_mappings: config.kotlin.type_mappings,
             ..Default::default()
         }),
-        Some(SupportedLanguage::Scala) => Box::new(Scala {
-            package: config.scala.package,
-            module_name: config.scala.module_name,
+        LanguageOption::Scala => Box::new(Scala {
+            package: config.scala.scala_package.unwrap_or_default(),
+            module_name: config.scala.scala_module_name.unwrap_or_default(),
             type_mappings: config.scala.type_mappings,
             ..Default::default()
         }),
-        Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
+        LanguageOption::TypeScript => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            enum_write_method: config.typescript.enum_write_method,
             ..Default::default()
         }),
         #[cfg(feature = "go")]
-        Some(SupportedLanguage::Go) => Box::new(Go {
-            package: config.go.package,
+        LanguageOption::Go => Box::new(Go {
+            package: config.go.go_package.unwrap_or_default(),
             type_mappings: config.go.type_mappings,
             uppercase_acronyms: config.go.uppercase_acronyms,
             ..Default::default()
         }),
-        #[cfg(not(feature = "go"))]
-        Some(SupportedLanguage::Go) => {
-            panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
-        }
-        _ => {
-            panic!("argument parser didn't validate ARG_TYPE correctly");
-        }
     };
 
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
     types.select("rust");
+    let mut directories = config.directories;
+    if directories.is_empty() {
+        panic!("No directories specified. Exiting.");
+    }
 
-    // This is guaranteed to always have at least one value by the clap configuration
-    let first_root = directories.next().unwrap();
+    let first_root = directories.pop_front().unwrap();
 
-    let overrides = OverrideBuilder::new(first_root)
+    let overrides = OverrideBuilder::new(&first_root)
         // Don't process files inside of tools/typeshare/
         .add("!**/tools/typeshare/**")
         .expect("Failed to parse override")
@@ -282,7 +231,7 @@ fn main() {
     lang.generate_types(&mut generated_contents, &parsed_data)
         .expect("Couldn't generate types");
 
-    match fs::read(outfile) {
+    match fs::read(&outfile) {
         Ok(buf) if buf == generated_contents => {
             // ok! don't need to do anything :)
             // avoid writing the file to leave the mtime intact
@@ -303,30 +252,9 @@ fn main() {
 }
 
 /// Overrides any configuration values with provided arguments
-fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
-    if let Some(swift_prefix) = options.value_of(ARG_SWIFT_PREFIX) {
-        config.swift.prefix = swift_prefix.to_string();
-    }
-
-    if let Some(java_package) = options.value_of(ARG_JAVA_PACKAGE) {
-        config.kotlin.package = java_package.to_string();
-    }
-
-    if let Some(module_name) = options.value_of(ARG_MODULE_NAME) {
-        config.kotlin.module_name = module_name.to_string();
-    }
-
-    if let Some(scala_package) = options.value_of(ARG_SCALA_PACKAGE) {
-        config.scala.package = scala_package.to_string();
-    }
-
-    if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
-        config.scala.module_name = scala_module_name.to_string();
-    }
-
-    #[cfg(feature = "go")]
-    if let Some(go_package) = options.value_of(ARG_GO_PACKAGE) {
-        config.go.package = go_package.to_string();
+fn override_configuration(mut config: Config, options: &mut GenerateCommand) -> Config {
+    if !options.directories.is_empty() {
+        config.directories = VecDeque::from(mem::take(&mut options.directories));
     }
 
     config

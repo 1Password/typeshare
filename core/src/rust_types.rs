@@ -5,7 +5,8 @@ use std::{collections::HashMap, convert::TryFrom};
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
-use crate::language::SupportedLanguage;
+use crate::language::{LanguageDecorator, SupportedLanguage};
+use crate::parser::Decorators;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]
@@ -42,7 +43,7 @@ pub struct RustStruct {
     /// so we need to collect them here.
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
-    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
+    pub decorators: HashMap<String, Vec<LanguageDecorator>>,
 }
 
 /// Rust type alias.
@@ -76,25 +77,7 @@ pub struct RustField {
     pub has_default: bool,
     /// Language-specific decorators assigned to a given field.
     /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are field decorators (e.g. readonly)
-    pub decorators: HashMap<SupportedLanguage, BTreeSet<FieldDecorator>>,
-}
-
-/// A single decorator on a field in Rust code.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FieldDecorator {
-    /// A boolean flag enabled by its existence as a decorator: for example, `readonly`.
-    Word(String),
-    /// A key-value pair, such as `type = "any"`.
-    NameValue(String, String),
-}
-
-impl FieldDecorator {
-    /// Returns the name of the field decorator. For a word decorator, this is just the identifier.
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Word(name) | Self::NameValue(name, _) => name,
-        }
-    }
+    pub lang_decorators:Decorators,
 }
 
 /// A Rust type.
@@ -360,9 +343,9 @@ impl RustType {
 
 impl RustField {
     /// Returns an type override, if it exists, on this field for a given language.
-    pub fn type_override(&self, language: SupportedLanguage) -> Option<&str> {
+    pub fn type_override(&self, language: impl AsRef<str>) -> Option<&str> {
         self.decorators
-            .get(&language)?
+            .get(language.as_ref())?
             .iter()
             .find_map(|fd| match fd {
                 FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty.as_str()),
@@ -533,7 +516,7 @@ pub struct RustEnumShared {
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
+    pub decorators: HashMap<String, Vec<String>>,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,

@@ -1,51 +1,74 @@
+use clap::builder::Str;
+use clap::Args;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::{
-    collections::HashMap,
     env,
     fs::{self, OpenOptions},
     io::{self, Write},
     path::{Path, PathBuf},
 };
+use typeshare_core::language::TypeScriptEnumWriteMethod;
+use typeshare_core::type_mapping::TypeMapping;
 
-const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
+pub(crate) const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Args)]
 #[serde(default)]
 pub struct KotlinParams {
-    pub package: String,
-    pub module_name: String,
-    pub type_mappings: HashMap<String, String>,
+    #[clap(long = "java-package")]
+    #[serde(rename = "package")]
+    pub java_package: Option<String>,
+    #[clap(long = "module-name")]
+    #[serde(rename = "module_name")]
+    pub kotlin_module_name: Option<String>,
+    #[clap(skip)]
+    pub type_mappings: TypeMapping,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Args)]
 #[serde(default)]
 pub struct ScalaParams {
-    pub package: String,
-    pub module_name: String,
-    pub type_mappings: HashMap<String, String>,
+    #[clap(long = "scala-package")]
+    #[serde(rename = "package")]
+    pub scala_package: Option<String>,
+    #[clap(long = "scala-module-name")]
+    #[serde(rename = "module_name")]
+    pub scala_module_name: Option<String>,
+    #[clap(skip)]
+    pub type_mappings: TypeMapping,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Args)]
 #[serde(default)]
 pub struct SwiftParams {
-    pub prefix: String,
-    pub type_mappings: HashMap<String, String>,
+    #[clap(long = "swift-prefix")]
+    pub prefix: Option<String>,
+    #[clap(skip)]
+    pub type_mappings: TypeMapping,
+    #[clap(skip)]
     pub default_decorators: Vec<String>,
+    #[clap(skip)]
     pub default_generic_constraints: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(default)]
 pub struct TypeScriptParams {
-    pub type_mappings: HashMap<String, String>,
+    pub enum_write_method: TypeScriptEnumWriteMethod,
+    pub type_mappings: TypeMapping,
 }
 
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug, Args)]
 #[serde(default)]
 #[cfg(feature = "go")]
 pub struct GoParams {
-    pub package: String,
-    pub type_mappings: HashMap<String, String>,
+    #[clap(long = "go-package")]
+    #[serde(rename = "package")]
+    pub go_package: Option<String>,
+    #[clap(skip)]
+    pub type_mappings: TypeMapping,
+    #[clap(skip)]
     pub uppercase_acronyms: Vec<String>,
 }
 
@@ -54,6 +77,8 @@ pub struct GoParams {
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 #[serde(default)]
 pub(crate) struct Config {
+    #[serde(skip_serializing_if = "VecDeque::is_empty")]
+    pub directories: VecDeque<String>,
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
@@ -79,15 +104,10 @@ pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> Result<(
     Ok(())
 }
 
-pub(crate) fn load_config<P>(file_path: Option<P>) -> Result<Config, io::Error>
-where
-    PathBuf: From<P>,
-{
-    let file_path = file_path
-        .map(PathBuf::from)
-        .or_else(find_configuration_file);
+pub(crate) fn load_config(file_path: impl Into<PathBuf>) -> Result<Config, io::Error> {
+    let file_path = file_path.into();
 
-    if let Some(file_path) = file_path {
+    if file_path.exists() {
         let config_string = fs::read_to_string(file_path)?;
         toml::from_str(&config_string).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     } else {
@@ -143,10 +163,22 @@ mod test {
         let path = config_file_path("mappings_config.toml");
         let config = load_config(Some(path)).unwrap();
 
-        assert_eq!(config.swift.type_mappings["DateTime"], "Date");
-        assert_eq!(config.kotlin.type_mappings["DateTime"], "String");
-        assert_eq!(config.scala.type_mappings["DateTime"], "String");
-        assert_eq!(config.typescript.type_mappings["DateTime"], "string");
+        assert_eq!(
+            config.swift.type_mappings["DateTime"],
+            "Date".parse().unwrap()
+        );
+        assert_eq!(
+            config.kotlin.type_mappings["DateTime"],
+            "String".parse().unwrap()
+        );
+        assert_eq!(
+            config.scala.type_mappings["DateTime"],
+            "String".parse().unwrap()
+        );
+        assert_eq!(
+            config.typescript.type_mappings["DateTime"],
+            "string".parse().unwrap()
+        );
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
     }

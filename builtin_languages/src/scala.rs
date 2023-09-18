@@ -1,16 +1,15 @@
-use super::Language;
-use crate::language::SupportedLanguage;
-use crate::parser::ParsedData;
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
-use crate::{
-    parser::remove_dash_from_identifier,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
-};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::io::Write;
 use std::ops::Deref;
-use std::{collections::HashMap, io::Write};
+use typeshare_core::language::Language;
+use typeshare_core::parser::ParsedData;
+use typeshare_core::rust_types::{
+    RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias, RustTypeFormatError,
+    SpecialRustType,
+};
+use typeshare_core::type_mapping::TypeMapping;
 
 /// All information needed for Scala type-code
 #[derive(Default)]
@@ -20,7 +19,7 @@ pub struct Scala {
     /// Name of the Scala module
     pub module_name: String,
     /// Conversions from Rust type names to Scala type names.
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: TypeMapping,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
@@ -63,7 +62,7 @@ impl Language for Scala {
         Ok(())
     }
 
-    fn type_map(&mut self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &TypeMapping {
         &self.type_mappings
     }
 

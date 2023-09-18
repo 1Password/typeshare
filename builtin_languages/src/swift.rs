@@ -1,20 +1,14 @@
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
-use crate::{
-    language::{Language, SupportedLanguage},
-    parser::remove_dash_from_identifier,
-    rename::RenameExt,
-    rust_types::{RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
-};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::collections::BTreeSet;
 use std::io;
 use std::{
-    collections::HashMap,
     io::Write,
     sync::atomic::{AtomicBool, Ordering},
 };
+use typeshare_core::rust_types::{RustTypeFormatError, SpecialRustType};
+use typeshare_core::type_mapping::TypeMapping;
 
 // Keywords taken from https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html
 const SWIFT_KEYWORDS: &[&str] = &[
@@ -134,7 +128,7 @@ pub struct Swift {
     /// The prefix to append to user-defined types
     pub prefix: String,
     /// Type mappings from Rust type names to Swift type names
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: TypeMapping,
     /// Default decorators that will be applied to all typeshared types
     pub default_decorators: Vec<String>,
     /// Default type constraints that will be applied to all generic parameters of typeshared types
@@ -149,7 +143,7 @@ pub struct Swift {
 }
 
 impl Language for Swift {
-    fn type_map(&mut self) -> &HashMap<String, String> {
+    fn type_map(&mut self) -> &TypeMapping {
         &self.type_mappings
     }
 
@@ -159,7 +153,7 @@ impl Language for Swift {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         Ok(if let Some(mapped) = self.type_map().get(base) {
-            mapped.into()
+            mapped.to_string().into()
         } else if generic_types.contains(base) {
             base.into()
         } else {

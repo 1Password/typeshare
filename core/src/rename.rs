@@ -1,5 +1,22 @@
-// Based off Serde implementation: https://github.com/serde-rs/serde/blob/7950f3cdc52d4898aa4195b853cbec12d65bb091/serde_derive/src/internals/case.rs
+use strum::{EnumIter, EnumString};
+use thiserror::Error;
 
+// Based off Serde implementation: https://github.com/serde-rs/serde/blob/7950f3cdc52d4898aa4195b853cbec12d65bb091/serde_derive/src/internals/case.rs
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter)]
+pub enum RenameAll {
+    #[strum(serialize = "camelCase")]
+    CamelCase,
+    #[strum(serialize = "PascalCase")]
+    PascalCase,
+    #[strum(serialize = "snake_case")]
+    SnakeCase,
+    #[strum(serialize = "SCREAMING_SNAKE_CASE")]
+    ScreamingSnakeCase,
+    #[strum(serialize = "kebab-case")]
+    KebabCase,
+    #[strum(serialize = "SCREAMING-KEBAB-CASE")]
+    ScreamingKebabCase,
+}
 pub trait RenameExt {
     fn to_camel_case(&self) -> String;
     fn to_pascal_case(&self) -> String;
