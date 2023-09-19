@@ -111,7 +111,7 @@ fn get_type_alias_dependencies(
 ) {
     if seen.insert(ta.id.original.to_string()) {
         get_dependencies_from_type(&ta.r#type, types, res, seen);
-        for generic in &ta.generic_types {
+        for generic in &ta.generic_types.generics {
             if let Some(&thing) = types.get(generic) {
                 get_dependencies(thing, types, res, seen)
             }

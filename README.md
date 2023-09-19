@@ -8,10 +8,10 @@ This fork is supposed to be more dynamic and allow for more customization.
 # Changes
 
 - Better TypeMapping values for the typeshare.toml file.
-- Based on PR [140](https://github.com/1Password/typeshare/pull/140)
 - Set directories in typeshare.toml
 - Minimum Rust Version 1.72
-- Clap is using the latest version. This does break the CLI for some commands.
+- Clap is using the latest version. 
+- Using syn 2 instead of 1. 
 
 | Crate                | Status                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

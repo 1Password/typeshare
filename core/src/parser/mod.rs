@@ -5,26 +5,34 @@ mod struct_parse;
 mod typeshare_attrs;
 
 use crate::parser::enum_parse::parse_enum;
+
+use crate::language::{Comment, CommentLocation};
 use crate::parser::struct_parse::parse_struct;
 use crate::parser::typeshare_attrs::TypeShareAttrs;
+use crate::rename::RenameAll;
+use crate::rust_types::{Generics, Source};
 use crate::{
     rename::RenameExt,
-    rust_types::{
-        Id, RustEnum, RustItem,
-        RustStruct, RustType, RustTypeAlias, RustTypeParseError,
-    },
+    rust_types::{Id, RustEnum, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError},
 };
 pub use decorator::{Decorator, Decorators};
-use itertools::Itertools;
 use proc_macro2::{Ident, Span};
 use std::convert::TryFrom;
+use std::ops::Add;
+use std::str::FromStr;
 use syn::parse::{Parse, ParseStream};
-use syn::{Attribute,  ItemType, LitStr};
-use syn::{GenericParam, Meta};
+use syn::Meta;
+use syn::{Attribute, Expr, ItemType, LitStr};
 use thiserror::Error;
-use crate::parser::serde_parse::SerdeFieldAttrs;
-use crate::rename::RenameAll;
 
+impl Parse for RenameAll {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse::<LitStr>()?;
+
+        Self::from_str(&ident.value())
+            .map_err(|_| syn::Error::new(ident.span(), "invalid rename_all value"))
+    }
+}
 // TODO: parsing is very opinionated and makes some decisions that should be
 // getting made at code generation time. Fix this.
 impl Parse for RustType {
@@ -38,7 +46,6 @@ impl Parse for RustType {
     }
 }
 pub const TYPESHARE_ATTR: &str = "typeshare";
-pub const TYPESHARE_LANG_ATTR: &str = "typeshare_lang";
 
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
@@ -50,15 +57,18 @@ pub struct ParsedData {
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
 }
+impl Add for ParsedData {
+    type Output = Self;
+
+    fn add(mut self, other: Self) -> Self::Output {
+        self.structs.extend(other.structs);
+        self.enums.extend(other.enums);
+        self.aliases.extend(other.aliases);
+        self
+    }
+}
 
 impl ParsedData {
-    /// Add the parsed data from `other` to `self`.
-    pub fn add(&mut self, mut other: Self) {
-        self.structs.append(&mut other.structs);
-        self.enums.append(&mut other.enums);
-        self.aliases.append(&mut other.aliases);
-    }
-
     fn push_rust_thing(&mut self, rust_thing: RustItem) {
         match rust_thing {
             RustItem::Struct(s) => self.structs.push(s),
@@ -97,35 +107,38 @@ pub enum ParseError {
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
+pub fn parse(input: &str, source: Source) -> Result<ParsedData, ParseError> {
     let mut parsed_data = ParsedData::default();
-
+    parse_into(input, &mut parsed_data, source)?;
+    Ok(parsed_data)
+}
+pub fn parse_into(input: &str, target: &mut ParsedData, source: Source) -> Result<(), ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
     if !input.contains("typeshare") {
-        return Ok(parsed_data);
+        return Ok(());
     }
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]
-    let source = syn::parse_file(input)?;
+    let syn_file = syn::parse_file(input)?;
 
-    for item in flatten_items(source.items.iter()) {
+    for item in flatten_items(syn_file.items.iter()) {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?);
+                target.push_rust_thing(parse_struct(s, source.clone())?);
             }
             syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                parsed_data.push_rust_thing(parse_enum(e)?);
+                target.push_rust_thing(parse_enum(e, source.clone())?);
             }
             syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                parsed_data.aliases.push(parse_type_alias(t)?);
+                target.aliases.push(parse_type_alias(t, source.clone())?);
             }
             _ => {}
         }
     }
 
-    Ok(parsed_data)
+    Ok(())
 }
 
 /// Given an iterator over items, will return an iterator that flattens the contents of embedded
@@ -146,29 +159,25 @@ fn flatten_items<'a>(
 }
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
+fn parse_type_alias(t: &ItemType, source: Source) -> Result<RustTypeAlias, ParseError> {
     let typeshare_attr = TypeShareAttrs::from_attrs(&t.attrs)?;
 
     let ty = if let Some(ty) = typeshare_attr.serialized_as {
         ty
     } else {
-        RustType::try_from(&t.ty)?
+        RustType::try_from(&*t.ty)?
     };
 
-    let generic_types = t
-        .generics
-        .params
-        .iter()
-        .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(type_param.ident.to_string()),
-            _ => None,
-        })
-        .collect();
+    let generic_types = Generics::from_syn_generics(&t.generics);
 
     Ok(RustTypeAlias {
-        id: get_ident(Some(&t.ident), &t.attrs, &None),
+        source,
+        id: get_ident(Some(&t.ident), None, None),
         r#type: ty,
-        comments: parse_comment_attrs(&t.attrs),
+        comments: Comment::MultilineOwned {
+            comment: parse_comment_attrs(&t.attrs),
+            location: CommentLocation::Type,
+        },
         generic_types,
     })
 }
@@ -180,15 +189,13 @@ pub fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
     const DOC_ATTR: &str = "doc";
     attrs
         .iter()
-        .map(Attribute::parse_meta)
-        .filter_map(Result::ok)
+        .map(|attr| &attr.meta)
         .filter_map(|attr| match attr {
             Meta::NameValue(name_value) => {
-                if let Some(ident) = name_value.path.get_ident() {
-                    if *ident == DOC_ATTR {
-                        Some(name_value.lit)
-                    } else {
-                        None
+                if name_value.path.is_ident(DOC_ATTR) {
+                    match &name_value.value {
+                        Expr::Lit(lit) => literal_as_string(lit.lit.clone()),
+                        _ => None,
                     }
                 } else {
                     None
@@ -196,7 +203,6 @@ pub fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
             }
             _ => None,
         })
-        .filter_map(literal_as_string)
         .map(|string| string.trim().into())
         .collect()
 }
@@ -217,24 +223,24 @@ fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
 
 fn get_ident(
     ident: Option<&proc_macro2::Ident>,
-    attrs: Option<&SerdeFieldAttrs>,
-    rename_all: &Option<RenameAll>,
+    rename: Option<&String>,
+    rename_all: Option<&RenameAll>,
 ) -> Id {
     let original = ident.map_or("???".to_string(), |id| id.to_string().replace("r#", ""));
 
     let mut renamed = rename_all_to_case(original.clone(), rename_all);
 
-    if let Some(s) = attrs.and_then(|a| a.rename.clone()) {
-        renamed = s;
+    if let Some(s) = rename {
+        renamed = s.clone();
     }
 
     Id { original, renamed }
 }
 
-fn rename_all_to_case(original: String, case: &Option<RenameAll>) -> String {
+fn rename_all_to_case(original: String, case: Option<&RenameAll>) -> String {
     match case {
         None => original,
-        Some(value) => match value{
+        Some(value) => match value {
             RenameAll::CamelCase => original.to_camel_case(),
             RenameAll::PascalCase => original.to_pascal_case(),
             RenameAll::SnakeCase => original.to_snake_case(),
@@ -250,10 +256,4 @@ fn literal_as_string(lit: syn::Lit) -> Option<String> {
         syn::Lit::Str(str) => Some(str.value()),
         _ => None,
     }
-}
-
-/// Removes `-` characters from identifiers
-pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
-    // Dashes are not valid in identifiers, so we map them to underscores
-    name.replace('-', "_")
 }

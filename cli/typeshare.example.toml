@@ -1,0 +1,12 @@
+directories = ["."]
+
+[language."typescript"]
+enum_write_method = "ManyTypes"
+[language."typescript".type_mappings]
+"DateTimeWithTimeZone" = "Date"
+"i64" = "bigint"
+
+[language."kotlin"]
+package = "com.example"
+[language."kotlin".type_mappings]
+"DateTimeWithTimeZone" = "Date"

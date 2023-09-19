@@ -3,7 +3,7 @@ members = [
     "annotation",
     "cli",
     "core",
-    "builtin_languages",
+    "langs/typescript",
     "lib"
 ]
 resolver = "2"

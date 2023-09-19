@@ -1,5 +1,4 @@
 use strum::{EnumIter, EnumString};
-use thiserror::Error;
 
 // Based off Serde implementation: https://github.com/serde-rs/serde/blob/7950f3cdc52d4898aa4195b853cbec12d65bb091/serde_derive/src/internals/case.rs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter)]

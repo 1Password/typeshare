@@ -1,4 +1,0 @@
-[toolchain]
-channel = "1.72"
-components = ["clippy"]
-profile = "default"

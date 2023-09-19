@@ -1,13 +1,45 @@
 use quote::ToTokens;
-use std::collections::BTreeSet;
+
+use crate::language::Comment;
+use std::convert::TryFrom;
+use std::fmt::Display;
+use std::ops::Deref;
+use std::path::Path;
 use std::str::FromStr;
-use std::{collections::HashMap, convert::TryFrom};
-use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
+use syn::{Expr, ExprLit, GenericParam, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
-use crate::language::{LanguageDecorator, SupportedLanguage};
-use crate::parser::Decorators;
+use crate::parser::{Decorator, Decorators};
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Generics {
+    pub generics: Vec<String>,
+}
+impl From<Vec<String>> for Generics {
+    fn from(generics: Vec<String>) -> Self {
+        Self { generics }
+    }
+}
+impl Deref for Generics {
+    type Target = Vec<String>;
 
+    fn deref(&self) -> &Self::Target {
+        &self.generics
+    }
+}
+impl Generics {
+    pub fn from_syn_generics(generics: &syn::Generics) -> Self {
+        let value = generics
+            .params
+            .iter()
+            .filter_map(|param| match param {
+                GenericParam::Type(type_param) => Some(type_param.ident.to_string()),
+                _ => None,
+            })
+            .collect();
+
+        Self { generics: value }
+    }
+}
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Id {
@@ -28,22 +60,77 @@ impl std::fmt::Display for Id {
         }
     }
 }
+/// The source of the Rust Item
+///
+/// This does not guarantee that it is completely accurate, but it is the best we can do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Source {
+    pub crate_name: String,
+    pub path: String,
+}
+impl Default for Source {
+    fn default() -> Self {
+        Self {
+            crate_name: "crate".to_string(),
+            path: String::default(),
+        }
+    }
+}
+impl Source {
+    pub fn new(crate_name: &str) -> Self {
+        Self {
+            crate_name: crate_name.to_string(),
+            path: String::default(),
+        }
+    }
+
+    pub(crate) fn build_from_path(&mut self, path: impl AsRef<Path>) {
+        let path = path.as_ref();
+        let path = path.iter();
+
+        self.path = path
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join("::");
+    }
+    pub fn push(&self, path: &str) -> Source {
+        let mut source = self.clone();
+        if self.path.is_empty() {
+            source.path = path.to_string();
+        } else {
+            source.path.push_str("::");
+            source.path.push_str(path);
+        }
+        source
+    }
+}
+
+impl Display for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.path.is_empty() {
+            return write!(f, "{}", self.crate_name);
+        } else {
+            write!(f, "{}::{}", self.crate_name, self.path)
+        }
+    }
+}
 
 /// Rust struct.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RustStruct {
+    pub source: Source,
     /// The identifier for the struct.
     pub id: Id,
     /// The generic parameters that come after the struct name.
-    pub generic_types: Vec<String>,
+    pub generic_types: Generics,
     /// The fields of the struct.
     pub fields: Vec<RustField>,
     /// Comments that were in the struct source.
     /// We copy comments over to the typeshared files,
     /// so we need to collect them here.
-    pub comments: Vec<String>,
+    pub comments: Comment<'static>,
     /// Attributes that exist for this struct.
-    pub decorators: HashMap<String, Vec<LanguageDecorator>>,
+    pub decorators: Decorators,
 }
 
 /// Rust type alias.
@@ -52,14 +139,15 @@ pub struct RustStruct {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct RustTypeAlias {
+    pub source: Source,
     /// The identifier for the alias.
     pub id: Id,
     /// The generic parameters that come after the type alias name.
-    pub generic_types: Vec<String>,
+    pub generic_types: Generics,
     /// The type identifier that this type alias is aliasing
     pub r#type: RustType,
     /// Comments that were in the type alias source.
-    pub comments: Vec<String>,
+    pub comments: Comment<'static>,
 }
 
 /// Rust field definition.
@@ -70,14 +158,14 @@ pub struct RustField {
     /// Type of the field.
     pub ty: RustType,
     /// Comments that were in the original source.
-    pub comments: Vec<String>,
+    pub comments: Comment<'static>,
     /// This will be true if the field has a `serde(default)` decorator.
     /// Even if the field's type is not optional, we need to make it optional
     /// for the languages we generate code for.
     pub has_default: bool,
     /// Language-specific decorators assigned to a given field.
     /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are field decorators (e.g. readonly)
-    pub lang_decorators:Decorators,
+    pub lang_decorators: Decorators,
 }
 
 /// A Rust type.
@@ -344,11 +432,11 @@ impl RustType {
 impl RustField {
     /// Returns an type override, if it exists, on this field for a given language.
     pub fn type_override(&self, language: impl AsRef<str>) -> Option<&str> {
-        self.decorators
+        self.lang_decorators
             .get(language.as_ref())?
             .iter()
             .find_map(|fd| match fd {
-                FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty.as_str()),
+                Decorator::LangType(ty) => Some(ty.as_str()),
                 _ => None,
             })
     }
@@ -505,18 +593,19 @@ impl RustEnum {
 /// Enum information shared among different enum types
 #[derive(Debug, Clone, PartialEq)]
 pub struct RustEnumShared {
+    pub source: Source,
     /// The enum's ident
     pub id: Id,
     /// Generic parameters for the enum, e.g. `SomeEnum<T>` would produce `vec!["T"]`
-    pub generic_types: Vec<String>,
+    pub generic_types: Generics,
     /// Comments on the enum definition itself
-    pub comments: Vec<String>,
+    pub comments: Comment<'static>,
     /// The enum's variants
     pub variants: Vec<RustEnumVariant>,
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<String, Vec<String>>,
+    pub lang_decorators: Decorators,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,
@@ -560,7 +649,7 @@ pub struct RustEnumVariantShared {
     /// The variant's ident
     pub id: Id,
     /// Comments applied to the variant
-    pub comments: Vec<String>,
+    pub comments: Comment<'static>,
 }
 
 /// An enum that encapsulates units of code generation for Typeshare.

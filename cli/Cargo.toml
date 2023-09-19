@@ -12,15 +12,11 @@ readme = "README.md"
 name = "typeshare"
 path = "src/main.rs"
 
-[features]
-go = []
-
 [dependencies]
 clap = { version = "4", features = ["derive", "cargo"] }
 clap_complete = "4"
 ignore = "0.4"
-once_cell = "1"
-rayon = "1.5"
-serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+
+serde = { version = "1.0", features = ["derive"] }
 typeshare-core = { path = "../core", version = "1.7.0" }
