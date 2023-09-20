@@ -1,11 +1,9 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::{command, Arg, ArgMatches, Command, CommandFactory, Parser, Subcommand, ValueEnum};
+use clap::{command, Parser, Subcommand};
 
 use std::path::PathBuf;
-
-mod config;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -26,5 +24,5 @@ enum Commands {
     Init,
 }
 fn main() {
-    let mut command = Cli::parse();
+    let _command = Cli::parse();
 }

@@ -1,5 +1,5 @@
-use typeshare_core::parser;
-use typeshare_core::rust_types::Source;
+use typeshare_core::parsed_types::Source;
+use typeshare_core::rust_parser;
 
 #[test]
 fn basic_struct() {
@@ -10,7 +10,7 @@ fn basic_struct() {
     }
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }
 #[test]
@@ -25,7 +25,7 @@ fn basic_struct_rename_all() {
     }
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }
 #[test]
@@ -37,7 +37,7 @@ fn type_test() {
     pub type Bar = String;
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }
 
@@ -59,7 +59,7 @@ fn enum_tests() {
     }
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }
 #[test]
@@ -80,7 +80,7 @@ fn bad_enum_tests() {
     }
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }
 #[test]
@@ -93,6 +93,19 @@ fn typescript_test() {
     }
     "##;
 
-    let parsed_data = parser::parse(source, Source::default()).unwrap();
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
+    println!("{:#?}", parsed_data);
+}
+#[test]
+fn skip_test() {
+    let source = r##"
+    #[typeshare]
+    pub struct Foo {
+        #[typeshare(skip)]
+        pub big_number: i64,
+    }
+    "##;
+
+    let parsed_data = rust_parser::parse(source, Source::default()).unwrap();
     println!("{:#?}", parsed_data);
 }

@@ -85,7 +85,7 @@ impl Parse for SerdeContainerAttrs {
             if input.is_empty() {
                 break;
             }
-            input.parse::<Token![,]>()?;
+            let _ = input.parse::<Token![,]>();
         }
         Ok(Self {
             rename_all,
@@ -152,12 +152,17 @@ impl Parse for SerdeFieldAttrs {
                     let default_str = input.parse::<syn::LitStr>()?;
                     default = Some(default_str.value());
                 }
-                _ => {}
+                _ => {
+                    if input.peek(Token![=]) {
+                        let _ = input.parse::<Token![=]>()?;
+                        let _ = input.parse::<syn::LitStr>()?;
+                    }
+                }
             }
             if input.is_empty() {
                 break;
             }
-            input.parse::<Token![,]>()?;
+            let _ = input.parse::<Token![,]>();
         }
         Ok(Self {
             rename,
@@ -195,7 +200,7 @@ impl Parse for SerdeVariantAttr {
             if input.is_empty() {
                 break;
             }
-            input.parse::<Token![,]>()?;
+            let _ = input.parse::<Token![,]>();
         }
         Ok(Self { rename_all, rename })
     }

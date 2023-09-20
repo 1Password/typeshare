@@ -1,11 +1,11 @@
-use crate::language::{Comment, CommentLocation};
-use crate::parser::decorator::get_lang_decorators;
-use crate::parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs};
-use crate::parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
-use crate::parser::{get_ident, parse_comment_attrs, ParseError};
-use crate::rust_types::{
-    Generics, RustField, RustItem, RustStruct, RustType, RustTypeAlias, Source,
+use crate::parsed_types::{
+    Comment, CommentLocation, Field, Generics, Item, ParsedStruct, ParsedTypeAlias, Source,
+    StructShared, Type,
 };
+use crate::rust_parser::decorator::get_lang_decorators;
+use crate::rust_parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs};
+use crate::rust_parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
+use crate::rust_parser::{get_ident, parse_comment_attrs, ParseError};
 use syn::{Fields, ItemStruct};
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -15,21 +15,19 @@ use syn::{Fields, ItemStruct};
 /// hack.
 ///
 
-pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<RustItem, ParseError> {
+pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<Item, ParseError> {
     let typeshare_attr = TypeShareAttrs::from_attrs(&s.attrs)?;
     let serde_attrs = SerdeContainerAttrs::from_attrs(&s.attrs)?;
-
     let generic_types = Generics::from_syn_generics(&s.generics);
-
     // Check if this struct should be parsed as a type alias.
     // TODO: we shouldn't lie and return a type alias when parsing a struct. this
     // is a temporary hack
     if let Some(ty) = typeshare_attr.serialized_as {
-        return Ok(RustItem::Alias(RustTypeAlias {
+        return Ok(Item::Alias(ParsedTypeAlias {
             source,
             id: get_ident(Some(&s.ident), None, None),
-            r#type: ty,
-            comments: Comment::MultilineOwned {
+            value_type: ty,
+            comments: Comment::Multiline {
                 comment: parse_comment_attrs(&s.attrs),
                 location: CommentLocation::Type,
             },
@@ -48,18 +46,18 @@ pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<RustItem, ParseErr
                 let ty = if let Some(ty) = typeshare_field_attr.serialized_as {
                     ty
                 } else {
-                    RustType::try_from(&field.ty)?
+                    Type::try_from(&field.ty)?
                 };
                 let has_default = serde_field_attrs.default.is_some();
                 let lang_decorators = get_lang_decorators(&field.attrs)?;
-                let field = RustField {
+                let field = Field {
                     id: get_ident(
                         field.ident.as_ref(),
                         serde_field_attrs.rename.as_ref(),
                         serde_attrs.rename_all.as_ref(),
                     ),
                     ty,
-                    comments: Comment::MultilineOwned {
+                    comments: Comment::Multiline {
                         comment: parse_comment_attrs(&field.attrs),
                         location: CommentLocation::Field,
                     },
@@ -69,16 +67,18 @@ pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<RustItem, ParseErr
                 fields.push(field);
             }
 
-            RustItem::Struct(RustStruct {
-                source,
-                id: get_ident(Some(&s.ident), None, None),
-                generic_types,
+            Item::Struct(ParsedStruct::TraditionalStruct {
                 fields,
-                comments: Comment::MultilineOwned {
-                    comment: parse_comment_attrs(&s.attrs),
-                    location: CommentLocation::Type,
+                shared: StructShared {
+                    source,
+                    id: get_ident(Some(&s.ident), None, None),
+                    generic_types,
+                    comments: Comment::Multiline {
+                        comment: parse_comment_attrs(&s.attrs),
+                        location: CommentLocation::Type,
+                    },
+                    decorators: get_lang_decorators(&s.attrs)?,
                 },
-                decorators: get_lang_decorators(&s.attrs)?,
             })
         }
         // Tuple structs
@@ -91,14 +91,14 @@ pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<RustItem, ParseErr
             let ty = if let Some(ty) = typeshare_field_attr.serialized_as {
                 ty
             } else {
-                RustType::try_from(&f.ty)?
+                Type::try_from(&f.ty)?
             };
 
-            RustItem::Alias(RustTypeAlias {
+            Item::Alias(ParsedTypeAlias {
                 source,
                 id: get_ident(Some(&s.ident), None, None),
-                r#type: ty,
-                comments: Comment::MultilineOwned {
+                value_type: ty,
+                comments: Comment::Multiline {
                     comment: parse_comment_attrs(&s.attrs),
                     location: CommentLocation::Field,
                 },
@@ -106,16 +106,18 @@ pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<RustItem, ParseErr
             })
         }
         // Unit structs or `None`
-        Fields::Unit => RustItem::Struct(RustStruct {
-            source,
-            id: get_ident(Some(&s.ident), None, None),
-            generic_types,
+        Fields::Unit => Item::Struct(ParsedStruct::TraditionalStruct {
             fields: vec![],
-            comments: Comment::MultilineOwned {
-                comment: parse_comment_attrs(&s.attrs),
-                location: CommentLocation::Type,
+            shared: StructShared {
+                source,
+                id: get_ident(Some(&s.ident), None, None),
+                generic_types,
+                comments: Comment::Multiline {
+                    comment: parse_comment_attrs(&s.attrs),
+                    location: CommentLocation::Type,
+                },
+                decorators: get_lang_decorators(&s.attrs)?,
             },
-            decorators: get_lang_decorators(&s.attrs)?,
         }),
     })
 }

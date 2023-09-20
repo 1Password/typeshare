@@ -1,15 +1,20 @@
-use crate::parser::TYPESHARE_ATTR;
+use crate::rust_parser::TYPESHARE_ATTR;
 
-use crate::rust_types::RustType;
+use crate::parsed_types::Type;
 
 use proc_macro2::TokenStream;
 use std::ops::Add;
 use syn::parse::{Parse, ParseStream};
 use syn::{Attribute, Meta, Token};
-
+mod keywords {
+    syn::custom_keyword!(rename);
+    syn::custom_keyword!(serialized_as);
+    syn::custom_keyword!(skip);
+    syn::custom_keyword!(lang);
+}
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TypeShareAttrs {
-    pub serialized_as: Option<RustType>,
+    pub serialized_as: Option<Type>,
 }
 impl TypeShareAttrs {
     pub fn from_attrs(attrs: &[Attribute]) -> Result<Self, syn::Error> {
@@ -44,7 +49,7 @@ impl Parse for TypeShareAttrs {
             match ident.to_string().as_str() {
                 "serialized_as" => {
                     input.parse::<Token![=]>()?;
-                    let ty = input.parse::<RustType>()?;
+                    let ty = input.parse::<Type>()?;
                     serialized_as = Some(ty);
                 }
                 "lang" => {
@@ -64,7 +69,7 @@ impl Parse for TypeShareAttrs {
 
 pub struct TypeShareFieldAttrs {
     pub rename: Option<String>,
-    pub serialized_as: Option<RustType>,
+    pub serialized_as: Option<Type>,
     pub skip: bool,
 }
 impl TypeShareFieldAttrs {
@@ -95,39 +100,37 @@ impl Parse for TypeShareFieldAttrs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut rename = None;
         let mut serialized_as = None;
-        let mut skip = false;
-
         while !input.is_empty() {
-            let ident = input.parse::<syn::Ident>()?;
-            match ident.to_string().as_str() {
-                "rename" => {
-                    input.parse::<Token![=]>()?;
-                    let rename_str = input.parse::<syn::LitStr>()?;
-                    rename = Some(rename_str.value());
-                }
-                "serialized_as" => {
-                    input.parse::<Token![=]>()?;
-                    let ty = input.parse::<RustType>()?;
-                    serialized_as = Some(ty);
-                }
-                "skip" => {
-                    skip = true;
-                }
-                "lang" => {
-                    let _ = input.parse::<TokenStream>();
-                    return Ok(Self::default());
-                }
-                _ => {}
+            let lookahead = input.lookahead1();
+            if lookahead.peek(keywords::rename) {
+                input.parse::<keywords::rename>()?;
+                input.parse::<Token![=]>()?;
+                let rename_str = input.parse::<syn::LitStr>()?;
+                rename = Some(rename_str.value());
+            } else if lookahead.peek(keywords::serialized_as) {
+                input.parse::<keywords::serialized_as>()?;
+                input.parse::<Token![=]>()?;
+                let ty = input.parse::<Type>()?;
+                serialized_as = Some(ty);
+            } else if lookahead.peek(keywords::skip) {
+                input.parse::<keywords::skip>()?;
+                return Ok(Self {
+                    rename: None,
+                    serialized_as: None,
+                    skip: true,
+                });
+            } else if lookahead.peek(keywords::lang) {
+                let _ = input.parse::<TokenStream>();
+                return Ok(Self::default());
+            } else {
+                return Err(lookahead.error());
             }
-            if input.is_empty() {
-                break;
-            }
-            input.parse::<Token![,]>()?;
+            let _ = input.parse::<Token![,]>();
         }
         Ok(Self {
             rename,
             serialized_as,
-            skip,
+            skip: false,
         })
     }
 }

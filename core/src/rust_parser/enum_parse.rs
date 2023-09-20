@@ -1,13 +1,13 @@
-use crate::language::{Comment, CommentLocation};
-use crate::parser::decorator::get_lang_decorators;
-use crate::parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs, SerdeVariantAttr};
-use crate::parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
-use crate::parser::{get_ident, parse_comment_attrs, ParseError};
-use crate::rename::RenameAll;
-use crate::rust_types::{
-    Generics, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField,
-    RustItem, RustType, RustTypeAlias, Source,
+use crate::parsed_types::{
+    AlgebraicEnum, AnonymousStructVariant, Comment, CommentLocation, EnumShared, EnumVariant,
+    EnumVariantShared, Field, Generics, Item, ParsedEnum, ParsedTypeAlias, Source, TupleVariant,
+    Type,
 };
+use crate::rename::RenameAll;
+use crate::rust_parser::decorator::get_lang_decorators;
+use crate::rust_parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs, SerdeVariantAttr};
+use crate::rust_parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
+use crate::rust_parser::{get_ident, parse_comment_attrs, ParseError};
 use syn::ItemEnum;
 
 /// Parses an enum into a definition that more succinctly represents what
@@ -15,7 +15,7 @@ use syn::ItemEnum;
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> {
+pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<Item, ParseError> {
     let generic_types = Generics::from_syn_generics(&e.generics);
     let typeshare_attr = TypeShareAttrs::from_attrs(&e.attrs)?;
     let serde_attrs = SerdeContainerAttrs::from_attrs(&e.attrs)?;
@@ -23,11 +23,11 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
     // TODO: we shouldn't lie and return a type alias when parsing an enum. this
     // is a temporary hack
     if let Some(ty) = typeshare_attr.serialized_as {
-        return Ok(RustItem::Alias(RustTypeAlias {
+        return Ok(Item::Alias(ParsedTypeAlias {
             source,
             id: get_ident(Some(&e.ident), None, None),
-            r#type: ty,
-            comments: Comment::MultilineOwned {
+            value_type: ty,
+            comments: Comment::Multiline {
                 comment: parse_comment_attrs(&e.attrs),
                 location: CommentLocation::Type,
             },
@@ -45,17 +45,17 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
 
     // Check if the enum references itself recursively in any of its variants
     let is_recursive = variants.iter().any(|v| match v {
-        RustEnumVariant::Unit(_) => false,
-        RustEnumVariant::Tuple { ty, .. } => ty.contains_type(&original_enum_ident),
-        RustEnumVariant::AnonymousStruct { fields, .. } => fields
+        EnumVariant::Unit(_) => false,
+        EnumVariant::Tuple(TupleVariant { ty, .. }) => ty.contains_type(&original_enum_ident),
+        EnumVariant::AnonymousStruct(AnonymousStructVariant { fields, .. }) => fields
             .iter()
             .any(|f| f.ty.contains_type(&original_enum_ident)),
     });
 
-    let shared = RustEnumShared {
+    let shared = EnumShared {
         source,
         id: get_ident(Some(&e.ident), None, None),
-        comments: Comment::MultilineOwned {
+        comments: Comment::Multiline {
             comment: parse_comment_attrs(&e.attrs),
             location: CommentLocation::Type,
         },
@@ -69,7 +69,7 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
     if shared
         .variants
         .iter()
-        .all(|v| matches!(v, RustEnumVariant::Unit(_)))
+        .all(|v| matches!(v, EnumVariant::Unit(_)))
     {
         // All enum variants are unit-type
 
@@ -84,7 +84,7 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
             });
         }
 
-        Ok(RustItem::Enum(RustEnum::Unit(shared)))
+        Ok(Item::Enum(ParsedEnum::Unit(shared)))
     } else {
         // At least one enum variant is either a tuple or an anonymous struct
 
@@ -102,11 +102,11 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
                     enum_ident: original_enum_ident.clone(),
                 })?;
 
-        Ok(RustItem::Enum(RustEnum::Algebraic {
+        Ok(Item::Enum(ParsedEnum::Algebraic(AlgebraicEnum {
             tag_key,
             content_key,
             shared,
-        }))
+        })))
     }
 }
 
@@ -114,23 +114,23 @@ pub fn parse_enum(e: &ItemEnum, source: Source) -> Result<RustItem, ParseError> 
 fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<RenameAll>,
-) -> Result<RustEnumVariant, ParseError> {
+) -> Result<EnumVariant, ParseError> {
     let typeshare_variant_attr = TypeShareFieldAttrs::from_attrs(&v.attrs)?;
     let serde_variant_attrs = SerdeVariantAttr::from_attrs(&v.attrs)?;
-    let shared = RustEnumVariantShared {
+    let shared = EnumVariantShared {
         id: get_ident(
             Some(&v.ident),
             serde_variant_attrs.rename.as_ref(),
             enum_serde_rename_all.as_ref(),
         ),
-        comments: Comment::MultilineOwned {
+        comments: Comment::Multiline {
             comment: parse_comment_attrs(&v.attrs),
             location: CommentLocation::Field,
         },
     };
 
     match &v.fields {
-        syn::Fields::Unit => Ok(RustEnumVariant::Unit(shared)),
+        syn::Fields::Unit => Ok(EnumVariant::Unit(shared)),
         syn::Fields::Unnamed(associated_type) => {
             if associated_type.unnamed.len() > 1 {
                 return Err(ParseError::MultipleUnnamedAssociatedTypes);
@@ -140,41 +140,43 @@ fn parse_enum_variant(
             let ty = if let Some(ty) = typeshare_variant_attr.serialized_as {
                 ty
             } else {
-                RustType::try_from(&first_field.ty)?
+                Type::try_from(&first_field.ty)?
             };
 
-            Ok(RustEnumVariant::Tuple { ty, shared })
+            Ok(EnumVariant::Tuple(TupleVariant { ty, shared }))
         }
-        syn::Fields::Named(fields_named) => Ok(RustEnumVariant::AnonymousStruct {
-            fields: fields_named
-                .named
-                .iter()
-                .map(|f| {
-                    let typeshare_field_attr = TypeShareFieldAttrs::from_attrs(&f.attrs)?;
-                    let serde_field_attrs = SerdeFieldAttrs::from_attrs(&f.attrs)?;
-                    let field_type = if let Some(ty) = typeshare_field_attr.serialized_as {
-                        ty
-                    } else {
-                        RustType::try_from(&f.ty)?
-                    };
-                    let lang_decorators = get_lang_decorators(&f.attrs)?;
-                    Ok(RustField {
-                        id: get_ident(
-                            f.ident.as_ref(),
-                            serde_field_attrs.rename.as_ref(),
-                            serde_variant_attrs.rename_all.as_ref(),
-                        ),
-                        ty: field_type,
-                        comments: Comment::MultilineOwned {
-                            comment: parse_comment_attrs(&f.attrs),
-                            location: CommentLocation::Field,
-                        },
-                        has_default: serde_field_attrs.default.is_some(),
-                        lang_decorators,
+        syn::Fields::Named(fields_named) => {
+            Ok(EnumVariant::AnonymousStruct(AnonymousStructVariant {
+                fields: fields_named
+                    .named
+                    .iter()
+                    .map(|f| {
+                        let typeshare_field_attr = TypeShareFieldAttrs::from_attrs(&f.attrs)?;
+                        let serde_field_attrs = SerdeFieldAttrs::from_attrs(&f.attrs)?;
+                        let field_type = if let Some(ty) = typeshare_field_attr.serialized_as {
+                            ty
+                        } else {
+                            Type::try_from(&f.ty)?
+                        };
+                        let lang_decorators = get_lang_decorators(&f.attrs)?;
+                        Ok(Field {
+                            id: get_ident(
+                                f.ident.as_ref(),
+                                serde_field_attrs.rename.as_ref(),
+                                serde_variant_attrs.rename_all.as_ref(),
+                            ),
+                            ty: field_type,
+                            comments: Comment::Multiline {
+                                comment: parse_comment_attrs(&f.attrs),
+                                location: CommentLocation::Field,
+                            },
+                            has_default: serde_field_attrs.default.is_some(),
+                            lang_decorators,
+                        })
                     })
-                })
-                .collect::<Result<Vec<_>, ParseError>>()?,
-            shared,
-        }),
+                    .collect::<Result<Vec<_>, ParseError>>()?,
+                shared,
+            }))
+        }
     }
 }

@@ -2,9 +2,10 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
+use strum::EnumIs;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIs)]
 pub enum ToType {
     /// Maps a Rust Type to the type within the language.
     /// Should only be used in the Language Specific TypeMapping
@@ -99,6 +100,14 @@ impl Deref for ToType {
     type Target = String;
 
     fn deref(&self) -> &Self::Target {
+        match self {
+            ToType::LangType(s) => s,
+            ToType::RustType(s) => s,
+        }
+    }
+}
+impl DerefMut for ToType {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             ToType::LangType(s) => s,
             ToType::RustType(s) => s,

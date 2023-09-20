@@ -1,5 +1,4 @@
-use clap::builder::Str;
-use clap::Args;
+use crate::language::TypeMapping;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::{
@@ -11,20 +10,45 @@ use std::{
 use toml::Value;
 
 pub(crate) const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
-
-/// The paramters that are used to configure the behaviour of typeshare
-/// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-#[serde(default)]
-pub(crate) struct Config {
-    #[serde(skip_serializing_if = "VecDeque::is_empty")]
-    pub directories: VecDeque<String>,
-
-    pub language: HashMap<String, Value>,
+pub struct CommonConfig {
+    /// Any Value inside the Type Mapping will be assumed to be a Rust Type
+    pub type_mappings: TypeMapping,
 }
 
-pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> Result<(), io::Error> {
-    let file_path = file_path.unwrap_or(DEFAULT_CONFIG_FILE_NAME);
+/// The parameters that are used to configure the behaviour of typeshare
+/// from the configuration file `typeshare.toml`
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(default)]
+pub struct Config {
+    #[serde(skip_serializing_if = "VecDeque::is_empty")]
+    pub directories: VecDeque<String>,
+    pub common: CommonConfig,
+    pub language: HashMap<String, Value>,
+}
+impl Config {
+    pub fn provided_directories(&mut self, directories: Vec<String>) {
+        if !directories.is_empty() {
+            self.directories = VecDeque::from(directories);
+        }
+    }
+}
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            directories: VecDeque::from_iter(vec![".".to_string()]),
+            common: CommonConfig::default(),
+            language: HashMap::new(),
+        }
+    }
+}
+pub fn store_config<P: AsRef<Path>>(
+    config: &Config,
+    file_path: Option<&P>,
+) -> Result<(), io::Error> {
+    let file_path = file_path
+        .map(|v| v.as_ref().to_path_buf())
+        .unwrap_or(PathBuf::from(DEFAULT_CONFIG_FILE_NAME));
 
     // Fail if trying to overwrite an existing config file
     let mut file = OpenOptions::new()
@@ -40,7 +64,7 @@ pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> Result<(
     Ok(())
 }
 
-pub(crate) fn load_config(file_path: impl Into<PathBuf>) -> Result<Config, io::Error> {
+pub fn load_config(file_path: impl Into<PathBuf>) -> Result<Config, io::Error> {
     let file_path = file_path.into();
 
     if file_path.exists() {
@@ -52,7 +76,7 @@ pub(crate) fn load_config(file_path: impl Into<PathBuf>) -> Result<Config, io::E
 }
 
 /// Search each ancestor directory for configuration file
-fn find_configuration_file() -> Option<PathBuf> {
+pub(crate) fn find_configuration_file() -> Option<PathBuf> {
     let mut path = env::current_dir().ok()?;
     let file = Path::new(DEFAULT_CONFIG_FILE_NAME);
 

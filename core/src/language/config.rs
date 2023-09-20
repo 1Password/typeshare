@@ -1,16 +1,13 @@
 use crate::language::TypeMapping;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use std::ops::Add;
 
-pub trait LanguageConfig: Serialize + DeserializeOwned + Default {
+pub trait LanguageConfig: Serialize + DeserializeOwned + Default + Add {
     fn default_file_name(&self) -> &str;
 
     fn type_mappings(&self) -> &TypeMapping;
 
+    fn add_common_mappings(&mut self, type_mappings: TypeMapping);
     fn file_header(&self) -> Option<&str>;
-}
-#[derive(Serialize, Deserialize, Default)]
-pub struct CommonConfig {
-    /// Any Value inside the Type Mapping will be assumed to be a Rust Type
-    pub type_mappings: TypeMapping,
 }

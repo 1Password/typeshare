@@ -1,25 +1,9 @@
-use proc_macro2::Ident;
-use std::collections::HashMap;
+use crate::parsed_types::{Decorator, DecoratorsMap};
+use proc_macro2::{Ident, TokenStream};
+
 use syn::parse::{Parse, ParseStream};
 use syn::{custom_keyword, Meta, Token};
 
-pub type Decorators = HashMap<String, Vec<Decorator>>;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Decorator {
-    ValueEquals { key: String, value: String },
-    LangType(String),
-    Word(String),
-}
-impl Decorator {
-    pub fn name(&self) -> &str {
-        match self {
-            Decorator::ValueEquals { key, value: _ } => key,
-            Decorator::LangType(_) => "type",
-            Decorator::Word(name) => name,
-        }
-    }
-}
 impl Parse for Decorator {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Token![type]) {
@@ -50,8 +34,8 @@ enum LanguageDecoratorParser {
 custom_keyword!(lang);
 impl Parse for LanguageDecoratorParser {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        println!("{:?}", input);
         if !input.peek(lang) {
+            let _ = input.parse::<TokenStream>();
             return Ok(LanguageDecoratorParser::NotFound);
         }
         let _ = input.parse::<lang>()?;
@@ -73,9 +57,9 @@ impl Parse for LanguageDecoratorParser {
 /// Takes a slice of `syn::Attribute`,
 ///
 /// returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-pub fn get_lang_decorators(attrs: &[syn::Attribute]) -> Result<Decorators, syn::Error> {
+pub fn get_lang_decorators(attrs: &[syn::Attribute]) -> Result<DecoratorsMap, syn::Error> {
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out = HashMap::new();
+    let mut out = DecoratorsMap::default();
 
     for attr in attrs {
         if attr.path().is_ident("typeshare") {

@@ -4,13 +4,13 @@ use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
-use crate::language::{Comment, CommentLocation};
+use crate::parsed_types::{Comment, CommentLocation};
 use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeMappingValue {
     pub to_type: ToType,
-    pub doc: Comment<'static>,
+    pub doc: Comment,
 }
 
 impl Into<String> for TypeMappingValue {
@@ -116,7 +116,7 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
                     if let Ok(v) = map.next_value::<String>() {
                         doc = Some(Comment::new_single(v, CommentLocation::Field));
                     } else {
-                        doc = Some(Comment::MultilineOwned {
+                        doc = Some(Comment::Multiline {
                             comment: map.next_value()?,
                             location: CommentLocation::Field,
                         });

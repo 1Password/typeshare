@@ -8,19 +8,20 @@ description = "The code generator used by Typeshare's command line tool"
 repository = "https://github.com/1Password/typeshare"
 
 [dependencies]
-proc-macro2 = "1"
 quote = "1"
-syn = { version = "2", features = ["full","extra-traits"] }
 thiserror = "1"
 itertools = "0.11"
 lazy_format = "2.0.0"
 joinery = "3.1"
 serde = { version = "1",features = ["derive"] }
 strum = { version = "0.25.0" ,features = ["derive"] }
-log = "0.4"
 anyhow = "1"
 ignore = { version = "0.4" }
 
+log = { version = "0.4" }
+# What is needed to parse files with the rust-parsing feature
+proc-macro2 = { version = "1", optional = true }
+syn = { version = "2", features = ["full","extra-traits"], optional = true }
 # Exported in the cli feature under the cli module
 clap = { version = "4", features = ["derive", "cargo"], optional = true }
 clap_complete = { version = "4" ,optional = true}
@@ -28,6 +29,9 @@ toml = { version = "0.8",optional = true }
 rayon = { version = "1.7.0", optional = true }
 [features]
 cli = ["clap", "clap_complete", "toml", "rayon"]
+rust-parsing= ["syn", "proc-macro2"]
+# Mostly for testing
+serde-everything = []
 [dev-dependencies]
 anyhow = "1"
 expect-test = "1.1"

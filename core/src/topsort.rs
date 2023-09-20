@@ -1,17 +1,17 @@
+use crate::parsed_types::{
+    AlgebraicEnum, AnonymousStructVariant, EnumVariant, Item, ParsedEnum, ParsedStruct,
+    ParsedTypeAlias, SpecialType, TupleVariant, Type,
+};
 use std::collections::{HashMap, HashSet};
 
-use crate::rust_types::{
-    RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias, SpecialRustType,
-};
-
 fn get_dependencies_from_type(
-    tp: &RustType,
-    types: &HashMap<String, &RustItem>,
+    tp: &Type,
+    types: &HashMap<String, &Item>,
     res: &mut Vec<String>,
     seen: &mut HashSet<String>,
 ) {
     match tp {
-        RustType::Generic { id, parameters } => {
+        Type::Generic { id, parameters } => {
             if let Some(&tp) = types.get(id) {
                 if seen.insert(id.clone()) {
                     res.push(id.clone());
@@ -30,7 +30,7 @@ fn get_dependencies_from_type(
                 }
             }
         }
-        RustType::Simple { id } => {
+        Type::Simple { id } => {
             if let Some(&tp) = types.get(id) {
                 if seen.insert(id.clone()) {
                     res.push(id.clone());
@@ -39,15 +39,15 @@ fn get_dependencies_from_type(
                 }
             }
         }
-        RustType::Special(special) => match special {
-            SpecialRustType::HashMap(kt, vt) => {
+        Type::Special(special) => match special {
+            SpecialType::Map(kt, vt) => {
                 get_dependencies_from_type(kt, types, res, seen);
                 get_dependencies_from_type(vt, types, res, seen);
             }
-            SpecialRustType::Option(inner) => {
+            SpecialType::Option(inner) => {
                 get_dependencies_from_type(inner, types, res, seen);
             }
-            SpecialRustType::Vec(inner) => {
+            SpecialType::Vec(inner) => {
                 get_dependencies_from_type(inner, types, res, seen);
             }
             _ => {}
@@ -57,28 +57,25 @@ fn get_dependencies_from_type(
 }
 
 fn get_enum_dependencies(
-    enm: &RustEnum,
-    types: &HashMap<String, &RustItem>,
+    enm: &ParsedEnum,
+    types: &HashMap<String, &Item>,
     res: &mut Vec<String>,
     seen: &mut HashSet<String>,
 ) {
     match enm {
-        RustEnum::Unit(_) => {}
-        RustEnum::Algebraic {
+        ParsedEnum::Unit(_) => {}
+        ParsedEnum::Algebraic(AlgebraicEnum {
             tag_key: _,
             content_key: _,
             shared,
-        } => {
+        }) => {
             if seen.insert(shared.id.original.to_string()) {
                 res.push(shared.id.original.to_string());
                 for variant in &shared.variants {
                     match variant {
-                        RustEnumVariant::Unit(_) => {}
-                        RustEnumVariant::AnonymousStruct {
-                            fields: _,
-                            shared: _,
-                        } => {}
-                        RustEnumVariant::Tuple { ty, shared: _ } => {
+                        EnumVariant::Unit(_) => {}
+                        EnumVariant::AnonymousStruct(_) => {}
+                        EnumVariant::Tuple(TupleVariant { ty, .. }) => {
                             get_dependencies_from_type(ty, types, res, seen)
                         }
                     }
@@ -86,31 +83,41 @@ fn get_enum_dependencies(
                 seen.remove(&shared.id.original.to_string());
             }
         }
+        ParsedEnum::SerializedAs { .. } => {
+            todo!("TopSort Serialize As enums")
+        }
     }
 }
 
 fn get_struct_dependencies(
-    strct: &RustStruct,
-    types: &HashMap<String, &RustItem>,
+    strct: &ParsedStruct,
+    types: &HashMap<String, &Item>,
     res: &mut Vec<String>,
     seen: &mut HashSet<String>,
 ) {
-    if seen.insert(strct.id.original.to_string()) {
-        for field in &strct.fields {
-            get_dependencies_from_type(&field.ty, types, res, seen)
+    match strct {
+        ParsedStruct::TraditionalStruct { fields, shared: _ } => {
+            if seen.insert(strct.id.original.to_string()) {
+                for field in fields {
+                    get_dependencies_from_type(&field.ty, types, res, seen)
+                }
+                seen.remove(&strct.id.original.to_string());
+            }
         }
-        seen.remove(&strct.id.original.to_string());
+        ParsedStruct::SerializedAs { .. } => {
+            todo!("TopSort Serialize As structs")
+        }
     }
 }
 
 fn get_type_alias_dependencies(
-    ta: &RustTypeAlias,
-    types: &HashMap<String, &RustItem>,
+    ta: &ParsedTypeAlias,
+    types: &HashMap<String, &Item>,
     res: &mut Vec<String>,
     seen: &mut HashSet<String>,
 ) {
     if seen.insert(ta.id.original.to_string()) {
-        get_dependencies_from_type(&ta.r#type, types, res, seen);
+        get_dependencies_from_type(&ta.value_type, types, res, seen);
         for generic in &ta.generic_types.generics {
             if let Some(&thing) = types.get(generic) {
                 get_dependencies(thing, types, res, seen)
@@ -121,19 +128,19 @@ fn get_type_alias_dependencies(
 }
 
 fn get_dependencies(
-    thing: &RustItem,
-    types: &HashMap<String, &RustItem>,
+    thing: &Item,
+    types: &HashMap<String, &Item>,
     res: &mut Vec<String>,
     seen: &mut HashSet<String>,
 ) {
     match thing {
-        RustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),
-        RustItem::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
-        RustItem::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
+        Item::Enum(en) => get_enum_dependencies(en, types, res, seen),
+        Item::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
+        Item::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
     }
 }
 
-fn get_index(thing: &RustItem, things: &[&RustItem]) -> usize {
+fn get_index(thing: &Item, things: &[&Item]) -> usize {
     things
         .iter()
         .position(|&r| r == thing)
@@ -181,19 +188,18 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
     res
 }
 
-pub(crate) fn topsort(things: Vec<&RustItem>) -> Vec<&RustItem> {
+pub fn topsort(things: Vec<&Item>) -> Vec<&Item> {
     let types = HashMap::from_iter(things.iter().map(|&thing| {
         let id = match thing {
-            RustItem::Enum(e) => match e {
-                RustEnum::Algebraic {
-                    tag_key: _,
-                    content_key: _,
-                    shared,
-                } => shared.id.original.clone(),
-                RustEnum::Unit(shared) => shared.id.original.clone(),
+            Item::Enum(e) => match e {
+                ParsedEnum::Algebraic(AlgebraicEnum { shared, .. }) => shared.id.original.clone(),
+                ParsedEnum::Unit(shared) => shared.id.original.clone(),
+                ParsedEnum::SerializedAs { .. } => {
+                    todo!("TopSort Serialize As enums")
+                }
             },
-            RustItem::Struct(strct) => strct.id.original.clone(),
-            RustItem::Alias(ta) => ta.id.original.clone(),
+            Item::Struct(strct) => strct.id.original.clone(),
+            Item::Alias(ta) => ta.id.original.clone(),
         };
         (id, thing)
     }));

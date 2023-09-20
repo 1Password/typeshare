@@ -1,82 +1,32 @@
 mod decorator;
 mod enum_parse;
+/// Implements Parsing for some types found inside types module
+mod parse_types;
+pub(crate) mod pub_utils;
 mod serde_parse;
 mod struct_parse;
 mod typeshare_attrs;
 
-use crate::parser::enum_parse::parse_enum;
+use crate::rust_parser::enum_parse::parse_enum;
 
-use crate::language::{Comment, CommentLocation};
-use crate::parser::struct_parse::parse_struct;
-use crate::parser::typeshare_attrs::TypeShareAttrs;
-use crate::rename::RenameAll;
-use crate::rust_types::{Generics, Source};
-use crate::{
-    rename::RenameExt,
-    rust_types::{Id, RustEnum, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError},
+use crate::parsed_types::{
+    Comment, CommentLocation, Generics, ParsedData, ParsedTypeAlias, Source, TypeError,
 };
-pub use decorator::{Decorator, Decorators};
+use crate::rename::RenameAll;
+use crate::rust_parser::struct_parse::parse_struct;
+use crate::rust_parser::typeshare_attrs::TypeShareAttrs;
+use crate::{
+    parsed_types::{Id, Type},
+    rename::RenameExt,
+};
 use proc_macro2::{Ident, Span};
 use std::convert::TryFrom;
-use std::ops::Add;
-use std::str::FromStr;
-use syn::parse::{Parse, ParseStream};
+
 use syn::Meta;
-use syn::{Attribute, Expr, ItemType, LitStr};
+use syn::{Attribute, Expr, ItemType};
 use thiserror::Error;
 
-impl Parse for RenameAll {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ident = input.parse::<LitStr>()?;
-
-        Self::from_str(&ident.value())
-            .map_err(|_| syn::Error::new(ident.span(), "invalid rename_all value"))
-    }
-}
-// TODO: parsing is very opinionated and makes some decisions that should be
-// getting made at code generation time. Fix this.
-impl Parse for RustType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(LitStr) {
-            return Ok(RustType::Simple {
-                id: input.parse::<LitStr>()?.value(),
-            });
-        }
-        return Err(syn::Error::new(input.span(), "expected a string literal"));
-    }
-}
 pub const TYPESHARE_ATTR: &str = "typeshare";
-
-/// The results of parsing Rust source input.
-#[derive(Default, Debug)]
-pub struct ParsedData {
-    /// Structs defined in the source
-    pub structs: Vec<RustStruct>,
-    /// Enums defined in the source
-    pub enums: Vec<RustEnum>,
-    /// Type aliases defined in the source
-    pub aliases: Vec<RustTypeAlias>,
-}
-impl Add for ParsedData {
-    type Output = Self;
-
-    fn add(mut self, other: Self) -> Self::Output {
-        self.structs.extend(other.structs);
-        self.enums.extend(other.enums);
-        self.aliases.extend(other.aliases);
-        self
-    }
-}
-
-impl ParsedData {
-    fn push_rust_thing(&mut self, rust_thing: RustItem) {
-        match rust_thing {
-            RustItem::Struct(s) => self.structs.push(s),
-            RustItem::Enum(e) => self.enums.push(e),
-            RustItem::Alias(a) => self.aliases.push(a),
-        }
-    }
-}
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -85,7 +35,7 @@ pub enum ParseError {
     #[error("{0}")]
     SynError(#[from] syn::Error),
     #[error("failed to parse a rust type: {0}")]
-    RustTypeParseError(#[from] RustTypeParseError),
+    TypeError(#[from] TypeError),
     #[error("unsupported language encountered: {0}")]
     UnsupportedLanguage(String),
     #[error("unsupported type encountered: {0}")]
@@ -126,10 +76,10 @@ pub fn parse_into(input: &str, target: &mut ParsedData, source: Source) -> Resul
     for item in flatten_items(syn_file.items.iter()) {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                target.push_rust_thing(parse_struct(s, source.clone())?);
+                target.push_item(parse_struct(s, source.clone())?);
             }
             syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                target.push_rust_thing(parse_enum(e, source.clone())?);
+                target.push_item(parse_enum(e, source.clone())?);
             }
             syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
                 target.aliases.push(parse_type_alias(t, source.clone())?);
@@ -159,22 +109,22 @@ fn flatten_items<'a>(
 }
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType, source: Source) -> Result<RustTypeAlias, ParseError> {
+fn parse_type_alias(t: &ItemType, source: Source) -> Result<ParsedTypeAlias, ParseError> {
     let typeshare_attr = TypeShareAttrs::from_attrs(&t.attrs)?;
 
     let ty = if let Some(ty) = typeshare_attr.serialized_as {
         ty
     } else {
-        RustType::try_from(&*t.ty)?
+        Type::try_from(&*t.ty)?
     };
 
     let generic_types = Generics::from_syn_generics(&t.generics);
 
-    Ok(RustTypeAlias {
+    Ok(ParsedTypeAlias {
         source,
         id: get_ident(Some(&t.ident), None, None),
-        r#type: ty,
-        comments: Comment::MultilineOwned {
+        value_type: ty,
+        comments: Comment::Multiline {
             comment: parse_comment_attrs(&t.attrs),
             location: CommentLocation::Type,
         },
@@ -234,7 +184,11 @@ fn get_ident(
         renamed = s.clone();
     }
 
-    Id { original, renamed }
+    Id {
+        original,
+        renamed,
+        rename_all: rename_all.cloned(),
+    }
 }
 
 fn rename_all_to_case(original: String, case: Option<&RenameAll>) -> String {

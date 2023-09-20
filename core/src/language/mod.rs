@@ -1,28 +1,25 @@
-mod comment;
 pub mod config;
 pub mod type_mapping;
 
-use crate::{
-    parser::ParsedData,
-    rust_types::{Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustTypeAlias},
-    topsort::topsort,
-};
-pub use comment::{Comment, CommentLocation};
-pub use config::{CommonConfig, LanguageConfig};
+use crate::parsed_types::{AnonymousStructVariant, Id, ParsedStruct};
+pub use config::LanguageConfig;
 use itertools::Itertools;
 pub use type_mapping::{TypeMapping, TypeMappingValue};
 
-use log::{debug, error};
+use log::error;
 
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
-use std::{collections::HashMap, fmt::Debug, io::Write};
+use std::ops::Deref;
+use std::{fmt::Debug, io::Write};
 use thiserror::Error;
 
-use crate::rust_types::{
-    Generics, RustType, RustTypeFormatError, RustTypeParseError, SpecialRustType,
+use crate::parsed_types::{
+    Comment, CommentLocation, DecoratorsMap, EnumVariant, Generics, ParsedData, ParsedEnum,
+    SpecialType, StructShared, Type, TypeError,
 };
+
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum LanguageError<E: Error> {
@@ -32,13 +29,12 @@ pub enum LanguageError<E: Error> {
     LanguageError(E),
     #[error("Type unable to be built: {0}")]
     UTF8Error(#[from] std::string::FromUtf8Error),
-    #[error(transparent)]
-    TypeFormatError(#[from] RustTypeFormatError),
-    #[error(transparent)]
-    TypeParseError(#[from] RustTypeParseError),
+    #[error("Type unable to be parsed: {0}")]
+    TypeParseError(#[from] TypeError),
     #[error("Formatting error: {0}")]
     FormattingError(#[from] std::fmt::Error),
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct MultiFileItem {
     pub name: String,
@@ -51,7 +47,7 @@ pub enum WriteTypesResult {
     SingleFile(String),
 }
 
-pub type LangResult<T, E> = std::result::Result<T, LanguageError<E>>;
+pub type LangResult<T, E> = Result<T, LanguageError<E>>;
 /// Language-specific state and processing.
 ///
 /// The `Language` implementation is allowed to maintain mutable state, and it
@@ -60,63 +56,40 @@ pub type LangResult<T, E> = std::result::Result<T, LanguageError<E>>;
 pub trait Language {
     type Config: LanguageConfig;
     type Error: Error + Send + Sync + 'static;
-    fn language_name(&self) -> &'static str;
+    /// Should be lower camel case, e.g. `java`, `rust`, 'typescript' etc. a-z only.
+    ///
+    /// This is what is used to identify the language in the config file and inside the typeshare lang decorators
+    fn language_name() -> &'static str
+    where
+        Self: Sized;
     fn extension(&self) -> &'static str;
-    fn multi_file(&self) -> bool {
+    /// If more than one type is provided in the input this language will generate multiple files
+    fn requires_multiple_files(&self) -> bool {
         false
     }
 
     fn get_config(&self) -> &Self::Config;
 
-    /// Given `data`, generate type-code for this language and write it out to `writable`.
-    /// Returns whether or not writing was successful.
-    fn generate_types(&mut self, data: &ParsedData) -> LangResult<WriteTypesResult, Self::Error> {
-        if self.multi_file() {
-            panic!("Function generate_types should be overriden for multi file languages");
-        }
-        let mut file: Vec<u8> = Vec::new();
-        self.begin_file(&mut file)?;
+    /// Given `data`, generate type-code for this language and return it in a WriteTypeResult
+    fn generate_from_parse(
+        &mut self,
+        data: &ParsedData,
+    ) -> LangResult<WriteTypesResult, Self::Error>;
+}
 
-        let mut items: Vec<RustItem> = vec![];
-
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
-        }
-
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
-
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
-
-        let sorted = topsort(items.iter().collect());
-
-        for &thing in &sorted {
-            match thing {
-                RustItem::Enum(e) => self.write_enum(&mut file, e)?,
-                RustItem::Struct(s) => self.write_struct(&mut file, s)?,
-                RustItem::Alias(a) => self.write_type_alias(&mut file, a)?,
-            }
-        }
-
-        self.end_file(&mut file)?;
-
-        Ok(WriteTypesResult::SingleFile(String::from_utf8(file)?))
-    }
+pub trait TypeFormatter: Language {
     /// Convert a Rust type into a type from this language.
     fn format_type(
         &mut self,
-        ty: &RustType,
+        ty: &Type,
         generic_types: &[String],
     ) -> LangResult<String, Self::Error> {
         match ty {
-            RustType::Simple { id } => self.format_simple_type(id, generic_types),
-            RustType::Generic { id, parameters } => {
+            Type::Simple { id } => self.format_simple_type(id, generic_types),
+            Type::Generic { id, parameters } => {
                 self.format_generic_type(id, parameters.as_slice(), generic_types)
             }
-            RustType::Special(special) => self.format_special_type(special, generic_types),
+            Type::Special(special) => self.format_special_type(special, generic_types),
         }
     }
 
@@ -146,7 +119,7 @@ pub trait Language {
     fn format_generic_type(
         &mut self,
         base: &String,
-        parameters: &[RustType],
+        parameters: &[Type],
         generic_types: &[String],
     ) -> LangResult<String, Self::Error> {
         if let Some(mapped) = self.get_config().type_mappings().get(base) {
@@ -176,157 +149,103 @@ pub trait Language {
     /// Format a base type that is classified as a SpecialRustType.
     fn format_special_type(
         &mut self,
-        special_ty: &SpecialRustType,
+        special_ty: &SpecialType,
         generic_types: &[String],
     ) -> LangResult<String, Self::Error>;
+}
 
-    fn write_comment(
-        &mut self,
-        w: &mut impl Write,
-        comment: &Comment<'_>,
-    ) -> LangResult<(), Self::Error>;
-    /// Implementors can use this function to write a header for typeshared code
-    fn begin_file(&mut self, w: &mut impl Write) -> LangResult<(), Self::Error> {
-        let config_header = self.get_config().file_header();
-        if let Some(config_header) = config_header.map(|s| s.to_owned()) {
-            debug!("Writing file header: {}", config_header);
-            self.write_comment(
-                w,
-                &Comment::new_single(config_header, CommentLocation::FileHeader),
-            )?;
-        } else {
-            debug!("No file header to write");
-        }
-        Ok(())
+/// Implement this this on types such as Enum or Structs that can be generated by your language
+pub trait Generate<L: Language> {
+    /// Generates to a String
+    fn generate(&self, language: &mut L) -> Result<String, LanguageError<L::Error>> {
+        let mut buffer = Vec::new();
+        self.generate_to(language, &mut buffer)?;
+        Ok(String::from_utf8(buffer)?)
     }
+    fn generate_to(
+        &self,
+        language: &mut L,
+        write: &mut impl Write,
+    ) -> Result<(), LanguageError<L::Error>>;
+}
 
-    /// Implementors can use this function to write a footer for typeshared code
-    fn end_file(&mut self, _w: &mut impl Write) -> LangResult<(), Self::Error> {
-        Ok(())
-    }
+/// Write out named types to represent anonymous struct enum variants.
+///
+/// Take the following enum as an example:
+///
+/// ```
+/// enum AlgebraicEnum {
+///     AnonymousStruct {
+///         field: String,
+///         another_field: bool,
+///     },
+/// }
+/// ```
+///
+/// This function will write out:
+///
+/// ```compile_fail
+/// /// Generated type representing the anonymous struct variant `<make_struct_name>` of the `AlgebraicEnum` rust enum
+/// /* the struct definition for whatever language */
+/// ```
+///
+/// It does this by calling `write_struct` on the given `language_impl`. The
+/// name of the struct is controlled by the `make_struct_name` closure; you're
+/// given the variant name and asked to return whatever struct name works best
+/// for your language.
+pub fn covert_anonymous_structs_to_structs<F>(
+    e: &ParsedEnum,
+    make_struct_name: F,
+) -> Vec<ParsedStruct>
+where
+    F: Fn(&str) -> String,
+{
+    let mut structs = Vec::new();
+    for variant in &e.shared().variants {
+        let EnumVariant::AnonymousStruct(AnonymousStructVariant { fields, shared }) = variant
+        else {
+            continue;
+        };
+        let struct_name = make_struct_name(&shared.id.original);
 
-    /// Write a type alias by converting it.
-    /// Example of a type alias:
-    /// ```
-    /// type MyTypeAlias = String;
-    /// ```
-    fn write_type_alias(
-        &mut self,
-        _w: &mut impl Write,
-        _t: &RustTypeAlias,
-    ) -> LangResult<(), Self::Error> {
-        Ok(())
-    }
+        // Builds the list of generic types (e.g [T, U, V]), by digging
+        // through the fields recursively and comparing against the
+        // enclosing enum's list of generic parameters.
+        let generic_types: Vec<String> = fields
+            .iter()
+            .flat_map(|field| {
+                e.deref()
+                    .generic_types
+                    .iter()
+                    .filter(|g| field.ty.contains_type(g))
+            })
+            .unique()
+            .cloned()
+            .collect();
+        let source = e.deref().source.push(&struct_name);
 
-    /// Write a struct by converting it
-    /// Example of a struct:
-    /// ```ignore
-    /// #[typeshare]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Foo {
-    ///     bar: String
-    /// }
-    /// ```
-    fn write_struct(
-        &mut self,
-        _w: &mut impl Write,
-        _rs: &RustStruct,
-    ) -> LangResult<(), Self::Error> {
-        Ok(())
-    }
-
-    /// Write an enum by converting it.
-    /// Example of an enum:
-    /// ```ignore
-    /// #[typeshare]
-    /// #[derive(Serialize, Deserialize)]
-    /// #[serde(tag = "type", content = "content")]
-    /// enum Foo {
-    ///     Fizz,
-    ///     Buzz { yep_this_works: bool }
-    /// }
-    /// ```
-    fn write_enum(&mut self, _w: &mut impl Write, _e: &RustEnum) -> LangResult<(), Self::Error> {
-        Ok(())
-    }
-
-    /// Write out named types to represent anonymous struct enum variants.
-    ///
-    /// Take the following enum as an example:
-    ///
-    /// ```
-    /// enum AlgebraicEnum {
-    ///     AnonymousStruct {
-    ///         field: String,
-    ///         another_field: bool,
-    ///     },
-    /// }
-    /// ```
-    ///
-    /// This function will write out:
-    ///
-    /// ```compile_fail
-    /// /// Generated type representing the anonymous struct variant `<make_struct_name>` of the `AlgebraicEnum` rust enum
-    /// /* the struct definition for whatever language */
-    /// ```
-    ///
-    /// It does this by calling `write_struct` on the given `language_impl`. The
-    /// name of the struct is controlled by the `make_struct_name` closure; you're
-    /// given the variant name and asked to return whatever struct name works best
-    /// for your language.
-    fn write_types_for_anonymous_structs<F>(
-        &mut self,
-        w: &mut impl Write,
-        e: &RustEnum,
-        make_struct_name: F,
-    ) -> LangResult<(), Self::Error>
-    where
-        F: Fn(&str) -> String,
-    {
-        for (fields, shared) in e.shared().variants.iter().filter_map(|v| match v {
-            RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
-            _ => None,
-        }) {
-            let struct_name = make_struct_name(&shared.id.original);
-
-            // Builds the list of generic types (e.g [T, U, V]), by digging
-            // through the fields recursively and comparing against the
-            // enclosing enum's list of generic parameters.
-            let generic_types: Vec<String> = fields
-                .iter()
-                .flat_map(|field| {
-                    e.shared()
-                        .generic_types
-                        .iter()
-                        .filter(|g| field.ty.contains_type(g))
-                })
-                .unique()
-                .cloned()
-                .collect();
-            let source = e.shared().source.push(&struct_name);
-
-            self.write_struct(
-                w,
-                &RustStruct {
+        let parsed_struct =ParsedStruct::TraditionalStruct {
+                fields: fields.clone(),
+                shared: StructShared {
                     source,
                     id: Id {
                         original: struct_name.clone(),
                         renamed: struct_name.clone(),
+                        rename_all: None,
                     },
-                    fields: fields.clone(),
                     generic_types: Generics::from(generic_types),
                     comments: Comment::new_single(
                         format!(
                             "Generated type representing the anonymous struct variant `{}` of the `{}` Rust enum",
                             &shared.id.original,
-                            &e.shared().id.original,
+                            &e.deref().id.original,
                         ),
                         CommentLocation::Type,
                     ),
-                    decorators: HashMap::new(),
+                    decorators: DecoratorsMap::default(),
                 },
-            )?;
-        }
-        Ok(())
+            };
+        structs.push(parsed_struct.clone());
     }
+    structs
 }

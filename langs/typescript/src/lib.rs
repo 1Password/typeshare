@@ -1,6 +1,8 @@
 mod lang_impl;
 
 use serde::{Deserialize, Serialize};
+use std::mem;
+use std::ops::Add;
 
 pub use lang_impl::TypeScript;
 #[cfg(feature = "cli")]
@@ -59,7 +61,7 @@ pub struct TypeScriptConfig {
     #[cfg_attr(feature = "cli", clap(long))]
     pub use_bigint: bool,
     /// Enum Write Method
-    #[cfg_attr(feature = "cli", clap(long))]
+    #[cfg_attr(feature = "cli", clap(long, default_value = "one-type"))]
     pub enum_write_method: EnumWriteMethod,
     #[cfg_attr(feature = "cli", clap(skip))]
     pub type_mappings: TypeMapping,
@@ -79,6 +81,15 @@ impl Default for TypeScriptConfig {
         }
     }
 }
+impl Add for TypeScriptConfig {
+    type Output = Self;
+
+    fn add(mut self, command: Self) -> Self::Output {
+        self.use_bigint = command.use_bigint || self.use_bigint;
+        self.enum_write_method = command.enum_write_method;
+        self
+    }
+}
 impl LanguageConfig for TypeScriptConfig {
     fn default_file_name(&self) -> &str {
         &self.default_file_name
@@ -86,6 +97,10 @@ impl LanguageConfig for TypeScriptConfig {
 
     fn type_mappings(&self) -> &TypeMapping {
         &self.type_mappings
+    }
+
+    fn add_common_mappings(&mut self, common_mappings: TypeMapping) {
+        self.type_mappings = common_mappings + mem::take(&mut self.type_mappings);
     }
 
     fn file_header(&self) -> Option<&str> {
