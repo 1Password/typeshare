@@ -1,0 +1,15 @@
+# If a directory is specified. It will use this as the file name
+default_file_name = "types.ts"
+enum_write_method = "OneType"
+file_header = """
+/// This was generated using TypeShare-Typescript
+"""
+# Will use bigint for usize, isize, i64, u64
+use_bigint = true
+
+[type_mappings]
+"usize" = "BigInt"
+"isize" = "BigInt"
+[type_mappings."duration"]
+type = "number"
+doc = "Duration in seconds"

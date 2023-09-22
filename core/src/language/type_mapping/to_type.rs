@@ -1,8 +1,15 @@
-use serde::de::{MapAccess, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::fmt::{Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
+use std::{
+    fmt::{Display, Formatter},
+    ops::{Deref, DerefMut},
+};
+
+use serde::de::Error;
+use serde::{
+    de::{MapAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Deserializer, Serialize,
+};
 use strum::EnumIs;
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIs)]
@@ -36,7 +43,7 @@ impl Serialize for ToType {
             ToType::RustType(rust_type) => {
                 let mut s = serializer.serialize_struct("ToType", 2)?;
                 s.serialize_field("type", "Rust")?;
-                s.serialize_field("content", rust_type)?;
+                s.serialize_field("value", rust_type)?;
                 s.end()
             }
         }
@@ -52,9 +59,22 @@ impl<'de> Visitor<'de> for ToTypeVisitor {
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
-        E: serde::de::Error,
+        E: Error,
     {
-        Ok(ToType::LangType(v.to_string()))
+        Ok(ToType::from(v))
+    }
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(ToType::from(v))
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(ToType::from(v))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -68,23 +88,20 @@ impl<'de> Visitor<'de> for ToTypeVisitor {
                 "type" => {
                     type_name = Some(map.next_value::<String>()?);
                 }
-                "content" => {
+                "value" => {
                     content = Some(map.next_value()?);
                 }
                 _ => {
-                    return Err(serde::de::Error::unknown_field(&key, &["type", "content"]));
+                    return Err(Error::unknown_field(&key, &["type", "value"]));
                 }
             }
         }
-        let type_name = type_name.ok_or_else(|| serde::de::Error::missing_field("type"))?;
-        let content = content.ok_or_else(|| serde::de::Error::missing_field("content"))?;
+        let type_name = type_name.ok_or_else(|| Error::missing_field("type"))?;
+        let content = content.ok_or_else(|| Error::missing_field("value"))?;
         if type_name == "Rust" {
             Ok(ToType::RustType(content))
         } else {
-            Err(serde::de::Error::custom(format!(
-                "unknown type: {}",
-                type_name
-            )))
+            Err(Error::custom(format!("unknown type: {}", type_name)))
         }
     }
 }
@@ -129,5 +146,23 @@ impl Into<String> for ToType {
             ToType::LangType(s) => s,
             ToType::RustType(s) => s,
         }
+    }
+}
+impl FromStr for ToType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ToType::LangType(s.to_string()))
+    }
+}
+impl From<String> for ToType {
+    fn from(s: String) -> Self {
+        ToType::LangType(s)
+    }
+}
+
+impl<'a> From<&'a str> for ToType {
+    fn from(s: &'a str) -> Self {
+        ToType::LangType(s.to_string())
     }
 }

@@ -1,5 +1,4 @@
-use typeshare_core::parsed_types::Source;
-use typeshare_core::rust_parser;
+use typeshare_core::{parsed_types::Source, rust_parser};
 
 #[test]
 fn basic_struct() {

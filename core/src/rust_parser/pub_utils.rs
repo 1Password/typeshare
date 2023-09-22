@@ -1,40 +1,22 @@
-use crate::language::{Generate, Language};
-use crate::parsed_types::{Comment, ParsedData, Source};
-use crate::rust_parser::ParseError;
-use crate::{write_into_one, write_parse, ProcessInputError};
-use ignore::overrides::OverrideBuilder;
-use ignore::types::TypesBuilder;
-use ignore::WalkBuilder;
-use log::{debug, error, warn};
-use std::collections::VecDeque;
-use std::io::Write;
-use std::path::Path;
 
-/// Will process the input and write the output to the given writer.
-///
-/// If multiple files are generated, they will be written to the given writer
-/// With Comments indicating the beginning and end of each file.
-pub fn process_into_one<L: Language>(
-    language: &mut L,
-    data: &str,
-    out: &mut impl Write,
-    source: Source,
-) -> Result<(), ProcessInputError<L::Error>>
-where
-    Comment: Generate<L>,
-{
-    let data = super::parse(data, source)?;
-    write_into_one(language, data, out)?;
-    Ok(())
-}
-pub fn process_directories_and_write<L: Language>(
-    language: &mut L,
+use std::error::Error;
+use std::{collections::VecDeque, io::Write, path::Path};
+
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use log::{debug, error, warn};
+
+use crate::{
+    language::{Generate, Language},
+    parsed_types::{Comment, ParsedData, Source},
+    rust_parser::ParseError,
+    write_into_one, write_parse, ProcessInputError,
+};
+pub fn generate_parse<E: Error>(
     mut directories: VecDeque<String>,
-    out: impl AsRef<Path>,
-) -> Result<(), ProcessInputError<L::Error>> {
+) -> Result<ParsedData, ProcessInputError<E>> {
     if directories.is_empty() {
         warn!("No directories specified. Exiting.");
-        return Ok(());
+        return Ok(ParsedData::default());
     }
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
@@ -104,7 +86,31 @@ pub fn process_directories_and_write<L: Language>(
             }
         }
     }
-
+    Ok(parsed_data)
+}
+/// Will process the input and write the output to the given writer.
+///
+/// If multiple files are generated, they will be written to the given writer
+/// With Comments indicating the beginning and end of each file.
+pub fn process_into_one<L: Language>(
+    language: &mut L,
+    data: &str,
+    out: &mut impl Write,
+    source: Source,
+) -> Result<(), ProcessInputError<L::Error>>
+where
+    Comment: Generate<L>,
+{
+    let data = super::parse(data, source)?;
+    write_into_one(language, data, out)?;
+    Ok(())
+}
+pub fn process_directories_and_write<L: Language>(
+    language: &mut L,
+    directories: VecDeque<String>,
+    out: impl AsRef<Path>,
+) -> Result<(), ProcessInputError<L::Error>> {
+    let parsed_data = generate_parse(directories)?;
     write_parse(language, parsed_data, out)?;
     Ok(())
 }

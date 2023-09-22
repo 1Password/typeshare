@@ -1,5 +1,4 @@
-use crate::parsed_types::comment::Comment;
-use crate::parsed_types::{Generics, Id, Source, Type};
+use crate::parsed_types::{comment::Comment, Generics, Id, Source, Type};
 
 /// Rust type alias.
 /// ```

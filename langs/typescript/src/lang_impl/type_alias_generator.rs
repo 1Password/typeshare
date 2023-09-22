@@ -1,8 +1,11 @@
-use crate::lang_impl::TypescriptResult;
-use crate::TypeScript;
 use std::io::Write;
-use typeshare_core::language::{Generate, LanguageError, TypeFormatter};
-use typeshare_core::parsed_types::ParsedTypeAlias;
+
+use typeshare_core::{
+    language::{Generate, TypeFormatter},
+    parsed_types::ParsedTypeAlias,
+};
+
+use crate::{lang_impl::TypescriptResult, TypeScript};
 
 impl Generate<TypeScript> for ParsedTypeAlias {
     fn generate_to(

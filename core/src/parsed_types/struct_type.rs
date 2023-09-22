@@ -1,6 +1,6 @@
-use crate::parsed_types::comment::Comment;
-use crate::parsed_types::{DecoratorsMap, Field, Generics, Id, Source, Type};
 use std::ops::{Deref, DerefMut};
+
+use crate::parsed_types::{comment::Comment, DecoratorsMap, Field, Generics, Id, Source, Type};
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(
     feature = "serde-everything",

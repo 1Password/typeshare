@@ -7,6 +7,24 @@ members = [
     "lib"
 ]
 resolver = "2"
+
+[workspace.package]
+version = "1.8.0"
+license = "MIT OR Apache-2.0"
+authors = ["Wyatt Jacob Herkamp <wherkamp@gmail.com>", "1Password"]
+repository = "https://github.com/wyatt-herkamp/typeshare"
+[workspace.dependencies]
+serde= { version = "1.0", features = ["derive"] }
+clap = { version = "4", features = ["derive", "cargo"]}
+clap_complete = { version = "4" }
+toml = { version = "0.8"}
+rayon = { version = "1"}
+thiserror = { version = "1" }
+joinery = { version = "3" }
+lazy_format = { version = "2" }
+log = { version = "0.4" }
+strum = { version = "0.25", features = ["derive"] }
+semver = { version = "1" ,features = ["serde"]}
 # Config for 'cargo dist'
 [workspace.metadata.dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)

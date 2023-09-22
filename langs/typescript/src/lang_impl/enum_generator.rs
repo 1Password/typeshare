@@ -1,9 +1,11 @@
-use crate::lang_impl::TypescriptResult;
-use crate::{EnumWriteMethod, TypeScript};
 use std::io::Write;
-use typeshare_core::language::{Generate, LanguageError, TypeFormatter};
-use typeshare_core::parsed_types::{
-    AlgebraicEnum, AnonymousStructVariant, EnumVariant, ParsedEnum, TupleVariant,
+
+use crate::config::EnumWriteMethod;
+use crate::lang_impl::TypescriptResult;
+use crate::TypeScript;
+use typeshare_core::{
+    language::{Generate, TypeFormatter},
+    parsed_types::{AlgebraicEnum, AnonymousStructVariant, EnumVariant, ParsedEnum, TupleVariant},
 };
 
 fn write_enum_variants(

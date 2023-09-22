@@ -1,8 +1,9 @@
+use std::collections::{HashMap, HashSet};
+
 use crate::parsed_types::{
-    AlgebraicEnum, AnonymousStructVariant, EnumVariant, Item, ParsedEnum, ParsedStruct,
+    AlgebraicEnum, EnumVariant, Item, ParsedEnum, ParsedStruct,
     ParsedTypeAlias, SpecialType, TupleVariant, Type,
 };
-use std::collections::{HashMap, HashSet};
 
 fn get_dependencies_from_type(
     tp: &Type,

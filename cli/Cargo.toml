@@ -4,19 +4,24 @@ version = "1.7.0"
 rust-version = "1.57"
 edition = "2021"
 description = "Command Line Tool for generating language files with typeshare"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "typeshare"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive", "cargo"] }
-clap_complete = "4"
-ignore = "0.4"
-toml = "0.8"
-
-serde = { version = "1.0", features = ["derive"] }
-typeshare-core = { path = "../core", version = "1.7.0" }
+clap = { workspace=true }
+clap_complete = { workspace=true }
+toml = { workspace=true }
+serde = { workspace=true }
+thiserror = { workspace=true }
+typeshare-core = { path = "../core", features = ["cli", "tabled", "rust-parsing"] }
+syntect = { version = "5"}
+tabled = "0.14"
+log = { workspace=true }
+dirs = "5"
+libloading = "0.8"

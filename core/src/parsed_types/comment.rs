@@ -1,4 +1,5 @@
 use std::fmt::Display;
+
 use strum::{Display, EnumIs, EnumIter, IntoStaticStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIs, Display, IntoStaticStr, EnumIter)]
@@ -134,12 +135,16 @@ impl Display for Comment {
     }
 }
 mod impl_serde {
+    use std::fmt::Formatter;
+
+    use serde::{
+        de::{Error, SeqAccess, Visitor},
+        ser::SerializeSeq,
+        Deserialize, Serialize,
+    };
+
     use super::Comment;
     use crate::parsed_types::comment::CommentLocation;
-    use serde::de::{Error, SeqAccess, Visitor};
-    use serde::ser::SerializeSeq;
-    use serde::{Deserialize, Serialize};
-    use std::fmt::Formatter;
 
     impl Serialize for Comment {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

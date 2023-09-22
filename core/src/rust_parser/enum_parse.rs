@@ -1,14 +1,20 @@
-use crate::parsed_types::{
-    AlgebraicEnum, AnonymousStructVariant, Comment, CommentLocation, EnumShared, EnumVariant,
-    EnumVariantShared, Field, Generics, Item, ParsedEnum, ParsedTypeAlias, Source, TupleVariant,
-    Type,
-};
-use crate::rename::RenameAll;
-use crate::rust_parser::decorator::get_lang_decorators;
-use crate::rust_parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs, SerdeVariantAttr};
-use crate::rust_parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
-use crate::rust_parser::{get_ident, parse_comment_attrs, ParseError};
 use syn::ItemEnum;
+
+use crate::{
+    parsed_types::{
+        AlgebraicEnum, AnonymousStructVariant, Comment, CommentLocation, EnumShared, EnumVariant,
+        EnumVariantShared, Field, Generics, Item, ParsedEnum, ParsedTypeAlias, Source,
+        TupleVariant, Type,
+    },
+    rename::RenameAll,
+    rust_parser::{
+        decorator::get_lang_decorators,
+        get_ident, parse_comment_attrs,
+        serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs, SerdeVariantAttr},
+        typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs},
+        ParseError,
+    },
+};
 
 /// Parses an enum into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.

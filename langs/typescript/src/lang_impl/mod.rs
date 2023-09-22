@@ -3,17 +3,15 @@ mod struct_generator;
 mod type_alias_generator;
 mod types;
 
-use crate::{EnumWriteMethod, TypeScriptConfig};
-
 use std::io::Write;
+
+use crate::config::TypeScriptConfig;
 use thiserror::Error;
-use typeshare_core::language::{
-    Generate, LangResult, Language, LanguageError, TypeFormatter, WriteTypesResult,
+use typeshare_core::{
+    language::{Generate, LangResult, Language, LanguageError, TypeFormatter, WriteTypesResult},
+    parsed_types::{Comment, CommentLocation, Field, Item, ParsedData},
+    topsort,
 };
-use typeshare_core::parsed_types::{
-    Comment, CommentLocation, EnumVariant, Field, Item, ParsedData, ParsedEnum,
-};
-use typeshare_core::topsort;
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]

@@ -1,7 +1,10 @@
-use chrono::{DateTime, SecondsFormat, Utc};
-use serde::de::{Error, Unexpected, Visitor};
-use serde::{Deserializer, Serializer};
 use std::fmt;
+
+use chrono::{DateTime, SecondsFormat, Utc};
+use serde::{
+    de::{Error, Unexpected, Visitor},
+    Deserializer, Serializer,
+};
 
 struct DateTimeVisitor;
 
@@ -39,9 +42,10 @@ impl<'de> Visitor<'de> for DateTimeVisitor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use chrono::{NaiveDateTime, Utc};
     use serde::{Deserialize, Serialize};
+
+    use super::*;
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct Test {
@@ -53,8 +57,9 @@ mod tests {
     fn test_deserialize() {
         let data = r#"{"time":"2020-02-01T03:16:46.229Z"}"#;
         let expect = Test {
-            time: DateTime::from_utc(
-                NaiveDateTime::from_timestamp(1_580_527_006, 229_000_000),
+            time: DateTime::from_naive_utc_and_offset(
+                NaiveDateTime::from_timestamp_opt(1_580_527_006, 229_000_000)
+                    .expect("invalid date"),
                 Utc,
             ),
         };
@@ -65,8 +70,9 @@ mod tests {
     #[test]
     fn test_serialize() {
         let data = Test {
-            time: DateTime::from_utc(
-                NaiveDateTime::from_timestamp(1_580_527_006, 229_000_000),
+            time: DateTime::from_naive_utc_and_offset(
+                NaiveDateTime::from_timestamp_opt(1_580_527_006, 229_000_000)
+                    .expect("invalid date"),
                 Utc,
             ),
         };

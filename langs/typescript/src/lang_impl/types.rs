@@ -1,8 +1,13 @@
-use crate::lang_impl::{TypescriptError, TypescriptResult};
-use crate::TypeScript;
 use joinery::JoinableIterator;
-use typeshare_core::language::TypeFormatter;
-use typeshare_core::parsed_types::{Number, SpecialType, Type};
+use typeshare_core::{
+    language::TypeFormatter,
+    parsed_types::{Number, SpecialType, Type},
+};
+
+use crate::{
+    lang_impl::{TypescriptError, TypescriptResult},
+    TypeScript,
+};
 
 impl TypeFormatter for TypeScript {
     fn format_special_type(

@@ -1,6 +1,8 @@
-use crate::parsed_types::{Comment, DecoratorsMap, Field, Generics, Id, Source, Type};
 use std::ops::{Deref, DerefMut};
+
 use strum::EnumIs;
+
+use crate::parsed_types::{Comment, DecoratorsMap, Field, Generics, Id, Source, Type};
 
 /// Parsed information about a Rust enum definition
 #[derive(Debug, Clone, PartialEq, EnumIs)]
@@ -31,15 +33,12 @@ pub enum ParsedEnum {
     /// An example of such an enum:
     ///
     /// ```
-    /// struct AssociatedData { /* ... */ }
+    /// struct AssociatedData {/* ... */}
     ///
     /// enum AlgebraicEnum {
     ///     UnitVariant,
     ///     TupleVariant(AssociatedData),
-    ///     AnonymousStruct {
-    ///         field: String,
-    ///         another_field: bool,
-    ///     },
+    ///     AnonymousStruct { field: String, another_field: bool },
     /// }
     /// ```
     Algebraic(AlgebraicEnum),

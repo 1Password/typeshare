@@ -1,8 +1,11 @@
-use crate::parsed_types::{Decorator, DecoratorsMap};
 use proc_macro2::{Ident, TokenStream};
+use syn::{
+    custom_keyword,
+    parse::{Parse, ParseStream},
+    Meta, Token,
+};
 
-use syn::parse::{Parse, ParseStream};
-use syn::{custom_keyword, Meta, Token};
+use crate::parsed_types::{Decorator, DecoratorsMap};
 
 impl Parse for Decorator {
     fn parse(input: ParseStream) -> syn::Result<Self> {

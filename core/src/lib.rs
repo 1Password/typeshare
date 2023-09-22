@@ -1,19 +1,26 @@
 //! The core library for typeshare.
 //! Contains the parser and language converters.
 
-use crate::language::{Generate, LanguageConfig, LanguageError, WriteTypesResult};
-use crate::parsed_types::{Comment, CommentLocation, ParsedData};
+use std::ffi::c_int;
+use std::{
+    error::Error,
+    fs::{create_dir_all, OpenOptions},
+    io,
+    io::Write,
+    path::Path,
+};
+
 use language::Language;
 use log::{error, info};
 #[cfg(feature = "rust-parsing")]
 pub use rust_parser::pub_utils::*;
-use std::error::Error;
-use std::fs::{create_dir_all, OpenOptions};
-use std::io;
-use std::io::Write;
-use std::path::Path;
 use thiserror::Error;
 pub use topsort::topsort;
+
+use crate::{
+    language::{Generate, LanguageConfig, LanguageError, WriteTypesResult},
+    parsed_types::{Comment, CommentLocation, ParsedData},
+};
 
 mod rename;
 
@@ -21,12 +28,20 @@ mod rename;
 pub mod cli;
 /// Implementations for each language converter
 pub mod language;
+mod language_desc;
 /// Codifying Rust types and how they convert to various languages.
 pub mod parsed_types;
 /// Parsing Rust code into a format the `language` modules can understand
 #[cfg(feature = "rust-parsing")]
 pub mod rust_parser;
 mod topsort;
+use crate::rust_parser::ParseError;
+#[doc(inline)]
+pub use language_desc::{FFILanguageDescription, LanguageDescription};
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+#[no_mangle]
+pub static TYPESHARE_FFI_VERSION: c_int = 1;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
@@ -34,7 +49,7 @@ pub enum ProcessInputError<E: Error> {
     /// Parsing Rust code into a format the `language` modules can understand
     #[cfg(feature = "rust-parsing")]
     #[error("a parsing error occurred: {0}")]
-    ParseError(#[from] rust_parser::ParseError),
+    ParseError(#[from] ParseError),
     #[error(transparent)]
     LanguageError(#[from] LanguageError<E>),
     #[error("Multiple files were generated, but only one was expected")]

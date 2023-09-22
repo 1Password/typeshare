@@ -1,0 +1,31 @@
+[package]
+name = "typescript"
+version = "0.1.0"
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Typeshare typescript generator"
+build = "../lang_build.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "typeshare_typescript"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+[[bin]]
+name = "typeshare-typescript"
+path = "src/bin/main.rs"
+required-features = ["cli"]
+
+[dependencies]
+serde = { workspace=true}
+typeshare-core = { path = "../../core", version = "1.8.0" }
+thiserror = {workspace=true}
+joinery = {workspace=true}
+log = "0.4.20"
+[dev-dependencies]
+toml = "0.8"
+[build-dependencies]
+vergen = { version = "8",features = ["build","rustc"] }
+[features]
+cli = ["typeshare-core/cli", "typeshare-core/rust-parsing"]

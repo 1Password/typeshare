@@ -1,6 +1,6 @@
+use std::{fmt::Display, path::Path};
+
 use crate::rename::RenameAll;
-use std::fmt::Display;
-use std::path::Path;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]

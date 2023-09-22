@@ -1,11 +1,12 @@
-use crate::rust_parser::TYPESHARE_ATTR;
-
-use crate::parsed_types::Type;
+use std::ops::Add;
 
 use proc_macro2::TokenStream;
-use std::ops::Add;
-use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Meta, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    Attribute, Meta, Token,
+};
+
+use crate::{parsed_types::Type, rust_parser::TYPESHARE_ATTR};
 mod keywords {
     syn::custom_keyword!(rename);
     syn::custom_keyword!(serialized_as);

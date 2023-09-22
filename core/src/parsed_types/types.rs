@@ -95,7 +95,6 @@ impl Type {
     /// For example, `Vec<String>`'s generic parameters would be `[String]`.
     /// Meanwhile, `HashMap<i64, u32>`'s generic parameters would be `[i64, u32]`.
     /// Finally, a type like `String` would have no generic parameters.
-    ///
     // TODO remove dynamic dispatch
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &Self> + '_> {
         match &self {

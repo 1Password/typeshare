@@ -1,23 +1,18 @@
 pub mod config;
 pub mod type_mapping;
 
-use crate::parsed_types::{AnonymousStructVariant, Id, ParsedStruct};
+use std::{error::Error, fmt::Debug, io::Write, ops::Deref};
+
 pub use config::LanguageConfig;
 use itertools::Itertools;
+use log::error;
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
 pub use type_mapping::{TypeMapping, TypeMappingValue};
 
-use log::error;
-
-use serde::{Deserialize, Serialize};
-use std::error::Error;
-
-use std::ops::Deref;
-use std::{fmt::Debug, io::Write};
-use thiserror::Error;
-
 use crate::parsed_types::{
-    Comment, CommentLocation, DecoratorsMap, EnumVariant, Generics, ParsedData, ParsedEnum,
-    SpecialType, StructShared, Type, TypeError,
+    AnonymousStructVariant, Comment, CommentLocation, DecoratorsMap, EnumVariant, Generics, Id,
+    ParsedData, ParsedEnum, ParsedStruct, SpecialType, StructShared, Type, TypeError,
 };
 
 #[derive(Debug, Error)]
@@ -175,10 +170,7 @@ pub trait Generate<L: Language> {
 ///
 /// ```
 /// enum AlgebraicEnum {
-///     AnonymousStruct {
-///         field: String,
-///         another_field: bool,
-///     },
+///     AnonymousStruct { field: String, another_field: bool },
 /// }
 /// ```
 ///

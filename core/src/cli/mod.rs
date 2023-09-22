@@ -1,17 +1,30 @@
-use crate::cli::config::{find_configuration_file, store_config, Config};
-use crate::language::{Language, LanguageConfig};
+use std::{
+    fs::File,
+    io,
+    io::read_to_string,
+    path::{Path, PathBuf},
+    process,
+};
+
 pub use clap;
-use clap::{Args, Parser, Subcommand};
+
 pub use clap_complete;
 pub use ignore;
-use std::fs::File;
-use std::io::{read_to_string, Error};
-use std::path::{Path, PathBuf};
-use std::{io, process};
+
 pub use toml;
 
-pub mod config;
+use crate::{
+    cli::config::{find_configuration_file, Config},
+    language::Language,
+};
 
+pub mod config;
+pub mod ffi;
+
+/// Initializes the logger used by typeshare
+pub fn init_log() {
+    simple_log::quick!();
+}
 pub fn init_config<L: Language>(config: impl AsRef<Path>) -> ! {
     let config_path = config.as_ref();
     if config_path.exists() {

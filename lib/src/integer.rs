@@ -1,10 +1,13 @@
 //! Integer types for use in the FFI layer.
 
+use std::{
+    cmp::Ordering,
+    convert::TryFrom,
+    fmt,
+    fmt::{Display, Formatter},
+};
+
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::convert::TryFrom;
-use std::fmt;
-use std::fmt::{Display, Formatter};
 
 const U53_MAX: u64 = 9_007_199_254_740_991;
 #[allow(clippy::as_conversions)]
@@ -152,8 +155,9 @@ pub fn usize_from_u64_saturated(value: u64) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::convert::TryInto;
+
+    use super::*;
 
     // I54
     #[test]

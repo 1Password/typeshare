@@ -1,9 +1,15 @@
-use crate::parsed_types::{Generics, Number, SpecialType, Type, TypeError};
-use crate::rename::RenameAll;
-use quote::ToTokens;
 use std::str::FromStr;
-use syn::parse::{Parse, ParseStream};
-use syn::{Expr, ExprLit, GenericParam, Lit, LitStr, TypeArray, TypeSlice};
+
+use quote::ToTokens;
+use syn::{
+    parse::{Parse, ParseStream},
+    Expr, ExprLit, GenericParam, Lit, LitStr, TypeArray, TypeSlice,
+};
+
+use crate::{
+    parsed_types::{Generics, Number, SpecialType, Type, TypeError},
+    rename::RenameAll,
+};
 
 impl Parse for RenameAll {
     fn parse(input: ParseStream) -> syn::Result<Self> {

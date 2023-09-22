@@ -1,7 +1,8 @@
-use crate::language::TypeMapping;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use std::ops::Add;
+
+use serde::{de::DeserializeOwned, Serialize};
+
+use crate::language::TypeMapping;
 
 pub trait LanguageConfig: Serialize + DeserializeOwned + Default + Add {
     fn default_file_name(&self) -> &str;

@@ -1,8 +1,11 @@
-use crate::lang_impl::TypescriptResult;
-use crate::TypeScript;
 use std::io::Write;
-use typeshare_core::language::{Generate, TypeFormatter};
-use typeshare_core::parsed_types::ParsedStruct;
+
+use typeshare_core::{
+    language::{Generate, TypeFormatter},
+    parsed_types::ParsedStruct,
+};
+
+use crate::{lang_impl::TypescriptResult, TypeScript};
 
 impl Generate<TypeScript> for ParsedStruct {
     fn generate_to(

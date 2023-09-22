@@ -1,27 +1,27 @@
-use super::ToType;
-use serde::de::{MapAccess, Visitor};
-use serde::ser::SerializeStruct;
-use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
 
+use serde::de::Error;
+use serde::{
+    de::{MapAccess, Visitor},
+    ser::SerializeStruct,
+    Deserialize, Serialize,
+};
+
+use super::ToType;
 use crate::parsed_types::{Comment, CommentLocation};
-use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypeMappingValue {
     pub to_type: ToType,
     pub doc: Comment,
 }
-
-impl Into<String> for TypeMappingValue {
-    fn into(self) -> String {
-        self.to_type.into()
-    }
-}
-impl From<String> for TypeMappingValue {
-    fn from(s: String) -> Self {
+impl<'a> From<&'a str> for TypeMappingValue {
+    fn from(s: &str) -> Self {
         TypeMappingValue {
-            to_type: ToType::LangType(s),
+            to_type: ToType::LangType(s.to_string()),
             doc: Comment::default(),
         }
     }
@@ -32,12 +32,24 @@ impl FromStr for TypeMappingValue {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(TypeMappingValue {
             to_type: ToType::LangType(s.to_string()),
-            doc: Comment::None {
-                location: CommentLocation::Field,
-            },
+            doc: Comment::default(),
         })
     }
 }
+impl From<String> for TypeMappingValue {
+    fn from(s: String) -> Self {
+        TypeMappingValue {
+            to_type: ToType::LangType(s),
+            doc: Comment::default(),
+        }
+    }
+}
+impl Into<String> for TypeMappingValue {
+    fn into(self) -> String {
+        self.to_type.into()
+    }
+}
+
 impl Display for TypeMappingValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.to_type.fmt(f)
@@ -77,23 +89,19 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
     where
         E: serde::de::Error,
     {
-        Ok(TypeMappingValue {
-            to_type: ToType::LangType(v.to_string()),
-            doc: Comment::None {
-                location: CommentLocation::Field,
-            },
-        })
+        Ok(TypeMappingValue::from(v))
     }
     fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(TypeMappingValue {
-            to_type: ToType::LangType(v),
-            doc: Comment::None {
-                location: CommentLocation::Field,
-            },
-        })
+        Ok(TypeMappingValue::from(v))
+    }
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(TypeMappingValue::from(v))
     }
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
@@ -101,8 +109,8 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
     {
         let mut to_type = None;
         let mut doc = None;
-        while let Some(key) = map.next_key()? {
-            match key {
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
                 TO_TYPE => {
                     if to_type.is_some() {
                         return Err(serde::de::Error::duplicate_field(TO_TYPE));
@@ -123,7 +131,7 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
                     }
                 }
                 _ => {
-                    return Err(serde::de::Error::unknown_field(key, &[TO_TYPE, DOC]));
+                    return Err(serde::de::Error::unknown_field(&key, &[TO_TYPE, DOC]));
                 }
             }
         }

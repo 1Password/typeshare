@@ -1,13 +1,15 @@
-use crate::language::TypeMapping;
-use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
 use std::{
+    collections::{HashMap, VecDeque},
     env,
     fs::{self, OpenOptions},
     io::{self, Write},
     path::{Path, PathBuf},
 };
+
+use serde::{Deserialize, Serialize};
 use toml::Value;
+
+use crate::language::TypeMapping;
 
 pub(crate) const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]

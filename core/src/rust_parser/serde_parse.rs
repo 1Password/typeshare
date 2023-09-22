@@ -1,8 +1,11 @@
-use crate::rename::RenameAll;
-
 use std::ops::Add;
-use syn::parse::{Parse, ParseStream};
-use syn::{Attribute, Token};
+
+use syn::{
+    parse::{Parse, ParseStream},
+    Attribute, Token,
+};
+
+use crate::rename::RenameAll;
 
 const SERDE: &str = "serde";
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

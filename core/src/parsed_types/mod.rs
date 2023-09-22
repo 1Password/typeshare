@@ -7,6 +7,8 @@ mod struct_type;
 mod type_alias;
 mod types;
 
+use std::ops::Add;
+
 #[doc(inline)]
 pub use crate::parsed_types::comment::{Comment, CommentLocation};
 #[doc(inline)]
@@ -26,8 +28,6 @@ pub use crate::parsed_types::struct_type::{ParsedStruct, StructShared};
 pub use crate::parsed_types::type_alias::ParsedTypeAlias;
 #[doc(inline)]
 pub use crate::parsed_types::types::{Number, SpecialType, Type, TypeError};
-
-use std::ops::Add;
 
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]

@@ -1,5 +1,7 @@
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(
     feature = "serde-everything",

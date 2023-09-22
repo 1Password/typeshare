@@ -1,19 +1,24 @@
-use crate::parsed_types::{
-    Comment, CommentLocation, Field, Generics, Item, ParsedStruct, ParsedTypeAlias, Source,
-    StructShared, Type,
-};
-use crate::rust_parser::decorator::get_lang_decorators;
-use crate::rust_parser::serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs};
-use crate::rust_parser::typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs};
-use crate::rust_parser::{get_ident, parse_comment_attrs, ParseError};
 use syn::{Fields, ItemStruct};
+
+use crate::{
+    parsed_types::{
+        Comment, CommentLocation, Field, Generics, Item, ParsedStruct, ParsedTypeAlias, Source,
+        StructShared, Type,
+    },
+    rust_parser::{
+        decorator::get_lang_decorators,
+        get_ident, parse_comment_attrs,
+        serde_parse::{SerdeContainerAttrs, SerdeFieldAttrs},
+        typeshare_attrs::{TypeShareAttrs, TypeShareFieldAttrs},
+        ParseError,
+    },
+};
 
 /// Parses a struct into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-///
 
 pub fn parse_struct(s: &ItemStruct, source: Source) -> Result<Item, ParseError> {
     let typeshare_attr = TypeShareAttrs::from_attrs(&s.attrs)?;

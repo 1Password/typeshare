@@ -1,0 +1,3 @@
+[submodule "cli/highlighting/sublime_toml_highlighting"]
+	path = cli/highlighting/sublime_toml_highlighting
+	url = https://github.com/jasonwilliams/sublime_toml_highlighting.git

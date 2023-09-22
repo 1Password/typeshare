@@ -7,24 +7,24 @@ mod serde_parse;
 mod struct_parse;
 mod typeshare_attrs;
 
-use crate::rust_parser::enum_parse::parse_enum;
-
-use crate::parsed_types::{
-    Comment, CommentLocation, Generics, ParsedData, ParsedTypeAlias, Source, TypeError,
-};
-use crate::rename::RenameAll;
-use crate::rust_parser::struct_parse::parse_struct;
-use crate::rust_parser::typeshare_attrs::TypeShareAttrs;
-use crate::{
-    parsed_types::{Id, Type},
-    rename::RenameExt,
-};
-use proc_macro2::{Ident, Span};
 use std::convert::TryFrom;
 
-use syn::Meta;
-use syn::{Attribute, Expr, ItemType};
+
+
+use proc_macro2::{Ident, Span};
+use syn::{Attribute, Expr, ItemType, Meta};
 use thiserror::Error;
+
+use crate::{
+    parsed_types::{
+        Comment, CommentLocation, Generics, Id, ParsedData, ParsedTypeAlias, Source, Type,
+        TypeError,
+    },
+    rename::{RenameAll, RenameExt},
+    rust_parser::{
+        enum_parse::parse_enum, struct_parse::parse_struct, typeshare_attrs::TypeShareAttrs,
+    },
+};
 
 pub const TYPESHARE_ATTR: &str = "typeshare";
 

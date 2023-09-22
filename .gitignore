@@ -13,3 +13,6 @@ dist/
 # IDE specific files
 .idea/
 .vscode/
+test_home/
+typeshare.toml
+tmp
