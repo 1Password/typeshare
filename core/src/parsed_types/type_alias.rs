@@ -1,14 +1,12 @@
 use crate::parsed_types::{comment::Comment, Generics, Id, Source, Type};
+use serde::{Deserialize, Serialize};
 
 /// Rust type alias.
 /// ```
 /// pub struct MasterPassword(String);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+
 pub struct ParsedTypeAlias {
     pub source: Source,
     /// The identifier for the alias.

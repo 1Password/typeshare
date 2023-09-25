@@ -1,12 +1,15 @@
 pub mod config;
 pub mod type_mapping;
 
-use std::{error::Error, fmt::Debug, io::Write, ops::Deref};
+use std::fs::{create_dir_all, OpenOptions};
+use std::path::PathBuf;
+use std::{error::Error, fmt::Debug, io, io::Write, ops::Deref};
 
 pub use config::LanguageConfig;
 use itertools::Itertools;
-use log::error;
+use log::{error, info};
 use serde::{Deserialize, Serialize};
+use strum::EnumIs;
 use thiserror::Error;
 pub use type_mapping::{TypeMapping, TypeMappingValue};
 
@@ -36,12 +39,69 @@ pub struct MultiFileItem {
     pub internal_type: String,
     pub content: String,
 }
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumIs)]
 pub enum WriteTypesResult {
     MultiFile { files: Vec<MultiFileItem> },
     SingleFile(String),
 }
-
+impl WriteTypesResult {
+    pub fn write_parse_with_default_file(self, out: PathBuf, default_file: &str) -> io::Result<()> {
+        let out = if self.is_single_file() && out.exists() && out.is_dir() {
+            out.join(default_file)
+        } else {
+            out
+        };
+        self.write_parse(out)
+    }
+    pub fn write_parse(self, out: PathBuf) -> io::Result<()> {
+        match self {
+            WriteTypesResult::MultiFile { files } => {
+                if out.exists() {
+                    if !out.is_dir() {
+                        return Err(io::Error::new(
+                            io::ErrorKind::AlreadyExists,
+                            format!("{} is not a directory", out.display()),
+                        ));
+                    }
+                } else {
+                    create_dir_all(&out)?;
+                }
+                for multi_file_item in files {
+                    let write_to = out.join(multi_file_item.name);
+                    info!(
+                        "Writing {} to {}",
+                        multi_file_item.internal_type,
+                        write_to.display()
+                    );
+                    let mut file = OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .create(true)
+                        .open(write_to)?;
+                    if let Err(error) = file.write_all(multi_file_item.content.as_bytes()) {
+                        error!("Error writing {}: {}", multi_file_item.internal_type, error);
+                    }
+                }
+            }
+            WriteTypesResult::SingleFile(single) => {
+                if out.exists() && out.is_dir() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::AlreadyExists,
+                        format!("{} is a directory", out.display()),
+                    ));
+                }
+                let mut out = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(out)?;
+                out.write_all(single.as_bytes())?;
+                return Ok(());
+            }
+        }
+        Ok(())
+    }
+}
 pub type LangResult<T, E> = Result<T, LanguageError<E>>;
 /// Language-specific state and processing.
 ///
@@ -100,7 +160,7 @@ pub trait TypeFormatter: Language {
     ) -> LangResult<String, Self::Error> {
         Ok(
             if let Some(mapped) = self.get_config().type_mappings().get(base) {
-                mapped.to_string().into()
+                mapped.to_string()
             } else {
                 base.into()
             },

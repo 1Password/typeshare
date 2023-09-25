@@ -1,0 +1,15 @@
+[package]
+name = "typeshare-annotation"
+version = "1.0.2"
+rust-version = "1.57"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "The annotation used to mark types for typeshare"
+repository = "https://github.com/1Password/typeshare"
+authors = ["Wyatt Jacob Herkamp <wherkamp@gmail.com>", "1Password"]
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = "1.0"

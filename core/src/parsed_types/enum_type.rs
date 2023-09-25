@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
 use strum::EnumIs;
@@ -5,12 +6,8 @@ use strum::EnumIs;
 use crate::parsed_types::{Comment, DecoratorsMap, Field, Generics, Id, Source, Type};
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug, Clone, PartialEq, EnumIs)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, EnumIs, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum ParsedEnum {
     SerializedAs {
         value_type: Type,
@@ -44,11 +41,8 @@ pub enum ParsedEnum {
     Algebraic(AlgebraicEnum),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+
 pub struct AlgebraicEnum {
     /// The parsed value of the `#[serde(tag = "...")]` attribute
     pub tag_key: String,
@@ -88,11 +82,8 @@ impl DerefMut for ParsedEnum {
 }
 
 /// Enum information shared among different enum types
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+
 pub struct EnumShared {
     pub source: Source,
     /// The enum's ident
@@ -113,12 +104,8 @@ pub struct EnumShared {
 }
 
 /// Parsed information about a Rust enum variant
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum EnumVariant {
     /// A unit variant
     Unit(EnumVariantShared),
@@ -127,22 +114,15 @@ pub enum EnumVariant {
     /// An anonymous struct variant
     AnonymousStruct(AnonymousStructVariant),
 }
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+
 pub struct TupleVariant {
     /// The type of the single tuple field
     pub ty: Type,
     /// Shared context for this enum.
     pub shared: EnumVariantShared,
 }
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AnonymousStructVariant {
     /// The fields of the anonymous struct
     pub fields: Vec<Field>,
@@ -181,11 +161,8 @@ impl DerefMut for EnumVariant {
 }
 
 /// Variant information shared among different variant types
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+
 pub struct EnumVariantShared {
     /// The variant's ident
     pub id: Id,

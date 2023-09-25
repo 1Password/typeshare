@@ -2,9 +2,9 @@
 name = "typescript"
 version = "0.1.0"
 edition = "2021"
-authors.workspace = true
-license.workspace = true
-repository.workspace = true
+license = "MIT OR Apache-2.0"
+authors = ["Wyatt Jacob Herkamp <wherkamp@gmail.com>", "1Password"]
+repository = "https://github.com/wyatt-herkamp/typeshare"
 description = "Typeshare typescript generator"
 build = "../lang_build.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,20 +12,15 @@ build = "../lang_build.rs"
 name = "typeshare_typescript"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
-[[bin]]
-name = "typeshare-typescript"
-path = "src/bin/main.rs"
-required-features = ["cli"]
 
 [dependencies]
-serde = { workspace=true}
+serde = { version = "1",features = ["derive"] }
 typeshare-core = { path = "../../core", version = "1.8.0" }
-thiserror = {workspace=true}
-joinery = {workspace=true}
+typeshare-module = { path = "../../lang_module", version = "1.8.0" }
+thiserror = "1"
+joinery = "3"
 log = "0.4.20"
 [dev-dependencies]
 toml = "0.8"
 [build-dependencies]
 vergen = { version = "8",features = ["build","rustc"] }
-[features]
-cli = ["typeshare-core/cli", "typeshare-core/rust-parsing"]

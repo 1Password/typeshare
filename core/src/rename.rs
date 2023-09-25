@@ -1,35 +1,101 @@
-use strum::{EnumIter, EnumString};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use strum::{Display, EnumIter, EnumString};
 
 // Based off Serde implementation: https://github.com/serde-rs/serde/blob/7950f3cdc52d4898aa4195b853cbec12d65bb091/serde_derive/src/internals/case.rs
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, EnumIter, Display)]
 pub enum RenameAll {
     #[strum(serialize = "camelCase")]
-    CamelCase,
+    Camel,
     #[strum(serialize = "PascalCase")]
-    PascalCase,
+    Pascal,
     #[strum(serialize = "snake_case")]
-    SnakeCase,
+    Snake,
     #[strum(serialize = "SCREAMING_SNAKE_CASE")]
-    ScreamingSnakeCase,
+    ScreamingSnake,
     #[strum(serialize = "kebab-case")]
-    KebabCase,
+    Kebab,
     #[strum(serialize = "SCREAMING-KEBAB-CASE")]
-    ScreamingKebabCase,
+    ScreamingKebab,
 }
-pub trait RenameExt {
-    fn to_camel_case(&self) -> String;
-    fn to_pascal_case(&self) -> String;
-    fn to_snake_case(&self) -> String;
-    fn to_screaming_snake_case(&self) -> String;
-    fn to_kebab_case(&self) -> String;
-    fn to_screaming_kebab_case(&self) -> String;
+impl Serialize for RenameAll {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.to_string().as_str())
+    }
+}
+impl<'de> Deserialize<'de> for RenameAll {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        RenameAll::from_str(&s).map_err(serde::de::Error::custom)
+    }
 }
 
+pub trait RenameExt {
+    type Target;
+    fn to_target(&self) -> Self::Target;
+    fn to_camel_case(&self) -> Self::Target;
+    fn to_pascal_case(&self) -> Self::Target;
+    fn to_snake_case(&self) -> Self::Target;
+    fn to_screaming_snake_case(&self) -> Self::Target;
+    fn to_kebab_case(&self) -> Self::Target;
+    fn to_screaming_kebab_case(&self) -> Self::Target;
+
+    fn to_case(&self, case: RenameAll) -> Self::Target {
+        match case {
+            RenameAll::Camel => self.to_camel_case(),
+            RenameAll::Pascal => self.to_pascal_case(),
+            RenameAll::Snake => self.to_snake_case(),
+            RenameAll::ScreamingSnake => self.to_screaming_snake_case(),
+            RenameAll::Kebab => self.to_kebab_case(),
+            RenameAll::ScreamingKebab => self.to_screaming_kebab_case(),
+        }
+    }
+
+    fn to_case_option(&self, case: Option<RenameAll>) -> Self::Target {
+        match case {
+            None => self.to_target(),
+            Some(case) => self.to_case(case),
+        }
+    }
+}
+impl<'a> RenameExt for &'a str {
+    type Target = String;
+
+    fn to_target(&self) -> Self::Target {
+        self.to_string()
+    }
+
+    fn to_camel_case(&self) -> Self::Target {
+        self.to_string().to_camel_case()
+    }
+
+    fn to_pascal_case(&self) -> Self::Target {
+        self.to_string().to_pascal_case()
+    }
+
+    fn to_snake_case(&self) -> Self::Target {
+        self.to_string().to_snake_case()
+    }
+
+    fn to_screaming_snake_case(&self) -> Self::Target {
+        self.to_string().to_screaming_snake_case()
+    }
+
+    fn to_kebab_case(&self) -> Self::Target {
+        self.to_string().to_kebab_case()
+    }
+
+    fn to_screaming_kebab_case(&self) -> Self::Target {
+        self.to_string().to_screaming_kebab_case()
+    }
+}
 impl RenameExt for String {
+    type Target = String;
+
+    fn to_target(&self) -> Self::Target {
+        self.clone()
+    }
+
     fn to_camel_case(&self) -> String {
         let pascal = self.to_pascal_case();
         pascal[..1].to_ascii_lowercase() + &pascal[1..]

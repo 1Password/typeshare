@@ -1,0 +1,17 @@
+[package]
+name = "typeshare"
+version = "1.0.1"
+rust-version = "1.57"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+readme = "../README.md"
+description = "Seamlessly share type definitions across multiple languages for FFI interoperability"
+repository = "https://github.com/1Password/typeshare"
+authors = ["Wyatt Jacob Herkamp <wherkamp@gmail.com>", "1Password"]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "wasmbind"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+typeshare-annotation = { path = "../annotation", version = "1.0.0" }
+

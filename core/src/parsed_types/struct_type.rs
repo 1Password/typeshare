@@ -1,11 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
 use crate::parsed_types::{comment::Comment, DecoratorsMap, Field, Generics, Id, Source, Type};
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StructShared {
     pub source: Source,
     /// The identifier for the struct.
@@ -20,12 +17,8 @@ pub struct StructShared {
     pub decorators: DecoratorsMap,
 }
 /// Rust struct.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum ParsedStruct {
     TraditionalStruct {
         /// The fields of the struct.

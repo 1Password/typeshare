@@ -44,9 +44,9 @@ impl From<String> for TypeMappingValue {
         }
     }
 }
-impl Into<String> for TypeMappingValue {
-    fn into(self) -> String {
-        self.to_type.into()
+impl From<TypeMappingValue> for String {
+    fn from(value: TypeMappingValue) -> Self {
+        value.to_type.into()
     }
 }
 
@@ -57,16 +57,17 @@ impl Display for TypeMappingValue {
 }
 const TO_TYPE: &str = "type";
 const DOC: &str = "docs";
-
+#[allow(clippy::comparison_chain)]
 impl Serialize for TypeMappingValue {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         if !self.doc.is_empty() {
-            let length = if self.doc.len() >= 1 { 2 } else { 1 };
+            let length = if !self.doc.is_empty() { 2 } else { 1 };
             let mut s = serializer.serialize_struct("TypeMappingValue", length)?;
             s.serialize_field(TO_TYPE, &self.to_type)?;
+
             if self.doc.len() == 1 {
                 s.serialize_field(DOC, &self.doc.first())?;
             } else if self.doc.len() > 1 {
@@ -91,15 +92,15 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
     {
         Ok(TypeMappingValue::from(v))
     }
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(TypeMappingValue::from(v))
-    }
     fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
     where
         E: Error,
+    {
+        Ok(TypeMappingValue::from(v))
+    }
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
     {
         Ok(TypeMappingValue::from(v))
     }
@@ -131,11 +132,11 @@ impl<'de> Visitor<'de> for TypeMappingValueVisitor {
                     }
                 }
                 _ => {
-                    return Err(serde::de::Error::unknown_field(&key, &[TO_TYPE, DOC]));
+                    return Err(Error::unknown_field(&key, &[TO_TYPE, DOC]));
                 }
             }
         }
-        let to_type = to_type.ok_or_else(|| serde::de::Error::missing_field(TO_TYPE))?;
+        let to_type = to_type.ok_or_else(|| Error::missing_field(TO_TYPE))?;
         Ok(TypeMappingValue {
             to_type,
             doc: doc.unwrap_or_default(),

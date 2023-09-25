@@ -1,89 +1,32 @@
 pub mod config;
 mod lang_impl;
 
-use crate::config::TypeScriptConfig;
 pub use lang_impl::TypeScript;
-use std::str;
+use typeshare_module::build_typeshare_module;
+#[test]
+pub fn test() {}
+#[build_typeshare_module]
+pub mod typeshare_module_impl {
+    use crate::config::TypeScriptConfig;
+    use crate::lang_impl::TypescriptError;
+    use crate::TypeScript;
+    use typeshare_core::language::{Language, LanguageError, WriteTypesResult};
+    use typeshare_core::parsed_types::ParsedData;
 
-#[cfg(feature = "cli")]
-use typeshare_core::define_command;
+    pub type TypeConfig = TypeScriptConfig;
+    pub type LanguageType = TypeScript;
+    pub static LANGUAGE_NAME: &str = "typescript";
 
-use typeshare_core::FFILanguageDescription;
-pub const DESCRIPTION: FFILanguageDescription = FFILanguageDescription::new(
-    "typescript",
-    env!("CARGO_PKG_VERSION"),
-    env!("VERGEN_RUSTC_SEMVER"),
-    #[cfg(feature = "cli")]
-    true,
-    #[cfg(not(feature = "cli"))]
-    false,
-);
-
-#[cfg(feature = "cli")]
-define_command!(TypeScriptConfig, TypeScript);
-#[cfg(feature = "cli")]
-pub mod ffi {
-    use super::{execute_inner, GenerateCommand, DESCRIPTION};
-    use crate::config::{DEFAULT_CONFIG};
-    use log::error;
-    use std::ffi::{c_char, CString};
-    
-    use std::mem;
-    
-    use std::ptr::null;
-    use typeshare_core::cli::clap::Parser;
-    use typeshare_core::cli::ffi::to_args_array;
-    
-    use typeshare_core::FFILanguageDescription;
-
-    #[doc(hidden)]
-    #[no_mangle]
-    pub extern "C" fn description() -> FFILanguageDescription {
-        DESCRIPTION
+    pub fn build_types(
+        config: TypeScriptConfig,
+        parsed_data: ParsedData,
+    ) -> Result<(WriteTypesResult, String), LanguageError<TypescriptError>> {
+        let mut typescript = TypeScript { config };
+        typescript
+            .generate_from_parse(&parsed_data)
+            .map(|v| (v, typescript.config.default_file_name))
     }
-
-    #[doc(hidden)]
-    #[no_mangle]
-    pub extern "C" fn generate_default_config() -> *const c_char {
-        let Ok(string) = CString::new(DEFAULT_CONFIG) else {
-            error!("Could not Load Default Config");
-            return null();
-        };
-        let ptr = string.as_ptr();
-        mem::forget(string);
-        ptr
+    pub fn get_default_config() -> String {
+        include_str!("./default_config.toml").to_string()
     }
-    #[doc(hidden)]
-    #[no_mangle]
-    pub extern "C" fn execute(args: *const *const c_char, size: usize) {
-        match to_args_array(args, size) {
-            Ok(ok) => {
-                let command = GenerateCommand::parse_from(ok);
-                execute_inner(command);
-            }
-            Err(err) => {
-                eprintln!("Could not Parse Arguments: {}", err);
-                std::process::exit(1);
-            }
-        }
-    }
-}
-
-#[doc(hidden)]
-#[cfg(feature = "cli")]
-pub fn execute_inner(generate_command: GenerateCommand) {
-    let (config, lang_config, output) = generate_command.load_or_exit();
-    let mut lang = TypeScript {
-        config: lang_config,
-    };
-
-    let Err(error) =
-        typeshare_core::process_directories_and_write(&mut lang, config.directories, output)
-    else {
-        println!("Success!");
-        std::process::exit(0);
-    };
-
-    eprintln!("Error: {}", error);
-    std::process::exit(1);
 }

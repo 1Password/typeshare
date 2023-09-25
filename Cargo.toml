@@ -1,10 +1,15 @@
 [workspace]
 members = [
-    "annotation",
     "cli",
     "core",
-    "langs/typescript",
-    "lib"
+    "parsers/json_schema",
+    "parsers/raw_json",
+    "parsers/rust_parser/lib",
+    "parsers/rust_parser",
+    "parsers/rust_parser/annotation",
+    "lang_module",
+    "lang_module/macros",
+    "langs/typescript"
 ]
 resolver = "2"
 
@@ -20,11 +25,14 @@ clap_complete = { version = "4" }
 toml = { version = "0.8"}
 rayon = { version = "1"}
 thiserror = { version = "1" }
+console = "0.15"
 joinery = { version = "3" }
 lazy_format = { version = "2" }
 log = { version = "0.4" }
 strum = { version = "0.25", features = ["derive"] }
 semver = { version = "1" ,features = ["serde"]}
+derive_more = { version = "1.0.0-beta.3", features = ["into","from", "deref", "deref_mut"] }
+
 # Config for 'cargo dist'
 [workspace.metadata.dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)

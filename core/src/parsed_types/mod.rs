@@ -1,3 +1,6 @@
+/*!
+A Parsed Type that is used by the [Language] to generate code
+*/
 mod comment;
 mod decorators;
 mod enum_type;
@@ -7,6 +10,7 @@ mod struct_type;
 mod type_alias;
 mod types;
 
+use serde::{Deserialize, Serialize};
 use std::ops::Add;
 
 #[doc(inline)]
@@ -30,7 +34,7 @@ pub use crate::parsed_types::type_alias::ParsedTypeAlias;
 pub use crate::parsed_types::types::{Number, SpecialType, Type, TypeError};
 
 /// The results of parsing Rust source input.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct ParsedData {
     /// Structs defined in the source
     pub structs: Vec<ParsedStruct>,
@@ -76,12 +80,8 @@ impl ParsedData {
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Item {
     /// A `struct` definition
     Struct(ParsedStruct),
@@ -92,11 +92,8 @@ pub enum Item {
 }
 
 /// Rust field definition.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+
 pub struct Field {
     /// Identifier for the field.
     pub id: Id,

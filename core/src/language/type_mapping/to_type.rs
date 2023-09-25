@@ -139,10 +139,9 @@ impl Display for ToType {
         }
     }
 }
-
-impl Into<String> for ToType {
-    fn into(self) -> String {
-        match self {
+impl From<ToType> for String {
+    fn from(t: ToType) -> Self {
+        match t {
             ToType::LangType(s) => s,
             ToType::RustType(s) => s,
         }

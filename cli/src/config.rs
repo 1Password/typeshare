@@ -1,4 +1,3 @@
-use crate::ffi::LanguageLibrary;
 use crate::Error;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
@@ -8,19 +7,25 @@ use std::fs::File;
 
 use std::io::Write;
 use std::path::PathBuf;
-use tabled::Table;
+
 use toml::Value;
-use typeshare_core::LanguageDescription;
+use typeshare_module::ffi_interop::ffi_v1::library::LanguageLibrary;
+use typeshare_module::language_module::LanguageModule;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageEntry {
-    pub language: LanguageDescription,
+    pub language: LanguageModule,
     pub lib_path: PathBuf,
     pub default_config: Option<String>, // TODO: Add Default Config and CLI Layout for Auto Completion
 }
 impl Display for LanguageEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} at {}", self.language.name(), self.lib_path.display())
+        write!(
+            f,
+            "{} at {}",
+            self.language.language_name,
+            self.lib_path.display()
+        )
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,11 +37,11 @@ pub struct CLIConfig {
 
 impl CLIConfig {
     pub fn print_info(&self) {
-        let typeshare_home = crate::config::get_typeshare_directory();
+        let typeshare_home = get_typeshare_directory();
         println!("Typeshare home: {}", typeshare_home.display());
         println!("Languages directory: {}", self.languages_dir.display());
-        let table = Table::new(self.languages.iter().map(|v| &v.language));
-        println!("{}", table);
+        //todo let table = Table::new(self.languages.iter().map(|v| &v.language));
+        //println!("{}", table);
     }
 }
 impl CLIConfig {
@@ -47,7 +52,7 @@ impl CLIConfig {
         }
         let config_path = typeshare_home.join("config.toml");
         debug!("Config path: {}", config_path.display());
-        return if !config_path.exists() {
+        if !config_path.exists() {
             let languages_home = typeshare_home.join("languages");
             if !languages_home.exists() {
                 std::fs::create_dir_all(&languages_home)?;
@@ -70,7 +75,7 @@ impl CLIConfig {
         } else {
             let config = toml::from_str(&std::fs::read_to_string(&config_path)?)?;
             Ok(config)
-        };
+        }
     }
     pub fn save(&self) -> Result<(), Error> {
         let typeshare_home = get_typeshare_directory();
@@ -109,7 +114,7 @@ impl CLIConfig {
                     continue;
                 }
             };
-            let description = LanguageDescription::from(library.call_description()?);
+            let description = library.call_description()?;
             let default_config = library.get_default_config()?;
             if let Some(default_config) = &default_config {
                 toml::from_str::<Value>(default_config)?;
@@ -131,7 +136,9 @@ impl CLIConfig {
         Ok(())
     }
     pub fn get_language(&self, name: &str) -> Option<&LanguageEntry> {
-        self.languages.iter().find(|v| v.language.name() == name)
+        self.languages
+            .iter()
+            .find(|v| v.language.language_name == name)
     }
 }
 impl Default for CLIConfig {
@@ -142,23 +149,7 @@ impl Default for CLIConfig {
         }
     }
 }
-pub fn initialize() -> Result<(), Error> {
-    let typeshare_dir = get_typeshare_directory();
-    if !typeshare_dir.exists() {
-        std::fs::create_dir_all(&typeshare_dir)?;
-    }
-    let typeshare_config = typeshare_dir.join("config.toml");
-    if !typeshare_config.exists() {
-        let mut file = File::create(&typeshare_config)?;
-        let config = CLIConfig::default();
-        if !config.languages_dir.exists() {
-            std::fs::create_dir_all(&config.languages_dir)?;
-        }
-        let toml = toml::to_string_pretty(&config)?;
-        file.write_all(toml.as_bytes())?;
-    }
-    Ok(())
-}
+
 pub fn get_typeshare_directory() -> PathBuf {
     match std::env::var("TYPESHARE_HOME").ok() {
         None => {

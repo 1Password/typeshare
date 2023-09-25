@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -12,12 +13,8 @@ pub enum TypeError {
     NumericLiteral(anyhow::Error),
 }
 /// A Rust type.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum Type {
     /// A type with generic parameters. Consists of a type ID + parameters that come
     /// after in angled brackets. Examples include:
@@ -106,12 +103,8 @@ impl Type {
 }
 
 /// A special rust type that needs a manual type conversion
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum SpecialType {
     /// Represents `Vec<T>` from the standard library
     Vec(Box<Type>),
@@ -134,11 +127,8 @@ pub enum SpecialType {
     /// Represents `bool`
     Bool,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+
 pub enum Number {
     /// Represents `i8`
     I8,
@@ -169,9 +159,9 @@ pub enum Number {
     /// Represents `U53` from `typeshare::U53`
     U53,
 }
-impl Into<SpecialType> for Number {
-    fn into(self) -> SpecialType {
-        SpecialType::Number(self)
+impl From<Number> for SpecialType {
+    fn from(n: Number) -> Self {
+        Self::Number(n)
     }
 }
 impl Number {

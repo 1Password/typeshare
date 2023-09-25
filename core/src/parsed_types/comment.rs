@@ -1,12 +1,22 @@
+use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 use strum::{Display, EnumIs, EnumIter, IntoStaticStr};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumIs, Display, IntoStaticStr, EnumIter)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    EnumIs,
+    Display,
+    IntoStaticStr,
+    EnumIter,
+    Serialize,
+    Deserialize,
 )]
+
 pub enum CommentLocation {
     FileHeader,
     Type,
@@ -125,7 +135,9 @@ impl Display for Comment {
                 while let Some(line) = iter.next() {
                     write!(f, "{}", line)?;
                     if iter.peek().is_some() {
-                        write!(f, "\n")?;
+                        writeln!(f, "{}", line)?;
+                    } else {
+                        write!(f, "{}", line)?;
                     }
                 }
                 Ok(())

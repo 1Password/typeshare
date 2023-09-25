@@ -2,21 +2,26 @@
 //! languages based on Rust code.
 
 mod config;
-mod ffi;
 
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::path::PathBuf;
 
 use crate::config::CLIConfig;
-use clap::{arg, command, ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{
+    arg, command, ArgMatches, Command, CommandFactory, FromArgMatches, Parser, Subcommand,
+    ValueEnum,
+};
 use log::{error, warn};
-use syntect::highlighting::{ThemeSet};
+use syntect::highlighting::ThemeSet;
 use syntect::parsing::{SyntaxDefinition, SyntaxSetBuilder};
-use tabled::Table;
+
 use thiserror::Error;
-use toml::Value;
-use typeshare_core::cli::config::{load_config, Config as ProjectConfig};
+use typeshare_core::config::Config as ProjectConfig;
+use typeshare_core::value::Value;
+use typeshare_module::ffi_interop::ffi_v1::library;
+use typeshare_rust_parser::RustParser;
+
 static TOML_SYNTAX: &str =
     include_str!("../highlighting/sublime_toml_highlighting/TOML.sublime-syntax");
 #[derive(Error, Debug)]
@@ -24,11 +29,16 @@ pub enum Error {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
-    FFIError(#[from] ffi::Error),
+    FFIError(#[from] library::Error),
     #[error("Could not serialize config file: {0}. This is a bug, please report it.")]
     SerializeTomlError(#[from] toml::ser::Error),
     #[error("Could not parse config file: {0}")]
     DeserializeTomlError(#[from] toml::de::Error),
+}
+
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq)]
+pub enum LanguageParser {
+    Rust,
 }
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -36,6 +46,7 @@ pub struct CLI {
     #[command(subcommand)]
     subcommand: GenericSubCommands,
 }
+
 #[derive(Subcommand, Clone)]
 pub enum GenericSubCommands {
     #[clap(about = "Initializes the project configuration file")]
@@ -55,13 +66,14 @@ pub enum GenericSubCommands {
     Check {
         #[clap(long, short)]
         config: Option<PathBuf>,
+        #[clap(long, short, default_value = "rust")]
+        parser: LanguageParser,
         directories: Vec<String>,
     },
     Info,
     LoadLanguages,
 }
 fn main() {
-    typeshare_core::cli::init_log(); // Better Logging
     let app_config = match CLIConfig::get_app_config() {
         Ok(ok) => ok,
         Err(err) => {
@@ -119,11 +131,11 @@ fn execute_normal(cli: GenericSubCommands, mut cli_config: CLIConfig) -> Result<
                     let value = toml::from_str::<Value>(lang_default_value)?;
                     project_config
                         .language
-                        .insert(lang.language.name().to_string(), value);
+                        .insert(lang.language.language_name.to_string(), value);
                 } else {
                     warn!(
                         "Could not find default config for language {}",
-                        lang.language.name()
+                        lang.language.language_name
                     );
                 }
             }
@@ -138,7 +150,7 @@ fn execute_normal(cli: GenericSubCommands, mut cli_config: CLIConfig) -> Result<
             let Some(config) = lang.default_config.as_ref() else {
                 warn!(
                     "Could not find default config for language {}",
-                    lang.language.name()
+                    lang.language.language_name
                 );
                 return Ok(());
             };
@@ -171,37 +183,48 @@ fn execute_normal(cli: GenericSubCommands, mut cli_config: CLIConfig) -> Result<
             cli_config.rebuild_languages()?;
             cli_config.save()?;
             println!("Languages loaded");
-            let table = Table::new(cli_config.languages.iter().map(|v| &v.language));
-            println!("{}", table);
+            todo!("Add Back Tabled")
         }
         GenericSubCommands::Info => {}
         GenericSubCommands::Check {
             config,
+            parser,
             directories,
         } => {
-            return check(config, directories);
+            return check(config, parser, directories);
         }
     }
     Ok(())
 }
 
-pub fn check(config: Option<PathBuf>, directories: Vec<String>) -> Result<(), Error> {
-    let config = config.unwrap_or(PathBuf::from("typeshare.toml"));
-    let project_config = load_config(config)?;
+pub fn check(
+    config: Option<PathBuf>,
+    language_parser: LanguageParser,
+    directories: Vec<String>,
+) -> Result<(), Error> {
+    let config = config;
+    let project_config = ProjectConfig::load_config_with_default(config)?;
     let directories = if !directories.is_empty() {
         VecDeque::from(directories)
     } else {
         project_config.directories
     };
-    let result = typeshare_core::generate_parse::<Infallible>(directories);
-    match result {
-        Ok(_) => {
-            println!("Success!");
-            std::process::exit(0);
-        }
-        Err(err) => {
-            eprintln!("Error: {}", err);
-            std::process::exit(1);
+    match language_parser {
+        LanguageParser::Rust => {
+            let parser = RustParser::default();
+
+            let result =
+                typeshare_core::generate_parse::<RustParser, Infallible>(&parser, directories);
+            match result {
+                Ok(_) => {
+                    println!("Success!");
+                    std::process::exit(0);
+                }
+                Err(err) => {
+                    eprintln!("Error: {}", err);
+                    std::process::exit(1);
+                }
+            }
         }
     }
 }

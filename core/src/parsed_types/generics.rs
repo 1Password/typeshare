@@ -1,10 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+
 pub struct Generics {
     pub generics: Vec<String>,
 }

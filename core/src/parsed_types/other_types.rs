@@ -1,13 +1,10 @@
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, path::Path};
 
 use crate::rename::RenameAll;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Id {
     /// The original identifier name
     pub original: String,
@@ -31,13 +28,9 @@ impl Display for Id {
 /// The source of the Rust Item
 ///
 /// This does not guarantee that it is completely accurate, but it is the best we can do.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "serde-everything",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[non_exhaustive]
-#[cfg_attr(feature = "serde-everything", serde(tag = "type", content = "value"))]
+#[serde(tag = "type", content = "value")]
 pub enum Source {
     Rust { crate_name: String, path: String },
     Other { path: String },
