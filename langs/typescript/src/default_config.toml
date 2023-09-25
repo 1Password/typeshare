@@ -12,4 +12,4 @@ use_bigint = true
 "isize" = "BigInt"
 [type_mappings."duration"]
 type = "number"
-doc = "Duration in seconds"
+docs = "Duration in seconds"

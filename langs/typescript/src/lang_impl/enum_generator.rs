@@ -38,7 +38,7 @@ fn write_enum_variants(
             todo!("SerializedAs enums are not supported yet")
         }
     }
-    return Ok(());
+    Ok(())
 }
 impl Generate<TypeScript> for AlgebraicEnum {
     fn generate_to(
@@ -102,7 +102,7 @@ impl Generate<TypeScript> for AlgebraicEnum {
 
                         write!(write, "}}")?;
                     }
-                    write!(write, "}}\n")?;
+                    writeln!(write, "}}")?;
                 }
             }
         }
@@ -137,30 +137,28 @@ impl Generate<TypeScript> for ParsedEnum {
                 if EnumWriteMethod::ManyTypes == language.config.enum_write_method {
                     shared.comments.generate_to(language, write)?;
                     for variant in &shared.variants {
-                        match variant {
-                            EnumVariant::AnonymousStruct(AnonymousStructVariant {
-                                shared: variant_shared,
-                                fields,
-                            }) => {
-                                let variant_name =
-                                    format!("{}{}", shared.id.original, variant_shared.id.original);
+                        if let EnumVariant::AnonymousStruct(AnonymousStructVariant {
+                            shared: variant_shared,
+                            fields,
+                        }) = variant
+                        {
+                            let variant_name =
+                                format!("{}{}", shared.id.original, variant_shared.id.original);
 
-                                shared.comments.generate_to(language, write)?;
-                                writeln!(
-                                    write,
-                                    "export interface {}{} {{",
-                                    variant_name,
-                                    (!shared.generic_types.is_empty())
-                                        .then(|| format!("<{}>", shared.generic_types.join(", ")))
-                                        .unwrap_or_default()
-                                )?;
+                            shared.comments.generate_to(language, write)?;
+                            writeln!(
+                                write,
+                                "export interface {}{} {{",
+                                variant_name,
+                                (!shared.generic_types.is_empty())
+                                    .then(|| format!("<{}>", shared.generic_types.join(", ")))
+                                    .unwrap_or_default()
+                            )?;
 
-                                fields.iter().try_for_each(|f| {
-                                    language.write_field(write, f, shared.generic_types.as_slice())
-                                })?;
-                                writeln!(write, "}}\n")?;
-                            }
-                            _ => {}
+                            fields.iter().try_for_each(|f| {
+                                language.write_field(write, f, shared.generic_types.as_slice())
+                            })?;
+                            writeln!(write, "}}\n")?;
                         }
                     }
                 }

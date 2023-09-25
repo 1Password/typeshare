@@ -31,11 +31,12 @@ pub enum TypescriptError {
     #[error("Generic key forbidden in typescript: {0}")]
     GenericKeyForbiddenInTS(String),
 }
-impl Into<LanguageError<TypescriptError>> for TypescriptError {
-    fn into(self) -> LanguageError<TypescriptError> {
-        LanguageError::LanguageError(self)
+impl From<TypescriptError> for LanguageError<TypescriptError> {
+    fn from(e: TypescriptError) -> Self {
+        LanguageError::LanguageError(e)
     }
 }
+
 impl Language for TypeScript {
     type Config = TypeScriptConfig;
     type Error = TypescriptError;
@@ -95,7 +96,7 @@ impl Generate<TypeScript> for Comment {
             let tab_indent = match self.get_location() {
                 CommentLocation::FileHeader => String::new(),
                 CommentLocation::Type => String::new(),
-                CommentLocation::Field => "\t".repeat(1),
+                CommentLocation::Field => "\t".to_owned(),
             };
             let comment: String = match self {
                 Comment::Single { comment, .. } => {
@@ -129,7 +130,7 @@ impl TypeScript {
         generic_types: &[String],
     ) -> TypescriptResult<()> {
         if field.comments.is_empty() {
-            if let Some(comments) = self.config.type_mappings.get_comments(&field.ty.id()) {
+            if let Some(comments) = self.config.type_mappings.get_comments(field.ty.id()) {
                 let comments = comments.clone();
                 comments.generate_to(self, w)?;
             }
