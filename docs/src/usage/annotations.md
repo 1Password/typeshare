@@ -103,7 +103,24 @@ This would generate the following Kotlin code:
 typealias Options = String
 ```
 
+### TypeScript enum representation
 
+For unit enums, you can choose to generate a TypeScript union type instead
+of a TypeScript enum.
+
+```rust
+#[typeshare(ts_union)]
+pub enum UnitEnum {
+    VariantA,
+    VariantB,
+    VariantC,
+}
+```
+
+This would generate the following TypeScript code:
+```ts
+export type UnitEnum = "VariantA" | "VariantB" | "VariantC";
+```
 
 ## The `#[serde]` Attribute
 

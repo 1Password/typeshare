@@ -436,7 +436,7 @@ impl Language for Swift {
         let enum_name =
             swift_keyword_aware_rename(&format!("{}{}", self.prefix, shared.id.renamed));
         let always_present = match e {
-            RustEnum::Unit(_) => {
+            RustEnum::Unit { .. } => {
                 let mut always_present = vec!["String".into()];
                 always_present.append(&mut self.get_default_decorators());
                 always_present
@@ -547,7 +547,7 @@ impl Swift {
         let mut coding_keys = Vec::new();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 for v in &shared.variants {
                     let variant_name = v.shared().id.original.to_camel_case();
 

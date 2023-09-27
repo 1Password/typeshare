@@ -34,7 +34,7 @@ The test suite can of course be run normally without updating any expectations:
 cargo test -p typeshare-core
 ```
 
-If you find yourself needing to update expectations for a specific test only, run the following (subsituting the name of your test in for the last arg):
+If you find yourself needing to update expectations for a specific test only, run the following (substituting the name of your test in for the last arg):
 
 ```
 env UPDATE_EXPECT=1 cargo test -p typeshare-core --test snapshot_tests -- can_handle_serde_rename_all::swift

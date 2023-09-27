@@ -193,7 +193,7 @@ impl Language for Scala {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 writeln!(
                     w,
                     "sealed trait {}{} {{",
@@ -220,7 +220,7 @@ impl Language for Scala {
 impl Scala {
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 for v in shared.variants.iter() {
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(

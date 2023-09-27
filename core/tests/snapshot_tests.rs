@@ -374,6 +374,7 @@ tests! {
         scala,
         typescript
     ];
+    can_generate_unit_ts_union_enum: [typescript];
     can_generate_generic_struct: [
         swift {
             prefix: "Core".into(),

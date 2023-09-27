@@ -183,7 +183,7 @@ impl Go {
         write_comments(w, 0, &e.shared().comments)?;
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 writeln!(
                     w,
                     "type {} string",

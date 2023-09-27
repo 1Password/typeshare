@@ -482,7 +482,11 @@ pub enum RustEnum {
     ///     Yay,
     /// }
     /// ```
-    Unit(RustEnumShared),
+    Unit {
+        /// Represents this enum in typescript as union instead of ts enum
+        ts_union: bool,
+        shared: RustEnumShared,
+    },
     /// An algebraic enum
     ///
     /// An example of such an enum:
@@ -513,7 +517,7 @@ impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
         match self {
-            Self::Unit(shared) | Self::Algebraic { shared, .. } => shared,
+            Self::Unit { shared, .. } | Self::Algebraic { shared, .. } => shared,
         }
     }
 }
