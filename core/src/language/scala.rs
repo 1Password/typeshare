@@ -9,6 +9,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::io::ErrorKind;
 use std::ops::Deref;
 use std::{collections::HashMap, io::Write};
 
@@ -242,6 +243,16 @@ impl Scala {
                 shared,
                 ..
             } => {
+                let content_key = content_key.as_ref().ok_or_else(|| {
+                    std::io::Error::new(
+                        ErrorKind::Other,
+                        RustTypeFormatError::SerdeContentRequired {
+                            name: shared.id.to_string(),
+                            lang: "Scala".into(),
+                        },
+                    )
+                })?;
+
                 for v in shared.variants.iter() {
                     let printed_value = format!(r##"{:?}"##, &v.shared().id.renamed);
                     self.write_comments(w, 1, &v.shared().comments)?;

@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
@@ -216,6 +216,16 @@ impl Go {
                 shared,
                 ..
             } => {
+                let content_key = content_key.as_ref().ok_or_else(|| {
+                    std::io::Error::new(
+                        ErrorKind::Other,
+                        RustTypeFormatError::SerdeContentRequired {
+                            name: shared.id.to_string(),
+                            lang: "Go".into(),
+                        },
+                    )
+                })?;
+
                 let struct_name = self.acronyms_to_uppercase(&shared.id.original);
                 let content_field = content_key.to_string().to_camel_case();
                 let tag_field = self.format_field_name(tag_key.to_string(), true);

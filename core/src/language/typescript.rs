@@ -5,7 +5,7 @@ use crate::{
     language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
-use std::io;
+use std::io::{self, ErrorKind};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed to generate Typescript type-code
@@ -190,13 +190,16 @@ impl TypeScript {
             } => shared.variants.iter().try_for_each(|v| {
                 writeln!(w)?;
                 self.write_comments(w, 1, &v.shared().comments)?;
-                match v {
-                    RustEnumVariant::Unit(shared) => write!(
+                match (v, content_key) {
+                    (RustEnumVariant::Unit(shared), Some(content_key)) => write!(
                         w,
                         "\t| {{ {}: {:?}, {}?: undefined }}",
                         tag_key, shared.id.renamed, content_key
                     ),
-                    RustEnumVariant::Tuple { ty, shared } => {
+                    (RustEnumVariant::Unit(shared), None) => {
+                        write!(w, "\t| {{ {}: {:?} }}", tag_key, shared.id.renamed)
+                    }
+                    (RustEnumVariant::Tuple { ty, shared }, Some(content_key)) => {
                         let r#type = self
                             .format_type(ty, e.shared().generic_types.as_slice())
                             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
@@ -210,7 +213,13 @@ impl TypeScript {
                             r#type
                         )
                     }
-                    RustEnumVariant::AnonymousStruct { fields, shared } => {
+                    (RustEnumVariant::Tuple { .. }, None) => Err(std::io::Error::new(
+                        ErrorKind::Other,
+                        RustTypeFormatError::SerdeContentRequiredInTsTuple {
+                            name: shared.id.to_string(),
+                        },
+                    )),
+                    (RustEnumVariant::AnonymousStruct { fields, shared }, Some(content_key)) => {
                         writeln!(
                             w,
                             "\t| {{ {}: {:?}, {}: {{",
@@ -223,6 +232,19 @@ impl TypeScript {
 
                         write!(w, "}}")?;
                         write!(w, "}}")
+                    }
+                    (RustEnumVariant::AnonymousStruct { fields, shared }, None) => {
+                        if fields.is_empty() {
+                            write!(w, "\t| {{ {}: {:?} }}", tag_key, shared.id.renamed)
+                        } else {
+                            writeln!(w, "\t| {{ {}: {:?}; ", tag_key, shared.id.renamed)?;
+
+                            fields.iter().try_for_each(|f| {
+                                self.write_field(w, f, e.shared().generic_types.as_slice())
+                            })?;
+
+                            write!(w, "}}")
+                        }
                     }
                 }
             }),

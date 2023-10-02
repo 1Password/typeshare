@@ -377,6 +377,10 @@ pub enum RustTypeFormatError {
     GenericsForbiddenInGo(String),
     #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
     GenericKeyForbiddenInTS(String),
+    #[error("Serde content attribute needs to be specified for algebraic enum {name} in {lang}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
+    SerdeContentRequired { name: String, lang: String },
+    #[error("Serde content attribute needs to be specified for tuple variant of algebraic enum {name} in Typescript. e.g. #[serde(tag = \"type\", content = \"content\")]")]
+    SerdeContentRequiredInTsTuple { name: String },
 }
 
 impl SpecialRustType {
@@ -503,7 +507,7 @@ pub enum RustEnum {
         /// The parsed value of the `#[serde(tag = "...")]` attribute
         tag_key: String,
         /// The parsed value of the `#[serde(content = "...")]` attribute
-        content_key: String,
+        content_key: Option<String>,
         /// Shared context for this enum.
         shared: RustEnumShared,
     },

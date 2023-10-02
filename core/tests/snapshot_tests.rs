@@ -366,6 +366,9 @@ tests! {
         typescript,
         go
     ];
+    can_generate_non_tuple_algebraic_enum_internally_tagged: [
+        typescript
+    ];
     can_generate_generic_enum: [
         swift {
             prefix: "Core".into(),

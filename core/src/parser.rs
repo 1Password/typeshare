@@ -73,8 +73,6 @@ pub enum ParseError {
     SerdeContentNotAllowed { enum_ident: String },
     #[error("serde tag attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
     SerdeTagRequired { enum_ident: String },
-    #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-    SerdeContentRequired { enum_ident: String },
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
 }
@@ -316,14 +314,11 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         let tag_key = maybe_tag_key.ok_or_else(|| ParseError::SerdeTagRequired {
             enum_ident: original_enum_ident.clone(),
         })?;
-        let content_key = maybe_content_key.ok_or_else(|| ParseError::SerdeContentRequired {
-            enum_ident: original_enum_ident.clone(),
-        })?;
 
         Ok(RustItem::Enum(RustEnum::Algebraic {
             tag_key,
-            content_key,
             shared,
+            content_key: maybe_content_key,
         }))
     }
 }

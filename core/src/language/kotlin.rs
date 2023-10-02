@@ -9,6 +9,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::io::ErrorKind;
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -209,6 +210,16 @@ impl Kotlin {
                 shared,
                 ..
             } => {
+                let content_key = content_key.as_ref().ok_or_else(|| {
+                    std::io::Error::new(
+                        ErrorKind::Other,
+                        RustTypeFormatError::SerdeContentRequired {
+                            name: shared.id.to_string(),
+                            lang: "Kotlin".into(),
+                        },
+                    )
+                })?;
+
                 for v in &shared.variants {
                     let printed_value = format!(r##""{}""##, &v.shared().id.renamed);
                     self.write_comments(w, 1, &v.shared().comments)?;
