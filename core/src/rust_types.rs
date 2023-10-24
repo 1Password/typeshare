@@ -246,7 +246,8 @@ impl TryFrom<&syn::Type> for RustType {
                     "str" | "String" => Self::Special(SpecialRustType::String),
                     // These smart pointers can be treated as their inner type since serde can handle it
                     // See impls of serde::Deserialize
-                    "Box" | "Weak" | "Arc" | "Rc" | "Cow" | "ArcWeak" | "RcWeak" | "Cell" | "Mutex" | "RefCell" | "RwLock" => parameters.into_iter().next().unwrap(),
+                    "Box" | "Weak" | "Arc" | "Rc" | "Cow" | "ArcWeak" | "RcWeak" | "Cell"
+                    | "Mutex" | "RefCell" | "RwLock" => parameters.into_iter().next().unwrap(),
                     "bool" => Self::Special(SpecialRustType::Bool),
                     "char" => Self::Special(SpecialRustType::Char),
                     "u8" => Self::Special(SpecialRustType::U8),
