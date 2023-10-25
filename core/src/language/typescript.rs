@@ -139,7 +139,14 @@ impl Language for TypeScript {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, ts_union } if *ts_union => {
+                write!(w, "export type {} = ", shared.id.renamed)?;
+
+                self.write_enum_variants(w, e)?;
+
+                writeln!(w, ";\n")
+            }
+            RustEnum::Unit { shared, .. } => {
                 write!(
                     w,
                     "export enum {}{} {{",
@@ -171,8 +178,24 @@ impl TypeScript {
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         match e {
             // Write all the unit variants out (there can only be unit variants in
+            // this case). Format it as ts union.
+            RustEnum::Unit { shared, ts_union } if *ts_union => {
+                let variants = shared
+                    .variants
+                    .iter()
+                    .filter_map(|v| match v {
+                        RustEnumVariant::Unit(shared) => Some(format!("\"{}\"", shared.id.renamed)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+
+                write!(w, "{}", variants)
+            }
+
+            // Write all the unit variants out (there can only be unit variants in
             // this case)
-            RustEnum::Unit(shared) => shared.variants.iter().try_for_each(|v| match v {
+            RustEnum::Unit { shared, .. } => shared.variants.iter().try_for_each(|v| match v {
                 RustEnumVariant::Unit(shared) => {
                     writeln!(w)?;
                     self.write_comments(w, 1, &shared.comments)?;

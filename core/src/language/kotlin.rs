@@ -165,7 +165,7 @@ impl Language for Kotlin {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 write!(
                     w,
                     "enum class {}{}(val string: String) ",
@@ -192,7 +192,7 @@ impl Language for Kotlin {
 impl Kotlin {
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 for v in &shared.variants {
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(w, "\t@SerialName({:?})", &v.shared().id.renamed)?;
