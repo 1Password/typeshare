@@ -545,7 +545,7 @@ tests! {
     serialize_field_as: [kotlin, swift, typescript, scala,  go];
     serialize_type_alias: [kotlin, swift, typescript, scala,  go];
     serialize_anonymous_field_as: [kotlin, swift, typescript, scala,  go];
-    boxed_value: [kotlin, swift, typescript, scala,  go];
+    smart_pointers: [kotlin, swift, typescript, scala, go];
     recursive_enum_decorator: [kotlin, swift, typescript, scala,  go];
 
     uppercase_go_acronyms: [
