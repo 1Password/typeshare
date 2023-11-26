@@ -116,6 +116,16 @@ impl Language for Kotlin {
         self.write_comments(w, 0, &rs.comments)?;
         writeln!(w, "@Serializable")?;
 
+        for decorator in rs
+            .decorators
+            .get(&SupportedLanguage::Kotlin)
+            .unwrap_or(&Vec::<String>::new())
+            .iter()
+            .filter(|d| d != &"Serializable")
+        {
+            writeln!(w, "@{}", decorator)?;
+        }
+
         if rs.fields.is_empty() {
             // If the struct has no fields, we can define it as an static object.
             writeln!(w, "object {}\n", rs.id.renamed)?;

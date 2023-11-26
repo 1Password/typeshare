@@ -63,6 +63,19 @@ impl TryFrom<&Ident> for SupportedLanguage {
     }
 }
 
+impl ToString for SupportedLanguage {
+    fn to_string(&self) -> String {
+        match self {
+            SupportedLanguage::Go => "go",
+            SupportedLanguage::Kotlin => "kotlin",
+            SupportedLanguage::Scala => "scala",
+            SupportedLanguage::Swift => "swift",
+            SupportedLanguage::TypeScript => "typescript",
+        }
+        .to_owned()
+    }
+}
+
 /// Language-specific state and processing.
 ///
 /// The `Language` implementation is allowed to maintain mutable state, and it
