@@ -616,15 +616,19 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<St
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
 
-    for value in get_typeshare_name_value_meta_items(attrs, "swift").filter_map(literal_as_string) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+    for language in SupportedLanguage::all_languages() {
+        for value in get_typeshare_name_value_meta_items(attrs, &language.to_string())
+            .filter_map(literal_as_string)
+        {
+            let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
-        // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry(SupportedLanguage::Swift).or_default();
-        decs.extend(decorators);
-        // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
+            // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
+            let decs = out.entry(language).or_default();
+            decs.extend(decorators);
+            // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
+            decs.sort_unstable();
+            decs.dedup(); //removing any duplicates just in case
+        }
     }
 
     //return our hashmap mapping of language -> Vec<decorators>
