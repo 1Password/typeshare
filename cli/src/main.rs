@@ -257,6 +257,7 @@ fn main() {
         .filter_map(|dir_entry| dir_entry.path().to_str().map(String::from))
         .collect();
 
+    let supports_flatten = lang.supports_flatten();
     let mut generated_contents = vec![];
     let parsed_data = glob_paths
         .par_iter()
@@ -268,7 +269,7 @@ fn main() {
                     e = e
                 )
             });
-            let parsed_data = typeshare_core::parser::parse(&data);
+            let parsed_data = typeshare_core::parser::parse(&data, supports_flatten);
             if parsed_data.is_err() {
                 panic!("{}", parsed_data.err().unwrap());
             }

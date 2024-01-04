@@ -302,4 +302,7 @@ pub trait Language {
 
         Ok(())
     }
+
+    /// whether `#[serde(flatten)]` macro attribute is supported or not
+    fn supports_flatten(&self) -> bool;
 }

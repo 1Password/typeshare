@@ -215,6 +215,10 @@ impl Language for Scala {
         self.write_enum_variants(w, e)?;
         writeln!(w, "}}\n")
     }
+
+    fn supports_flatten(&self) -> bool {
+        false
+    }
 }
 
 impl Scala {

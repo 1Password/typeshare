@@ -80,7 +80,7 @@ pub enum ParseError {
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
+pub fn parse(input: &str, supports_flatten: bool) -> Result<ParsedData, ParseError> {
     let mut parsed_data = ParsedData::default();
 
     // We will only produce output for files that contain the `#[typeshare]`
@@ -96,7 +96,7 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
     for item in flatten_items(source.items.iter()) {
         match item {
             syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?);
+                parsed_data.push_rust_thing(parse_struct(s, supports_flatten)?);
             }
             syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
                 parsed_data.push_rust_thing(parse_enum(e)?);
@@ -133,7 +133,7 @@ fn flatten_items<'a>(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+fn parse_struct(s: &ItemStruct, supports_flatten: bool) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -158,6 +158,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
         }));
     }
 
+    let mut flattened: bool = false;
     Ok(match &s.fields {
         // Structs
         Fields::Named(f) => {
@@ -172,9 +173,14 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                         RustType::try_from(&f.ty)?
                     };
 
-                    if serde_flatten(&f.attrs) {
-                        return Err(ParseError::SerdeFlattenNotAllowed);
-                    }
+                    flattened = if serde_flatten(&f.attrs) {
+                        if !supports_flatten {
+                            return Err(ParseError::SerdeFlattenNotAllowed);
+                        }
+                        true
+                    } else {
+                        false
+                    };
 
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
@@ -185,6 +191,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
                         decorators,
+                        flattened,
                     })
                 })
                 .collect::<Result<_, ParseError>>()?;
@@ -382,6 +389,7 @@ fn parse_enum_variant(
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
                         decorators,
+                        flattened: false,
                     })
                 })
                 .collect::<Result<Vec<_>, ParseError>>()?,

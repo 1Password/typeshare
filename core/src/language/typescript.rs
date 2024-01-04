@@ -115,13 +115,32 @@ impl Language for TypeScript {
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> io::Result<()> {
         self.write_comments(w, 0, &rs.comments)?;
+        let mut inheritance = "".to_string();
+        let mut count = 0;
+        for field in rs.fields.iter() {
+            if field.flattened {
+                let ts_ty = self
+                    .format_type(&field.ty, &rs.generic_types)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                if count >= 1 {
+                    inheritance.push_str(", ");
+                }
+                inheritance.push_str(ts_ty.as_str());
+                count += 1;
+            }
+        }
         writeln!(
             w,
-            "export interface {}{} {{",
+            "export interface {}{}{} {{",
             rs.id.renamed,
             (!rs.generic_types.is_empty())
                 .then(|| format!("<{}>", rs.generic_types.join(", ")))
-                .unwrap_or_default()
+                .unwrap_or_default(),
+            if !inheritance.is_empty() {
+                format!(" extends {}", inheritance)
+            } else {
+                "".to_string()
+            }
         )?;
 
         rs.fields
@@ -164,6 +183,10 @@ impl Language for TypeScript {
                 writeln!(w)
             }
         }
+    }
+
+    fn supports_flatten(&self) -> bool {
+        true
     }
 }
 
@@ -235,6 +258,9 @@ impl TypeScript {
         field: &RustField,
         generic_types: &[String],
     ) -> io::Result<()> {
+        if field.flattened {
+            return Ok(());
+        }
         self.write_comments(w, 1, &field.comments)?;
         let ts_ty: String = match field.type_override(SupportedLanguage::TypeScript) {
             Some(type_override) => type_override.to_owned(),
