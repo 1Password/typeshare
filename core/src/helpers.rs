@@ -122,7 +122,7 @@ pub(crate) fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
             .into_iter()
-            .chain(get_meta_items(attr, TYPESHARE).into_iter())
+            .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     })
 }
@@ -260,7 +260,7 @@ pub(crate) fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLangu
         let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
 
         // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry(SupportedLanguage::Swift).or_insert_with(Vec::new);
+        let decs = out.entry(SupportedLanguage::Swift).or_default();
         decs.extend(decorators);
         // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
         decs.sort_unstable();
