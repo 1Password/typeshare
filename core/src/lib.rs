@@ -7,7 +7,6 @@ use thiserror::Error;
 
 mod rename;
 
-mod helpers;
 /// Implementations for each language converter
 pub mod language;
 /// Parsing Rust code into a format the `language` modules can understand
