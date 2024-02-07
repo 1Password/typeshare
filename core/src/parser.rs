@@ -463,7 +463,7 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
-pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
+fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
     if attr.path().is_ident(ident) {
         attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
             .iter()
@@ -475,7 +475,7 @@ pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
     }
 }
 
-pub(crate) fn get_ident(
+fn get_ident(
     ident: Option<&proc_macro2::Ident>,
     attrs: &[syn::Attribute],
     rename_all: &Option<String>,
@@ -491,7 +491,7 @@ pub(crate) fn get_ident(
     Id { original, renamed }
 }
 
-pub(crate) fn rename_all_to_case(original: String, case: &Option<String>) -> String {
+fn rename_all_to_case(original: String, case: &Option<String>) -> String {
     match case {
         None => original,
         Some(value) => match value.as_str() {
@@ -508,12 +508,12 @@ pub(crate) fn rename_all_to_case(original: String, case: &Option<String>) -> Str
     }
 }
 
-pub(crate) fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
+fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "rename", SERDE).next()
 }
 
 /// Parses any comment out of the given slice of attributes
-pub(crate) fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
+fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
     attrs
         .iter()
         .map(|attr| attr.meta.clone())
@@ -527,7 +527,7 @@ pub(crate) fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
-pub(crate) fn is_skipped(attrs: &[syn::Attribute]) -> bool {
+fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
             .into_iter()
@@ -544,18 +544,18 @@ fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     })
 }
 
-pub(crate) fn serde_default(attrs: &[syn::Attribute]) -> bool {
+fn serde_default(attrs: &[syn::Attribute]) -> bool {
     serde_attr(attrs, "default")
 }
 
-pub(crate) fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
+fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
     serde_attr(attrs, "flatten")
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
 /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, BTreeSet<decorator>>`, where `language` is `SupportedLanguage`
 /// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
-pub(crate) fn get_field_decorators(
+fn get_field_decorators(
     attrs: &[Attribute],
 ) -> HashMap<SupportedLanguage, BTreeSet<FieldDecorator>> {
     let languages: HashSet<SupportedLanguage> = SupportedLanguage::all_languages().collect();
@@ -661,7 +661,7 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
 /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-pub(crate) fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
+fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
 
@@ -680,11 +680,11 @@ pub(crate) fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLangu
     out
 }
 
-pub(crate) fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
+fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "tag", SERDE).next()
 }
 
-pub(crate) fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
+fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "content", SERDE).next()
 }
 
