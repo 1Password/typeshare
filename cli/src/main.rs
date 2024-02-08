@@ -12,7 +12,7 @@ use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{CSharp, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -34,10 +34,10 @@ const ARG_OUTPUT_FILE: &str = "output-file";
 const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "csharp"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "csharp"];
 
 fn build_command() -> Command<'static> {
     command!("typeshare")
@@ -226,6 +226,10 @@ fn main() {
         Some(SupportedLanguage::Go) => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
+        Some(SupportedLanguage::CSharp) => Box::new(CSharp {
+            type_mappings: config.csharp.type_mappings,
+            ..Default::default()
+        }),
         _ => {
             panic!("argument parser didn't validate ARG_TYPE correctly");
         }

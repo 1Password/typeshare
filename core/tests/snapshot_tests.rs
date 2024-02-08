@@ -96,6 +96,9 @@ macro_rules! output_file_for_ident {
     (go) => {
         "output.go"
     };
+    (csharp) => {
+        "output.cs"
+    };
 }
 
 /// Simplifies the construction of `Language` instances for each language.
@@ -210,6 +213,20 @@ macro_rules! language_instance {
              package: "proto".to_string(),
              no_version_header: true,
              $($field: $val,)*
+            ..Default::default()
+        })
+    };
+
+    // Default C#
+    (csharp) => {
+        language_instance!(csharp { })
+    };
+        // C# with configuration fields forwarded
+    (csharp {$($field:ident: $val:expr),* $(,)?}) => {
+        #[allow(clippy::needless_update)]
+        Box::new(typeshare_core::language::CSharp {
+            no_version_header: true,
+            $($field: $val,)*
             ..Default::default()
         })
     };
@@ -372,7 +389,8 @@ tests! {
         },
         kotlin,
         scala,
-        typescript
+        typescript,
+        // csharp TODO Enum Variant Anonymous Structs
     ];
     can_generate_generic_struct: [
         swift {
@@ -380,7 +398,8 @@ tests! {
         },
         kotlin,
         scala,
-        typescript
+        typescript,
+        // csharp TODO Enum Variant Anonymous Structs
     ];
     can_generate_generic_type_alias: [
         swift {
@@ -390,9 +409,10 @@ tests! {
         scala,
         typescript
     ];
-    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go];
+    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, csharp];
     can_generate_readonly_fields: [
-        typescript
+        typescript,
+        csharp
     ];
     can_generate_simple_enum: [
         swift {
@@ -401,9 +421,10 @@ tests! {
         kotlin,
         scala,
         typescript,
-        go
+        go,
+        csharp
     ];
-    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go ];
+    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go, csharp ];
     can_generate_double_option_pattern: [
         typescript
     ];
@@ -424,15 +445,15 @@ tests! {
             module_name: "colorModule".to_string(),
         },
         typescript,
-        go
+        go,
+        csharp
     ];
-    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
-    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
-    can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go];
-    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go];
-    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];
-    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go];
-    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go];
+    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, csharp ];
+    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go , csharp];
+    can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go, csharp];
+    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go, csharp];
+    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go, csharp];
+    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go, csharp];    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go];
     test_generate_char: [swift, kotlin, scala, typescript, go];
     anonymous_struct_with_rename: [
         swift {
