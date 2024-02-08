@@ -18,12 +18,14 @@ use std::{
     str::FromStr,
 };
 
+mod csharp;
 mod go;
 mod kotlin;
 mod scala;
 mod swift;
 mod typescript;
 
+pub use csharp::CSharp;
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use scala::Scala;
@@ -99,13 +101,14 @@ pub enum SupportedLanguage {
     Scala,
     Swift,
     TypeScript,
+    CSharp,
 }
 
 impl SupportedLanguage {
     /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+        [Go, Kotlin, Scala, Swift, TypeScript, CSharp].into_iter()
     }
 
     /// Get the file name extension for the supported language.
@@ -116,6 +119,7 @@ impl SupportedLanguage {
             SupportedLanguage::Scala => "scala",
             SupportedLanguage::Swift => "swift",
             SupportedLanguage::TypeScript => "ts",
+            SupportedLanguage::CSharp => "cs",
         }
     }
 }
@@ -130,6 +134,7 @@ impl FromStr for SupportedLanguage {
             "scala" => Ok(Self::Scala),
             "swift" => Ok(Self::Swift),
             "typescript" => Ok(Self::TypeScript),
+            "csharp" => Ok(Self::CSharp),
             _ => Err(ParseError::UnsupportedLanguage(s.into())),
         }
     }

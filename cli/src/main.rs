@@ -3,9 +3,9 @@
 
 use anyhow::{anyhow, Context};
 use args::{
-    build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
-    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
-    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
+    build_command, ARG_CONFIG_FILE_NAME, ARG_CSHARP_NAMESPACE, ARG_FOLLOW_LINKS,
+    ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE, ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER,
+    ARG_SCALA_MODULE_NAME, ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
 };
 use clap::ArgMatches;
 use config::Config;
@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use typeshare_core::language::Go;
 use typeshare_core::{
     language::{
-        CrateName, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift,
+        CSharp, CrateName, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift,
         TypeScript,
     },
     parser::ParsedData,
@@ -165,6 +165,12 @@ fn language(
             type_mappings: config.typescript.type_mappings,
             ..Default::default()
         }),
+        SupportedLanguage::CSharp => Box::new(CSharp {
+            namespace: config.csharp.namespace,
+            type_mappings: config.csharp.type_mappings,
+            without_csharp_naming_convention: config.csharp.without_csharp_naming_convention,
+            ..Default::default()
+        }),
         #[cfg(feature = "go")]
         SupportedLanguage::Go => Box::new(Go {
             package: config.go.package,
@@ -203,6 +209,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 
     if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
         config.scala.module_name = scala_module_name.to_string();
+    }
+
+    if let Some(csharp_namespace) = options.value_of(ARG_CSHARP_NAMESPACE) {
+        config.csharp.namespace = csharp_namespace.to_string();
     }
 
     #[cfg(feature = "go")]
