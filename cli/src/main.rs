@@ -212,6 +212,12 @@ fn language(
             type_mappings: config.typescript.type_mappings,
             ..Default::default()
         }),
+        SupportedLanguage::CSharp => Box::new(CSharp {
+            namespace: config.csharp.namespace,
+            type_mappings: config.csharp.type_mappings,
+            without_csharp_naming_convention: config.csharp.without_csharp_naming_convention,
+            ..Default::default()
+        }),
         #[cfg(feature = "go")]
         SupportedLanguage::Go => Box::new(Go {
             package: config.go.package,
@@ -260,6 +266,10 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
 
     if let Some(scala_module_name) = options.scala_module_name.as_ref() {
         config.scala.module_name = scala_module_name.to_string();
+    }
+
+    if let Some(csharp_namespace) = options.value_of(ARG_CSHARP_NAMESPACE) {
+        config.csharp.namespace = csharp_namespace.to_string();
     }
 
     #[cfg(feature = "go")]
