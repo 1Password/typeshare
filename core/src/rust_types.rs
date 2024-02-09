@@ -380,6 +380,8 @@ pub enum RustTypeFormatError {
     GenericKeyForbiddenInTS(String),
     #[error("Type aliases not support in C# 11 or lower")]
     TypeAliasesForbiddenInCS(String),
+    #[error("Type Unit is not supported in C#")]
+    TypeUnitInCS(),
 }
 
 impl SpecialRustType {

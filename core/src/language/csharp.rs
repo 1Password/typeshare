@@ -51,9 +51,10 @@ impl Language for CSharp {
             SpecialRustType::Array(rtype, _len) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
-            SpecialRustType::Slice(rtype) => {
-                Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
-            }
+            SpecialRustType::Slice(rtype) => Ok(format!(
+                "IEnumerable<{}>",
+                self.format_type(rtype, generic_types)?
+            )),
             SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),
             SpecialRustType::HashMap(rtype1, rtype2) => Ok(format!(
                 "IDictionary<{}, {}>",
@@ -65,7 +66,7 @@ impl Language for CSharp {
                 },
                 self.format_type(rtype2, generic_types)?
             )),
-            SpecialRustType::Unit => Ok("null".into()),
+            SpecialRustType::Unit => Err(RustTypeFormatError::TypeUnitInCS()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::Char => Ok("char".into()),
             SpecialRustType::I8 => Ok("short".into()),
