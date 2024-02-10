@@ -106,7 +106,7 @@ typealias Options = String
 ### Override Type for a Field
 
 You can also use language-specific arguments to tell Typeshare to treat
-the a field as a type in a particular output language. For example,
+a field as a type in a particular output language. For example,
 ```rust
 #[typeshare]
 struct MyStruct {
@@ -132,7 +132,7 @@ sufficient to fully represent the set of all 64 bit integers, that is,
 `Number.MIN_SAFE_INTEGER` and `Number.MAX_SAFE_INTEGER` are less in magnitude
 than `i64::MIN` and `u64::MAX`, respectively. There are a few ways one can still
 use 64 bit integer types, however, and a Typeshare attribute to override the
-field type can be applied to accomodate the particular approach one chooses to
+field type can be applied to accommodate the particular approach one chooses to
 take. Here are a few examples:
 
 **Serializing 64 bit integer fields to strings using `serde(with = ...)`**
