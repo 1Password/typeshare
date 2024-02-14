@@ -1,8 +1,11 @@
 use super::Language;
 use crate::language::SupportedLanguage;
-use crate::parser::{remove_dash_from_identifier, ParsedData};
-use crate::rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias};
+use crate::parser::ParsedData;
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::{
+    parser::remove_dash_from_identifier,
+    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
