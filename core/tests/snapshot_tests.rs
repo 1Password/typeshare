@@ -388,7 +388,8 @@ tests! {
             module_name: "colorsModule".to_string(),
         },
         typescript,
-        go
+        go,
+        csharp
     ];
     can_generate_generic_enum: [
         swift {
@@ -397,7 +398,7 @@ tests! {
         kotlin,
         scala,
         typescript,
-        // csharp TODO Enum Variant Anonymous Structs
+        csharp,
     ];
     can_generate_generic_struct: [
         swift {
@@ -406,7 +407,7 @@ tests! {
         kotlin,
         scala,
         typescript,
-        // csharp TODO Enum Variant Anonymous Structs
+        csharp
     ];
     can_generate_generic_type_alias: [
         swift {
@@ -436,9 +437,9 @@ tests! {
         typescript
     ];
     can_recognize_types_inside_modules: [
-        swift, kotlin, scala, typescript, go
+        swift, kotlin, scala, typescript, go, csharp
     ];
-    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go ];
+    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go, csharp ];
     test_algebraic_enum_case_name_support: [
         swift {
             prefix: "OP".to_string(),
@@ -467,7 +468,7 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp TODO
+        csharp,
     ];
     test_generate_char: [swift, kotlin, scala, typescript, go, csharp];
     anonymous_struct_with_rename: [
@@ -478,7 +479,7 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp TODO
+        // csharp, TODO serde renaming ignored when following C# roperty naming convention
     ];
     can_override_types: [
         swift,
@@ -486,7 +487,7 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp TODO it contains anonymous struct
+        // csharp, TODO serde renaming ignored when following C# roperty naming convention
     ];
 
     /// Structs
@@ -499,7 +500,8 @@ tests! {
         kotlin,
         scala,
         typescript,
-        go
+        go,
+        // csharp, TODO serde renaming ignored when following C# roperty naming convention
     ];
     // TODO: kotlin and typescript don't appear to support this yet
     generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go, csharp];
@@ -566,7 +568,6 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO causes type alias error
     ];
     test_serialized_as_tuple: [
         swift {
@@ -578,7 +579,6 @@ tests! {
         go {
             uppercase_acronyms: vec!["ID".to_string()],
         },
-        // csharp, TODO causes type alias error
     ];
     can_handle_serde_rename_all: [
         swift,
@@ -631,7 +631,7 @@ tests! {
         typescript,
         scala,
         go,
-        // csharp, TODO fails due to anonymous structs
+        csharp,
     ];
 
     uppercase_go_acronyms: [

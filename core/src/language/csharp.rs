@@ -5,6 +5,9 @@ use crate::{
     language::{Language, SupportedLanguage},
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
+use itertools::Itertools;
+use joinery::JoinableIterator;
+use lazy_format::lazy_format;
 use std::io;
 use std::{collections::HashMap, io::Write};
 
@@ -165,6 +168,9 @@ public static class EnumExtensions
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
+        self.write_types_for_anonymous_structs(w, e, &|variant_name| {
+            format!("{}{}Inner", &e.shared().id.renamed, variant_name)
+        })?;
         self.write_comments(w, 0, &e.shared().comments)?;
 
         let generic_parameters = (!e.shared().generic_types.is_empty())
@@ -225,18 +231,29 @@ impl CSharp {
             // Write all the algebraic variants out (all three variant types are possible
             // here)
             RustEnum::Algebraic {
-                tag_key,
+                tag_key: _tag_key,
                 content_key,
                 shared,
             } => shared.variants.iter().try_for_each(|v| {
                 writeln!(w)?;
                 self.write_comments(w, 1, &v.shared().comments)?;
+                let generic_types = &e.shared().generic_types;
+                let base_type = &e.shared().id.original;
+                let base_generics_names = generic_types
+                    .iter()
+                    .map(|name| with_generic_naming_convention(generic_types, &name))
+                    .collect_vec();
+
+                let base_generic_types = match base_generics_names.as_slice() {
+                    [] => String::new(),
+                    values => format!("<{}>", values.iter().join_with(", ")),
+                };
+
                 match v {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
-                        "\tpublic record {}(): {}();",
-                        shared.id.original,
-                        e.shared().id.original
+                        "\tpublic record {}(): {}{}();",
+                        shared.id.original, base_type, base_generic_types,
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
@@ -244,29 +261,45 @@ impl CSharp {
                             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                         write!(
                             w,
-                            "\tpublic record {}({}{} {}) : {}();",
+                            "\tpublic record {}({}{} {}) : {}{}();",
                             shared.id.original,
                             r#type,
                             ty.is_optional().then(|| "?").unwrap_or_default(),
                             content_key.to_pascal_case(),
-                            e.shared().id.original
+                            base_type,
+                            base_generic_types,
                         )
                     }
-                    // TODO C# might need a class, not sure we can have an anonymous
-                    // class in place of content
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
-                        writeln!(
+                        let generics = fields
+                            .iter()
+                            .flat_map(|field| {
+                                generic_types
+                                    .iter()
+                                    .filter(|g| field.ty.contains_type(g))
+                                    .map(|name| {
+                                        with_generic_naming_convention(generic_types, &name)
+                                    })
+                            })
+                            .unique()
+                            .collect_vec();
+
+                        let generics = lazy_format!(match (generics.is_empty()) {
+                            false => ("<{}>", generics.iter().join_with(", ")),
+                            true => (""),
+                        });
+
+                        write!(
                             w,
-                            "\t| {{ {}: {:?}, {}: {{",
-                            tag_key, shared.id.renamed, content_key
-                        )?;
-
-                        fields.iter().try_for_each(|f| {
-                            self.write_field(w, f, e.shared().generic_types.as_slice())
-                        })?;
-
-                        write!(w, "}}")?;
-                        write!(w, "}}")
+                            "\tpublic record {}({}{}Inner{} {}): {}{}();",
+                            shared.id.renamed,
+                            e.shared().id.original,
+                            shared.id.original,
+                            generics,
+                            content_key.to_pascal_case(),
+                            base_type,
+                            base_generic_types,
+                        )
                     }
                 }
             }),
