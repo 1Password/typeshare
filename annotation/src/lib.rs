@@ -54,7 +54,7 @@ fn strip_configuration_attribute(item: &mut DeriveInput) {
     fn remove_configuration_from_attributes(attributes: &mut Vec<Attribute>) {
         const CONFIG_ATTRIBUTE_NAME: &str = "typeshare";
 
-        attributes.retain(|x| x.path.to_token_stream().to_string() != CONFIG_ATTRIBUTE_NAME);
+        attributes.retain(|x| x.path().to_token_stream().to_string() != CONFIG_ATTRIBUTE_NAME);
     }
 
     fn remove_configuration_from_fields(fields: &mut Fields) {
