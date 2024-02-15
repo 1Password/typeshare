@@ -53,6 +53,7 @@ pub struct GoParams {
 #[serde(default)]
 pub struct CSharpParams {
     pub type_mappings: HashMap<String, String>,
+    pub namespace: String,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare

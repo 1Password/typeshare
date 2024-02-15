@@ -227,6 +227,7 @@ fn main() {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
         Some(SupportedLanguage::CSharp) => Box::new(CSharp {
+            namespace: config.csharp.namespace,
             type_mappings: config.csharp.type_mappings,
             ..Default::default()
         }),

@@ -389,7 +389,9 @@ tests! {
         },
         typescript,
         go,
-        csharp
+        csharp {
+            namespace: "Company.Domain.Models".to_string(),
+        }
     ];
     can_generate_generic_enum: [
         swift {
