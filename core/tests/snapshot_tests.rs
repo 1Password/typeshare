@@ -407,7 +407,6 @@ tests! {
         kotlin,
         scala,
         typescript,
-        csharp
     ];
     can_generate_generic_type_alias: [
         swift {

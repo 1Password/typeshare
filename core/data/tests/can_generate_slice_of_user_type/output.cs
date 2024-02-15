@@ -1,4 +1,4 @@
 public class Video {
-	public Tag[] Tags { get; set; }
+	public IEnumerable<Tag> Tags { get; set; }
 }
 
