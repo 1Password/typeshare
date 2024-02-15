@@ -28,6 +28,7 @@ const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
 const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 #[cfg(feature = "go")]
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
+const ARG_CSHARP_NAMESPACE: &str = "CSHARP_NAMESPACE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
@@ -101,6 +102,13 @@ fn build_command() -> Command<'static> {
                 .help("Scala serializer module name")
                 .takes_value(true)
                 .required(false),
+        )
+        .arg(
+            Arg::new(ARG_CSHARP_NAMESPACE)
+                .long("namespace")
+                .help("C# namespace")
+                .takes_value(true)
+                .required(false)
         )
         .arg(
             Arg::new(ARG_CONFIG_FILE_NAME)
@@ -337,6 +345,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 
     if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
         config.scala.module_name = scala_module_name.to_string();
+    }
+
+    if let Some(csharp_namespace) = options.value_of(ARG_CSHARP_NAMESPACE) {
+        config.csharp.namespace = csharp_namespace.to_string();
     }
 
     #[cfg(feature = "go")]
