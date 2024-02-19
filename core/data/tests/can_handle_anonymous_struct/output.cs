@@ -1,29 +1,9 @@
 #nullable enable
 
-using System;
 using System.Reflection;
-using System.Collections.Generic;
-
-class EnumLabelAttribute : Attribute
-{
-    public string Label { get; }
-
-    public EnumLabelAttribute(string label)
-    {
-        Label = label;
-    }
-}
-
-public static class EnumExtensions
-{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }
-}
+using JsonSubTypes;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 /** Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum */
 public class AutofilledByUsInner {
@@ -40,7 +20,10 @@ public class AutofilledBySomethingElseInner {
 }
 
 /** Enum keeping track of who autofilled a field */
-public record AutofilledBy 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(Us), "Us")]
+[JsonSubtypes.KnownSubType(typeof(SomethingElse), "SomethingElse")]
+public abstract record AutofilledBy 
 {
 	/** This field was autofilled by us */
 	public record Us(AutofilledByUsInner Content): AutofilledBy();
@@ -61,7 +44,14 @@ public class EnumWithManyVariantsAnotherAnonVariantInner {
 }
 
 /** This is a comment (yareek sameek wuz here) */
-public record EnumWithManyVariants 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(UnitVariant), "UnitVariant")]
+[JsonSubtypes.KnownSubType(typeof(TupleVariantString), "TupleVariantString")]
+[JsonSubtypes.KnownSubType(typeof(AnonVariant), "AnonVariant")]
+[JsonSubtypes.KnownSubType(typeof(TupleVariantInt), "TupleVariantInt")]
+[JsonSubtypes.KnownSubType(typeof(AnotherUnitVariant), "AnotherUnitVariant")]
+[JsonSubtypes.KnownSubType(typeof(AnotherAnonVariant), "AnotherAnonVariant")]
+public abstract record EnumWithManyVariants 
 {
 	public record UnitVariant(): EnumWithManyVariants();
 	public record TupleVariantString(string Content) : EnumWithManyVariants();

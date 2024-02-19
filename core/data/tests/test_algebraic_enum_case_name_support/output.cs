@@ -1,34 +1,19 @@
 #nullable enable
 
-using System;
 using System.Reflection;
-using System.Collections.Generic;
-
-class EnumLabelAttribute : Attribute
-{
-    public string Label { get; }
-
-    public EnumLabelAttribute(string label)
-    {
-        Label = label;
-    }
-}
-
-public static class EnumExtensions
-{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }
-}
+using JsonSubTypes;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 public class ItemDetailsFieldValue {
 }
 
-public record AdvancedColors 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(String), "String")]
+[JsonSubtypes.KnownSubType(typeof(Number), "Number")]
+[JsonSubtypes.KnownSubType(typeof(NumberArray), "NumberArray")]
+[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "ReallyCoolType")]
+public abstract record AdvancedColors 
 {
 	public record String(string Content) : AdvancedColors();
 	public record Number(int Content) : AdvancedColors();

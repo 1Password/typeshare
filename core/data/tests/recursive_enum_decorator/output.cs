@@ -1,31 +1,15 @@
 #nullable enable
 
-using System;
 using System.Reflection;
-using System.Collections.Generic;
+using JsonSubTypes;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
-class EnumLabelAttribute : Attribute
-{
-    public string Label { get; }
-
-    public EnumLabelAttribute(string label)
-    {
-        Label = label;
-    }
-}
-
-public static class EnumExtensions
-{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }
-}
-
-public record Options 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(Red), "Red")]
+[JsonSubtypes.KnownSubType(typeof(Banana), "Banana")]
+[JsonSubtypes.KnownSubType(typeof(Vermont), "Vermont")]
+public abstract record Options 
 {
 	public record Red(bool Content) : Options();
 	public record Banana(string Content) : Options();
@@ -43,7 +27,11 @@ public class MoreOptionsBuiltInner {
 	public MoreOptions Top { get; set; }
 }
 
-public record MoreOptions 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(News), "News")]
+[JsonSubtypes.KnownSubType(typeof(Exactly), "Exactly")]
+[JsonSubtypes.KnownSubType(typeof(Built), "Built")]
+public abstract record MoreOptions 
 {
 	public record News(bool Content) : MoreOptions();
 	public record exactly(MoreOptionsExactlyInner Content): MoreOptions();

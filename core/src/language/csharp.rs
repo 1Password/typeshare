@@ -102,40 +102,16 @@ impl Language for CSharp {
         writeln!(w, "#nullable enable")?;
         writeln!(w)?;
 
-        writeln!(w, "using System;")?;
         writeln!(w, "using System.Reflection;")?;
-        writeln!(w, "using System.Collections.Generic;")?;
+        writeln!(w, "using JsonSubTypes;")?;
+        writeln!(w, "using Newtonsoft.Json;")?;
+        writeln!(w, "using System.Runtime.Serialization;")?;
         writeln!(w)?;
 
         if !self.namespace.is_empty() {
             writeln!(w, "namespace {};", self.namespace)?;
             writeln!(w)?;
         }
-
-        writeln!(
-            w,
-            "class EnumLabelAttribute : Attribute
-{{
-    public string Label {{ get; }}
-
-    public EnumLabelAttribute(string label)
-    {{
-        Label = label;
-    }}
-}}
-
-public static class EnumExtensions
-{{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {{
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }}
-}}"
-        )?;
-        writeln!(w)?;
 
         Ok(())
     }
@@ -201,9 +177,10 @@ public static class EnumExtensions
                 writeln!(w, "\n}}\n")
             }
             RustEnum::Algebraic { shared, .. } => {
+                write_discriminated_union_json_attributes(w, e)?;
                 write!(
                     w,
-                    "public record {}{} \n{{",
+                    "public abstract record {}{} \n{{",
                     shared.id.renamed, generic_parameters
                 )?;
 
@@ -216,6 +193,32 @@ public static class EnumExtensions
     }
 }
 
+fn write_discriminated_union_json_attributes(w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
+    match e {
+        RustEnum::Algebraic {
+            tag_key,
+            content_key: _content_key,
+            shared,
+        } => {
+            writeln!(w, "[JsonConverter(typeof(JsonSubtypes), \"{}\")]", tag_key)?;
+            let case_attributes = shared.variants.iter().map(|v| {
+                let case_name = match v {
+                    RustEnumVariant::AnonymousStruct { shared, .. } => &shared.id.original,
+                    RustEnumVariant::Unit(shared) => &shared.id.original,
+                    RustEnumVariant::Tuple { shared, .. } => &shared.id.original,
+                };
+                format!(
+                    "[JsonSubtypes.KnownSubType(typeof({0}), \"{0}\")]",
+                    case_name,
+                )
+            });
+
+            writeln!(w, "{}", case_attributes.join_with("\n"))
+        }
+        _ => Ok(()),
+    }
+}
+
 impl CSharp {
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         match e {
@@ -225,11 +228,10 @@ impl CSharp {
                 RustEnumVariant::Unit(shared) => {
                     writeln!(w)?;
                     self.write_comments(w, 1, &shared.comments)?;
-                    write!(
-                        w,
-                        "\t[EnumLabel({:?})]\n\t{},\n",
-                        &shared.id.renamed, shared.id.original
-                    )
+                    if shared.id.renamed != shared.id.original {
+                        writeln!(w, "\t[EnumMember(Value = {:?})]", &shared.id.renamed)?;
+                    }
+                    writeln!(w, "\t{},", shared.id.original)
                 }
                 _ => unreachable!(),
             }),

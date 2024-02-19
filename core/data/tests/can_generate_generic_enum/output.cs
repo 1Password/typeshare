@@ -1,31 +1,14 @@
 #nullable enable
 
-using System;
 using System.Reflection;
-using System.Collections.Generic;
+using JsonSubTypes;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
-class EnumLabelAttribute : Attribute
-{
-    public string Label { get; }
-
-    public EnumLabelAttribute(string label)
-    {
-        Label = label;
-    }
-}
-
-public static class EnumExtensions
-{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }
-}
-
-public record GenericEnum<TA, TB> 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(VariantA), "VariantA")]
+[JsonSubtypes.KnownSubType(typeof(VariantB), "VariantB")]
+public abstract record GenericEnum<TA, TB> 
 {
 	public record VariantA(TA Content) : GenericEnum<TA, TB>();
 	public record VariantB(TB Content) : GenericEnum<TA, TB>();
@@ -36,7 +19,11 @@ public class StructUsingGenericEnum {
 	public GenericEnum<string, short> EnumField { get; set; }
 }
 
-public record GenericEnumUsingGenericEnum<T> 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(VariantC), "VariantC")]
+[JsonSubtypes.KnownSubType(typeof(VariantD), "VariantD")]
+[JsonSubtypes.KnownSubType(typeof(VariantE), "VariantE")]
+public abstract record GenericEnumUsingGenericEnum<T> 
 {
 	public record VariantC(GenericEnum<T, T> Content) : GenericEnumUsingGenericEnum<T>();
 	public record VariantD(GenericEnum<string, IDictionary<string, T>> Content) : GenericEnumUsingGenericEnum<T>();
@@ -66,7 +53,12 @@ public class GenericEnumsUsingStructVariantsVariantIInner<T, TU> {
 	public MyType<T, TU> Action { get; set; }
 }
 
-public record GenericEnumsUsingStructVariants<T, TU> 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(VariantF), "VariantF")]
+[JsonSubtypes.KnownSubType(typeof(VariantG), "VariantG")]
+[JsonSubtypes.KnownSubType(typeof(VariantH), "VariantH")]
+[JsonSubtypes.KnownSubType(typeof(VariantI), "VariantI")]
+public abstract record GenericEnumsUsingStructVariants<T, TU> 
 {
 	public record VariantF(GenericEnumsUsingStructVariantsVariantFInner<T> Content): GenericEnumsUsingStructVariants<T, TU>();
 	public record VariantG(GenericEnumsUsingStructVariantsVariantGInner<T, TU> Content): GenericEnumsUsingStructVariants<T, TU>();

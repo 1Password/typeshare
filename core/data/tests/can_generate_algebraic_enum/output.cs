@@ -1,38 +1,24 @@
 #nullable enable
 
-using System;
 using System.Reflection;
-using System.Collections.Generic;
+using JsonSubTypes;
+using Newtonsoft.Json;
+using System.Runtime.Serialization;
 
 namespace Company.Domain.Models;
-
-class EnumLabelAttribute : Attribute
-{
-    public string Label { get; }
-
-    public EnumLabelAttribute(string label)
-    {
-        Label = label;
-    }
-}
-
-public static class EnumExtensions
-{
-    public static string Label<T>(this T value)
-        where T : Enum
-    {
-        var fieldName = value.ToString();
-        var field = typeof(T).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
-        return field?.GetCustomAttribute<EnumLabelAttribute>()?.Label ?? fieldName;
-    }
-}
 
 /** Struct comment */
 public class ItemDetailsFieldValue {
 }
 
 /** Enum comment */
-public record AdvancedColors 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(String), "String")]
+[JsonSubtypes.KnownSubType(typeof(Number), "Number")]
+[JsonSubtypes.KnownSubType(typeof(UnsignedNumber), "UnsignedNumber")]
+[JsonSubtypes.KnownSubType(typeof(NumberArray), "NumberArray")]
+[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "ReallyCoolType")]
+public abstract record AdvancedColors 
 {
 	/** This is a case comment */
 	public record String(string Content) : AdvancedColors();
@@ -44,7 +30,12 @@ public record AdvancedColors
 }
 
 
-public record AdvancedColors2 
+[JsonConverter(typeof(JsonSubtypes), "type")]
+[JsonSubtypes.KnownSubType(typeof(String), "String")]
+[JsonSubtypes.KnownSubType(typeof(Number), "Number")]
+[JsonSubtypes.KnownSubType(typeof(NumberArray), "NumberArray")]
+[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "ReallyCoolType")]
+public abstract record AdvancedColors2 
 {
 	/** This is a case comment */
 	public record String(string Content) : AdvancedColors2();
