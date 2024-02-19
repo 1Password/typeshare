@@ -237,6 +237,7 @@ fn main() {
         Some(SupportedLanguage::CSharp) => Box::new(CSharp {
             namespace: config.csharp.namespace,
             type_mappings: config.csharp.type_mappings,
+            without_csharp_naming_convention: config.csharp.without_csharp_naming_convention,
             ..Default::default()
         }),
         _ => {

@@ -378,7 +378,7 @@ pub enum RustTypeFormatError {
     GenericsForbiddenInGo(String),
     #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
     GenericKeyForbiddenInTS(String),
-    #[error("Type aliases not support in C# 11 or lower")]
+    #[error("Type aliases are not supported in C# 11 or lower")]
     TypeAliasesForbiddenInCS(String),
     #[error("Type Unit is not supported in C#")]
     TypeUnitInCS(),

@@ -54,6 +54,7 @@ pub struct GoParams {
 pub struct CSharpParams {
     pub type_mappings: HashMap<String, String>,
     pub namespace: String,
+    pub without_csharp_naming_convention: bool,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare

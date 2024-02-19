@@ -21,6 +21,8 @@ pub struct CSharp {
     pub no_version_header: bool,
     /// Namespace to use in the generated file
     pub namespace: String,
+    /// Disable C# property naming convention and follow Serde renaming rules on properties
+    pub without_csharp_naming_convention: bool,
 }
 
 impl Language for CSharp {
@@ -335,12 +337,18 @@ impl CSharp {
             .filter(|v| v.iter().any(|dec| dec.name() == "readonly"))
             .is_some();
 
+        let property_name = if self.without_csharp_naming_convention {
+            field.id.renamed.clone()
+        } else {
+            csharp_property_aware_rename(&field.id.renamed)
+        };
+
         writeln!(
             w,
             "\tpublic {}{} {} {{ get;{} }}",
             cs_ty,
             optional.then(|| "?").unwrap_or_default(),
-            csharp_property_aware_rename(&field.id.renamed),
+            property_name,
             if !is_readonly { " set;" } else { "" },
         )?;
 

@@ -219,7 +219,9 @@ macro_rules! language_instance {
 
     // Default C#
     (csharp) => {
-        language_instance!(csharp { })
+        language_instance!(csharp {
+            without_csharp_naming_convention: false,
+        })
     };
         // C# with configuration fields forwarded
     (csharp {$($field:ident: $val:expr),* $(,)?}) => {
@@ -480,7 +482,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
     can_override_types: [
         swift,
@@ -488,7 +492,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
 
     /// Structs
@@ -502,7 +508,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
     // TODO: kotlin and typescript don't appear to support this yet
     generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go, csharp];
@@ -587,7 +595,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
     can_handle_serde_rename_on_top_level: [
         swift { prefix: "OP".to_string(), },
@@ -595,7 +605,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
     can_generate_unit_structs: [swift, kotlin, scala, typescript, go, csharp];
     kebab_case_rename: [
@@ -604,7 +616,9 @@ tests! {
         scala,
         typescript,
         go,
-        // csharp, TODO serde renaming ignored when following C# roperty naming convention
+        csharp {
+            without_csharp_naming_convention: true,
+        },
     ];
 
     /// Globals get topologically sorted
