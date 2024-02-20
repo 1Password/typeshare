@@ -31,6 +31,7 @@ const ARG_GO_PACKAGE: &str = "GOPACKAGE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
+const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
 const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
@@ -125,6 +126,14 @@ fn build_command() -> Command<'static> {
                 .required_unless(ARG_GENERATE_CONFIG)
                 .takes_value(true)
                 .long(ARG_OUTPUT_FILE)
+        )
+        .arg(
+            Arg::new(ARG_FOLLOW_LINKS)
+            .short('L')
+            .long("follow-links")
+            .help("Follow symbolic links to directories instead of ignoring them.")
+            .takes_value(false)
+            .required(false)
         )
         .arg(
             Arg::new("directories")
@@ -241,6 +250,7 @@ fn main() {
     walker_builder.sort_by_file_path(|a, b| a.cmp(b));
     walker_builder.types(types.build().expect("Failed to build types"));
     walker_builder.overrides(overrides);
+    walker_builder.follow_links(options.is_present(ARG_FOLLOW_LINKS));
 
     for root in directories {
         walker_builder.add(root);
