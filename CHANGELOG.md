@@ -1,3 +1,18 @@
+# Version 1.8.0
+
+This release brings support for various Rust std smart pointers, as well as a CLI flag to opt-into following symbolic links. In addition, typeshare has been updated to use syn 2.0
+
+- Added support for various Rust std smart pointers. [#134](https://github.com/1Password/typeshare/pull/134)
+- Added CLI flag to opt-into following symbolic links. [#156](https://github.com/1Password/typeshare/pull/156)
+- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130) 
+
+### Community contributors
+
+Thank you to the following community contributors for your work on this release:
+
+- [czocher](https://github.com/czocher)
+- [ipetkov](https://github.com/ipetkov)
+
 # Version 1.7.0
 
 This release brings support for more rust primitive types (slices and chars), as well as support for manually overriding the output type in the `#[typeshare]` annotations
