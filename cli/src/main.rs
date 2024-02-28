@@ -12,7 +12,7 @@ use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{CSharp, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -28,16 +28,17 @@ const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
 const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 #[cfg(feature = "go")]
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
+const ARG_CSHARP_NAMESPACE: &str = "CSHARP_NAMESPACE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 const ARG_OUTPUT_FILE: &str = "output-file";
 const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "csharp"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "csharp"];
 
 fn build_command() -> Command<'static> {
     command!("typeshare")
@@ -101,6 +102,13 @@ fn build_command() -> Command<'static> {
                 .help("Scala serializer module name")
                 .takes_value(true)
                 .required(false),
+        )
+        .arg(
+            Arg::new(ARG_CSHARP_NAMESPACE)
+                .long("namespace")
+                .help("C# namespace")
+                .takes_value(true)
+                .required(false)
         )
         .arg(
             Arg::new(ARG_CONFIG_FILE_NAME)
@@ -226,6 +234,12 @@ fn main() {
         Some(SupportedLanguage::Go) => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
+        Some(SupportedLanguage::CSharp) => Box::new(CSharp {
+            namespace: config.csharp.namespace,
+            type_mappings: config.csharp.type_mappings,
+            without_csharp_naming_convention: config.csharp.without_csharp_naming_convention,
+            ..Default::default()
+        }),
         _ => {
             panic!("argument parser didn't validate ARG_TYPE correctly");
         }
@@ -332,6 +346,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 
     if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
         config.scala.module_name = scala_module_name.to_string();
+    }
+
+    if let Some(csharp_namespace) = options.value_of(ARG_CSHARP_NAMESPACE) {
+        config.csharp.namespace = csharp_namespace.to_string();
     }
 
     #[cfg(feature = "go")]
