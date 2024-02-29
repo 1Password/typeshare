@@ -366,6 +366,18 @@ tests! {
         typescript,
         go
     ];
+    can_generate_algebraic_enum_with_named_fields: [
+        swift {
+            prefix: "OP".to_string(),
+        },
+        kotlin {
+            package: "com.agilebits.onepassword".to_string(),
+        },
+        scala {
+            package: "com.agilebits.onepassword".to_string(),
+        },
+        typescript
+    ];
     can_generate_generic_enum: [
         swift {
             prefix: "Core".into(),

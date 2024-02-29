@@ -388,6 +388,9 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
                     variant_key_type = variant_key_type,
                 )
             }
+            RustEnum::FlattenedAlgebraic { .. } => {
+                panic!("Not yet implemented")
+            }
         }
     }
 
