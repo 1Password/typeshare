@@ -10,6 +10,20 @@ public struct CoreGenericStruct<A: Codable, B: Codable>: Codable {
 	}
 }
 
+public struct CoreUnusedGenericsStruct: Codable {
+	public let field_a: Float
+	public let field_b: Float
+
+	public init(field_a: Float, field_b: Float) {
+		self.field_a = field_a
+		self.field_b = field_b
+	}
+}
+
+public struct CoreUnusedGenericsEmptyStruct: Codable {
+	public init() {}
+}
+
 public struct CoreGenericStructUsingGenericStruct<T: Codable>: Codable {
 	public let struct_field: CoreGenericStruct<String, T>
 	public let second_struct_field: CoreGenericStruct<T, String>

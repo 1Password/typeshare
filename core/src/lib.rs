@@ -1,6 +1,5 @@
 //! The core library for typeshare.
 //! Contains the parser and language converters.
-
 use language::Language;
 use std::io::Write;
 use thiserror::Error;

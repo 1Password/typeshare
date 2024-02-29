@@ -3,6 +3,14 @@ export interface GenericStruct<A, B> {
 	field_b: B[];
 }
 
+export interface UnusedGenericsStruct {
+	field_a: number;
+	field_b: number;
+}
+
+export interface UnusedGenericsEmptyStruct {
+}
+
 export interface GenericStructUsingGenericStruct<T> {
 	struct_field: GenericStruct<string, T>;
 	second_struct_field: GenericStruct<T, string>;

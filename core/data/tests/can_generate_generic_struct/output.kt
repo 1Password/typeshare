@@ -12,6 +12,16 @@ data class GenericStruct<A, B> (
 )
 
 @Serializable
+data class UnusedGenericsStruct (
+	val field_a: Float,
+	val field_b: Float
+)
+
+@Serializable
+data class UnusedGenericsEmptyStruct (
+)
+
+@Serializable
 data class GenericStructUsingGenericStruct<T> (
 	val struct_field: GenericStruct<String, T>,
 	val second_struct_field: GenericStruct<T, String>,
