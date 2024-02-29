@@ -209,3 +209,49 @@ public enum OPBestHockeyTeams4: Codable, Equatable, Hashable {
 		}
 	}
 }
+
+
+/// Generated type representing the anonymous struct variant `MyVariant` of the `MyEnum` Rust enum
+public struct OPMyEnumMyVariantInner: Codable, Equatable {
+	public let a: String
+	public let b: Double
+
+	public init(a: String, b: Double) {
+		self.a = a
+		self.b = b
+	}
+}
+public enum OPMyEnum: Codable, Equatable {
+	case myVariant(OPMyEnumMyVariantInner)
+
+	enum CodingKeys: String, CodingKey, Codable {
+		case myVariant = "MyVariant"
+	}
+
+	private enum ContainerCodingKeys: String, CodingKey {
+		case type, content
+	}
+
+	public init(from decoder: Decoder) throws {
+		let container = try decoder.container(keyedBy: ContainerCodingKeys.self)
+		if let type = try? container.decode(CodingKeys.self, forKey: .type) {
+			switch type {
+			case .myVariant:
+				if let content = try? container.decode(OPMyEnumMyVariantInner.self, forKey: .content) {
+					self = .myVariant(content)
+					return
+				}
+			}
+		}
+		throw DecodingError.typeMismatch(OPMyEnum.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for OPMyEnum"))
+	}
+
+	public func encode(to encoder: Encoder) throws {
+		var container = encoder.container(keyedBy: ContainerCodingKeys.self)
+		switch self {
+		case .myVariant(let content):
+			try container.encode(CodingKeys.myVariant, forKey: .type)
+			try container.encode(content, forKey: .content)
+		}
+	}
+}

@@ -31,3 +31,12 @@ pub enum BestHockeyTeams4 {
     PittsburghPenguins,
     Lies(String),
 }
+
+#[typeshare(swift = "Equatable")]
+#[serde(tag = "type", content = "content")]
+enum MyEnum {
+    MyVariant {
+        a: String,
+        b: f64
+    }
+}
