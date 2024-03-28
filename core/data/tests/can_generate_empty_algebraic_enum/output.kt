@@ -1,15 +1,8 @@
-@file:NoLiveLiterals
-
-package com.agilebits.onepassword
-
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
+@Serializable
+object OPAddressDetails
 
 @Serializable
-object AddressDetails
-
-@Serializable
-sealed class Address {
+sealed class OPAddress {
 	@Serializable
 	@SerialName("FixedAddress")
 	data class FixedAddress(val content: AddressDetails): Address()

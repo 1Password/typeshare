@@ -426,8 +426,8 @@ tests! {
         typescript,
         go
     ];
-    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
-    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
+    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
+    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
     can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go];
     can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go];
     enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];

@@ -14,6 +14,7 @@ const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 pub struct KotlinParams {
     pub package: String,
     pub module_name: String,
+    pub prefix: String,
     pub type_mappings: HashMap<String, String>,
 }
 
