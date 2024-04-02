@@ -18,6 +18,8 @@ pub struct Kotlin {
     pub package: String,
     /// Name of the Kotlin module
     pub module_name: String,
+    /// The prefix to append to user-defined types
+    pub prefix: String,
     /// Conversions from Rust type names to Kotlin type names.
     pub type_mappings: HashMap<String, String>,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
@@ -97,11 +99,12 @@ impl Language for Kotlin {
 
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
         self.write_comments(w, 0, &ty.comments)?;
+        let type_name = format!("{}{}", &self.prefix, ty.id.original);
 
         writeln!(
             w,
             "typealias {}{} = {}\n",
-            ty.id.original,
+            type_name,
             (!ty.generic_types.is_empty())
                 .then(|| format!("<{}>", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
@@ -118,11 +121,12 @@ impl Language for Kotlin {
 
         if rs.fields.is_empty() {
             // If the struct has no fields, we can define it as an static object.
-            writeln!(w, "object {}\n", rs.id.renamed)?;
+            writeln!(w, "object {}{}\n", self.prefix, rs.id.renamed)?;
         } else {
             writeln!(
                 w,
-                "data class {}{} (",
+                "data class {}{}{} (",
+                self.prefix,
                 rs.id.renamed,
                 (!rs.generic_types.is_empty())
                     .then(|| format!("<{}>", rs.generic_types.join(", ")))
@@ -152,9 +156,11 @@ impl Language for Kotlin {
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
+        let type_name = format!("{}{}", &self.prefix, &e.shared().id.renamed);
+
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &|variant_name| {
-            format!("{}{}Inner", &e.shared().id.renamed, variant_name)
+            format!("{}{}Inner", type_name, variant_name)
         })?;
 
         self.write_comments(w, 0, &e.shared().comments)?;
@@ -165,19 +171,15 @@ impl Language for Kotlin {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit(..) => {
                 write!(
                     w,
                     "enum class {}{}(val string: String) ",
-                    shared.id.renamed, generic_parameters
+                    type_name, generic_parameters
                 )?;
             }
-            RustEnum::Algebraic { shared, .. } => {
-                write!(
-                    w,
-                    "sealed class {}{} ",
-                    shared.id.renamed, generic_parameters
-                )?;
+            RustEnum::Algebraic { .. } => {
+                write!(w, "sealed class {}{} ", type_name, generic_parameters)?;
             }
         }
 

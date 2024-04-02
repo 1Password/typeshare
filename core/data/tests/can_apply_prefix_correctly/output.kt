@@ -1,17 +1,10 @@
-@file:NoLiveLiterals
-
-package com.agilebits.onepassword
-
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
-
 @Serializable
-data class ItemDetailsFieldValue (
+data class OPItemDetailsFieldValue (
 	val hello: String
 )
 
 @Serializable
-sealed class AdvancedColors {
+sealed class OPAdvancedColors {
 	@Serializable
 	@SerialName("String")
 	data class String(val c: String): AdvancedColors()

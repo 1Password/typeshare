@@ -22,6 +22,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const ARG_TYPE: &str = "TYPE";
 const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
+const ARG_KOTLIN_PREFIX: &str = "KOTLINPREFIX";
 const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
 const ARG_MODULE_NAME: &str = "MODULENAME";
 const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
@@ -69,6 +70,14 @@ fn build_command() -> Command<'static> {
                 .short('s')
                 .long("swift-prefix")
                 .help("Prefix for generated Swift types")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new(ARG_KOTLIN_PREFIX)
+                .short('k')
+                .long("kotlin-prefix")
+                .help("Prefix for generated Kotlin types")
                 .takes_value(true)
                 .required(false),
         )
@@ -202,6 +211,7 @@ fn main() {
         Some(SupportedLanguage::Kotlin) => Box::new(Kotlin {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
+            prefix: config.kotlin.prefix,
             type_mappings: config.kotlin.type_mappings,
             ..Default::default()
         }),
@@ -316,6 +326,10 @@ fn main() {
 fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     if let Some(swift_prefix) = options.value_of(ARG_SWIFT_PREFIX) {
         config.swift.prefix = swift_prefix.to_string();
+    }
+
+    if let Some(kotlin_prefix) = options.value_of(ARG_KOTLIN_PREFIX) {
+        config.kotlin.prefix = kotlin_prefix.to_string();
     }
 
     if let Some(java_package) = options.value_of(ARG_JAVA_PACKAGE) {
