@@ -7,7 +7,11 @@ use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::{fs, path::Path};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    fs,
+    path::Path,
+};
 use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
@@ -21,6 +25,7 @@ mod config;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const ARG_TYPE: &str = "TYPE";
+const ARG_PREFIX: &str = "PREFIX";
 const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
 const ARG_KOTLIN_PREFIX: &str = "KOTLINPREFIX";
 const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
@@ -31,7 +36,7 @@ const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 const ARG_GO_PACKAGE: &str = "GOPACKAGE";
 const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 const ARG_GENERATE_CONFIG: &str = "generate-config-file";
-const ARG_OUTPUT_FILE: &str = "output-file";
+const ARG_OUTPUT_FOLDER: &str = "output-folder";
 const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
@@ -66,21 +71,27 @@ fn build_command() -> Command<'static> {
                 .required_unless(ARG_GENERATE_CONFIG),
         )
         .arg(
-            Arg::new(ARG_SWIFT_PREFIX)
-                .short('s')
-                .long("swift-prefix")
-                .help("Prefix for generated Swift types")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_KOTLIN_PREFIX)
-                .short('k')
-                .long("kotlin-prefix")
-                .help("Prefix for generated Kotlin types")
-                .takes_value(true)
-                .required(false),
-        )
+            Arg::new(ARG_PREFIX)
+                .long("prefix")
+                .required(false)
+                .help("Prefix for generated file names").takes_value(true)
+            )
+        // .arg(
+        //     Arg::new(ARG_SWIFT_PREFIX)
+        //         .short('s')
+        //         .long("swift-prefix")
+        //         .help("Prefix for generated Swift types")
+        //         .takes_value(true)
+        //         .required(false),
+        // )
+        // .arg(
+        //     Arg::new(ARG_KOTLIN_PREFIX)
+        //         .short('k')
+        //         .long("kotlin-prefix")
+        //         .help("Prefix for generated Kotlin types")
+        //         .takes_value(true)
+        //         .required(false),
+        // )
         .arg(
             Arg::new(ARG_JAVA_PACKAGE)
                 .short('j')
@@ -128,13 +139,13 @@ fn build_command() -> Command<'static> {
                 .required(false),
         )
         .arg(
-            Arg::new(ARG_OUTPUT_FILE)
+            Arg::new(ARG_OUTPUT_FOLDER)
                 .short('o')
-                .long("output-file")
-                .help("File to write output to. mtime will be preserved if the file contents don't change")
+                .long("output-folder")
+                .help("Folder to write output to. mtime will be preserved if the file contents don't change")
                 .required_unless(ARG_GENERATE_CONFIG)
                 .takes_value(true)
-                .long(ARG_OUTPUT_FILE)
+                .long(ARG_OUTPUT_FOLDER)
         )
         .arg(
             Arg::new(ARG_FOLLOW_LINKS)
@@ -192,7 +203,6 @@ fn main() {
     }
 
     let mut directories = options.values_of("directories").unwrap();
-    let outfile = Path::new(options.value_of(ARG_OUTPUT_FILE).unwrap());
     let language_type = options
         .value_of(ARG_TYPE)
         .map(|lang| lang.parse().ok())
@@ -241,6 +251,8 @@ fn main() {
         }
     };
 
+    let prefix = options.value_of(ARG_PREFIX);
+
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
     types.select("rust");
@@ -270,17 +282,37 @@ fn main() {
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
-    let glob_paths: Vec<String> = walker_builder
+    let glob_paths = walker_builder
         .build()
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
-        .filter_map(|dir_entry| dir_entry.path().to_str().map(String::from))
-        .collect();
+        .filter_map(|dir_entry| {
+            let extension = language_extension(language_type.unwrap());
+            dir_entry
+                .path()
+                .to_str()
+                .map(String::from)
+                .and_then(|filepath| {
+                    dir_entry
+                        .into_path()
+                        .file_stem()
+                        .and_then(|stem| stem.to_str())
+                        .map(|name| {
+                            (
+                                filepath,
+                                match prefix {
+                                    Some(p) => format!("{p}-{name}.{extension}"),
+                                    None => format!("{name}.{extension}"),
+                                },
+                            )
+                        })
+                })
+        })
+        .collect::<Vec<_>>();
 
-    let mut generated_contents = vec![];
     let parsed_data = glob_paths
         .par_iter()
-        .map(|filepath| {
+        .flat_map(|(filepath, filename)| {
             let data = std::fs::read_to_string(filepath).unwrap_or_else(|e| {
                 panic!(
                     "failed to read file at {filepath:?}: {e}",
@@ -289,37 +321,57 @@ fn main() {
                 )
             });
             let parsed_data = typeshare_core::parser::parse(&data);
-            if parsed_data.is_err() {
-                panic!("{}", parsed_data.err().unwrap());
+            match parsed_data {
+                Ok(data) => data.map(|d| (filename.to_string(), d)),
+                Err(_) => panic!("{}", parsed_data.err().unwrap()),
             }
-            parsed_data.unwrap()
         })
-        .reduce(ParsedData::default, |mut identity, other| {
-            identity.add(other);
-            identity
+        .fold(
+            HashMap::new,
+            |mut file_maps: HashMap<String, ParsedData>, (file_name, parsed_data)| {
+                match file_maps.entry(file_name) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().add(parsed_data);
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(parsed_data);
+                    }
+                }
+                file_maps
+            },
+        )
+        .reduce(HashMap::new, |mut file_maps, mapping| {
+            file_maps.extend(mapping);
+            file_maps
         });
 
-    lang.generate_types(&mut generated_contents, &parsed_data)
-        .expect("Couldn't generate types");
+    for (file_name, parsed_data) in parsed_data {
+        let outfile = Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(file_name);
+        let mut generated_contents = Vec::new();
+        lang.generate_types(&mut generated_contents, &parsed_data)
+            .expect("Couldn't generate types");
+        // match fs::read(outfile) {
+        //     Ok(buf) if buf == generated_contents => {
+        //         // ok! don't need to do anything :)
+        //         // avoid writing the file to leave the mtime intact
+        //         // for tools which might use it to know when to
+        //         // rebuild.
+        //         return;
+        //     }
+        //     _ => {}
+        // }
 
-    match fs::read(outfile) {
-        Ok(buf) if buf == generated_contents => {
-            // ok! don't need to do anything :)
-            // avoid writing the file to leave the mtime intact
-            // for tools which might use it to know when to
-            // rebuild.
-            return;
+        let out_dir = outfile.parent().unwrap();
+        // If the output directory doesn't already exist, create it.
+        if !out_dir.exists() {
+            fs::create_dir_all(out_dir).expect("failed to create output directory");
         }
-        _ => {}
+
+        fs::write(outfile, generated_contents).expect("failed to write output");
     }
 
-    let out_dir = outfile.parent().unwrap();
-    // If the output directory doesn't already exist, create it.
-    if !out_dir.exists() {
-        fs::create_dir_all(out_dir).expect("failed to create output directory");
-    }
-
-    fs::write(outfile, generated_contents).expect("failed to write output");
+    // lang.generate_types(&mut generated_contents, &parsed_data)
+    //     .expect("Couldn't generate types");
 }
 
 /// Overrides any configuration values with provided arguments
@@ -354,4 +406,14 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     }
 
     config
+}
+
+fn language_extension(lanugage: SupportedLanguage) -> &'static str {
+    match lanugage {
+        SupportedLanguage::Go => "go",
+        SupportedLanguage::Kotlin => "kt",
+        SupportedLanguage::Scala => "scala",
+        SupportedLanguage::Swift => "swift",
+        SupportedLanguage::TypeScript => "ts",
+    }
 }

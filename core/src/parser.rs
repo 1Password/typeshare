@@ -1,20 +1,19 @@
-use crate::language::SupportedLanguage;
-use crate::rename::RenameExt;
-use crate::rust_types::{
-    FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
-    RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+use crate::{
+    language::SupportedLanguage,
+    rename::RenameExt,
+    rust_types::{
+        FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
+        RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+    },
 };
-
-use std::collections::{BTreeSet, HashMap, HashSet};
-use std::convert::TryFrom;
-
 use proc_macro2::Ident;
-use syn::ext::IdentExt;
-use syn::parse::ParseBuffer;
-use syn::punctuated::Punctuated;
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    convert::TryFrom,
+};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList,
-    MetaNameValue, Token,
+    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, Attribute, Expr, ExprLit, Fields,
+    Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList, MetaNameValue, Token,
 };
 use syn::{GenericParam, Meta};
 use thiserror::Error;
@@ -61,6 +60,10 @@ pub struct ParsedData {
     pub aliases: Vec<RustTypeAlias>,
 }
 
+pub struct ParsedModule {
+    pub module: HashMap<String, Vec<ParsedData>>,
+}
+
 impl ParsedData {
     /// Add the parsed data from `other` to `self`.
     pub fn add(&mut self, mut other: Self) {
@@ -96,13 +99,13 @@ impl ParsedData {
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
+pub fn parse(input: &str) -> Result<Option<ParsedData>, ParseError> {
     let mut parsed_data = ParsedData::default();
 
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
     if !input.contains(TYPESHARE) {
-        return Ok(parsed_data);
+        return Ok(None);
     }
 
     // Parse and process the input, ensuring we parse only items marked with
@@ -113,7 +116,7 @@ pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
         parsed_data.parse(item)?;
     }
 
-    Ok(parsed_data)
+    Ok(Some(parsed_data))
 }
 
 /// Given an iterator over items, will return an iterator that flattens the contents of embedded

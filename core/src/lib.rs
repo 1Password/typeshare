@@ -31,6 +31,6 @@ pub fn process_input(
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
     let parsed_data = parser::parse(input)?;
-    language.generate_types(out, &parsed_data)?;
+    language.generate_types(out, &parsed_data.unwrap())?;
     Ok(())
 }

@@ -67,7 +67,7 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
-    let parsed_data = typeshare_core::parser::parse(&rust_input)?;
+    let parsed_data = typeshare_core::parser::parse(&rust_input)?.unwrap();
     lang.generate_types(&mut typeshare_output, &parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
