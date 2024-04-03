@@ -1,17 +1,17 @@
 <!DOCTYPE HTML>
-<html lang="en" class="sidebar-visible no-js light">
+<html lang="en" class="light" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
         <title>The Typeshare Book</title>
-        <meta name="robots" content="noindex" />
+        <meta name="robots" content="noindex">
 
 
         <!-- Custom HTML head -->
         
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#ffffff" />
+        <meta name="theme-color" content="#ffffff">
 
         <link rel="icon" href="favicon.svg">
         <link rel="shortcut icon" href="favicon.png">
@@ -32,7 +32,7 @@
         <!-- Custom theme stylesheets -->
 
     </head>
-    <body>
+    <body class="sidebar-visible no-js">
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
@@ -62,31 +62,38 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('no-js')
             html.classList.remove('light')
             html.classList.add(theme);
-            html.classList.add('js');
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
         </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var html = document.querySelector('html');
+            var body = document.querySelector('body');
             var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
                 try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
                 sidebar = sidebar || 'visible';
             } else {
                 sidebar = 'hidden';
             }
-            html.classList.remove('sidebar-visible');
-            html.classList.add("sidebar-" + sidebar);
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
                 <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="usage/configuration.html"><strong aria-hidden="true">3.2.</strong> Configuration</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
             </div>
-            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
         </nav>
 
         <!-- Track and set sidebar scroll position -->
@@ -117,9 +124,9 @@
                                 <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
-                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
                             <i class="fa fa-bars"></i>
-                        </button>
+                        </label>
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
@@ -179,10 +186,10 @@
 <pre><code class="language-toml"># Cargo.toml
 
 [dependencies]
-typeshare = &quot;1.0.0&quot; # Use whichever version is the most recent
+typeshare = "1.0.0" # Use whichever version is the most recent
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="usage"><a class="header" href="#usage">Usage</a></h1>
-<p>This section will cover how to use Typeshare to generate type definitions for your project and how to interact with them across FFI. </p>
+<p>This section will cover how to use Typeshare to generate type definitions for your project and how to interact with them across FFI.</p>
 <p>Typeshare provides a CLI tool that will perform the necessary generation for any types you annotate in your Rust code.</p>
 <p>To generate ffi definitions for a specific target language, run the <code>typeshare</code> command and specify the directory containing your rust code, the language you would like to generate for, and the file to which your generated definitions will be written:</p>
 <pre><code>typeshare ./my_rust_project --lang=kotlin --output-file=my_kotlin_definitions.kt
@@ -222,13 +229,13 @@ enum MyEnum {
 }
 <span class="boring">}</span></code></pre></pre>
 <h2 id="annotation-arguments"><a class="header" href="#annotation-arguments">Annotation arguments</a></h2>
-<p>We can add arguments to the <code>#[typeshare]</code> annotation to modify the generated definitions. </p>
+<p>We can add arguments to the <code>#[typeshare]</code> annotation to modify the generated definitions.</p>
 <h3 id="decorators"><a class="header" href="#decorators">Decorators</a></h3>
 <p>It can be used to add decorators like Swift protocols or Kotlin interfaces to the generated output types. For example, we can do</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[typeshare(swift = &quot;Equatable, Codable, Comparable, Hashable&quot;)]
-#[serde(tag = &quot;type&quot;, content = &quot;content&quot;)]
+</span>#[typeshare(swift = "Equatable, Codable, Comparable, Hashable")]
+#[serde(tag = "type", content = "content")]
 pub enum BestHockeyTeams {
     MontrealCanadiens,
     Lies(String),
@@ -240,8 +247,8 @@ pub enum BestHockeyTeams {
 	case lies(String)
 
 	enum CodingKeys: String, CodingKey, Codable {
-		case montrealCanadiens = &quot;MontrealCanadiens&quot;,
-			lies = &quot;Lies&quot;
+		case montrealCanadiens = "MontrealCanadiens",
+			lies = "Lies"
 	}
 
 	private enum ContainerCodingKeys: String, CodingKey {
@@ -262,7 +269,7 @@ pub enum BestHockeyTeams {
 				}
 			}
 		}
-		throw DecodingError.typeMismatch(OPBestHockeyTeams2.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: &quot;Wrong type for OPBestHockeyTeams&quot;))
+		throw DecodingError.typeMismatch(OPBestHockeyTeams2.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for OPBestHockeyTeams"))
 	}
 
 	public func encode(to encoder: Encoder) throws {
@@ -284,8 +291,8 @@ custom serde attributes.</p>
 <pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>/// Options that you could pick
-#[typeshare(serialized_as = &quot;String&quot;)]
-#[serde(try_from = &quot;String&quot;, into = &quot;String&quot;)]
+#[typeshare(serialized_as = "String")]
+#[serde(try_from = "String", into = "String")]
 pub enum Options {
     /// Affirmative Response
     Yes,
@@ -306,12 +313,12 @@ typealias Options = String
 </span>/// This is a comment.
 /// Continued lovingly here
 #[typeshare]
-#[serde(rename_all = &quot;camelCase&quot;)]
+#[serde(rename_all = "camelCase")]
 pub enum Colors {
     Red = 0,
     Blue = 1,
     /// Green is a cool color
-    #[serde(rename = &quot;green-like&quot;)]
+    #[serde(rename = "green-like")]
     Green = 2,
 }
 <span class="boring">}</span></code></pre></pre>
@@ -321,10 +328,10 @@ pub enum Colors {
  * Continued lovingly here
  */
 export const enum Colors {
-	Red = &quot;red&quot;,
-	Blue = &quot;blue&quot;,
+	Red = "red",
+	Blue = "blue",
 	/** Green is a cool color */
-	Green = &quot;green-like&quot;,
+	Green = "green-like",
 }
 </code></pre>
 <h3 id="skipping-fields"><a class="header" href="#skipping-fields">Skipping Fields</a></h3>
@@ -361,15 +368,15 @@ pub struct MyStruct {
 </li>
 <li>
 <p><code>-s</code>, <code>--swift-prefix</code>
-Specify a prefix that will be prepended to type names when generating types in Swift. </p>
+Specify a prefix that will be prepended to type names when generating types in Swift.</p>
 </li>
 <li>
 <p><code>-M</code>, <code>--module-name</code>
-Specify the name of the Kotlin module for generated Kotlin source code. </p>
+Specify the name of the Kotlin module for generated Kotlin source code.</p>
 </li>
 <li>
 <p><code>-j</code>, <code>--java-package</code>
-Specify the name of the Java package for generated Kotlin types. </p>
+Specify the name of the Java package for generated Kotlin types.</p>
 </li>
 <li>
 <p><code>-c</code>, <code>--config-file</code>
@@ -398,13 +405,13 @@ module_name = 'myModule'
 package = 'com.example.package'
 
 [swift.type_mappings]
-&quot;DateTime&quot; = &quot;Date&quot;
+"DateTime" = "Date"
 
 [typescript.type_mappings]
-&quot;DateTime&quot; = &quot;string&quot;
+"DateTime" = "string"
 
 [kotlin.type_mappings]
-&quot;DateTime&quot; = &quot;String&quot;
+"DateTime" = "String"
 </code></pre>
 <p>In the configuration file, you can specify the options you want to set so that they do not need to be specified when running Typeshare from the command line. You can also define custom type mappings to specify the foreign type that a given Rust type will correspond to.</p>
 <p>In order to create a config file you can run the following command to generate one in your current directory.</p>
