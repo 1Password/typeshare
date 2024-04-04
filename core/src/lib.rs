@@ -2,7 +2,7 @@
 //! Contains the parser and language converters.
 
 use language::Language;
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 use thiserror::Error;
 
 mod rename;
@@ -14,6 +14,7 @@ pub mod parser;
 /// Codifying Rust types and how they convert to various languages.
 pub mod rust_types;
 mod topsort;
+mod visitors;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
@@ -28,9 +29,10 @@ pub enum ProcessInputError {
 pub fn process_input(
     input: &str,
     language: &mut dyn Language,
+    imports: &HashMap<String, Vec<String>>,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
-    let parsed_data = parser::parse(input)?;
-    language.generate_types(out, &parsed_data.unwrap())?;
+    let parsed_data = parser::parse(input, "default_name".into(), "file_name".into())?;
+    language.generate_types(out, imports, &parsed_data.unwrap())?;
     Ok(())
 }

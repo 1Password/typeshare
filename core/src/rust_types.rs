@@ -212,6 +212,7 @@ impl TryFrom<&syn::Type> for RustType {
             }
             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
+            // TODO: Need to add this to parser imports.
             syn::Type::Path(path) => {
                 let segment = path.path.segments.iter().last().unwrap();
                 let id = segment.ident.to_string();

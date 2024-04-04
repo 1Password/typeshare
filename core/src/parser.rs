@@ -5,6 +5,7 @@ use crate::{
         FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
         RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
     },
+    visitors::{ImportVisitor, ImportedType},
 };
 use proc_macro2::Ident;
 use std::{
@@ -12,8 +13,8 @@ use std::{
     convert::TryFrom,
 };
 use syn::{
-    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, Attribute, Expr, ExprLit, Fields,
-    Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList, MetaNameValue, Token,
+    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
+    ExprLit, Fields, Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList, MetaNameValue, Token,
 };
 use syn::{GenericParam, Meta};
 use thiserror::Error;
@@ -58,6 +59,12 @@ pub struct ParsedData {
     pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+    /// Imports used by this file
+    pub import_types: Vec<ImportedType>,
+    /// Crate this belongs to.
+    pub crate_name: String,
+    /// File name to write to for generated type.
+    pub file_name: String,
 }
 
 pub struct ParsedModule {
@@ -65,11 +72,20 @@ pub struct ParsedModule {
 }
 
 impl ParsedData {
+    pub fn new(crate_name: String, file_name: String) -> Self {
+        Self {
+            crate_name,
+            file_name,
+            ..Default::default()
+        }
+    }
+
     /// Add the parsed data from `other` to `self`.
     pub fn add(&mut self, mut other: Self) {
         self.structs.append(&mut other.structs);
         self.enums.append(&mut other.enums);
         self.aliases.append(&mut other.aliases);
+        self.import_types.append(&mut other.import_types);
     }
 
     fn push(&mut self, rust_thing: RustItem) {
@@ -99,8 +115,12 @@ impl ParsedData {
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<Option<ParsedData>, ParseError> {
-    let mut parsed_data = ParsedData::default();
+pub fn parse(
+    input: &str,
+    crate_name: String,
+    file_name: String,
+) -> Result<Option<ParsedData>, ParseError> {
+    let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
 
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -111,6 +131,10 @@ pub fn parse(input: &str) -> Result<Option<ParsedData>, ParseError> {
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let source = syn::parse_file(input)?;
+
+    let mut import_visitor = ImportVisitor::new(&crate_name);
+    import_visitor.visit_file(&source);
+    parsed_data.import_types = import_visitor.import_types;
 
     for item in flatten_items(source.items.iter()) {
         parsed_data.parse(item)?;

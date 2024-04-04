@@ -10,7 +10,7 @@ repository = "https://github.com/1Password/typeshare"
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "2.0.18", features = ["full"] }
+syn = { version = "2.0.18", features = ["full", "visit"] }
 thiserror = "1.0.40"
 itertools = "0.10"
 lazy_format = "1.8"
@@ -20,3 +20,4 @@ joinery = "2"
 anyhow = "1"
 expect-test = "1.1"
 once_cell = "1"
+cool_asserts = "2"

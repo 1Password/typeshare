@@ -67,8 +67,10 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
-    let parsed_data = typeshare_core::parser::parse(&rust_input)?.unwrap();
-    lang.generate_types(&mut typeshare_output, &parsed_data)?;
+    let parsed_data =
+        typeshare_core::parser::parse(&rust_input, "default_crate".into(), "file_name".into())?
+            .unwrap();
+    lang.generate_types(&mut typeshare_output, &HashMap::new(), &parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
     let expected = expect_test::expect_file![&expected_file_path];

@@ -5,7 +5,12 @@ use crate::{
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
-use std::{collections::HashMap, fmt::Debug, io::Write, str::FromStr};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    fmt::Debug,
+    io::Write,
+    str::FromStr,
+};
 
 mod go;
 mod kotlin;
@@ -74,9 +79,46 @@ pub trait Language {
     fn generate_types(
         &mut self,
         writable: &mut dyn Write,
+        all_types: &HashMap<String, Vec<String>>,
         data: &ParsedData,
     ) -> std::io::Result<()> {
-        self.begin_file(writable)?;
+        self.begin_file(writable, data)?;
+
+        let mut used_imports: HashMap<String, HashSet<String>> = HashMap::new();
+        for referenced_import in data.import_types.iter() {
+            // Skip over imports that reference the current crate. They
+            // are all collapsed into one module per crate.
+            if data.crate_name == referenced_import.base_crate {
+                continue;
+            }
+
+            // Look up the types for the referenced imported crate.
+            if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
+                // We can have "*" wildcard here. We need to add all.
+                if referenced_import.type_name == "*" {
+                    used_imports
+                        .entry(referenced_import.base_crate.clone())
+                        .and_modify(|names| names.extend(type_names.clone()));
+                    continue;
+                }
+
+                // Add referenced import for each matching type.
+                if let Some(ty_name) = type_names
+                    .iter()
+                    .find(|&t| t == &referenced_import.type_name)
+                {
+                    match used_imports.entry(referenced_import.base_crate.clone()) {
+                        Entry::Occupied(mut entry) => {
+                            entry.get_mut().insert(ty_name.clone());
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(HashSet::from([ty_name.clone()]));
+                        }
+                    }
+                }
+            }
+        }
+        self.write_imports(writable, &used_imports)?;
 
         let mut items: Vec<RustItem> = vec![];
 
@@ -184,9 +226,15 @@ pub trait Language {
     ) -> Result<String, RustTypeFormatError>;
 
     /// Implementors can use this function to write a header for typeshared code
-    fn begin_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, _w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         Ok(())
     }
+
+    fn write_imports(
+        &mut self,
+        writer: &mut dyn Write,
+        imports: &HashMap<String, HashSet<String>>,
+    ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
     fn end_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {

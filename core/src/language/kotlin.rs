@@ -1,6 +1,6 @@
 use super::Language;
 use crate::language::SupportedLanguage;
-use crate::parser::remove_dash_from_identifier;
+use crate::parser::{remove_dash_from_identifier, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
@@ -9,6 +9,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::collections::HashSet;
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -91,7 +92,7 @@ impl Language for Kotlin {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.package.is_empty() {
             if !self.no_version_header {
                 writeln!(w, "/**")?;
@@ -99,7 +100,7 @@ impl Language for Kotlin {
                 writeln!(w, " */")?;
                 writeln!(w)?;
             }
-            writeln!(w, "package {}", self.package)?;
+            writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
             writeln!(w)?;
             writeln!(w, "import kotlinx.serialization.Serializable")?;
             writeln!(w, "import kotlinx.serialization.SerialName")?;
@@ -206,6 +207,20 @@ impl Language for Kotlin {
         self.write_enum_variants(w, e)?;
 
         writeln!(w, "}}\n")
+    }
+
+    fn write_imports(
+        &mut self,
+        w: &mut dyn Write,
+        imports: &HashMap<String, HashSet<String>>,
+    ) -> std::io::Result<()> {
+        for (path, ty) in imports {
+            for t in ty {
+                writeln!(w, "import {}.{path}.{t}", self.package)?;
+            }
+        }
+        writeln!(w)?;
+        Ok(())
     }
 }
 

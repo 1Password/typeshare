@@ -26,7 +26,12 @@ pub struct Go {
 }
 
 impl Language for Go {
-    fn generate_types(&mut self, w: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        w: &mut dyn Write,
+        _imports: &HashMap<String, Vec<String>>,
+        data: &ParsedData,
+    ) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
         let mut types_mapping_to_struct = HashSet::new();
@@ -39,7 +44,7 @@ impl Language for Go {
             }
         }
 
-        self.begin_file(w)?;
+        self.begin_file(w, data)?;
 
         let mut items: Vec<RustItem> = vec![];
 
@@ -114,7 +119,7 @@ impl Language for Go {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.no_version_header {
             // This comment is specifically formatted to satisfy gosec's template for a generated file,
             // so the generated Go file can be ignored with `gosec -exclude-generated`.
@@ -158,6 +163,14 @@ impl Language for Go {
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
         writeln!(w, "}}")
+    }
+
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: &HashMap<String, HashSet<String>>,
+    ) -> std::io::Result<()> {
+        Ok(())
     }
 }
 

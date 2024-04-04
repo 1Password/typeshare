@@ -6,15 +6,16 @@ use config::Config;
 use ignore::overrides::OverrideBuilder;
 use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
     fs,
+    ops::Not,
     path::Path,
 };
-use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
+use typeshare_core::{language::GenericConstraints, rust_types::RustEnum};
 use typeshare_core::{
     language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
@@ -25,7 +26,6 @@ mod config;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const ARG_TYPE: &str = "TYPE";
-const ARG_PREFIX: &str = "PREFIX";
 const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
 const ARG_KOTLIN_PREFIX: &str = "KOTLINPREFIX";
 const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
@@ -71,27 +71,21 @@ fn build_command() -> Command<'static> {
                 .required_unless(ARG_GENERATE_CONFIG),
         )
         .arg(
-            Arg::new(ARG_PREFIX)
-                .long("prefix")
-                .required(false)
-                .help("Prefix for generated file names").takes_value(true)
-            )
-        // .arg(
-        //     Arg::new(ARG_SWIFT_PREFIX)
-        //         .short('s')
-        //         .long("swift-prefix")
-        //         .help("Prefix for generated Swift types")
-        //         .takes_value(true)
-        //         .required(false),
-        // )
-        // .arg(
-        //     Arg::new(ARG_KOTLIN_PREFIX)
-        //         .short('k')
-        //         .long("kotlin-prefix")
-        //         .help("Prefix for generated Kotlin types")
-        //         .takes_value(true)
-        //         .required(false),
-        // )
+            Arg::new(ARG_SWIFT_PREFIX)
+                .short('s')
+                .long("swift-prefix")
+                .help("Prefix for generated Swift types")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new(ARG_KOTLIN_PREFIX)
+                .short('k')
+                .long("kotlin-prefix")
+                .help("Prefix for generated Kotlin types")
+                .takes_value(true)
+                .required(false),
+        )
         .arg(
             Arg::new(ARG_JAVA_PACKAGE)
                 .short('j')
@@ -251,8 +245,6 @@ fn main() {
         }
     };
 
-    let prefix = options.value_of(ARG_PREFIX);
-
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
     types.select("rust");
@@ -282,73 +274,18 @@ fn main() {
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
-    let glob_paths = walker_builder
-        .build()
-        .filter_map(Result::ok)
-        .filter(|dir_entry| !dir_entry.path().is_dir())
-        .filter_map(|dir_entry| {
-            let extension = language_extension(language_type.unwrap());
-            dir_entry
-                .path()
-                .to_str()
-                .map(String::from)
-                .and_then(|filepath| {
-                    dir_entry
-                        .into_path()
-                        .file_stem()
-                        .and_then(|stem| stem.to_str())
-                        .map(|name| {
-                            (
-                                filepath,
-                                match prefix {
-                                    Some(p) => format!("{p}-{name}.{extension}"),
-                                    None => format!("{name}.{extension}"),
-                                },
-                            )
-                        })
-                })
-        })
-        .collect::<Vec<_>>();
+    let file_mappings = parse_input(parser_inputs(walker_builder, language_type));
 
-    let parsed_data = glob_paths
-        .par_iter()
-        .flat_map(|(filepath, filename)| {
-            let data = std::fs::read_to_string(filepath).unwrap_or_else(|e| {
-                panic!(
-                    "failed to read file at {filepath:?}: {e}",
-                    filepath = filepath,
-                    e = e
-                )
-            });
-            let parsed_data = typeshare_core::parser::parse(&data);
-            match parsed_data {
-                Ok(data) => data.map(|d| (filename.to_string(), d)),
-                Err(_) => panic!("{}", parsed_data.err().unwrap()),
-            }
-        })
-        .fold(
-            HashMap::new,
-            |mut file_maps: HashMap<String, ParsedData>, (file_name, parsed_data)| {
-                match file_maps.entry(file_name) {
-                    Entry::Occupied(mut entry) => {
-                        entry.get_mut().add(parsed_data);
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(parsed_data);
-                    }
-                }
-                file_maps
-            },
-        )
-        .reduce(HashMap::new, |mut file_maps, mapping| {
-            file_maps.extend(mapping);
-            file_maps
-        });
+    // Collect all the types into a map of the file name they
+    // belong too and the list of type names. Used for generating
+    // imports in generated files.
+    let imports = all_imports(&file_mappings);
 
-    for (file_name, parsed_data) in parsed_data {
-        let outfile = Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(file_name);
+    for (_crate_name, parsed_data) in file_mappings {
+        let outfile =
+            Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &parsed_data)
+        lang.generate_types(&mut generated_contents, &imports, &parsed_data)
             .expect("Couldn't generate types");
         // match fs::read(outfile) {
         //     Ok(buf) if buf == generated_contents => {
@@ -369,9 +306,128 @@ fn main() {
 
         fs::write(outfile, generated_contents).expect("failed to write output");
     }
+}
 
-    // lang.generate_types(&mut generated_contents, &parsed_data)
-    //     .expect("Couldn't generate types");
+/// Input data for parsing each source file.
+struct ParserInput {
+    file_path: String,
+    file_name: String,
+    crate_name: String,
+}
+
+fn parser_inputs(
+    walker_builder: WalkBuilder,
+    language_type: Option<SupportedLanguage>,
+) -> Vec<ParserInput> {
+    let glob_paths = walker_builder
+        .build()
+        .filter_map(Result::ok)
+        .filter(|dir_entry| !dir_entry.path().is_dir())
+        .filter_map(|dir_entry| {
+            let extension = language_extension(language_type.unwrap());
+            dir_entry
+                .path()
+                .to_str()
+                .map(String::from)
+                .and_then(|file_path| {
+                    determine_crate_name(&file_path).map(|crate_name| {
+                        let file_name = format!("{crate_name}.{extension}");
+                        ParserInput {
+                            file_path,
+                            file_name,
+                            crate_name,
+                        }
+                    })
+                })
+        })
+        .collect::<Vec<_>>();
+    glob_paths
+}
+
+/// Collect all the imports into a single mapping of crate name to list of types.
+fn all_imports(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
+    file_mappings
+        .iter()
+        .map(|(source_file, parsed_data)| {
+            (
+                source_file,
+                parsed_data
+                    .structs
+                    .iter()
+                    .map(|s| s.id.renamed.clone())
+                    .chain(parsed_data.enums.iter().map(|s| match s {
+                        RustEnum::Unit(s) => s.id.renamed.clone(),
+                        RustEnum::Algebraic { shared, .. } => shared.id.renamed.clone(),
+                    }))
+                    .chain(parsed_data.aliases.iter().map(|s| s.id.renamed.clone()))
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .fold(
+            HashMap::new(),
+            |mut import_map: HashMap<String, Vec<String>>, (crate_name, type_names)| {
+                match import_map.entry(crate_name.clone()) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().extend(type_names);
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(type_names);
+                    }
+                }
+                import_map
+            },
+        )
+}
+
+/// Collect all the parsed sources into a mapping of crate name to parsed data.
+fn parse_input(inputs: Vec<ParserInput>) -> HashMap<String, ParsedData> {
+    inputs
+        .into_par_iter()
+        .flat_map(
+            |ParserInput {
+                 file_path,
+                 file_name,
+                 crate_name,
+             }| {
+                let data = std::fs::read_to_string(&file_path)
+                    .unwrap_or_else(|e| panic!("failed to read file at {file_path:?}: {e}", e = e));
+                let parsed_data =
+                    typeshare_core::parser::parse(&data, crate_name.clone(), file_name.clone());
+                match parsed_data {
+                    Ok(data) => {
+                        data.and_then(|d| is_parsed_data_empty(&d).not().then(|| (crate_name, d)))
+                    }
+                    Err(_) => panic!("{}", parsed_data.err().unwrap()),
+                }
+            },
+        )
+        .fold(
+            HashMap::new,
+            |mut file_maps: HashMap<String, ParsedData>, (crate_name, parsed_data)| {
+                match file_maps.entry(crate_name) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().add(parsed_data);
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(parsed_data);
+                    }
+                }
+                file_maps
+            },
+        )
+        .reduce(HashMap::new, |mut file_maps, mapping| {
+            for (key, val) in mapping {
+                match file_maps.entry(key) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().add(val);
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(val);
+                    }
+                }
+            }
+            file_maps
+        })
 }
 
 /// Overrides any configuration values with provided arguments
@@ -415,5 +471,37 @@ fn language_extension(lanugage: SupportedLanguage) -> &'static str {
         SupportedLanguage::Scala => "scala",
         SupportedLanguage::Swift => "swift",
         SupportedLanguage::TypeScript => "ts",
+    }
+}
+
+/// Extract the crate name from a give path.
+fn determine_crate_name(file_path: &str) -> Option<String> {
+    let path = Path::new(file_path);
+    let mut crate_finder = path.iter().rev().skip_while(|p| *p != "src");
+    crate_finder.next();
+    crate_finder
+        .next()
+        .and_then(|s| s.to_str())
+        .map(file_name_to_crate_name)
+}
+
+/// Check if we have not parsed any relavent typehsared types.
+fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
+    parsed_data.enums.is_empty() && parsed_data.aliases.is_empty() && parsed_data.structs.is_empty()
+}
+
+/// Convert a folder crate name to a source crate name.
+fn file_name_to_crate_name(file_name: &str) -> String {
+    file_name.replace('-', "_")
+}
+
+#[cfg(test)]
+mod test {
+    use crate::determine_crate_name;
+
+    #[test]
+    fn test_crate_name() {
+        let path = "/some/path/to/projects/core/foundation/op-proxy/src/android.rs";
+        assert_eq!(Some("op_proxy"), determine_crate_name(path).as_deref());
     }
 }

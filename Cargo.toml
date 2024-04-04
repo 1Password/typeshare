@@ -1,10 +1,6 @@
 [workspace]
-members = [
-    "annotation",
-    "cli",
-    "core",
-    "lib"
-]
+members = ["annotation", "cli", "core", "lib"]
+resolver = "2"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
