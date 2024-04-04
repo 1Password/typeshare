@@ -187,11 +187,19 @@ impl Language for Kotlin {
                 write!(
                     w,
                     "enum class {}{}{}(val string: String) ",
-                    self.prefix, &e.shared().id.renamed, generic_parameters
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
                 )?;
             }
             RustEnum::Algebraic { .. } => {
-                write!(w, "sealed class {}{}{} ", self.prefix, &e.shared().id.renamed, generic_parameters)?;
+                write!(
+                    w,
+                    "sealed class {}{}{} ",
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
+                )?;
             }
         }
 
