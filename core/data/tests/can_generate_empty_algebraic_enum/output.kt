@@ -5,9 +5,9 @@ object OPAddressDetails
 sealed class OPAddress {
 	@Serializable
 	@SerialName("FixedAddress")
-	data class FixedAddress(val content: AddressDetails): Address()
+	data class FixedAddress(val content: OPAddressDetails): OPAddress()
 	@Serializable
 	@SerialName("NoFixedAddress")
-	object NoFixedAddress: Address()
+	object NoFixedAddress: OPAddress()
 }
 
