@@ -168,7 +168,7 @@ impl Language for Go {
     fn write_imports(
         &mut self,
         _writer: &mut dyn Write,
-        _imports: BTreeMap<String, BTreeSet<String>>,
+        _imports: BTreeMap<&str, BTreeSet<&str>>,
     ) -> std::io::Result<()> {
         Ok(())
     }

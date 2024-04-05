@@ -212,7 +212,7 @@ impl Language for Kotlin {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: BTreeMap<String, BTreeSet<String>>,
+        imports: BTreeMap<&str, BTreeSet<&str>>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             for t in ty {

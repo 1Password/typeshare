@@ -198,7 +198,7 @@ pub trait Language {
     fn write_imports(
         &mut self,
         writer: &mut dyn Write,
-        imports: BTreeMap<String, BTreeSet<String>>,
+        imports: BTreeMap<&str, BTreeSet<&str>>,
     ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
@@ -319,11 +319,12 @@ pub trait Language {
 
 /// Lookup any refeferences to other typeshared types in order to build
 /// a list of imports for the generated module.
-fn used_imports(
-    data: &ParsedData,
-    all_types: &HashMap<String, Vec<String>>,
-) -> BTreeMap<String, BTreeSet<String>> {
-    let mut used_imports: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+fn used_imports<'a, 'b: 'a>(
+    data: &'b ParsedData,
+    all_types: &'a HashMap<String, Vec<String>>,
+) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
+    let mut used_imports: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+
     for referenced_import in data.import_types.iter() {
         // Skip over imports that reference the current crate. They
         // are all collapsed into one module per crate.
@@ -336,8 +337,10 @@ fn used_imports(
             // We can have "*" wildcard here. We need to add all.
             if referenced_import.type_name == "*" {
                 used_imports
-                    .entry(referenced_import.base_crate.clone())
-                    .and_modify(|names| names.extend(type_names.clone()));
+                    .entry(referenced_import.base_crate.as_str())
+                    .and_modify(|names| {
+                        names.extend(type_names.iter().map(|s| s.as_str()).collect::<Vec<_>>())
+                    });
                 continue;
             }
 
@@ -346,12 +349,12 @@ fn used_imports(
                 .iter()
                 .find(|&t| t == &referenced_import.type_name)
             {
-                match used_imports.entry(referenced_import.base_crate.clone()) {
+                match used_imports.entry(referenced_import.base_crate.as_str()) {
                     Entry::Occupied(mut entry) => {
-                        entry.get_mut().insert(ty_name.clone());
+                        entry.get_mut().insert(ty_name.as_str());
                     }
                     Entry::Vacant(entry) => {
-                        entry.insert(BTreeSet::from([ty_name.clone()]));
+                        entry.insert(BTreeSet::from([ty_name.as_str()]));
                     }
                 }
             }
