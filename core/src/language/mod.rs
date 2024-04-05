@@ -83,41 +83,7 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable, data)?;
 
-        let mut used_imports: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-        for referenced_import in data.import_types.iter() {
-            // Skip over imports that reference the current crate. They
-            // are all collapsed into one module per crate.
-            if data.crate_name == referenced_import.base_crate {
-                continue;
-            }
-
-            // Look up the types for the referenced imported crate.
-            if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
-                // We can have "*" wildcard here. We need to add all.
-                if referenced_import.type_name == "*" {
-                    used_imports
-                        .entry(referenced_import.base_crate.clone())
-                        .and_modify(|names| names.extend(type_names.clone()));
-                    continue;
-                }
-
-                // Add referenced import for each matching type.
-                if let Some(ty_name) = type_names
-                    .iter()
-                    .find(|&t| t == &referenced_import.type_name)
-                {
-                    match used_imports.entry(referenced_import.base_crate.clone()) {
-                        Entry::Occupied(mut entry) => {
-                            entry.get_mut().insert(ty_name.clone());
-                        }
-                        Entry::Vacant(entry) => {
-                            entry.insert(BTreeSet::from([ty_name.clone()]));
-                        }
-                    }
-                }
-            }
-        }
-        self.write_imports(writable, &used_imports)?;
+        self.write_imports(writable, used_imports(data, all_types))?;
 
         let mut items: Vec<RustItem> = vec![];
 
@@ -232,7 +198,7 @@ pub trait Language {
     fn write_imports(
         &mut self,
         writer: &mut dyn Write,
-        imports: &BTreeMap<String, BTreeSet<String>>,
+        imports: BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
@@ -349,4 +315,47 @@ pub trait Language {
 
         Ok(())
     }
+}
+
+/// Lookup any refeferences to other typeshared types in order to build
+/// a list of imports for the generated module.
+fn used_imports(
+    data: &ParsedData,
+    all_types: &HashMap<String, Vec<String>>,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut used_imports: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for referenced_import in data.import_types.iter() {
+        // Skip over imports that reference the current crate. They
+        // are all collapsed into one module per crate.
+        if data.crate_name == referenced_import.base_crate {
+            continue;
+        }
+
+        // Look up the types for the referenced imported crate.
+        if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
+            // We can have "*" wildcard here. We need to add all.
+            if referenced_import.type_name == "*" {
+                used_imports
+                    .entry(referenced_import.base_crate.clone())
+                    .and_modify(|names| names.extend(type_names.clone()));
+                continue;
+            }
+
+            // Add referenced import for each matching type.
+            if let Some(ty_name) = type_names
+                .iter()
+                .find(|&t| t == &referenced_import.type_name)
+            {
+                match used_imports.entry(referenced_import.base_crate.clone()) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().insert(ty_name.clone());
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(BTreeSet::from([ty_name.clone()]));
+                    }
+                }
+            }
+        }
+    }
+    used_imports
 }

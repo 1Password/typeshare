@@ -279,13 +279,13 @@ fn main() {
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
     // imports in generated files.
-    let imports = all_imports(&crate_parsed_data);
+    let import_candidates = all_types(&crate_parsed_data);
 
     for (_crate_name, parsed_data) in crate_parsed_data {
         let outfile =
             Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &imports, &parsed_data)
+        lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)
             .expect("Couldn't generate types");
         match fs::read(&outfile) {
             Ok(buf) if buf == generated_contents => {
@@ -347,7 +347,7 @@ fn parser_inputs(
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 /// mapping is used to lookup and generated import statements for generated files.
-fn all_imports(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
+fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
     file_mappings
         .iter()
         .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))

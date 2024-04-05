@@ -537,7 +537,7 @@ impl Language for Swift {
     fn write_imports(
         &mut self,
         _writer: &mut dyn Write,
-        _imports: &BTreeMap<String, BTreeSet<String>>,
+        _imports: BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()> {
         Ok(())
     }

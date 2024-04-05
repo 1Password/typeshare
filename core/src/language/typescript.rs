@@ -171,7 +171,7 @@ impl Language for TypeScript {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: &BTreeMap<String, BTreeSet<String>>,
+        imports: BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             write!(w, "import {{")?;
