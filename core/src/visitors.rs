@@ -1,9 +1,32 @@
 //! Visitors to collect various items from the AST.
-use std::ops::Not;
-
 use syn::{visit::Visit, ItemUse, UseTree};
 
-const IGNORED_BASE_CRATES: &[&str] = &["std", "serde", "typeshare"];
+const IGNORED_BASE_CRATES: &[&str] = &[
+    "std",
+    "serde",
+    "serde_json",
+    "typeshare",
+    "once_cell",
+    "itertools",
+    "anyhow",
+    "thiserror",
+    "quote",
+    "syn",
+    "clap",
+    "tokio",
+    "reqwest",
+    "regex",
+    "http",
+    "time",
+    "axum",
+    "either",
+    "chrono",
+    "base64",
+    "rayon",
+    "ring",
+    "zip",
+    "neon",
+];
 
 /// An import visitor that collects all use or
 /// qualified referenced items.
@@ -14,6 +37,7 @@ pub struct ImportVisitor<'a> {
 }
 
 impl<'a> ImportVisitor<'a> {
+    /// Create an import visitor for a given crate name.
     pub fn new(crate_name: &'a str) -> Self {
         Self {
             crate_name,
@@ -23,18 +47,17 @@ impl<'a> ImportVisitor<'a> {
 }
 
 impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
+    /// Find any reference types that are not part of
+    /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
         fn extract_root_and_types(p: &syn::Path, crate_name: &str) -> Option<ImportedType> {
             let first = p.segments.first()?.ident.to_string();
             let last = p.segments.last()?.ident.to_string();
 
-            IGNORED_BASE_CRATES
-                .iter()
-                .any(|&n| n == first)
-                .not()
-                .then_some(())?;
+            accept_crate(&first).then_some(())?;
 
             (first != last).then(|| {
+                // resolve crate and super aliases into the crate name.
                 let base_crate = if first == "crate" || first == "super" {
                     crate_name.to_string()
                 } else {
@@ -53,6 +76,7 @@ impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
         syn::visit::visit_path(self, p);
     }
 
+    /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
         let result = parse_import(i, self.crate_name);
         self.import_types.extend(result);
@@ -60,9 +84,22 @@ impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
     }
 }
 
+/// Exclude popular crates that won't be typeshared.
+fn accept_crate(crate_name: &str) -> bool {
+    !IGNORED_BASE_CRATES.iter().any(|&n| n == crate_name)
+        && crate_name
+            .chars()
+            .next()
+            .map(|c| c.is_lowercase())
+            .unwrap_or(false)
+}
+
+/// An imported type reference.
 #[derive(Debug)]
 pub struct ImportedType {
+    /// Crate this type belongs to.
     pub base_crate: String,
+    /// Type name.
     pub type_name: String,
 }
 
@@ -77,22 +114,24 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
         imported_types: &mut Vec<ImportedType>,
         crate_name: &str,
     ) {
+        // resolve crate and super aliases into the crate name.
+        let resolve_crate_name = || -> String {
+            if names[0].as_str() == "crate" || names[0].as_str() == "super" {
+                crate_name.to_string()
+            } else {
+                names[0].clone()
+            }
+        };
+
         match use_tree {
             syn::UseTree::Path(path) => {
                 names.push(path.ident.to_string());
                 traverse(&path.tree, names, imported_types, crate_name);
             }
             syn::UseTree::Name(name) => {
-                if !IGNORED_BASE_CRATES.iter().any(|&n| n == names[0]) {
+                if accept_crate(&names[0]) {
                     imported_types.push(ImportedType {
-                        // any imports from the same crate will be converted to
-                        // the create name.
-                        base_crate: if names[0].as_str() == "crate" || names[0].as_str() == "super"
-                        {
-                            crate_name.to_string()
-                        } else {
-                            names[0].clone()
-                        },
+                        base_crate: resolve_crate_name(),
                         type_name: name.ident.to_string(),
                     });
                 }
@@ -101,9 +140,9 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
                 names.push(rename.ident.to_string());
             }
             syn::UseTree::Glob(_) => {
-                if !IGNORED_BASE_CRATES.iter().any(|&n| n == names[0]) {
+                if accept_crate(&names[0]) {
                     imported_types.push(ImportedType {
-                        base_crate: names[0].clone(),
+                        base_crate: resolve_crate_name(),
                         type_name: "*".into(),
                     });
                 }

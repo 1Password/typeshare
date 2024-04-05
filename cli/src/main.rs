@@ -13,9 +13,9 @@ use std::{
     ops::Not,
     path::Path,
 };
+use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
-use typeshare_core::{language::GenericConstraints, rust_types::RustEnum};
 use typeshare_core::{
     language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
@@ -348,21 +348,7 @@ fn parser_inputs(
 fn all_imports(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
     file_mappings
         .iter()
-        .map(|(source_file, parsed_data)| {
-            (
-                source_file,
-                parsed_data
-                    .structs
-                    .iter()
-                    .map(|s| s.id.renamed.clone())
-                    .chain(parsed_data.enums.iter().map(|s| match s {
-                        RustEnum::Unit(s) => s.id.renamed.clone(),
-                        RustEnum::Algebraic { shared, .. } => shared.id.renamed.clone(),
-                    }))
-                    .chain(parsed_data.aliases.iter().map(|s| s.id.renamed.clone()))
-                    .collect::<Vec<_>>(),
-            )
-        })
+        .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
         .fold(
             HashMap::new(),
             |mut import_map: HashMap<String, Vec<String>>, (crate_name, type_names)| {

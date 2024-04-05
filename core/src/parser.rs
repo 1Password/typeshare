@@ -14,9 +14,9 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList, MetaNameValue, Token,
+    ExprLit, Fields, GenericParam, Item, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
+    MetaNameValue, Token,
 };
-use syn::{GenericParam, Meta};
 use thiserror::Error;
 
 const TYPESHARE: &str = "typeshare";
@@ -65,6 +65,8 @@ pub struct ParsedData {
     pub crate_name: String,
     /// File name to write to for generated type.
     pub file_name: String,
+    /// All type names
+    pub type_names: Vec<String>,
 }
 
 pub struct ParsedModule {
@@ -86,13 +88,23 @@ impl ParsedData {
         self.enums.append(&mut other.enums);
         self.aliases.append(&mut other.aliases);
         self.import_types.append(&mut other.import_types);
+        self.type_names.append(&mut other.type_names);
     }
 
     fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
-            RustItem::Struct(s) => self.structs.push(s),
-            RustItem::Enum(e) => self.enums.push(e),
-            RustItem::Alias(a) => self.aliases.push(a),
+            RustItem::Struct(s) => {
+                self.type_names.push(s.id.renamed.clone());
+                self.structs.push(s);
+            }
+            RustItem::Enum(e) => {
+                self.type_names.push(e.shared().id.renamed.clone());
+                self.enums.push(e);
+            }
+            RustItem::Alias(a) => {
+                self.type_names.push(a.id.renamed.clone());
+                self.aliases.push(a);
+            }
         }
     }
 
@@ -105,7 +117,7 @@ impl ParsedData {
                 self.push(parse_enum(e)?);
             }
             syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                self.aliases.push(parse_type_alias(t)?);
+                self.push(parse_type_alias(t)?);
             }
             _ => {}
         }
@@ -120,14 +132,13 @@ pub fn parse(
     crate_name: String,
     file_name: String,
 ) -> Result<Option<ParsedData>, ParseError> {
-    let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
-
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
     if !input.contains(TYPESHARE) {
         return Ok(None);
     }
 
+    let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let source = syn::parse_file(input)?;
@@ -424,7 +435,7 @@ fn parse_enum_variant(
 
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
+fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
         ty.parse()?
     } else {
@@ -441,12 +452,12 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
         })
         .collect();
 
-    Ok(RustTypeAlias {
+    Ok(RustItem::Alias(RustTypeAlias {
         id: get_ident(Some(&t.ident), &t.attrs, &None),
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
-    })
+    }))
 }
 
 // Helpers
