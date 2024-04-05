@@ -1,5 +1,9 @@
 //! Visitors to collect various items from the AST.
+use std::ops::Not;
+
 use syn::{visit::Visit, ItemUse, UseTree};
+
+const IGNORED_BASE_CRATES: &[&str] = &["std", "serde", "typeshare"];
 
 /// An import visitor that collects all use or
 /// qualified referenced items.
@@ -23,6 +27,13 @@ impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
         fn extract_root_and_types(p: &syn::Path, crate_name: &str) -> Option<ImportedType> {
             let first = p.segments.first()?.ident.to_string();
             let last = p.segments.last()?.ident.to_string();
+
+            IGNORED_BASE_CRATES
+                .iter()
+                .any(|&n| n == first)
+                .not()
+                .then_some(())?;
+
             (first != last).then(|| {
                 let base_crate = if first == "crate" || first == "super" {
                     crate_name.to_string()
@@ -72,24 +83,31 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
                 traverse(&path.tree, names, imported_types, crate_name);
             }
             syn::UseTree::Name(name) => {
-                imported_types.push(ImportedType {
-                    // any imports from the same crate will be converted to
-                    // the create name.
-                    base_crate: if names[0].as_str() == "crate" || names[0].as_str() == "super" {
-                        crate_name.to_string()
-                    } else {
-                        names[0].clone()
-                    },
-                    type_name: name.ident.to_string(),
-                });
+                if !IGNORED_BASE_CRATES.iter().any(|&n| n == names[0]) {
+                    imported_types.push(ImportedType {
+                        // any imports from the same crate will be converted to
+                        // the create name.
+                        base_crate: if names[0].as_str() == "crate" || names[0].as_str() == "super"
+                        {
+                            crate_name.to_string()
+                        } else {
+                            names[0].clone()
+                        },
+                        type_name: name.ident.to_string(),
+                    });
+                }
             }
             syn::UseTree::Rename(rename) => {
                 names.push(rename.ident.to_string());
             }
-            syn::UseTree::Glob(_) => imported_types.push(ImportedType {
-                base_crate: names[0].clone(),
-                type_name: "*".into(),
-            }),
+            syn::UseTree::Glob(_) => {
+                if !IGNORED_BASE_CRATES.iter().any(|&n| n == names[0]) {
+                    imported_types.push(ImportedType {
+                        base_crate: names[0].clone(),
+                        type_name: "*".into(),
+                    });
+                }
+            }
             syn::UseTree::Group(g) => {
                 g.items.iter().for_each(|item| {
                     traverse(item, names, imported_types, crate_name);
@@ -112,6 +130,7 @@ mod test {
     #[test]
     fn test_parse_import() {
         let rust_file = "
+            use std::sync::Arc;
             use quote::ToTokens;
             use std::collections::BTreeSet;
             use std::str::FromStr;
@@ -143,34 +162,6 @@ mod test {
                 } => {
                     assert_eq!(base_crate, "quote");
                     assert_eq!(type_name, "ToTokens");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "BTreeSet");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "FromStr");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "HashMap");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "TryFrom");
                 },
                 ImportedType {
                     base_crate,
@@ -214,6 +205,7 @@ mod test {
     #[test]
     fn test_path_visitor() {
         let rust_code = "
+            use std::sync::Arc;
             use quote::ToTokens;
             use std::collections::BTreeSet;
             use std::str::FromStr;
@@ -247,34 +239,6 @@ mod test {
                 } => {
                     assert_eq!(base_crate, "quote");
                     assert_eq!(type_name, "ToTokens");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "BTreeSet");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "FromStr");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "HashMap");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "std");
-                    assert_eq!(type_name, "TryFrom");
                 },
                 ImportedType {
                     base_crate,
