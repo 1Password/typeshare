@@ -32,8 +32,8 @@ const IGNORED_BASE_CRATES: &[&str] = &[
 /// qualified referenced items.
 #[derive(Default)]
 pub struct ImportVisitor<'a> {
-    pub import_types: Vec<ImportedType>,
-    pub crate_name: &'a str,
+    import_types: Vec<ImportedType>,
+    crate_name: &'a str,
 }
 
 impl<'a> ImportVisitor<'a> {
@@ -43,6 +43,11 @@ impl<'a> ImportVisitor<'a> {
             crate_name,
             import_types: Vec::new(),
         }
+    }
+
+    /// Consume the collected import types.
+    pub fn import_types(self) -> Vec<ImportedType> {
+        self.import_types
     }
 }
 
@@ -54,7 +59,9 @@ impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
             let first = p.segments.first()?.ident.to_string();
             let last = p.segments.last()?.ident.to_string();
 
-            accept_crate(&first).then_some(())?;
+            accept_crate(&first)
+                .then_some(())
+                .and_then(|_| accept_type(&last).then_some(()))?;
 
             (first != last).then(|| {
                 // resolve crate and super aliases into the crate name.
@@ -94,6 +101,15 @@ fn accept_crate(crate_name: &str) -> bool {
             .unwrap_or(false)
 }
 
+/// Accept types which start with an uppercase character.
+fn accept_type(type_name: &str) -> bool {
+    type_name
+        .chars()
+        .next()
+        .map(|c| c.is_uppercase())
+        .unwrap_or(false)
+}
+
 /// An imported type reference.
 #[derive(Debug)]
 pub struct ImportedType {
@@ -129,14 +145,16 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
                 traverse(&path.tree, names, imported_types, crate_name);
             }
             syn::UseTree::Name(name) => {
-                if accept_crate(&names[0]) {
+                let type_name = name.ident.to_string();
+                if accept_crate(&names[0]) && accept_type(&type_name) {
                     imported_types.push(ImportedType {
                         base_crate: resolve_crate_name(),
-                        type_name: name.ident.to_string(),
+                        type_name,
                     });
                 }
             }
             syn::UseTree::Rename(rename) => {
+                // TODO: I need to do something here.
                 names.push(rename.ident.to_string());
             }
             syn::UseTree::Glob(_) => {

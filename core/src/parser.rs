@@ -145,7 +145,7 @@ pub fn parse(
 
     let mut import_visitor = ImportVisitor::new(&crate_name);
     import_visitor.visit_file(&source);
-    parsed_data.import_types = import_visitor.import_types;
+    parsed_data.import_types = import_visitor.import_types();
 
     for item in flatten_items(source.items.iter()) {
         parsed_data.parse(item)?;
