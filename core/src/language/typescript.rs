@@ -6,7 +6,7 @@ use crate::{
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io;
 use std::{collections::HashMap, io::Write};
 
@@ -171,7 +171,7 @@ impl Language for TypeScript {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: &HashMap<String, HashSet<String>>,
+        imports: &BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             write!(w, "import {{")?;

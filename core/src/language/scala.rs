@@ -6,7 +6,7 @@ use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Deref;
 use std::{collections::HashMap, io::Write};
 
@@ -218,7 +218,7 @@ impl Language for Scala {
     fn write_imports(
         &mut self,
         _writer: &mut dyn Write,
-        _imports: &HashMap<String, HashSet<String>>,
+        _imports: &BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()> {
         Ok(())
     }

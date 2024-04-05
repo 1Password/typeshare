@@ -9,7 +9,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -212,7 +212,7 @@ impl Language for Kotlin {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: &HashMap<String, HashSet<String>>,
+        imports: &BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             for t in ty {

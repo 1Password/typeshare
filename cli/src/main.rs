@@ -287,16 +287,17 @@ fn main() {
         let mut generated_contents = Vec::new();
         lang.generate_types(&mut generated_contents, &imports, &parsed_data)
             .expect("Couldn't generate types");
-        // match fs::read(outfile) {
-        //     Ok(buf) if buf == generated_contents => {
-        //         // ok! don't need to do anything :)
-        //         // avoid writing the file to leave the mtime intact
-        //         // for tools which might use it to know when to
-        //         // rebuild.
-        //         return;
-        //     }
-        //     _ => {}
-        // }
+        match fs::read(&outfile) {
+            Ok(buf) if buf == generated_contents => {
+                // ok! don't need to do anything :)
+                // avoid writing the file to leave the mtime intact
+                // for tools which might use it to know when to
+                // rebuild.
+                println!("Skipping writing to {outfile:?} unchanged content");
+                continue;
+            }
+            _ => {}
+        }
 
         let out_dir = outfile.parent().unwrap();
         // If the output directory doesn't already exist, create it.

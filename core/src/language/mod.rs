@@ -6,8 +6,7 @@ use crate::{
 use itertools::Itertools;
 use proc_macro2::Ident;
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
-    fmt::Debug,
+    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashMap},
     io::Write,
     str::FromStr,
 };
@@ -84,7 +83,7 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable, data)?;
 
-        let mut used_imports: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut used_imports: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
         for referenced_import in data.import_types.iter() {
             // Skip over imports that reference the current crate. They
             // are all collapsed into one module per crate.
@@ -112,7 +111,7 @@ pub trait Language {
                             entry.get_mut().insert(ty_name.clone());
                         }
                         Entry::Vacant(entry) => {
-                            entry.insert(HashSet::from([ty_name.clone()]));
+                            entry.insert(BTreeSet::from([ty_name.clone()]));
                         }
                     }
                 }
@@ -233,7 +232,7 @@ pub trait Language {
     fn write_imports(
         &mut self,
         writer: &mut dyn Write,
-        imports: &HashMap<String, HashSet<String>>,
+        imports: &BTreeMap<String, BTreeSet<String>>,
     ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
