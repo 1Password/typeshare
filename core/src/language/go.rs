@@ -9,7 +9,7 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 /// All information needed to generate Go type-code
 #[derive(Default)]
@@ -163,14 +163,6 @@ impl Language for Go {
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
         writeln!(w, "}}")
-    }
-
-    fn write_imports(
-        &mut self,
-        _writer: &mut dyn Write,
-        _imports: BTreeMap<&str, BTreeSet<&str>>,
-    ) -> std::io::Result<()> {
-        Ok(())
     }
 }
 

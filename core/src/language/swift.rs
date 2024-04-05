@@ -8,7 +8,7 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::io;
 use std::{
     collections::HashMap,
@@ -532,14 +532,6 @@ impl Language for Swift {
         }
 
         writeln!(w, "}}")
-    }
-
-    fn write_imports(
-        &mut self,
-        _writer: &mut dyn Write,
-        _imports: BTreeMap<&str, BTreeSet<&str>>,
-    ) -> std::io::Result<()> {
-        Ok(())
     }
 }
 

@@ -195,11 +195,14 @@ pub trait Language {
         Ok(())
     }
 
+    /// For generating import statements.
     fn write_imports(
         &mut self,
-        writer: &mut dyn Write,
-        imports: BTreeMap<&str, BTreeSet<&str>>,
-    ) -> std::io::Result<()>;
+        _writer: &mut dyn Write,
+        _imports: BTreeMap<&str, BTreeSet<&str>>,
+    ) -> std::io::Result<()> {
+        Ok(())
+    }
 
     /// Implementors can use this function to write a footer for typeshared code
     fn end_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
@@ -338,9 +341,7 @@ fn used_imports<'a, 'b: 'a>(
             if referenced_import.type_name == "*" {
                 used_imports
                     .entry(referenced_import.base_crate.as_str())
-                    .and_modify(|names| {
-                        names.extend(type_names.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-                    });
+                    .and_modify(|names| names.extend(type_names.iter().map(|s| s.as_str())));
                 continue;
             }
 
