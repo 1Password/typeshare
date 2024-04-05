@@ -32,6 +32,20 @@ impl Language for Kotlin {
         &self.type_mappings
     }
 
+    fn format_simple_type(
+        &mut self,
+        base: &String,
+        generic_types: &[String],
+    ) -> Result<String, RustTypeFormatError> {
+        Ok(if let Some(mapped) = self.type_map().get(base) {
+            mapped.into()
+        } else if generic_types.contains(base) {
+            base.into()
+        } else {
+            format!("{}{}", self.prefix, base)
+        })
+    }
+
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
@@ -156,11 +170,9 @@ impl Language for Kotlin {
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
-        let type_name = format!("{}{}", &self.prefix, &e.shared().id.renamed);
-
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &|variant_name| {
-            format!("{}{}Inner", type_name, variant_name)
+            format!("{}{}Inner", &e.shared().id.renamed, variant_name)
         })?;
 
         self.write_comments(w, 0, &e.shared().comments)?;
@@ -174,12 +186,20 @@ impl Language for Kotlin {
             RustEnum::Unit(..) => {
                 write!(
                     w,
-                    "enum class {}{}(val string: String) ",
-                    type_name, generic_parameters
+                    "enum class {}{}{}(val string: String) ",
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
                 )?;
             }
             RustEnum::Algebraic { .. } => {
-                write!(w, "sealed class {}{} ", type_name, generic_parameters)?;
+                write!(
+                    w,
+                    "sealed class {}{}{} ",
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
+                )?;
             }
         }
 
@@ -285,8 +305,9 @@ impl Kotlin {
 
                             write!(
                                 w,
-                                "val {}: {}{}Inner{}",
+                                "val {}: {}{}{}Inner{}",
                                 content_key,
+                                self.prefix,
                                 e.shared().id.original,
                                 shared.id.original,
                                 generics,
@@ -297,7 +318,8 @@ impl Kotlin {
 
                     writeln!(
                         w,
-                        ": {}{}()",
+                        ": {}{}{}()",
+                        self.prefix,
                         e.shared().id.original,
                         (!e.shared().generic_types.is_empty())
                             .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
