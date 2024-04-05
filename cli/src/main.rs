@@ -274,14 +274,14 @@ fn main() {
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
-    let file_mappings = parse_input(parser_inputs(walker_builder, language_type));
+    let crate_parsed_data = parse_input(parser_inputs(walker_builder, language_type));
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
     // imports in generated files.
-    let imports = all_imports(&file_mappings);
+    let imports = all_imports(&crate_parsed_data);
 
-    for (_crate_name, parsed_data) in file_mappings {
+    for (_crate_name, parsed_data) in crate_parsed_data {
         let outfile =
             Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
@@ -293,7 +293,7 @@ fn main() {
                 // avoid writing the file to leave the mtime intact
                 // for tools which might use it to know when to
                 // rebuild.
-                println!("Skipping writing to {outfile:?} unchanged content");
+                println!("Skipping writing to {outfile:?} no changes");
                 continue;
             }
             _ => {}
@@ -345,7 +345,8 @@ fn parser_inputs(
     glob_paths
 }
 
-/// Collect all the imports into a single mapping of crate name to list of types.
+/// Collect all the typeshared types into a mapping of crate names to typeshared types. This
+/// mapping is used to lookup and generated import statements for generated files.
 fn all_imports(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
     file_mappings
         .iter()
