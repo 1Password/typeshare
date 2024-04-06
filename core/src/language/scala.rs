@@ -6,6 +6,7 @@ use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
+use std::collections::HashSet;
 use std::ops::Deref;
 use std::{collections::HashMap, io::Write};
 
@@ -27,7 +28,7 @@ impl Language for Scala {
     fn generate_types(
         &mut self,
         writable: &mut dyn Write,
-        _imports: &HashMap<String, Vec<String>>,
+        _imports: &HashMap<String, HashSet<String>>,
         data: &ParsedData,
     ) -> std::io::Result<()> {
         self.begin_file(writable, data)?;

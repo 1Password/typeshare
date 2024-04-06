@@ -5,7 +5,7 @@ use crate::{
         FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
         RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
     },
-    visitors::{ImportedType, TypeShareVisitor},
+    visitors::{accept_type, ImportedType, TypeShareVisitor},
 };
 use proc_macro2::Ident;
 use std::{
@@ -71,13 +71,13 @@ pub struct ParsedData {
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
     /// Imports used by this file
-    pub import_types: Vec<ImportedType>,
+    pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
     pub crate_name: String,
     /// File name to write to for generated type.
     pub file_name: String,
     /// All type names
-    pub type_names: Vec<String>,
+    pub type_names: HashSet<String>,
     /// Failures during parsing.
     pub errors: Vec<ErrorInfo>,
 }
@@ -100,23 +100,23 @@ impl ParsedData {
         self.structs.append(&mut other.structs);
         self.enums.append(&mut other.enums);
         self.aliases.append(&mut other.aliases);
-        self.import_types.append(&mut other.import_types);
-        self.type_names.append(&mut other.type_names);
+        self.import_types.extend(other.import_types);
+        self.type_names.extend(other.type_names);
         self.errors.append(&mut other.errors);
     }
 
     pub(crate) fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
             RustItem::Struct(s) => {
-                self.type_names.push(s.id.renamed.clone());
+                self.type_names.insert(s.id.renamed.clone());
                 self.structs.push(s);
             }
             RustItem::Enum(e) => {
-                self.type_names.push(e.shared().id.renamed.clone());
+                self.type_names.insert(e.shared().id.renamed.clone());
                 self.enums.push(e);
             }
             RustItem::Alias(a) => {
-                self.type_names.push(a.id.renamed.clone());
+                self.type_names.insert(a.id.renamed.clone());
                 self.aliases.push(a);
             }
         }
@@ -125,7 +125,13 @@ impl ParsedData {
     /// After collecting all imports we now want to retain only those
     /// that are referenced by the typeshared types.
     fn reconcile_referenced_types(&mut self) {
-        let mut reconciled = HashSet::new();
+        let mut all_references = HashSet::new();
+
+        let local_types = self
+            .type_names
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<HashSet<_>>();
 
         let find_type = |name: &str| {
             let found = self
@@ -145,12 +151,11 @@ impl ParsedData {
             found
         };
 
-        reconciled.extend(
+        all_references.extend(
             self.structs
                 .iter()
                 .flat_map(|s| s.fields.iter())
-                .flat_map(|f| f.ty.all_names())
-                .flat_map(find_type),
+                .flat_map(|f| f.ty.all_names()),
         );
 
         for e in &self.enums {
@@ -158,27 +163,30 @@ impl ParsedData {
                 match v {
                     RustEnumVariant::Unit(_) => (),
                     RustEnumVariant::Tuple { ty, .. } => {
-                        reconciled.extend(ty.all_names().flat_map(find_type));
+                        // reconciled.extend(ty.all_names().flat_map(find_type));
+                        all_references.extend(ty.all_names());
                     }
                     RustEnumVariant::AnonymousStruct { fields, .. } => {
-                        reconciled.extend(
-                            fields
-                                .iter()
-                                .flat_map(|f| f.ty.all_names())
-                                .flat_map(find_type),
-                        );
+                        all_references.extend(fields.iter().flat_map(|f| f.ty.all_names()));
                     }
                 }
             }
         }
 
-        reconciled.extend(
+        all_references.extend(
             self.type_names
                 .iter()
-                .filter(|&s| s != "String" && s != "Option" && s != "Vec" && s != "HashMap")
-                .flat_map(|t| find_type(t.as_str())),
+                .filter(|s| accept_type(s))
+                .map(|s| s.as_str()),
         );
-        self.import_types = reconciled.into_iter().collect::<Vec<_>>();
+
+        // Lookup all the references that are not defined locally.
+        let diff = all_references
+            .difference(&local_types)
+            .flat_map(|s| find_type(s))
+            .collect::<HashSet<_>>();
+
+        self.import_types = diff;
     }
 }
 

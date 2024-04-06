@@ -6,7 +6,7 @@ use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, HashMap, HashSet},
     fs,
     ops::Not,
     path::Path,
@@ -367,13 +367,13 @@ fn parser_inputs(
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 /// mapping is used to lookup and generated import statements for generated files.
-fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Vec<String>> {
+fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, HashSet<String>> {
     file_mappings
         .iter()
         .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
         .fold(
             HashMap::new(),
-            |mut import_map: HashMap<String, Vec<String>>, (crate_name, type_names)| {
+            |mut import_map: HashMap<String, HashSet<String>>, (crate_name, type_names)| {
                 match import_map.entry(crate_name.clone()) {
                     Entry::Occupied(mut e) => {
                         e.get_mut().extend(type_names);

@@ -6,7 +6,7 @@ use crate::{
 use itertools::Itertools;
 use proc_macro2::Ident;
 use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashMap},
+    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashMap, HashSet},
     io::Write,
     str::FromStr,
 };
@@ -78,7 +78,7 @@ pub trait Language {
     fn generate_types(
         &mut self,
         writable: &mut dyn Write,
-        all_types: &HashMap<String, Vec<String>>,
+        all_types: &HashMap<String, HashSet<String>>,
         data: &ParsedData,
     ) -> std::io::Result<()> {
         self.begin_file(writable, data)?;
@@ -324,7 +324,7 @@ pub trait Language {
 /// a list of imports for the generated module.
 fn used_imports<'a, 'b: 'a>(
     data: &'b ParsedData,
-    all_types: &'a HashMap<String, Vec<String>>,
+    all_types: &'a HashMap<String, HashSet<String>>,
 ) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
     let mut used_imports: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
 

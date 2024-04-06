@@ -35,6 +35,8 @@ const IGNORED_BASE_CRATES: &[&str] = &[
     "neon",
 ];
 
+const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap"];
+
 /// An import visitor that collects all use or
 /// qualified referenced items.
 #[derive(Default)]
@@ -94,7 +96,7 @@ impl<'ast> Visit<'ast> for TypeShareVisitor {
         }
 
         if let Some(imported_type) = extract_root_and_types(p, &self.parsed_data.crate_name) {
-            self.parsed_data.import_types.push(imported_type);
+            self.parsed_data.import_types.insert(imported_type);
         }
         syn::visit::visit_path(self, p);
     }
@@ -136,7 +138,7 @@ impl<'ast> Visit<'ast> for TypeShareVisitor {
 
 /// Exclude popular crates that won't be typeshared.
 fn accept_crate(crate_name: &str) -> bool {
-    !IGNORED_BASE_CRATES.iter().any(|&n| n == crate_name)
+    !IGNORED_BASE_CRATES.contains(&crate_name)
         && crate_name
             .chars()
             .next()
@@ -145,16 +147,13 @@ fn accept_crate(crate_name: &str) -> bool {
 }
 
 /// Accept types which start with an uppercase character.
-fn accept_type(type_name: &str) -> bool {
+pub(crate) fn accept_type(type_name: &str) -> bool {
     type_name
         .chars()
         .next()
         .map(|c| c.is_uppercase())
         .unwrap_or(false)
-        && type_name != "Option"
-        && type_name != "Vec"
-        && type_name != "String"
-        && type_name != "HashMap"
+        && !IGNORED_TYPES.contains(&type_name)
 }
 
 /// An imported type reference.

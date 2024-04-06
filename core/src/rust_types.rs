@@ -6,6 +6,7 @@ use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
 use crate::language::SupportedLanguage;
+use crate::visitors::accept_type;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]
@@ -364,7 +365,7 @@ impl RustType {
             ty: Some(self),
             parameters: Vec::new(),
         }
-        .filter(|&s| s != "String" && s != "Option" && s != "Vec" && s != "HashMap")
+        .filter(|s| accept_type(s))
     }
 }
 

@@ -29,7 +29,7 @@ impl Language for Go {
     fn generate_types(
         &mut self,
         w: &mut dyn Write,
-        _imports: &HashMap<String, Vec<String>>,
+        _imports: &HashMap<String, HashSet<String>>,
         data: &ParsedData,
     ) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.
