@@ -1,4 +1,11 @@
 //! Visitors to collect various items from the AST.
+use crate::{
+    parser::{
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
+        ParseError, ParsedData,
+    },
+    rust_types::RustItem,
+};
 use syn::{visit::Visit, ItemUse, UseTree};
 
 const IGNORED_BASE_CRATES: &[&str] = &[
@@ -31,27 +38,36 @@ const IGNORED_BASE_CRATES: &[&str] = &[
 /// An import visitor that collects all use or
 /// qualified referenced items.
 #[derive(Default)]
-pub struct ImportVisitor<'a> {
-    import_types: Vec<ImportedType>,
-    crate_name: &'a str,
+pub struct TypeShareVisitor {
+    parsed_data: ParsedData,
 }
 
-impl<'a> ImportVisitor<'a> {
+impl TypeShareVisitor {
     /// Create an import visitor for a given crate name.
-    pub fn new(crate_name: &'a str) -> Self {
+    pub fn new(crate_name: String, file_name: String) -> Self {
         Self {
-            crate_name,
-            import_types: Vec::new(),
+            parsed_data: ParsedData::new(crate_name, file_name),
         }
     }
 
-    /// Consume the collected import types.
-    pub fn import_types(self) -> Vec<ImportedType> {
-        self.import_types
+    /// Consume the visitor and return parsed data.
+    pub fn parsed_data(self) -> ParsedData {
+        self.parsed_data
+    }
+
+    fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
+        match result {
+            Ok(data) => self.parsed_data.push(data),
+            Err(error) => self.parsed_data.errors.push(ErrorInfo {
+                crate_name: self.parsed_data.crate_name.clone(),
+                file_name: self.parsed_data.file_name.clone(),
+                error,
+            }),
+        }
     }
 }
 
-impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
+impl<'ast> Visit<'ast> for TypeShareVisitor {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
@@ -77,17 +93,44 @@ impl<'ast, 'a> Visit<'ast> for ImportVisitor<'a> {
             })
         }
 
-        if let Some(imported_type) = extract_root_and_types(p, self.crate_name) {
-            self.import_types.push(imported_type);
+        if let Some(imported_type) = extract_root_and_types(p, &self.parsed_data.crate_name) {
+            self.parsed_data.import_types.push(imported_type);
         }
         syn::visit::visit_path(self, p);
     }
 
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
-        let result = parse_import(i, self.crate_name);
-        self.import_types.extend(result);
+        let result = parse_import(i, &self.parsed_data.crate_name);
+        self.parsed_data.import_types.extend(result);
         syn::visit::visit_item_use(self, i);
+    }
+
+    /// Collect rust structs.
+    fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
+        if has_typeshare_annotation(&i.attrs) {
+            self.collect_result(parse_struct(i));
+        }
+
+        syn::visit::visit_item_struct(self, i);
+    }
+
+    /// Collect rust enums.
+    fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
+        if has_typeshare_annotation(&i.attrs) {
+            self.collect_result(parse_enum(i));
+        }
+
+        syn::visit::visit_item_enum(self, i);
+    }
+
+    /// Collect rust type aliases.
+    fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
+        if has_typeshare_annotation(&i.attrs) {
+            self.collect_result(parse_type_alias(i));
+        }
+
+        syn::visit::visit_item_type(self, i);
     }
 }
 
@@ -179,7 +222,7 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
 
 #[cfg(test)]
 mod test {
-    use super::{parse_import, ImportVisitor};
+    use super::{parse_import, TypeShareVisitor};
     use crate::visitors::ImportedType;
     use cool_asserts::assert_matches;
     use syn::{visit::Visit, File};
@@ -284,11 +327,11 @@ mod test {
             ";
 
         let file: File = syn::parse_str(rust_code).unwrap();
-        let mut visitor = ImportVisitor::new("my_crate");
+        let mut visitor = TypeShareVisitor::new("my_crate".into(), "my_file".into());
         visitor.visit_file(&file);
 
         assert_matches!(
-            visitor.import_types,
+            visitor.parsed_data.import_types,
             [
                 ImportedType {
                     base_crate,

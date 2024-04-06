@@ -3,9 +3,7 @@
 
 use clap::{command, Arg, ArgMatches, Command};
 use config::Config;
-use ignore::overrides::OverrideBuilder;
-use ignore::types::TypesBuilder;
-use ignore::WalkBuilder;
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -13,11 +11,10 @@ use std::{
     ops::Not,
     path::Path,
 };
-use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 
@@ -157,7 +154,7 @@ fn build_command() -> Command<'static> {
         )
 }
 
-fn main() {
+fn main() -> Result<(), ()> {
     #[allow(unused_mut)]
     let mut command = build_command();
 
@@ -179,7 +176,7 @@ fn main() {
             let mut command = build_command();
             shell.generate(&mut command, &mut std::io::stdout());
         }
-        return;
+        return Err(());
     }
 
     let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
@@ -193,7 +190,7 @@ fn main() {
         let file_path = options.value_of(ARG_CONFIG_FILE_NAME);
         config::store_config(&config, file_path)
             .unwrap_or_else(|e| panic!("Failed to create new config file due to: {}", e));
-        return;
+        return Err(());
     }
 
     let mut directories = options.values_of("directories").unwrap();
@@ -281,7 +278,21 @@ fn main() {
     // imports in generated files.
     let import_candidates = all_types(&crate_parsed_data);
 
+    let mut errors_encountered = false;
+
     for (_crate_name, parsed_data) in crate_parsed_data {
+        if !errors_encountered && !parsed_data.errors.is_empty() {
+            errors_encountered = true;
+        }
+
+        // Print any errors
+        for error in &parsed_data.errors {
+            eprintln!(
+                "Failed to parse {} for crate {} {}",
+                error.file_name, error.crate_name, error.error
+            );
+        }
+
         let outfile =
             Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
@@ -299,13 +310,22 @@ fn main() {
             _ => {}
         }
 
-        let out_dir = outfile.parent().unwrap();
-        // If the output directory doesn't already exist, create it.
-        if !out_dir.exists() {
-            fs::create_dir_all(out_dir).expect("failed to create output directory");
-        }
+        if !generated_contents.is_empty() {
+            let out_dir = outfile.parent().unwrap();
+            // If the output directory doesn't already exist, create it.
+            if !out_dir.exists() {
+                fs::create_dir_all(out_dir).expect("failed to create output directory");
+            }
 
-        fs::write(outfile, generated_contents).expect("failed to write output");
+            fs::write(outfile, generated_contents).expect("failed to write output");
+        }
+    }
+
+    if errors_encountered {
+        eprint!("Errors encountered during parsing");
+        Err(())
+    } else {
+        Ok(())
     }
 }
 
@@ -475,7 +495,10 @@ fn determine_crate_name(file_path: &str) -> Option<String> {
 
 /// Check if we have not parsed any relavent typehsared types.
 fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
-    parsed_data.enums.is_empty() && parsed_data.aliases.is_empty() && parsed_data.structs.is_empty()
+    parsed_data.enums.is_empty()
+        && parsed_data.aliases.is_empty()
+        && parsed_data.structs.is_empty()
+        && parsed_data.errors.is_empty()
 }
 
 /// Convert a folder crate name to a source crate name.

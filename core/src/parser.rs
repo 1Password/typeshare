@@ -5,7 +5,7 @@ use crate::{
         FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
         RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
     },
-    visitors::{ImportVisitor, ImportedType},
+    visitors::{ImportedType, TypeShareVisitor},
 };
 use proc_macro2::Ident;
 use std::{
@@ -14,7 +14,7 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, Item, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
     MetaNameValue, Token,
 };
 use thiserror::Error;
@@ -50,6 +50,17 @@ pub enum ParseError {
     SerdeFlattenNotAllowed,
 }
 
+/// Error with it's related data.
+#[derive(Debug)]
+pub struct ErrorInfo {
+    /// The crate where this error occured.
+    pub crate_name: String,
+    /// The file name being parsed.
+    pub file_name: String,
+    /// The parse error.
+    pub error: ParseError,
+}
+
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
 pub struct ParsedData {
@@ -67,6 +78,8 @@ pub struct ParsedData {
     pub file_name: String,
     /// All type names
     pub type_names: Vec<String>,
+    /// Failures during parsing.
+    pub errors: Vec<ErrorInfo>,
 }
 
 pub struct ParsedModule {
@@ -89,9 +102,10 @@ impl ParsedData {
         self.aliases.append(&mut other.aliases);
         self.import_types.append(&mut other.import_types);
         self.type_names.append(&mut other.type_names);
+        self.errors.append(&mut other.errors);
     }
 
-    fn push(&mut self, rust_thing: RustItem) {
+    pub(crate) fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
             RustItem::Struct(s) => {
                 self.type_names.push(s.id.renamed.clone());
@@ -107,23 +121,6 @@ impl ParsedData {
             }
         }
     }
-
-    fn parse(&mut self, item: &Item) -> Result<(), ParseError> {
-        match item {
-            syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                self.push(parse_struct(s)?);
-            }
-            syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                self.push(parse_enum(e)?);
-            }
-            syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                self.push(parse_type_alias(t)?);
-            }
-            _ => {}
-        }
-
-        Ok(())
-    }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
@@ -138,37 +135,15 @@ pub fn parse(
         return Ok(None);
     }
 
-    let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
+    // let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let source = syn::parse_file(input)?;
 
-    let mut import_visitor = ImportVisitor::new(&crate_name);
+    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name);
     import_visitor.visit_file(&source);
-    parsed_data.import_types = import_visitor.import_types();
 
-    for item in flatten_items(source.items.iter()) {
-        parsed_data.parse(item)?;
-    }
-
-    Ok(Some(parsed_data))
-}
-
-/// Given an iterator over items, will return an iterator that flattens the contents of embedded
-/// module items into the iterator.
-fn flatten_items<'a>(
-    items: impl Iterator<Item = &'a syn::Item>,
-) -> impl Iterator<Item = &'a syn::Item> {
-    items.flat_map(|item| {
-        match item {
-            syn::Item::Mod(syn::ItemMod {
-                content: Some((_, items)),
-                ..
-            }) => flatten_items(items.iter()).collect(),
-            item => vec![item],
-        }
-        .into_iter()
-    })
+    Ok(Some(import_visitor.parsed_data()))
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -176,7 +151,7 @@ fn flatten_items<'a>(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -276,7 +251,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -435,7 +410,7 @@ fn parse_enum_variant(
 
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
         ty.parse()?
     } else {
