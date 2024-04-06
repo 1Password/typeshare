@@ -121,6 +121,65 @@ impl ParsedData {
             }
         }
     }
+
+    /// After collecting all imports we now want to retain only those
+    /// that are referenced by the typeshared types.
+    fn reconcile_referenced_types(&mut self) {
+        let mut reconciled = HashSet::new();
+
+        let find_type = |name: &str| {
+            let found = self
+                .import_types
+                .iter()
+                .find(|imp| imp.type_name == name)
+                .into_iter()
+                .next()
+                .cloned();
+            if found.is_none() {
+                println!(
+                    "Failed to loookup \"{name}\" in crate \"{}\"",
+                    self.crate_name
+                );
+            }
+
+            found
+        };
+
+        reconciled.extend(
+            self.structs
+                .iter()
+                .flat_map(|s| s.fields.iter())
+                .flat_map(|f| f.ty.all_names())
+                .flat_map(find_type),
+        );
+
+        for e in &self.enums {
+            for v in &e.shared().variants {
+                match v {
+                    RustEnumVariant::Unit(_) => (),
+                    RustEnumVariant::Tuple { ty, .. } => {
+                        reconciled.extend(ty.all_names().flat_map(find_type));
+                    }
+                    RustEnumVariant::AnonymousStruct { fields, .. } => {
+                        reconciled.extend(
+                            fields
+                                .iter()
+                                .flat_map(|f| f.ty.all_names())
+                                .flat_map(find_type),
+                        );
+                    }
+                }
+            }
+        }
+
+        reconciled.extend(
+            self.type_names
+                .iter()
+                .filter(|&s| s != "String" && s != "Option" && s != "Vec" && s != "HashMap")
+                .flat_map(|t| find_type(t.as_str())),
+        );
+        self.import_types = reconciled.into_iter().collect::<Vec<_>>();
+    }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
@@ -143,7 +202,10 @@ pub fn parse(
     let mut import_visitor = TypeShareVisitor::new(crate_name, file_name);
     import_visitor.visit_file(&source);
 
-    Ok(Some(import_visitor.parsed_data()))
+    let mut parsed_data = import_visitor.parsed_data();
+    parsed_data.reconcile_referenced_types();
+
+    Ok(Some(parsed_data))
 }
 
 /// Parses a struct into a definition that more succinctly represents what

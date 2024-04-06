@@ -151,10 +151,14 @@ fn accept_type(type_name: &str) -> bool {
         .next()
         .map(|c| c.is_uppercase())
         .unwrap_or(false)
+        && type_name != "Option"
+        && type_name != "Vec"
+        && type_name != "String"
+        && type_name != "HashMap"
 }
 
 /// An imported type reference.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportedType {
     /// Crate this type belongs to.
     pub base_crate: String,
@@ -196,9 +200,9 @@ fn parse_import(item_use: &ItemUse, crate_name: &str) -> Vec<ImportedType> {
                     });
                 }
             }
-            syn::UseTree::Rename(rename) => {
+            syn::UseTree::Rename(_rename) => {
                 // TODO: I need to do something here.
-                names.push(rename.ident.to_string());
+                // names.push(rename.ident.to_string());
             }
             syn::UseTree::Glob(_) => {
                 if accept_crate(&names[0]) {
@@ -228,6 +232,63 @@ mod test {
     use syn::{visit::Visit, File};
 
     #[test]
+    fn test_parse_import_complex() {
+        let rust_file = "
+           use combined::{
+                one::TypeOne,
+                two::TypeThree,
+                three::{TypeFour, TypeFive}
+           };
+           ";
+        let file = syn::parse_str::<syn::File>(rust_file).unwrap();
+
+        let parsed_imports = file
+            .items
+            .iter()
+            .flat_map(|item| {
+                if let syn::Item::Use(use_item) = item {
+                    parse_import(use_item, "my_crate")
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect::<Vec<_>>();
+
+        assert_matches!(parsed_imports,
+            [
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "combined");
+                    assert_eq!(type_name, "TypeOne");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "combined");
+                    assert_eq!(type_name, "TypeThree");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "combined");
+                    assert_eq!(type_name, "TypeFour");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "combined");
+                    assert_eq!(type_name, "TypeFive");
+                },
+            ]
+        );
+    }
+
+    #[test]
     fn test_parse_import() {
         let rust_file = "
             use std::sync::Arc;
@@ -238,6 +299,7 @@ mod test {
             use some_crate::blah::*;
             use crate::types::{MyType, MyEnum};
             use super::some_module::{another_module::MyType, MyEnum};
+
         ";
         let file = syn::parse_str::<syn::File>(rust_file).unwrap();
 

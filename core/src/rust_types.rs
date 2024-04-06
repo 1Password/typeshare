@@ -357,6 +357,38 @@ impl RustType {
             Self::Special(special) => special.parameters(),
         }
     }
+
+    /// Yield all the type names including nested generic types.
+    pub fn all_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
+        RustGenTypeIter {
+            ty: Some(self),
+            parameters: Vec::new(),
+        }
+        .filter(|&s| s != "String" && s != "Option" && s != "Vec" && s != "HashMap")
+    }
+}
+
+struct RustGenTypeIter<'a> {
+    ty: Option<&'a RustType>,
+    parameters: Vec<&'a RustType>,
+}
+
+impl<'a> Iterator for RustGenTypeIter<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(t) = self.parameters.pop() {
+            self.parameters.extend(t.parameters());
+            return Some(t.id());
+        }
+
+        if let Some(t) = self.ty.take() {
+            self.parameters = t.parameters().collect();
+            return Some(t.id());
+        }
+
+        None
+    }
 }
 
 impl RustField {

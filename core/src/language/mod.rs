@@ -358,7 +358,17 @@ fn used_imports<'a, 'b: 'a>(
                         entry.insert(BTreeSet::from([ty_name.as_str()]));
                     }
                 }
+            } else {
+                eprintln!(
+                    "Could not lookup referenced type \"{}\" in module \"{}\" when generating module \"{}\"",
+                    referenced_import.type_name, referenced_import.base_crate, data.crate_name
+                );
             }
+        } else {
+            // eprintln!(
+            //     "Could not lookup referenced crate module \"{}\" when generating module \"{}\"",
+            //     referenced_import.base_crate, data.crate_name
+            // );
         }
     }
     used_imports
