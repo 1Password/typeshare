@@ -35,7 +35,7 @@ const IGNORED_BASE_CRATES: &[&str] = &[
     "neon",
 ];
 
-const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap"];
+const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54", "U53"];
 
 /// An import visitor that collects all use or
 /// qualified referenced items.

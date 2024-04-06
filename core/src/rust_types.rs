@@ -360,8 +360,8 @@ impl RustType {
     }
 
     /// Yield all the type names including nested generic types.
-    pub fn all_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
-        RustGenTypeIter {
+    pub fn all_reference_type_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
+        RustRefTypeIter {
             ty: Some(self),
             parameters: Vec::new(),
         }
@@ -369,12 +369,12 @@ impl RustType {
     }
 }
 
-struct RustGenTypeIter<'a> {
+struct RustRefTypeIter<'a> {
     ty: Option<&'a RustType>,
     parameters: Vec<&'a RustType>,
 }
 
-impl<'a> Iterator for RustGenTypeIter<'a> {
+impl<'a> Iterator for RustRefTypeIter<'a> {
     type Item = &'a str;
 
     fn next(&mut self) -> Option<Self::Item> {

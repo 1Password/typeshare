@@ -125,50 +125,26 @@ impl ParsedData {
     /// After collecting all imports we now want to retain only those
     /// that are referenced by the typeshared types.
     fn reconcile_referenced_types(&mut self) {
+        // Build up a set of all the types that are referenced by
+        // the typshared types we have parsed.
         let mut all_references = HashSet::new();
-
-        let local_types = self
-            .type_names
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<HashSet<_>>();
-
-        let find_type = |name: &str| {
-            let found = self
-                .import_types
-                .iter()
-                .find(|imp| imp.type_name == name)
-                .into_iter()
-                .next()
-                .cloned();
-            if found.is_none() {
-                println!(
-                    "Failed to loookup \"{name}\" in crate \"{}\"",
-                    self.crate_name
-                );
-            }
-
-            found
-        };
 
         all_references.extend(
             self.structs
                 .iter()
                 .flat_map(|s| s.fields.iter())
-                .flat_map(|f| f.ty.all_names()),
+                .flat_map(|f| f.ty.all_reference_type_names()),
         );
 
-        for e in &self.enums {
-            for v in &e.shared().variants {
-                match v {
-                    RustEnumVariant::Unit(_) => (),
-                    RustEnumVariant::Tuple { ty, .. } => {
-                        // reconciled.extend(ty.all_names().flat_map(find_type));
-                        all_references.extend(ty.all_names());
-                    }
-                    RustEnumVariant::AnonymousStruct { fields, .. } => {
-                        all_references.extend(fields.iter().flat_map(|f| f.ty.all_names()));
-                    }
+        for v in self.enums.iter().flat_map(|e| e.shared().variants.iter()) {
+            match v {
+                RustEnumVariant::Unit(_) => (),
+                RustEnumVariant::Tuple { ty, .. } => {
+                    all_references.extend(ty.all_reference_type_names());
+                }
+                RustEnumVariant::AnonymousStruct { fields, .. } => {
+                    all_references
+                        .extend(fields.iter().flat_map(|f| f.ty.all_reference_type_names()));
                 }
             }
         }
@@ -180,11 +156,42 @@ impl ParsedData {
                 .map(|s| s.as_str()),
         );
 
-        // Lookup all the references that are not defined locally.
-        let diff = all_references
-            .difference(&local_types)
-            .flat_map(|s| find_type(s))
+        // Build a set of a all type names.
+        let local_types = self
+            .type_names
+            .iter()
+            .map(|s| s.as_str())
             .collect::<HashSet<_>>();
+
+        // Lookup a type name against parsed imports.
+        let find_type = |name: &str| {
+            let found = self
+                .import_types
+                .iter()
+                .find(|imp| imp.type_name == name)
+                .into_iter()
+                .next()
+                .cloned();
+
+            if found.is_none() {
+                println!(
+                    "Failed to lookup \"{name}\" in crate \"{}\"",
+                    self.crate_name
+                );
+            }
+
+            found
+        };
+
+        // Lookup all the references that are not defined locally.
+        let mut diff = all_references
+            .difference(&local_types)
+            .copied()
+            .flat_map(find_type)
+            .collect::<HashSet<_>>();
+
+        // Move back the wildcard import types.
+        diff.extend(self.import_types.drain().filter(|imp| imp.type_name == "*"));
 
         self.import_types = diff;
     }

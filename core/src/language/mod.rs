@@ -328,7 +328,7 @@ fn used_imports<'a, 'b: 'a>(
 ) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
     let mut used_imports: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
 
-    for referenced_import in data.import_types.iter() {
+    for referenced_import in &data.import_types {
         // Skip over imports that reference the current crate. They
         // are all collapsed into one module per crate.
         if data.crate_name == referenced_import.base_crate {
@@ -359,13 +359,13 @@ fn used_imports<'a, 'b: 'a>(
                     }
                 }
             } else {
-                eprintln!(
+                println!(
                     "Could not lookup referenced type \"{}\" in module \"{}\" when generating module \"{}\"",
                     referenced_import.type_name, referenced_import.base_crate, data.crate_name
                 );
             }
         } else {
-            // eprintln!(
+            // println!(
             //     "Could not lookup referenced crate module \"{}\" when generating module \"{}\"",
             //     referenced_import.base_crate, data.crate_name
             // );
