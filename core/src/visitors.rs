@@ -100,7 +100,7 @@ impl<'ast> Visit<'ast> for TypeShareVisitor {
 
             (first != last).then(|| {
                 // resolve crate and super aliases into the crate name.
-                let base_crate = if first == "crate" || first == "super" {
+                let base_crate = if first == "crate" || first == "super" || first == "self" {
                     crate_name.to_string()
                 } else {
                     first
@@ -201,7 +201,7 @@ impl<'a> ItemUseIter<'a> {
 
     fn resolve_crate_name(&self) -> String {
         let crate_name = self.base_name();
-        if crate_name == "crate" || crate_name == "super" {
+        if crate_name == "crate" || crate_name == "super" || crate_name == "self" {
             self.crate_name.to_string()
         } else {
             crate_name.to_string()
