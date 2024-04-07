@@ -376,8 +376,8 @@ fn used_imports<'a, 'b: 'a>(
             }
         } else {
             // println!(
-            //     "Could not lookup referenced crate module \"{}\" when generating module \"{}\"",
-            //     referenced_import.base_crate, data.crate_name
+            //     "Could not lookup referenced crate module \"{}\" for type \"{}\" when generating module \"{}\"",
+            //     referenced_import.base_crate, referenced_import.type_name, data.crate_name
             // );
         }
     }

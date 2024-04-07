@@ -77,6 +77,20 @@ impl<'ast> Visit<'ast> for TypeShareVisitor {
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
         fn extract_root_and_types(p: &syn::Path, crate_name: &str) -> Option<ImportedType> {
+            // TODO: the first part here may not be a crate name but a module name defined
+            // in a use statement.
+            //
+            // Ex:
+            // use some_crate::some_module;
+            //
+            // struct SomeType {
+            //     field: some_module::RefType
+            // }
+            //
+            // vist_path would be after vist_item_use so we could retain imported module references
+            // and reconcile aftewards. visit_item_use would have to retain not type import types
+            // which it discards right now.
+            //
             let first = p.segments.first()?.ident.to_string();
             let last = p.segments.last()?.ident.to_string();
 
