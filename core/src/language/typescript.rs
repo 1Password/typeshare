@@ -1,14 +1,17 @@
-use crate::parser::ParsedData;
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::{Language, SupportedLanguage},
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    parser::ParsedData,
+    rust_types::{
+        RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
+        RustTypeFormatError, SpecialRustType,
+    },
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
-use std::collections::{BTreeMap, BTreeSet};
-use std::io;
-use std::{collections::HashMap, io::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    io::{self, Write},
+};
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
