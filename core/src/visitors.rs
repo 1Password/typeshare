@@ -1,6 +1,4 @@
 //! Visitors to collect various items from the AST.
-use std::{collections::HashSet, path::PathBuf};
-
 use crate::{
     parser::{
         has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
@@ -8,6 +6,7 @@ use crate::{
     },
     rust_types::{RustEnumVariant, RustItem},
 };
+use std::{collections::HashSet, path::PathBuf};
 use syn::{visit::Visit, ItemUse, UseTree};
 
 /// List of some popular crate names that we can ignore
@@ -81,7 +80,7 @@ impl TypeShareVisitor {
     /// that are referenced by the typeshared types.
     fn reconcile_referenced_types(&mut self) {
         // Build up a set of all the types that are referenced by
-        // the typshared types we have parsed.
+        // the typeshared types we have parsed.
         let mut all_references = HashSet::new();
 
         all_references.extend(
@@ -184,7 +183,7 @@ impl<'ast> Visit<'ast> for TypeShareVisitor {
             // }
             //
             // vist_path would be after vist_item_use so we could retain imported module references
-            // and reconcile aftewards. visit_item_use would have to retain not type import types
+            // and reconcile aftewards. visit_item_use would have to retain non type import types
             // which it discards right now.
             //
             let first = p.segments.first()?.ident.to_string();
