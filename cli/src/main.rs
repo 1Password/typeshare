@@ -399,8 +399,12 @@ fn parse_input(inputs: Vec<ParserInput>) -> HashMap<String, ParsedData> {
              }| {
                 let data = std::fs::read_to_string(&file_path)
                     .unwrap_or_else(|e| panic!("failed to read file at {file_path:?}: {e}", e = e));
-                let parsed_data =
-                    typeshare_core::parser::parse(&data, crate_name.clone(), file_name.clone());
+                let parsed_data = typeshare_core::parser::parse(
+                    &data,
+                    crate_name.clone(),
+                    file_name.clone(),
+                    &file_path,
+                );
                 match parsed_data {
                     Ok(data) => {
                         data.and_then(|d| is_parsed_data_empty(&d).not().then(|| (crate_name, d)))

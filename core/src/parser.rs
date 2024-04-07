@@ -183,7 +183,8 @@ impl ParsedData {
             found
         };
 
-        // Lookup all the references that are not defined locally.
+        // Lookup all the references that are not defined locally. Subtract
+        // all local types defined in the module.
         let mut diff = all_references
             .difference(&local_types)
             .copied()
@@ -202,20 +203,20 @@ pub fn parse(
     input: &str,
     crate_name: String,
     file_name: String,
+    file_path: &str,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !input.contains(TYPESHARE) {
+    if !input.contains("#[typeshare") {
         return Ok(None);
     }
 
-    // let mut parsed_data = ParsedData::new(crate_name.clone(), file_name);
+    println!("Parsing {file_path}");
+
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let source = syn::parse_file(input)?;
-
     let mut import_visitor = TypeShareVisitor::new(crate_name, file_name);
-    import_visitor.visit_file(&source);
+    import_visitor.visit_file(&syn::parse_file(input)?);
 
     let mut parsed_data = import_visitor.parsed_data();
     parsed_data.reconcile_referenced_types();

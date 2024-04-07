@@ -67,9 +67,13 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
-    let parsed_data =
-        typeshare_core::parser::parse(&rust_input, "default_crate".into(), "file_name".into())?
-            .unwrap();
+    let parsed_data = typeshare_core::parser::parse(
+        &rust_input,
+        "default_crate".into(),
+        "file_name".into(),
+        "file_path",
+    )?
+    .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), &parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;

@@ -35,7 +35,12 @@ pub fn process_input(
     imports: &HashMap<String, HashSet<String>>,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
-    let parsed_data = parser::parse(input, "default_name".into(), "file_name".into())?;
+    let parsed_data = parser::parse(
+        input,
+        "default_name".into(),
+        "file_name".into(),
+        "file_path",
+    )?;
     language.generate_types(out, imports, &parsed_data.unwrap())?;
     Ok(())
 }
