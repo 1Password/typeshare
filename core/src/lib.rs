@@ -39,7 +39,7 @@ pub fn process_input(
         input,
         "default_name".into(),
         "file_name".into(),
-        "file_path",
+        "file_path".into(),
     )?;
     language.generate_types(out, imports, &parsed_data.unwrap())?;
     Ok(())

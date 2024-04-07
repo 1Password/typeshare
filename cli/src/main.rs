@@ -403,7 +403,7 @@ fn parse_input(inputs: Vec<ParserInput>) -> HashMap<String, ParsedData> {
                     &data,
                     crate_name.clone(),
                     file_name.clone(),
-                    &file_path,
+                    file_path,
                 );
                 match parsed_data {
                     Ok(data) => {

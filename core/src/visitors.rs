@@ -46,9 +46,9 @@ pub struct TypeShareVisitor {
 
 impl TypeShareVisitor {
     /// Create an import visitor for a given crate name.
-    pub fn new(crate_name: String, file_name: String) -> Self {
+    pub fn new(crate_name: String, file_name: String, file_path: String) -> Self {
         Self {
-            parsed_data: ParsedData::new(crate_name, file_name),
+            parsed_data: ParsedData::new(crate_name, file_name, file_path),
         }
     }
 
@@ -388,7 +388,8 @@ mod test {
             ";
 
         let file: File = syn::parse_str(rust_code).unwrap();
-        let mut visitor = TypeShareVisitor::new("my_crate".into(), "my_file".into());
+        let mut visitor =
+            TypeShareVisitor::new("my_crate".into(), "my_file".into(), "file_path".into());
         visitor.visit_file(&file);
 
         assert_matches!(

@@ -80,6 +80,8 @@ pub struct ParsedData {
     pub type_names: HashSet<String>,
     /// Failures during parsing.
     pub errors: Vec<ErrorInfo>,
+    /// Usefull for logging/debugging.
+    pub file_path: String,
 }
 
 pub struct ParsedModule {
@@ -87,10 +89,11 @@ pub struct ParsedModule {
 }
 
 impl ParsedData {
-    pub fn new(crate_name: String, file_name: String) -> Self {
+    pub fn new(crate_name: String, file_name: String, file_path: String) -> Self {
         Self {
             crate_name,
             file_name,
+            file_path,
             ..Default::default()
         }
     }
@@ -175,8 +178,8 @@ impl ParsedData {
 
             if found.is_none() {
                 println!(
-                    "Failed to lookup \"{name}\" in crate \"{}\"",
-                    self.crate_name
+                    "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
+                    self.crate_name, self.file_path
                 );
             }
 
@@ -203,7 +206,7 @@ pub fn parse(
     input: &str,
     crate_name: String,
     file_name: String,
-    file_path: &str,
+    file_path: String,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -211,11 +214,11 @@ pub fn parse(
         return Ok(None);
     }
 
-    println!("Parsing {file_path}");
+    // println!("Parsing {file_path}");
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name);
+    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path);
     import_visitor.visit_file(&syn::parse_file(input)?);
 
     let mut parsed_data = import_visitor.parsed_data();
