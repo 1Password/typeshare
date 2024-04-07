@@ -1,12 +1,15 @@
 use crate::{
     parser::{ParseError, ParsedData},
-    rust_types::{Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustTypeAlias},
+    rust_types::{
+        Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
+        RustTypeFormatError, SpecialRustType,
+    },
     topsort::topsort,
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
 use std::{
-    collections::{btree_map::Entry, BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     io::Write,
     str::FromStr,
 };
@@ -17,7 +20,6 @@ mod scala;
 mod swift;
 mod typescript;
 
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use scala::Scala;
@@ -41,6 +43,16 @@ impl SupportedLanguage {
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
         [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+    }
+
+    pub fn language_extension(&self) -> &'static str {
+        match self {
+            SupportedLanguage::Go => "go",
+            SupportedLanguage::Kotlin => "kt",
+            SupportedLanguage::Scala => "scala",
+            SupportedLanguage::Swift => "swift",
+            SupportedLanguage::TypeScript => "ts",
+        }
     }
 }
 
@@ -350,14 +362,12 @@ fn used_imports<'a, 'b: 'a>(
                 .iter()
                 .find(|&t| t == &referenced_import.type_name)
             {
-                match used_imports.entry(referenced_import.base_crate.as_str()) {
-                    Entry::Occupied(mut entry) => {
-                        entry.get_mut().insert(ty_name.as_str());
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(BTreeSet::from([ty_name.as_str()]));
-                    }
-                }
+                used_imports
+                    .entry(referenced_import.base_crate.as_str())
+                    .and_modify(|v| {
+                        v.insert(ty_name.as_str());
+                    })
+                    .or_insert(BTreeSet::from([ty_name.as_str()]));
             } else {
                 println!(
                     "Could not lookup referenced type \"{}\" in module \"{}\" when generating module \"{}\"",

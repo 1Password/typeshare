@@ -196,11 +196,12 @@ fn main() -> Result<(), ()> {
     let mut directories = options.values_of("directories").unwrap();
     let language_type = options
         .value_of(ARG_TYPE)
-        .map(|lang| lang.parse().ok())
-        .and_then(|parsed| parsed);
+        .map(|lang| lang.parse::<SupportedLanguage>().ok())
+        .and_then(|parsed| parsed)
+        .expect("argument parser didn't validate ARG_TYPE correctly");
 
     let mut lang: Box<dyn Language> = match language_type {
-        Some(SupportedLanguage::Swift) => Box::new(Swift {
+        SupportedLanguage::Swift => Box::new(Swift {
             prefix: config.swift.prefix,
             type_mappings: config.swift.type_mappings,
             default_decorators: config.swift.default_decorators,
@@ -209,36 +210,33 @@ fn main() -> Result<(), ()> {
             ),
             ..Default::default()
         }),
-        Some(SupportedLanguage::Kotlin) => Box::new(Kotlin {
+        SupportedLanguage::Kotlin => Box::new(Kotlin {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
             prefix: config.kotlin.prefix,
             type_mappings: config.kotlin.type_mappings,
             ..Default::default()
         }),
-        Some(SupportedLanguage::Scala) => Box::new(Scala {
+        SupportedLanguage::Scala => Box::new(Scala {
             package: config.scala.package,
             module_name: config.scala.module_name,
             type_mappings: config.scala.type_mappings,
             ..Default::default()
         }),
-        Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
+        SupportedLanguage::TypeScript => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
             ..Default::default()
         }),
         #[cfg(feature = "go")]
-        Some(SupportedLanguage::Go) => Box::new(Go {
+        SupportedLanguage::Go => Box::new(Go {
             package: config.go.package,
             type_mappings: config.go.type_mappings,
             uppercase_acronyms: config.go.uppercase_acronyms,
             ..Default::default()
         }),
         #[cfg(not(feature = "go"))]
-        Some(SupportedLanguage::Go) => {
+        SupportedLanguage::Go => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
-        }
-        _ => {
-            panic!("argument parser didn't validate ARG_TYPE correctly");
         }
     };
 
@@ -338,14 +336,14 @@ struct ParserInput {
 
 fn parser_inputs(
     walker_builder: WalkBuilder,
-    language_type: Option<SupportedLanguage>,
+    language_type: SupportedLanguage,
 ) -> Vec<ParserInput> {
     let glob_paths = walker_builder
         .build()
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
-            let extension = language_extension(language_type.unwrap());
+            let extension = language_type.language_extension();
             dir_entry
                 .path()
                 .to_str()
@@ -474,16 +472,6 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     }
 
     config
-}
-
-fn language_extension(lanugage: SupportedLanguage) -> &'static str {
-    match lanugage {
-        SupportedLanguage::Go => "go",
-        SupportedLanguage::Kotlin => "kt",
-        SupportedLanguage::Scala => "scala",
-        SupportedLanguage::Swift => "swift",
-        SupportedLanguage::TypeScript => "ts",
-    }
 }
 
 /// Extract the crate name from a give path.
