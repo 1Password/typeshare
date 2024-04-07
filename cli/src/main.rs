@@ -9,7 +9,7 @@ use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     fs,
     ops::Not,
-    path::Path,
+    path::{Path, PathBuf},
 };
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
@@ -329,7 +329,7 @@ fn main() -> Result<(), ()> {
 
 /// Input data for parsing each source file.
 struct ParserInput {
-    file_path: String,
+    file_path: PathBuf,
     file_name: String,
     crate_name: String,
 }
@@ -345,7 +345,7 @@ fn parser_inputs(
         .filter_map(|dir_entry| {
             let extension = language_type.language_extension();
             let crate_name = determine_crate_name(dir_entry.path())?;
-            let file_path = dir_entry.path().to_str().map(String::from)?;
+            let file_path = dir_entry.path().to_path_buf();
             let file_name = format!("{crate_name}.{extension}");
             Some(ParserInput {
                 file_path,

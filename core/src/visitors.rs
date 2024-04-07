@@ -1,10 +1,12 @@
 //! Visitors to collect various items from the AST.
+use std::{collections::HashSet, path::PathBuf};
+
 use crate::{
     parser::{
         has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
         ParseError, ParsedData,
     },
-    rust_types::RustItem,
+    rust_types::{RustEnumVariant, RustItem},
 };
 use syn::{visit::Visit, ItemUse, UseTree};
 
@@ -45,19 +47,23 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 #[derive(Default)]
 pub struct TypeShareVisitor {
     parsed_data: ParsedData,
+    file_path: PathBuf,
 }
 
 impl TypeShareVisitor {
     /// Create an import visitor for a given crate name.
-    pub fn new(crate_name: String, file_name: String, file_path: String) -> Self {
+    pub fn new(crate_name: String, file_name: String, file_path: PathBuf) -> Self {
         Self {
-            parsed_data: ParsedData::new(crate_name, file_name, file_path),
+            parsed_data: ParsedData::new(crate_name, file_name),
+            file_path,
         }
     }
 
     /// Consume the visitor and return parsed data.
     pub fn parsed_data(self) -> ParsedData {
-        self.parsed_data
+        let mut s = self;
+        s.reconcile_referenced_types();
+        s.parsed_data
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
@@ -69,6 +75,96 @@ impl TypeShareVisitor {
                 error,
             }),
         }
+    }
+
+    /// After collecting all imports we now want to retain only those
+    /// that are referenced by the typeshared types.
+    fn reconcile_referenced_types(&mut self) {
+        // Build up a set of all the types that are referenced by
+        // the typshared types we have parsed.
+        let mut all_references = HashSet::new();
+
+        all_references.extend(
+            self.parsed_data
+                .structs
+                .iter()
+                .flat_map(|s| s.fields.iter())
+                .flat_map(|f| f.ty.all_reference_type_names()),
+        );
+
+        for v in self
+            .parsed_data
+            .enums
+            .iter()
+            .flat_map(|e| e.shared().variants.iter())
+        {
+            match v {
+                RustEnumVariant::Unit(_) => (),
+                RustEnumVariant::Tuple { ty, .. } => {
+                    all_references.extend(ty.all_reference_type_names());
+                }
+                RustEnumVariant::AnonymousStruct { fields, .. } => {
+                    all_references
+                        .extend(fields.iter().flat_map(|f| f.ty.all_reference_type_names()));
+                }
+            }
+        }
+
+        all_references.extend(
+            self.parsed_data
+                .type_names
+                .iter()
+                .filter(|s| accept_type(s))
+                .map(|s| s.as_str()),
+        );
+
+        // Build a set of a all type names.
+        let local_types = self
+            .parsed_data
+            .type_names
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<HashSet<_>>();
+
+        // Lookup a type name against parsed imports.
+        let find_type = |name: &str| {
+            let found = self
+                .parsed_data
+                .import_types
+                .iter()
+                .find(|imp| imp.type_name == name)
+                .into_iter()
+                .next()
+                .cloned();
+
+            if found.is_none() {
+                println!(
+                    "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
+                    self.parsed_data.crate_name,
+                    self.file_path.as_os_str().to_str().unwrap_or_default()
+                );
+            }
+
+            found
+        };
+
+        // Lookup all the references that are not defined locally. Subtract
+        // all local types defined in the module.
+        let mut diff = all_references
+            .difference(&local_types)
+            .copied()
+            .flat_map(find_type)
+            .collect::<HashSet<_>>();
+
+        // Move back the wildcard import types.
+        diff.extend(
+            self.parsed_data
+                .import_types
+                .drain()
+                .filter(|imp| imp.type_name == "*"),
+        );
+
+        self.parsed_data.import_types = diff;
     }
 }
 

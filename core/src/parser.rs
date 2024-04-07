@@ -5,12 +5,13 @@ use crate::{
         FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
         RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
     },
-    visitors::{accept_type, ImportedType, TypeShareVisitor},
+    visitors::{ImportedType, TypeShareVisitor},
 };
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
+    path::PathBuf,
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
@@ -80,8 +81,6 @@ pub struct ParsedData {
     pub type_names: HashSet<String>,
     /// Failures during parsing.
     pub errors: Vec<ErrorInfo>,
-    /// Usefull for logging/debugging.
-    pub file_path: String,
 }
 
 pub struct ParsedModule {
@@ -89,11 +88,10 @@ pub struct ParsedModule {
 }
 
 impl ParsedData {
-    pub fn new(crate_name: String, file_name: String, file_path: String) -> Self {
+    pub fn new(crate_name: String, file_name: String) -> Self {
         Self {
             crate_name,
             file_name,
-            file_path,
             ..Default::default()
         }
     }
@@ -124,107 +122,27 @@ impl ParsedData {
             }
         }
     }
-
-    /// After collecting all imports we now want to retain only those
-    /// that are referenced by the typeshared types.
-    fn reconcile_referenced_types(&mut self) {
-        // Build up a set of all the types that are referenced by
-        // the typshared types we have parsed.
-        let mut all_references = HashSet::new();
-
-        all_references.extend(
-            self.structs
-                .iter()
-                .flat_map(|s| s.fields.iter())
-                .flat_map(|f| f.ty.all_reference_type_names()),
-        );
-
-        for v in self.enums.iter().flat_map(|e| e.shared().variants.iter()) {
-            match v {
-                RustEnumVariant::Unit(_) => (),
-                RustEnumVariant::Tuple { ty, .. } => {
-                    all_references.extend(ty.all_reference_type_names());
-                }
-                RustEnumVariant::AnonymousStruct { fields, .. } => {
-                    all_references
-                        .extend(fields.iter().flat_map(|f| f.ty.all_reference_type_names()));
-                }
-            }
-        }
-
-        all_references.extend(
-            self.type_names
-                .iter()
-                .filter(|s| accept_type(s))
-                .map(|s| s.as_str()),
-        );
-
-        // Build a set of a all type names.
-        let local_types = self
-            .type_names
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<HashSet<_>>();
-
-        // Lookup a type name against parsed imports.
-        let find_type = |name: &str| {
-            let found = self
-                .import_types
-                .iter()
-                .find(|imp| imp.type_name == name)
-                .into_iter()
-                .next()
-                .cloned();
-
-            if found.is_none() {
-                println!(
-                    "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
-                    self.crate_name, self.file_path
-                );
-            }
-
-            found
-        };
-
-        // Lookup all the references that are not defined locally. Subtract
-        // all local types defined in the module.
-        let mut diff = all_references
-            .difference(&local_types)
-            .copied()
-            .flat_map(find_type)
-            .collect::<HashSet<_>>();
-
-        // Move back the wildcard import types.
-        diff.extend(self.import_types.drain().filter(|imp| imp.type_name == "*"));
-
-        self.import_types = diff;
-    }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(
-    input: &str,
+    source_code: &str,
     crate_name: String,
     file_name: String,
-    file_path: String,
+    file_path: PathBuf,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !input.contains("#[typeshare") {
+    if !source_code.contains("#[typeshare") {
         return Ok(None);
     }
-
-    // println!("Parsing {file_path}");
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path);
-    import_visitor.visit_file(&syn::parse_file(input)?);
+    import_visitor.visit_file(&syn::parse_file(source_code)?);
 
-    let mut parsed_data = import_visitor.parsed_data();
-    parsed_data.reconcile_referenced_types();
-
-    Ok(Some(parsed_data))
+    Ok(Some(import_visitor.parsed_data()))
 }
 
 /// Parses a struct into a definition that more succinctly represents what
