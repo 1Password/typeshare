@@ -344,20 +344,14 @@ fn parser_inputs(
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
             let extension = language_type.language_extension();
-            dir_entry
-                .path()
-                .to_str()
-                .map(String::from)
-                .and_then(|file_path| {
-                    determine_crate_name(&file_path).map(|crate_name| {
-                        let file_name = format!("{crate_name}.{extension}");
-                        ParserInput {
-                            file_path,
-                            file_name,
-                            crate_name,
-                        }
-                    })
-                })
+            let crate_name = determine_crate_name(dir_entry.path())?;
+            let file_path = dir_entry.path().to_str().map(String::from)?;
+            let file_name = format!("{crate_name}.{extension}");
+            Some(ParserInput {
+                file_path,
+                file_name,
+                crate_name,
+            })
         })
         .collect::<Vec<_>>();
     glob_paths
@@ -475,8 +469,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 }
 
 /// Extract the crate name from a give path.
-fn determine_crate_name(file_path: &str) -> Option<String> {
-    let path = Path::new(file_path);
+fn determine_crate_name(path: &Path) -> Option<String> {
     let mut crate_finder = path.iter().rev().skip_while(|p| *p != "src");
     crate_finder.next();
     crate_finder
@@ -501,10 +494,11 @@ fn file_name_to_crate_name(file_name: &str) -> String {
 #[cfg(test)]
 mod test {
     use crate::determine_crate_name;
+    use std::path::Path;
 
     #[test]
     fn test_crate_name() {
-        let path = "/some/path/to/projects/core/foundation/op-proxy/src/android.rs";
+        let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
         assert_eq!(Some("op_proxy"), determine_crate_name(path).as_deref());
     }
 }
