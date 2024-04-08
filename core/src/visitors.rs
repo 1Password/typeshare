@@ -90,17 +90,12 @@ impl<'a> TypeShareVisitor<'a> {
         // the typeshared types we have parsed.
         let mut all_references = HashSet::new();
 
-        let ignore_remapped = |ty: &str| !self.ignored_types.iter().any(|t| t == ty);
-
         all_references.extend(
             self.parsed_data
                 .structs
                 .iter()
                 .flat_map(|s| s.fields.iter())
-                .flat_map(|f| {
-                    f.ty.all_reference_type_names()
-                        .filter(|s| ignore_remapped(s))
-                }),
+                .flat_map(|f| f.ty.all_reference_type_names()),
         );
 
         for v in self
@@ -112,14 +107,11 @@ impl<'a> TypeShareVisitor<'a> {
             match v {
                 RustEnumVariant::Unit(_) => (),
                 RustEnumVariant::Tuple { ty, .. } => {
-                    all_references
-                        .extend(ty.all_reference_type_names().filter(|s| ignore_remapped(s)));
+                    all_references.extend(ty.all_reference_type_names());
                 }
                 RustEnumVariant::AnonymousStruct { fields, .. } => {
-                    all_references.extend(fields.iter().flat_map(|f| {
-                        f.ty.all_reference_type_names()
-                            .filter(|s| ignore_remapped(s))
-                    }));
+                    all_references
+                        .extend(fields.iter().flat_map(|f| f.ty.all_reference_type_names()));
                 }
             }
         }
@@ -128,7 +120,6 @@ impl<'a> TypeShareVisitor<'a> {
             self.parsed_data
                 .type_names
                 .iter()
-                .filter(|s| ignore_remapped(s))
                 .filter(|s| accept_type(s))
                 .map(|s| s.as_str()),
         );
@@ -187,7 +178,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
-        fn extract_root_and_types(p: &syn::Path, crate_name: &str) -> Option<ImportedType> {
+        let extract_root_and_types = |p: &syn::Path| {
             // TODO: the first part here may not be a crate name but a module name defined
             // in a use statement.
             //
@@ -202,28 +193,31 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
             // and reconcile aftewards. visit_item_use would have to retain non type import types
             // which it discards right now.
             //
-            let first = p.segments.first()?.ident.to_string();
-            let last = p.segments.last()?.ident.to_string();
+            let crate_candidate = p.segments.first()?.ident.to_string();
+            let type_candidate = p.segments.last()?.ident.to_string();
 
-            accept_crate(&first)
-                .then_some(())
-                .and_then(|_| accept_type(&last).then_some(()))?;
+            (accept_crate(&crate_candidate)
+                && accept_type(&type_candidate)
+                && !self.ignored_types.contains(&type_candidate)
+                && crate_candidate != type_candidate)
+                .then(|| {
+                    // resolve crate and super aliases into the crate name.
+                    let base_crate = if crate_candidate == "crate"
+                        || crate_candidate == "super"
+                        || crate_candidate == "self"
+                    {
+                        self.parsed_data.crate_name.to_string()
+                    } else {
+                        crate_candidate
+                    };
+                    ImportedType {
+                        base_crate,
+                        type_name: type_candidate,
+                    }
+                })
+        };
 
-            (first != last).then(|| {
-                // resolve crate and super aliases into the crate name.
-                let base_crate = if first == "crate" || first == "super" || first == "self" {
-                    crate_name.to_string()
-                } else {
-                    first
-                };
-                ImportedType {
-                    base_crate,
-                    type_name: last,
-                }
-            })
-        }
-
-        if let Some(imported_type) = extract_root_and_types(p, &self.parsed_data.crate_name) {
+        if let Some(imported_type) = extract_root_and_types(p) {
             self.parsed_data.import_types.insert(imported_type);
         }
         syn::visit::visit_path(self, p);
@@ -231,9 +225,10 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
-        self.parsed_data
-            .import_types
-            .extend(parse_import(i, &self.parsed_data.crate_name));
+        self.parsed_data.import_types.extend(
+            parse_import(i, &self.parsed_data.crate_name)
+                .filter(|imp| !self.ignored_types.contains(&imp.type_name)),
+        );
         syn::visit::visit_item_use(self, i);
     }
 
