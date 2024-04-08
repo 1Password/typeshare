@@ -44,17 +44,24 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 /// An import visitor that collects all use or
 /// qualified referenced items.
 #[derive(Default)]
-pub struct TypeShareVisitor {
+pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
     file_path: PathBuf,
+    ignored_types: &'a [String],
 }
 
-impl TypeShareVisitor {
+impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
-    pub fn new(crate_name: String, file_name: String, file_path: PathBuf) -> Self {
+    pub fn new(
+        crate_name: String,
+        file_name: String,
+        file_path: PathBuf,
+        ignored_types: &'a [String],
+    ) -> Self {
         Self {
             parsed_data: ParsedData::new(crate_name, file_name),
             file_path,
+            ignored_types,
         }
     }
 
@@ -83,12 +90,17 @@ impl TypeShareVisitor {
         // the typeshared types we have parsed.
         let mut all_references = HashSet::new();
 
+        let ignore_remapped = |ty: &str| !self.ignored_types.iter().any(|t| t == ty);
+
         all_references.extend(
             self.parsed_data
                 .structs
                 .iter()
                 .flat_map(|s| s.fields.iter())
-                .flat_map(|f| f.ty.all_reference_type_names()),
+                .flat_map(|f| {
+                    f.ty.all_reference_type_names()
+                        .filter(|s| ignore_remapped(s))
+                }),
         );
 
         for v in self
@@ -100,11 +112,14 @@ impl TypeShareVisitor {
             match v {
                 RustEnumVariant::Unit(_) => (),
                 RustEnumVariant::Tuple { ty, .. } => {
-                    all_references.extend(ty.all_reference_type_names());
+                    all_references
+                        .extend(ty.all_reference_type_names().filter(|s| ignore_remapped(s)));
                 }
                 RustEnumVariant::AnonymousStruct { fields, .. } => {
-                    all_references
-                        .extend(fields.iter().flat_map(|f| f.ty.all_reference_type_names()));
+                    all_references.extend(fields.iter().flat_map(|f| {
+                        f.ty.all_reference_type_names()
+                            .filter(|s| ignore_remapped(s))
+                    }));
                 }
             }
         }
@@ -113,6 +128,7 @@ impl TypeShareVisitor {
             self.parsed_data
                 .type_names
                 .iter()
+                .filter(|s| ignore_remapped(s))
                 .filter(|s| accept_type(s))
                 .map(|s| s.as_str()),
         );
@@ -167,7 +183,7 @@ impl TypeShareVisitor {
     }
 }
 
-impl<'ast> Visit<'ast> for TypeShareVisitor {
+impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
@@ -542,7 +558,7 @@ mod test {
 
         let file: File = syn::parse_str(rust_code).unwrap();
         let mut visitor =
-            TypeShareVisitor::new("my_crate".into(), "my_file".into(), "file_path".into());
+            TypeShareVisitor::new("my_crate".into(), "my_file".into(), "file_path".into(), &[]);
         visitor.visit_file(&file);
 
         let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();

@@ -130,6 +130,7 @@ pub fn parse(
     crate_name: String,
     file_name: String,
     file_path: PathBuf,
+    ignored_types: &[String],
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -139,7 +140,7 @@ pub fn parse(
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path);
+    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types);
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
     Ok(Some(import_visitor.parsed_data()))

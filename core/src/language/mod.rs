@@ -331,6 +331,11 @@ pub trait Language {
 
         Ok(())
     }
+
+    /// Types that are remapped will be excluded from import references.
+    fn ignored_reference_types(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Lookup any refeferences to other typeshared types in order to build
@@ -365,7 +370,7 @@ fn used_imports<'a, 'b: 'a>(
                 })
                 .or_insert(BTreeSet::from([ty.as_str()]));
         } else {
-            // println!("Could not lookup reference {referenced_import:?}");
+            println!("Could not lookup reference {referenced_import:?}");
         }
     }
 

@@ -265,11 +265,14 @@ fn main() -> Result<(), ()> {
         walker_builder.add(root);
     }
 
+    let ignored_types = lang.ignored_reference_types();
+
     // The walker ignores directories that are git-ignored. If you need
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
-    let crate_parsed_data = parse_input(parser_inputs(walker_builder, language_type));
+    let crate_parsed_data =
+        parse_input(parser_inputs(walker_builder, language_type), &ignored_types);
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
@@ -380,7 +383,7 @@ fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Has
 }
 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
-fn parse_input(inputs: Vec<ParserInput>) -> HashMap<String, ParsedData> {
+fn parse_input(inputs: Vec<ParserInput>, ignored_types: &[String]) -> HashMap<String, ParsedData> {
     inputs
         .into_par_iter()
         .flat_map(
@@ -396,6 +399,7 @@ fn parse_input(inputs: Vec<ParserInput>) -> HashMap<String, ParsedData> {
                     crate_name.clone(),
                     file_name.clone(),
                     file_path,
+                    ignored_types,
                 );
                 match parsed_data {
                     Ok(data) => {
