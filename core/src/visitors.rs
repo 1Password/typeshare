@@ -136,13 +136,13 @@ impl TypeShareVisitor {
                 .next()
                 .cloned();
 
-            if found.is_none() {
-                println!(
-                    "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
-                    self.parsed_data.crate_name,
-                    self.file_path.as_os_str().to_str().unwrap_or_default()
-                );
-            }
+            // if found.is_none() {
+            //     println!(
+            //         "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
+            //         self.parsed_data.crate_name,
+            //         self.file_path.as_os_str().to_str().unwrap_or_default()
+            //     );
+            // }
 
             found
         };

@@ -5,6 +5,7 @@ use crate::{
         RustTypeFormatError, SpecialRustType,
     },
     topsort::topsort,
+    visitors::ImportedType,
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
@@ -340,6 +341,34 @@ fn used_imports<'a, 'b: 'a>(
 ) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
     let mut used_imports: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
 
+    /// If we have reference that is a re-export we can attempt to find it with the
+    /// following heuristic.
+    fn fallback<'a>(
+        all_types: &'a HashMap<String, HashSet<String>>,
+        referenced_import: &'a ImportedType,
+        used: &mut BTreeMap<&'a str, BTreeSet<&'a str>>,
+        crate_name: &str,
+    ) {
+        if let Some((crate_name, ty)) = all_types
+            .iter()
+            .flat_map(|(k, v)| {
+                v.iter()
+                    .find(|&t| t == &referenced_import.type_name && k != crate_name)
+                    .map(|t| (k, t))
+            })
+            .next()
+        {
+            println!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
+            used.entry(crate_name)
+                .and_modify(|v| {
+                    v.insert(ty.as_str());
+                })
+                .or_insert(BTreeSet::from([ty.as_str()]));
+        } else {
+            // println!("Could not lookup reference {referenced_import:?}");
+        }
+    }
+
     for referenced_import in &data.import_types {
         // Skip over imports that reference the current crate. They
         // are all collapsed into one module per crate.
@@ -369,16 +398,21 @@ fn used_imports<'a, 'b: 'a>(
                     })
                     .or_insert(BTreeSet::from([ty_name.as_str()]));
             } else {
-                println!(
-                    "Could not lookup referenced type \"{}\" in module \"{}\" when generating module \"{}\"",
-                    referenced_import.type_name, referenced_import.base_crate, data.crate_name
+                fallback(
+                    all_types,
+                    referenced_import,
+                    &mut used_imports,
+                    &data.crate_name,
                 );
             }
         } else {
-            // println!(
-            //     "Could not lookup referenced crate module \"{}\" for type \"{}\" when generating module \"{}\"",
-            //     referenced_import.base_crate, referenced_import.type_name, data.crate_name
-            // );
+            // We might have a re-export from another crate.
+            fallback(
+                all_types,
+                referenced_import,
+                &mut used_imports,
+                &data.crate_name,
+            );
         }
     }
     used_imports
