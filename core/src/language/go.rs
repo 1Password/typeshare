@@ -11,6 +11,8 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
+use super::CrateTypes;
+
 /// All information needed to generate Go type-code
 #[derive(Default)]
 pub struct Go {
@@ -29,7 +31,7 @@ impl Language for Go {
     fn generate_types(
         &mut self,
         w: &mut dyn Write,
-        _imports: &HashMap<String, HashSet<String>>,
+        _imports: &CrateTypes,
         data: &ParsedData,
     ) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.

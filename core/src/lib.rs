@@ -1,11 +1,8 @@
 //! The core library for typeshare.
 //! Contains the parser and language converters.
 
-use language::Language;
-use std::{
-    collections::{HashMap, HashSet},
-    io::Write,
-};
+use language::{CrateTypes, Language};
+use std::io::Write;
 use thiserror::Error;
 
 mod rename;
@@ -32,7 +29,7 @@ pub enum ProcessInputError {
 pub fn process_input(
     input: &str,
     language: &mut dyn Language,
-    imports: &HashMap<String, HashSet<String>>,
+    imports: &CrateTypes,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
     let parsed_data = parser::parse(

@@ -1,4 +1,4 @@
-use super::Language;
+use super::{Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
 use crate::parser::{remove_dash_from_identifier, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
@@ -9,7 +9,6 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::{BTreeMap, BTreeSet};
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Kotlin type-code
@@ -212,7 +211,7 @@ impl Language for Kotlin {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: BTreeMap<&str, BTreeSet<&str>>,
+        imports: ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             for t in ty {

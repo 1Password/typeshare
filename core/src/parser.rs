@@ -1,5 +1,5 @@
 use crate::{
-    language::SupportedLanguage,
+    language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
         FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
@@ -55,7 +55,7 @@ pub enum ParseError {
 #[derive(Debug)]
 pub struct ErrorInfo {
     /// The crate where this error occured.
-    pub crate_name: String,
+    pub crate_name: CrateName,
     /// The file name being parsed.
     pub file_name: String,
     /// The parse error.
@@ -74,7 +74,7 @@ pub struct ParsedData {
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
-    pub crate_name: String,
+    pub crate_name: CrateName,
     /// File name to write to for generated type.
     pub file_name: String,
     /// All type names
@@ -83,12 +83,12 @@ pub struct ParsedData {
     pub errors: Vec<ErrorInfo>,
 }
 
-pub struct ParsedModule {
-    pub module: HashMap<String, Vec<ParsedData>>,
-}
+// pub struct ParsedModule {
+//     pub module: HashMap<String, Vec<ParsedData>>,
+// }
 
 impl ParsedData {
-    pub fn new(crate_name: String, file_name: String) -> Self {
+    pub fn new(crate_name: CrateName, file_name: String) -> Self {
         Self {
             crate_name,
             file_name,
@@ -127,7 +127,7 @@ impl ParsedData {
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(
     source_code: &str,
-    crate_name: String,
+    crate_name: CrateName,
     file_name: String,
     file_path: PathBuf,
     ignored_types: &[String],

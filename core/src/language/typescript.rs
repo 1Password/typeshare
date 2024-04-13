@@ -9,9 +9,11 @@ use crate::{
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::HashMap,
     io::{self, Write},
 };
+
+use super::ScopedCrateTypes;
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
@@ -174,7 +176,7 @@ impl Language for TypeScript {
     fn write_imports(
         &mut self,
         w: &mut dyn Write,
-        imports: BTreeMap<&str, BTreeSet<&str>>,
+        imports: ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
             write!(w, "import {{")?;

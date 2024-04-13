@@ -11,7 +11,9 @@ use itertools::Itertools;
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    fmt::Display,
     io::Write,
+    path::Path,
     str::FromStr,
 };
 
@@ -27,6 +29,59 @@ pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
 pub use typescript::TypeScript;
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+/// A crate name.
+pub struct CrateName(String);
+
+impl Display for CrateName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for CrateName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl CrateName {
+    /// View this crate name as a string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Extract the crate name from a give path.
+    pub fn find_crate_name(path: &Path) -> Option<Self> {
+        let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
+
+        let mut crate_finder = path.iter().rev().skip_while(|p| *p != "src");
+        crate_finder.next();
+        crate_finder
+            .next()
+            .and_then(|s| s.to_str())
+            .map(file_name_to_crate_name)
+            .map(CrateName::from)
+    }
+}
+
+impl From<&str> for CrateName {
+    fn from(value: &str) -> Self {
+        CrateName(value.to_string())
+    }
+}
+
+pub type TypeName = String;
+
+/// Mapping of crate names to typeshare type names.
+pub type CrateTypes = HashMap<CrateName, HashSet<TypeName>>;
+
+pub type SortedCrateNames<'a> = &'a CrateName;
+pub type SortedTypeNames<'a> = BTreeSet<&'a str>;
+
+/// Refence types by crate that are scoped for a given output module.
+pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'a>>;
 
 /// All supported programming languages.
 #[allow(missing_docs)]
@@ -91,7 +146,7 @@ pub trait Language {
     fn generate_types(
         &mut self,
         writable: &mut dyn Write,
-        all_types: &HashMap<String, HashSet<String>>,
+        all_types: &CrateTypes,
         data: &ParsedData,
     ) -> std::io::Result<()> {
         self.begin_file(writable, data)?;
@@ -212,7 +267,7 @@ pub trait Language {
     fn write_imports(
         &mut self,
         _writer: &mut dyn Write,
-        _imports: BTreeMap<&str, BTreeSet<&str>>,
+        _imports: ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
         Ok(())
     }
@@ -342,23 +397,19 @@ pub trait Language {
 /// a list of imports for the generated module.
 fn used_imports<'a, 'b: 'a>(
     data: &'b ParsedData,
-    all_types: &'a HashMap<String, HashSet<String>>,
-) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
-    let mut used_imports: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    all_types: &'a CrateTypes,
+) -> ScopedCrateTypes<'a> {
+    let mut used_imports = BTreeMap::new();
 
-    /// If we have reference that is a re-export we can attempt to find it with the
-    /// following heuristic.
-    fn fallback<'a>(
-        all_types: &'a HashMap<String, HashSet<String>>,
-        referenced_import: &'a ImportedType,
-        used: &mut BTreeMap<&'a str, BTreeSet<&'a str>>,
-        crate_name: &str,
-    ) {
+    // If we have reference that is a re-export we can attempt to find it with the
+    // following heuristic.
+    let fallback = |referenced_import: &'a ImportedType, used: &mut ScopedCrateTypes<'a>| {
+        // Find the first type that does not belong to the current crate.
         if let Some((crate_name, ty)) = all_types
             .iter()
             .flat_map(|(k, v)| {
                 v.iter()
-                    .find(|&t| t == &referenced_import.type_name && k != crate_name)
+                    .find(|&t| t == &referenced_import.type_name && k != &data.crate_name)
                     .map(|t| (k, t))
             })
             .next()
@@ -372,53 +423,54 @@ fn used_imports<'a, 'b: 'a>(
         } else {
             println!("Could not lookup reference {referenced_import:?}");
         }
-    }
+    };
 
-    for referenced_import in &data.import_types {
+    for referenced_import in data
+        .import_types
+        .iter()
         // Skip over imports that reference the current crate. They
         // are all collapsed into one module per crate.
-        if data.crate_name == referenced_import.base_crate {
-            continue;
-        }
-
+        .filter(|imp| imp.base_crate != data.crate_name)
+    {
         // Look up the types for the referenced imported crate.
         if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
             // We can have "*" wildcard here. We need to add all.
             if referenced_import.type_name == "*" {
                 used_imports
-                    .entry(referenced_import.base_crate.as_str())
-                    .and_modify(|names| names.extend(type_names.iter().map(|s| s.as_str())));
+                    .entry(&referenced_import.base_crate)
+                    .and_modify(|names: &mut BTreeSet<&str>| {
+                        names.extend(type_names.iter().map(|s| s.as_str()))
+                    });
                 continue;
             }
 
             // Add referenced import for each matching type.
-            if let Some(ty_name) = type_names
-                .iter()
-                .find(|&t| t == &referenced_import.type_name)
-            {
+            if let Some(ty_name) = type_names.get(&referenced_import.type_name) {
                 used_imports
-                    .entry(referenced_import.base_crate.as_str())
+                    .entry(&referenced_import.base_crate)
                     .and_modify(|v| {
                         v.insert(ty_name.as_str());
                     })
                     .or_insert(BTreeSet::from([ty_name.as_str()]));
             } else {
-                fallback(
-                    all_types,
-                    referenced_import,
-                    &mut used_imports,
-                    &data.crate_name,
-                );
+                fallback(referenced_import, &mut used_imports);
             }
         } else {
             // We might have a re-export from another crate.
-            fallback(
-                all_types,
-                referenced_import,
-                &mut used_imports,
-                &data.crate_name,
-            );
+            fallback(referenced_import, &mut used_imports);
         }
     }
     used_imports
+}
+
+#[cfg(test)]
+mod test {
+    use crate::language::CrateName;
+    use std::path::Path;
+
+    #[test]
+    fn test_crate_name() {
+        let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
+        assert_eq!(Some("op_proxy".into()), CrateName::find_crate_name(path));
+    }
 }

@@ -6,7 +6,7 @@ use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap},
     fs,
     ops::Not,
     path::{Path, PathBuf},
@@ -14,7 +14,10 @@ use std::{
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
-    language::{GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{
+        CrateName, CrateTypes, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage,
+        Swift, TypeScript,
+    },
     parser::ParsedData,
 };
 
@@ -334,7 +337,7 @@ fn main() -> Result<(), ()> {
 struct ParserInput {
     file_path: PathBuf,
     file_name: String,
-    crate_name: String,
+    crate_name: CrateName,
 }
 
 fn parser_inputs(
@@ -347,7 +350,7 @@ fn parser_inputs(
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
             let extension = language_type.language_extension();
-            let crate_name = determine_crate_name(dir_entry.path())?;
+            let crate_name = CrateName::find_crate_name(dir_entry.path())?;
             let file_path = dir_entry.path().to_path_buf();
             let file_name = format!("{crate_name}.{extension}");
             Some(ParserInput {
@@ -362,13 +365,13 @@ fn parser_inputs(
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 /// mapping is used to lookup and generated import statements for generated files.
-fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, HashSet<String>> {
+fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
     file_mappings
         .iter()
         .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
         .fold(
             HashMap::new(),
-            |mut import_map: HashMap<String, HashSet<String>>, (crate_name, type_names)| {
+            |mut import_map: CrateTypes, (crate_name, type_names)| {
                 match import_map.entry(crate_name.clone()) {
                     Entry::Occupied(mut e) => {
                         e.get_mut().extend(type_names);
@@ -383,7 +386,10 @@ fn all_types(file_mappings: &HashMap<String, ParsedData>) -> HashMap<String, Has
 }
 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
-fn parse_input(inputs: Vec<ParserInput>, ignored_types: &[String]) -> HashMap<String, ParsedData> {
+fn parse_input(
+    inputs: Vec<ParserInput>,
+    ignored_types: &[String],
+) -> HashMap<CrateName, ParsedData> {
     inputs
         .into_par_iter()
         .flat_map(
@@ -411,7 +417,7 @@ fn parse_input(inputs: Vec<ParserInput>, ignored_types: &[String]) -> HashMap<St
         )
         .fold(
             HashMap::new,
-            |mut file_maps: HashMap<String, ParsedData>, (crate_name, parsed_data)| {
+            |mut file_maps: HashMap<CrateName, ParsedData>, (crate_name, parsed_data)| {
                 match file_maps.entry(crate_name) {
                     Entry::Occupied(mut entry) => {
                         entry.get_mut().add(parsed_data);
@@ -472,37 +478,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     config
 }
 
-/// Extract the crate name from a give path.
-fn determine_crate_name(path: &Path) -> Option<String> {
-    let mut crate_finder = path.iter().rev().skip_while(|p| *p != "src");
-    crate_finder.next();
-    crate_finder
-        .next()
-        .and_then(|s| s.to_str())
-        .map(file_name_to_crate_name)
-}
-
 /// Check if we have not parsed any relavent typehsared types.
 fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
     parsed_data.enums.is_empty()
         && parsed_data.aliases.is_empty()
         && parsed_data.structs.is_empty()
         && parsed_data.errors.is_empty()
-}
-
-/// Convert a folder crate name to a source crate name.
-fn file_name_to_crate_name(file_name: &str) -> String {
-    file_name.replace('-', "_")
-}
-
-#[cfg(test)]
-mod test {
-    use crate::determine_crate_name;
-    use std::path::Path;
-
-    #[test]
-    fn test_crate_name() {
-        let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
-        assert_eq!(Some("op_proxy"), determine_crate_name(path).as_deref());
-    }
 }
