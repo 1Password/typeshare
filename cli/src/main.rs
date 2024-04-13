@@ -1,7 +1,13 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use clap::{command, Arg, ArgMatches, Command};
+use args::build_command;
+use args::{
+    ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
+    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
+    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
+};
+use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -21,141 +27,8 @@ use typeshare_core::{
     parser::ParsedData,
 };
 
+mod args;
 mod config;
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const ARG_TYPE: &str = "TYPE";
-const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
-const ARG_KOTLIN_PREFIX: &str = "KOTLINPREFIX";
-const ARG_JAVA_PACKAGE: &str = "JAVAPACKAGE";
-const ARG_MODULE_NAME: &str = "MODULENAME";
-const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
-const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
-#[cfg(feature = "go")]
-const ARG_GO_PACKAGE: &str = "GOPACKAGE";
-const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
-const ARG_GENERATE_CONFIG: &str = "generate-config-file";
-const ARG_OUTPUT_FOLDER: &str = "output-folder";
-const ARG_FOLLOW_LINKS: &str = "follow-links";
-
-#[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
-
-#[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
-
-fn build_command() -> Command<'static> {
-    command!("typeshare")
-        .version(VERSION)
-        .args_conflicts_with_subcommands(true)
-        .subcommand_negates_reqs(true)
-        .subcommand(
-            Command::new("completions")
-                .about("Generate shell completions")
-                .arg(
-                    Arg::new("shell")
-                        .value_name("SHELL")
-                        .help("The shell to generate the completions for")
-                        .required(true)
-                        .possible_values(clap_complete_command::Shell::possible_values()),
-                ),
-        )
-        .arg(
-            Arg::new(ARG_TYPE)
-                .short('l')
-                .long("lang")
-                .help("Language of generated types")
-                .takes_value(true)
-                .possible_values(AVAILABLE_LANGUAGES)
-                .required_unless(ARG_GENERATE_CONFIG),
-        )
-        .arg(
-            Arg::new(ARG_SWIFT_PREFIX)
-                .short('s')
-                .long("swift-prefix")
-                .help("Prefix for generated Swift types")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_KOTLIN_PREFIX)
-                .short('k')
-                .long("kotlin-prefix")
-                .help("Prefix for generated Kotlin types")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_JAVA_PACKAGE)
-                .short('j')
-                .long("java-package")
-                .help("JAVA package name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_MODULE_NAME)
-                .short('m')
-                .long("module-name")
-                .help("Kotlin serializer module name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_SCALA_PACKAGE)
-                .long("scala-package")
-                .help("Scala package name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_SCALA_MODULE_NAME)
-                .long("scala-module-name")
-                .help("Scala serializer module name")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_CONFIG_FILE_NAME)
-                .short('c')
-                .long("config-file")
-                .help("Configuration file for typeshare")
-                .takes_value(true)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_GENERATE_CONFIG)
-                .short('g')
-                .long("generate-config-file")
-                .help("Generates a configuration file based on the other options specified. The file will be written to typeshare.toml by default or to the file path specified by the --config-file option.")
-                .takes_value(false)
-                .required(false),
-        )
-        .arg(
-            Arg::new(ARG_OUTPUT_FOLDER)
-                .short('o')
-                .long("output-folder")
-                .help("Folder to write output to. mtime will be preserved if the file contents don't change")
-                .required_unless(ARG_GENERATE_CONFIG)
-                .takes_value(true)
-                .long(ARG_OUTPUT_FOLDER)
-        )
-        .arg(
-            Arg::new(ARG_FOLLOW_LINKS)
-            .short('L')
-            .long("follow-links")
-            .help("Follow symbolic links to directories instead of ignoring them.")
-            .takes_value(false)
-            .required(false)
-        )
-        .arg(
-            Arg::new("directories")
-                .help("Directories within which to recursively find and process rust files")
-                .required_unless(ARG_GENERATE_CONFIG)
-                .min_values(1),
-        )
-}
 
 fn main() -> Result<(), ()> {
     #[allow(unused_mut)]
@@ -203,45 +76,7 @@ fn main() -> Result<(), ()> {
         .and_then(|parsed| parsed)
         .expect("argument parser didn't validate ARG_TYPE correctly");
 
-    let mut lang: Box<dyn Language> = match language_type {
-        SupportedLanguage::Swift => Box::new(Swift {
-            prefix: config.swift.prefix,
-            type_mappings: config.swift.type_mappings,
-            default_decorators: config.swift.default_decorators,
-            default_generic_constraints: GenericConstraints::from_config(
-                config.swift.default_generic_constraints,
-            ),
-            ..Default::default()
-        }),
-        SupportedLanguage::Kotlin => Box::new(Kotlin {
-            package: config.kotlin.package,
-            module_name: config.kotlin.module_name,
-            prefix: config.kotlin.prefix,
-            type_mappings: config.kotlin.type_mappings,
-            ..Default::default()
-        }),
-        SupportedLanguage::Scala => Box::new(Scala {
-            package: config.scala.package,
-            module_name: config.scala.module_name,
-            type_mappings: config.scala.type_mappings,
-            ..Default::default()
-        }),
-        SupportedLanguage::TypeScript => Box::new(TypeScript {
-            type_mappings: config.typescript.type_mappings,
-            ..Default::default()
-        }),
-        #[cfg(feature = "go")]
-        SupportedLanguage::Go => Box::new(Go {
-            package: config.go.package,
-            type_mappings: config.go.type_mappings,
-            uppercase_acronyms: config.go.uppercase_acronyms,
-            ..Default::default()
-        }),
-        #[cfg(not(feature = "go"))]
-        SupportedLanguage::Go => {
-            panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
-        }
-    };
+    let mut lang = language(language_type, config);
 
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
@@ -283,6 +118,9 @@ fn main() -> Result<(), ()> {
     let import_candidates = all_types(&crate_parsed_data);
 
     let mut errors_encountered = false;
+
+    let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
+    let output_file = options.value_of(ARG_OUTPUT_FILE);
 
     for (_crate_name, parsed_data) in crate_parsed_data {
         if !errors_encountered && !parsed_data.errors.is_empty() {
@@ -330,6 +168,48 @@ fn main() -> Result<(), ()> {
         Err(())
     } else {
         Ok(())
+    }
+}
+
+fn language(language_type: SupportedLanguage, config: Config) -> Box<dyn Language> {
+    match language_type {
+        SupportedLanguage::Swift => Box::new(Swift {
+            prefix: config.swift.prefix,
+            type_mappings: config.swift.type_mappings,
+            default_decorators: config.swift.default_decorators,
+            default_generic_constraints: GenericConstraints::from_config(
+                config.swift.default_generic_constraints,
+            ),
+            ..Default::default()
+        }),
+        SupportedLanguage::Kotlin => Box::new(Kotlin {
+            package: config.kotlin.package,
+            module_name: config.kotlin.module_name,
+            prefix: config.kotlin.prefix,
+            type_mappings: config.kotlin.type_mappings,
+            ..Default::default()
+        }),
+        SupportedLanguage::Scala => Box::new(Scala {
+            package: config.scala.package,
+            module_name: config.scala.module_name,
+            type_mappings: config.scala.type_mappings,
+            ..Default::default()
+        }),
+        SupportedLanguage::TypeScript => Box::new(TypeScript {
+            type_mappings: config.typescript.type_mappings,
+            ..Default::default()
+        }),
+        #[cfg(feature = "go")]
+        SupportedLanguage::Go => Box::new(Go {
+            package: config.go.package,
+            type_mappings: config.go.type_mappings,
+            uppercase_acronyms: config.go.uppercase_acronyms,
+            ..Default::default()
+        }),
+        #[cfg(not(feature = "go"))]
+        SupportedLanguage::Go => {
+            panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
+        }
     }
 }
 
