@@ -24,3 +24,4 @@ rayon = "1.5"
 serde = { version = "1.0.164", features = ["derive"] }
 toml = "0.5"
 typeshare-core = { path = "../core", version = "1.9.2" }
+anyhow = "1"

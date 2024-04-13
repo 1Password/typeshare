@@ -1,6 +1,7 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
+use anyhow::Context;
 use args::build_command;
 use args::{
     ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
@@ -31,7 +32,7 @@ mod args;
 mod config;
 mod writer;
 
-fn main() -> Result<(), ()> {
+fn main() -> anyhow::Result<()> {
     #[allow(unused_mut)]
     let mut command = build_command();
 
@@ -49,33 +50,32 @@ fn main() -> Result<(), ()> {
     let options = command.get_matches();
 
     if let Some(options) = options.subcommand_matches("completions") {
-        if let Ok(shell) = options.value_of_t::<clap_complete_command::Shell>("shell") {
-            let mut command = build_command();
-            shell.generate(&mut command, &mut std::io::stdout());
-        }
-        return Err(());
+        let shell = options
+            .value_of_t::<clap_complete_command::Shell>("shell")
+            .context("Missing shell argument")?;
+
+        let mut command = build_command();
+        shell.generate(&mut command, &mut std::io::stdout());
     }
 
     let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
-    let config = config::load_config(config_file).unwrap_or_else(|error| {
-        panic!("Unable to read configuration file due to error: {}", error);
-    });
+    let config = config::load_config(config_file).context("Unable to read configuration file")?;
     let config = override_configuration(config, &options);
 
     if options.is_present(ARG_GENERATE_CONFIG) {
         let config = override_configuration(Config::default(), &options);
         let file_path = options.value_of(ARG_CONFIG_FILE_NAME);
-        config::store_config(&config, file_path)
-            .unwrap_or_else(|e| panic!("Failed to create new config file due to: {}", e));
-        return Err(());
+        config::store_config(&config, file_path).context("Failed to create new config file")?;
     }
 
-    let mut directories = options.values_of("directories").unwrap();
+    let mut directories = options
+        .values_of("directories")
+        .ok_or_else(|| anyhow::Error::msg("missing directories argument"))?;
+
     let language_type = options
         .value_of(ARG_TYPE)
-        .map(|lang| lang.parse::<SupportedLanguage>().ok())
-        .and_then(|parsed| parsed)
-        .expect("argument parser didn't validate ARG_TYPE correctly");
+        .and_then(|lang| lang.parse::<SupportedLanguage>().ok())
+        .ok_or_else(|| anyhow::Error::msg("argument parser didn't validate ARG_TYPE correctly"))?;
 
     let lang = language(language_type, config);
 
@@ -84,19 +84,21 @@ fn main() -> Result<(), ()> {
     types.select("rust");
 
     // This is guaranteed to always have at least one value by the clap configuration
-    let first_root = directories.next().unwrap();
+    let first_root = directories
+        .next()
+        .ok_or_else(|| anyhow::Error::msg("directories is empty"))?;
 
     let overrides = OverrideBuilder::new(first_root)
         // Don't process files inside of tools/typeshare/
         .add("!**/tools/typeshare/**")
-        .expect("Failed to parse override")
+        .context("Failed to parse override")?
         .build()
-        .expect("Failed to build override");
+        .context("Failed to build override")?;
 
     let mut walker_builder = WalkBuilder::new(first_root);
     // Sort walker output for deterministic output across platforms
     walker_builder.sort_by_file_path(|a, b| a.cmp(b));
-    walker_builder.types(types.build().expect("Failed to build types"));
+    walker_builder.types(types.build().context("Failed to build types")?);
     walker_builder.overrides(overrides);
     walker_builder.follow_links(options.is_present(ARG_FOLLOW_LINKS));
 
@@ -111,7 +113,7 @@ fn main() -> Result<(), ()> {
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
     let crate_parsed_data =
-        parse_input(parser_inputs(walker_builder, language_type), &ignored_types);
+        parse_input(parser_inputs(walker_builder, language_type), &ignored_types)?;
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
@@ -119,7 +121,7 @@ fn main() -> Result<(), ()> {
     let import_candidates = all_types(&crate_parsed_data);
 
     check_parse_errors(&crate_parsed_data)?;
-    write_generated(options, lang, crate_parsed_data, import_candidates);
+    write_generated(options, lang, crate_parsed_data, import_candidates)?;
 
     Ok(())
 }
@@ -222,47 +224,49 @@ fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
 fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[String],
-) -> HashMap<CrateName, ParsedData> {
+) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
-        .flat_map(
-            |ParserInput {
+        .try_fold(
+            HashMap::new,
+            |mut results: HashMap<CrateName, ParsedData>,
+             ParserInput {
                  file_path,
                  file_name,
                  crate_name,
              }| {
-                let data = std::fs::read_to_string(&file_path)
-                    .unwrap_or_else(|e| panic!("failed to read file at {file_path:?}: {e}", e = e));
-                let parsed_data = typeshare_core::parser::parse(
-                    &data,
-                    crate_name.clone(),
-                    file_name.clone(),
-                    file_path,
-                    ignored_types,
-                );
-                match parsed_data {
-                    Ok(data) => {
-                        data.and_then(|d| is_parsed_data_empty(&d).not().then(|| (crate_name, d)))
+                match std::fs::read_to_string(&file_path)
+                    .context("Failed to read input")
+                    .and_then(|data| {
+                        typeshare_core::parser::parse(
+                            &data,
+                            crate_name.clone(),
+                            file_name.clone(),
+                            file_path,
+                            ignored_types,
+                        )
+                        .context("Failed to parse")
+                    })
+                    .map(|parsed_data| {
+                        parsed_data
+                            .and_then(|d| is_parsed_data_empty(&d).not().then(|| (crate_name, d)))
+                    })? {
+                    Some((crate_name, parsed_data)) => {
+                        match results.entry(crate_name) {
+                            Entry::Occupied(mut entry) => {
+                                entry.get_mut().add(parsed_data);
+                            }
+                            Entry::Vacant(entry) => {
+                                entry.insert(parsed_data);
+                            }
+                        }
+                        Ok::<_, anyhow::Error>(results)
                     }
-                    Err(_) => panic!("{}", parsed_data.err().unwrap()),
+                    None => Ok(results),
                 }
             },
         )
-        .fold(
-            HashMap::new,
-            |mut file_maps: HashMap<CrateName, ParsedData>, (crate_name, parsed_data)| {
-                match file_maps.entry(crate_name) {
-                    Entry::Occupied(mut entry) => {
-                        entry.get_mut().add(parsed_data);
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(parsed_data);
-                    }
-                }
-                file_maps
-            },
-        )
-        .reduce(HashMap::new, |mut file_maps, mapping| {
+        .try_reduce(HashMap::new, |mut file_maps, mapping| {
             for (key, val) in mapping {
                 match file_maps.entry(key) {
                     Entry::Occupied(mut e) => {
@@ -273,7 +277,7 @@ fn parse_input(
                     }
                 }
             }
-            file_maps
+            Ok(file_maps)
         })
 }
 
@@ -319,7 +323,7 @@ fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
         && parsed_data.errors.is_empty()
 }
 
-fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> Result<(), ()> {
+fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow::Result<()> {
     let mut errors_encountered = false;
     for data in parsed_crates
         .values()
@@ -328,14 +332,14 @@ fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> Result<
         errors_encountered = true;
         for error in &data.errors {
             eprintln!(
-                "Parsing error: {} in crate {} for file {}",
+                "Parsing error: \"{}\" in crate \"{}\" for file \"{}\"",
                 error.error, error.crate_name, error.file_name
             );
         }
     }
 
     if errors_encountered {
-        Err(())
+        Err(anyhow::Error::msg("Errors encountered during parsing."))
     } else {
         Ok(())
     }

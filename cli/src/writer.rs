@@ -1,6 +1,11 @@
 use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
 use clap::ArgMatches;
-use std::{collections::HashMap, fs, path::Path};
+use std::{
+    collections::HashMap,
+    fs::{self, File, OpenOptions},
+    io::BufWriter,
+    path::Path,
+};
 use typeshare_core::{
     language::{CrateName, CrateTypes, Language},
     parser::ParsedData,
@@ -11,14 +16,16 @@ pub fn write_generated(
     lang: Box<dyn Language>,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
-) {
+) -> Result<(), std::io::Error> {
     let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
     let output_file = options.value_of(ARG_OUTPUT_FILE);
 
     if let Some(folder) = output_folder {
-        write_multiple_files(lang, folder, crate_parsed_data, import_candidates);
+        write_multiple_files(lang, folder, crate_parsed_data, import_candidates)
     } else if let Some(file) = output_file {
-        write_single_file(lang, file, crate_parsed_data);
+        write_single_file(lang, file, crate_parsed_data)
+    } else {
+        Ok(())
     }
 }
 
@@ -27,7 +34,7 @@ fn write_multiple_files(
     output_folder: &str,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
-) {
+) -> Result<(), std::io::Error> {
     for (_crate_name, parsed_data) in crate_parsed_data {
         // Print any errors
         for error in &parsed_data.errors {
@@ -39,8 +46,7 @@ fn write_multiple_files(
 
         let outfile = Path::new(output_folder).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)
-            .expect("Couldn't generate types");
+        lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)?;
         match fs::read(&outfile) {
             Ok(buf) if buf == generated_contents => {
                 // ok! don't need to do anything :)
@@ -63,11 +69,23 @@ fn write_multiple_files(
             fs::write(outfile, generated_contents).expect("failed to write output");
         }
     }
+    Ok(())
 }
 
 fn write_single_file(
     mut lang: Box<dyn Language>,
     file_name: &str,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
-) {
+) -> Result<(), std::io::Error> {
+    let mut output = BufWriter::new(
+        OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(file_name)?,
+    );
+
+    for data in crate_parsed_data.values() {
+        lang.generate_types(&mut output, &HashMap::new(), data)?;
+    }
+    Ok(())
 }
