@@ -4,8 +4,8 @@
 use args::build_command;
 use args::{
     ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
-    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
-    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
+    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_SCALA_MODULE_NAME, ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX,
+    ARG_TYPE,
 };
 use clap::ArgMatches;
 use config::Config;
@@ -13,9 +13,8 @@ use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fs,
     ops::Not,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
@@ -26,9 +25,11 @@ use typeshare_core::{
     },
     parser::ParsedData,
 };
+use writer::write_generated;
 
 mod args;
 mod config;
+mod writer;
 
 fn main() -> Result<(), ()> {
     #[allow(unused_mut)]
@@ -76,7 +77,7 @@ fn main() -> Result<(), ()> {
         .and_then(|parsed| parsed)
         .expect("argument parser didn't validate ARG_TYPE correctly");
 
-    let mut lang = language(language_type, config);
+    let lang = language(language_type, config);
 
     let mut types = TypesBuilder::new();
     types.add("rust", "*.rs").unwrap();
@@ -117,58 +118,10 @@ fn main() -> Result<(), ()> {
     // imports in generated files.
     let import_candidates = all_types(&crate_parsed_data);
 
-    let mut errors_encountered = false;
+    check_parse_errors(&crate_parsed_data)?;
+    write_generated(options, lang, crate_parsed_data, import_candidates);
 
-    let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
-    let output_file = options.value_of(ARG_OUTPUT_FILE);
-
-    for (_crate_name, parsed_data) in crate_parsed_data {
-        if !errors_encountered && !parsed_data.errors.is_empty() {
-            errors_encountered = true;
-        }
-
-        // Print any errors
-        for error in &parsed_data.errors {
-            eprintln!(
-                "Failed to parse {} for crate {} {}",
-                error.file_name, error.crate_name, error.error
-            );
-        }
-
-        let outfile =
-            Path::new(options.value_of(ARG_OUTPUT_FOLDER).unwrap()).join(&parsed_data.file_name);
-        let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)
-            .expect("Couldn't generate types");
-        match fs::read(&outfile) {
-            Ok(buf) if buf == generated_contents => {
-                // ok! don't need to do anything :)
-                // avoid writing the file to leave the mtime intact
-                // for tools which might use it to know when to
-                // rebuild.
-                println!("Skipping writing to {outfile:?} no changes");
-                continue;
-            }
-            _ => {}
-        }
-
-        if !generated_contents.is_empty() {
-            let out_dir = outfile.parent().unwrap();
-            // If the output directory doesn't already exist, create it.
-            if !out_dir.exists() {
-                fs::create_dir_all(out_dir).expect("failed to create output directory");
-            }
-
-            fs::write(outfile, generated_contents).expect("failed to write output");
-        }
-    }
-
-    if errors_encountered {
-        eprint!("Errors encountered during parsing");
-        Err(())
-    } else {
-        Ok(())
-    }
+    Ok(())
 }
 
 fn language(language_type: SupportedLanguage, config: Config) -> Box<dyn Language> {
@@ -364,4 +317,26 @@ fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
         && parsed_data.aliases.is_empty()
         && parsed_data.structs.is_empty()
         && parsed_data.errors.is_empty()
+}
+
+fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> Result<(), ()> {
+    let mut errors_encountered = false;
+    for data in parsed_crates
+        .values()
+        .filter(|parsed_data| !parsed_data.errors.is_empty())
+    {
+        errors_encountered = true;
+        for error in &data.errors {
+            eprintln!(
+                "Parsing error: {} in crate {} for file {}",
+                error.error, error.crate_name, error.file_name
+            );
+        }
+    }
+
+    if errors_encountered {
+        Err(())
+    } else {
+        Ok(())
+    }
 }
