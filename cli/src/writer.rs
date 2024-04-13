@@ -1,10 +1,11 @@
 use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
+use anyhow::Context;
 use clap::ArgMatches;
 use std::{
     collections::HashMap,
-    fs::{self, File, OpenOptions},
-    io::BufWriter,
-    path::Path,
+    fs,
+    ops::ControlFlow,
+    path::{Path, PathBuf},
 };
 use typeshare_core::{
     language::{CrateName, CrateTypes, Language},
@@ -16,7 +17,7 @@ pub fn write_generated(
     lang: Box<dyn Language>,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
-) -> Result<(), std::io::Error> {
+) -> Result<(), anyhow::Error> {
     let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
     let output_file = options.value_of(ARG_OUTPUT_FILE);
 
@@ -34,58 +35,53 @@ fn write_multiple_files(
     output_folder: &str,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
-) -> Result<(), std::io::Error> {
+) -> Result<(), anyhow::Error> {
     for (_crate_name, parsed_data) in crate_parsed_data {
-        // Print any errors
-        for error in &parsed_data.errors {
-            eprintln!(
-                "Failed to parse {} for crate {} {}",
-                error.file_name, error.crate_name, error.error
-            );
-        }
-
         let outfile = Path::new(output_folder).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
         lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)?;
-        match fs::read(&outfile) {
-            Ok(buf) if buf == generated_contents => {
-                // ok! don't need to do anything :)
-                // avoid writing the file to leave the mtime intact
-                // for tools which might use it to know when to
-                // rebuild.
-                println!("Skipping writing to {outfile:?} no changes");
-                continue;
-            }
-            _ => {}
-        }
-
-        if !generated_contents.is_empty() {
-            let out_dir = outfile.parent().unwrap();
-            // If the output directory doesn't already exist, create it.
-            if !out_dir.exists() {
-                fs::create_dir_all(out_dir).expect("failed to create output directory");
-            }
-
-            fs::write(outfile, generated_contents).expect("failed to write output");
+        if let ControlFlow::Break(_) = check_write_file(&outfile, generated_contents)? {
+            continue;
         }
     }
     Ok(())
+}
+
+fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<ControlFlow<()>> {
+    match fs::read(outfile) {
+        Ok(buf) if buf == output => {
+            // avoid writing the file to leave the mtime intact
+            // for tools which might use it to know when to
+            // rebuild.
+            println!("Skipping writing to {outfile:?} no changes");
+            return Ok(ControlFlow::Break(()));
+        }
+        _ => {}
+    }
+
+    if !output.is_empty() {
+        let out_dir = outfile.parent().unwrap();
+        // If the output directory doesn't already exist, create it.
+        if !out_dir.exists() {
+            fs::create_dir_all(out_dir).context("failed to create output directory")?;
+        }
+
+        fs::write(outfile, output).context("failed to write output")?;
+    }
+    Ok(ControlFlow::Continue(()))
 }
 
 fn write_single_file(
     mut lang: Box<dyn Language>,
     file_name: &str,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
-) -> Result<(), std::io::Error> {
-    let mut output = BufWriter::new(
-        OpenOptions::new()
-            .write(true)
-            .truncate(true)
-            .open(file_name)?,
-    );
-
+) -> Result<(), anyhow::Error> {
+    let mut output = Vec::new();
     for data in crate_parsed_data.values() {
         lang.generate_types(&mut output, &HashMap::new(), data)?;
     }
+
+    let outfile = Path::new(file_name).to_path_buf();
+    check_write_file(&outfile, output)?;
     Ok(())
 }
