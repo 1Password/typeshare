@@ -151,7 +151,9 @@ pub trait Language {
     ) -> std::io::Result<()> {
         self.begin_file(writable, &data)?;
 
-        self.write_imports(writable, used_imports(&data, all_types))?;
+        if data.multi_file {
+            self.write_imports(writable, used_imports(&data, all_types))?;
+        }
 
         let ParsedData {
             structs,

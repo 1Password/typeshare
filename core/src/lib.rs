@@ -38,6 +38,7 @@ pub fn process_input(
         "file_name".into(),
         "file_path".into(),
         &[],
+        false,
     )?
     .unwrap();
 

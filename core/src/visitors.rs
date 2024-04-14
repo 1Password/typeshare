@@ -59,9 +59,10 @@ impl<'a> TypeShareVisitor<'a> {
         file_name: String,
         file_path: PathBuf,
         ignored_types: &'a [String],
+        multi_file: bool,
     ) -> Self {
         Self {
-            parsed_data: ParsedData::new(crate_name, file_name),
+            parsed_data: ParsedData::new(crate_name, file_name, multi_file),
             file_path,
             ignored_types,
         }
@@ -69,9 +70,13 @@ impl<'a> TypeShareVisitor<'a> {
 
     /// Consume the visitor and return parsed data.
     pub fn parsed_data(self) -> ParsedData {
-        let mut s = self;
-        s.reconcile_referenced_types();
-        s.parsed_data
+        if self.parsed_data.multi_file {
+            let mut s = self;
+            s.reconcile_referenced_types();
+            s.parsed_data
+        } else {
+            self.parsed_data
+        }
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
@@ -180,6 +185,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
+        if !self.parsed_data.multi_file {
+            return;
+        }
         let extract_root_and_types = |p: &syn::Path| {
             // TODO: the first part here may not be a crate name but a module name defined
             // in a use statement.
@@ -227,6 +235,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
+        if !self.parsed_data.multi_file {
+            return;
+        }
         self.parsed_data.import_types.extend(
             parse_import(i, &self.parsed_data.crate_name)
                 .filter(|imp| !self.ignored_types.contains(&imp.type_name)),
@@ -554,8 +565,13 @@ mod test {
             ";
 
         let file: File = syn::parse_str(rust_code).unwrap();
-        let mut visitor =
-            TypeShareVisitor::new("my_crate".into(), "my_file".into(), "file_path".into(), &[]);
+        let mut visitor = TypeShareVisitor::new(
+            "my_crate".into(),
+            "my_file".into(),
+            "file_path".into(),
+            &[],
+            true,
+        );
         visitor.visit_file(&file);
 
         let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();

@@ -73,6 +73,7 @@ fn check(
         "file_name".into(),
         "file_path".into(),
         &[],
+        false,
     )?
     .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;

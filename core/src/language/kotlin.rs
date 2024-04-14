@@ -99,7 +99,11 @@ impl Language for Kotlin {
                 writeln!(w, " */")?;
                 writeln!(w)?;
             }
-            writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
+            if parsed_data.multi_file {
+                writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
+            } else {
+                writeln!(w, "package {}", self.package)?;
+            }
             writeln!(w)?;
             writeln!(w, "import kotlinx.serialization.Serializable")?;
             writeln!(w, "import kotlinx.serialization.SerialName")?;

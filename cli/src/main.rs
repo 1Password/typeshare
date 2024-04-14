@@ -2,7 +2,7 @@
 //! languages based on Rust code.
 
 use anyhow::Context;
-use args::build_command;
+use args::{build_command, ARG_OUTPUT_FOLDER};
 use args::{
     ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
     ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_SCALA_MODULE_NAME, ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX,
@@ -105,12 +105,17 @@ fn main() -> anyhow::Result<()> {
 
     let ignored_types = lang.ignored_reference_types();
 
+    let multi_file = options.value_of(ARG_OUTPUT_FOLDER).is_some();
+
     // The walker ignores directories that are git-ignored. If you need
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
-    let crate_parsed_data =
-        parse_input(parser_inputs(walker_builder, language_type), &ignored_types)?;
+    let crate_parsed_data = parse_input(
+        parser_inputs(walker_builder, language_type),
+        &ignored_types,
+        multi_file,
+    )?;
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
