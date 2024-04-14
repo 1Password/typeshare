@@ -431,7 +431,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             "\t{} {}{} `json:\"{}{}\"`",
             self.format_field_name(field.id.original.to_string(), true),
             (field.has_default && !field.ty.is_optional())
-                .then(|| "*")
+                .then_some("*")
                 .unwrap_or_default(),
             go_type,
             renamed_id,

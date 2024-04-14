@@ -113,7 +113,7 @@ impl Language for TypeScript {
             r#type,
             ty.r#type
                 .is_optional()
-                .then(|| " | undefined")
+                .then_some(" | undefined")
                 .unwrap_or_default(),
         )?;
 
@@ -232,7 +232,7 @@ impl TypeScript {
                             tag_key,
                             shared.id.renamed,
                             content_key,
-                            ty.is_optional().then(|| "?").unwrap_or_default(),
+                            ty.is_optional().then_some("?").unwrap_or_default(),
                             r#type
                         )
                     }
@@ -279,11 +279,11 @@ impl TypeScript {
         writeln!(
             w,
             "\t{}{}{}: {}{};",
-            is_readonly.then(|| "readonly ").unwrap_or_default(),
+            is_readonly.then_some("readonly ").unwrap_or_default(),
             typescript_property_aware_rename(&field.id.renamed),
-            optional.then(|| "?").unwrap_or_default(),
+            optional.then_some("?").unwrap_or_default(),
             ts_ty,
-            double_optional.then(|| " | null").unwrap_or_default()
+            double_optional.then_some(" | null").unwrap_or_default()
         )?;
 
         Ok(())

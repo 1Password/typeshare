@@ -372,8 +372,8 @@ impl Kotlin {
             remove_dash_from_identifier(&f.id.renamed),
             ty,
             (f.has_default && !f.ty.is_optional())
-                .then(|| "? = null")
-                .or_else(|| f.ty.is_optional().then(|| " = null"))
+                .then_some("? = null")
+                .or_else(|| f.ty.is_optional().then_some(" = null"))
                 .unwrap_or_default()
         )
     }

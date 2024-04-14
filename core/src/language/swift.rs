@@ -347,7 +347,7 @@ impl Language for Swift {
                 remove_dash_from_identifier(&swift_keyword_aware_rename(&f.id.renamed)),
                 case_type,
                 (f.has_default && !f.ty.is_optional())
-                    .then(|| "?")
+                    .then_some("?")
                     .unwrap_or_default()
             )?;
         }
@@ -381,7 +381,7 @@ impl Language for Swift {
                 remove_dash_from_identifier(&f.id.renamed),
                 swift_ty,
                 (f.has_default && !f.ty.is_optional())
-                    .then(|| "?")
+                    .then_some("?")
                     .unwrap_or_default()
             ));
         }
