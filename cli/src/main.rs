@@ -76,7 +76,9 @@ fn main() -> anyhow::Result<()> {
     let lang = language(language_type, config);
 
     let mut types = TypesBuilder::new();
-    types.add("rust", "*.rs").unwrap();
+    types
+        .add("rust", "*.rs")
+        .context("Failed to add rust type extensions")?;
     types.select("rust");
 
     // This is guaranteed to always have at least one value by the clap configuration
