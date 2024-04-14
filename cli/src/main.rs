@@ -2,11 +2,10 @@
 //! languages based on Rust code.
 
 use anyhow::Context;
-use args::{build_command, ARG_OUTPUT_FOLDER};
 use args::{
-    ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
-    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_SCALA_MODULE_NAME, ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX,
-    ARG_TYPE,
+    build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
+    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
+    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
 };
 use clap::ArgMatches;
 use config::Config;
@@ -36,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     #[cfg(feature = "go")]
     {
         command = command.arg(
-            Arg::new(ARG_GO_PACKAGE)
+            clap::Arg::new(args::ARG_GO_PACKAGE)
                 .long("go-package")
                 .help("Go package name")
                 .takes_value(true)
@@ -197,7 +196,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     }
 
     #[cfg(feature = "go")]
-    if let Some(go_package) = options.value_of(ARG_GO_PACKAGE) {
+    if let Some(go_package) = options.value_of(args::ARG_GO_PACKAGE) {
         config.go.package = go_package.to_string();
     }
 
