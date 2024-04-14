@@ -8,9 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use typeshare_core::{
-    language::{CrateName, CrateTypes, Language},
+    language::{CrateName, CrateTypes, Language, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
-    rust_types::RustItem,
 };
 
 /// Write the parsed data to the one or more files depending on command line options.
@@ -79,42 +78,14 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 fn write_single_file(
     mut lang: Box<dyn Language>,
     file_name: &str,
-    crate_parsed_data: HashMap<CrateName, ParsedData>,
+    mut crate_parsed_data: HashMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
+    let parsed_data = crate_parsed_data
+        .remove(&SINGLE_FILE_CRATE_NAME)
+        .context("Could not get parsed data for single file output")?;
+
     let mut output = Vec::new();
-
-    let mut sorted_types = crate_parsed_data
-        .into_values()
-        .flat_map(|parsed_data| {
-            parsed_data
-                .aliases
-                .into_iter()
-                .map(RustItem::Alias)
-                .chain(parsed_data.structs.into_iter().map(RustItem::Struct))
-                .chain(parsed_data.enums.into_iter().map(RustItem::Enum))
-        })
-        .collect::<Vec<_>>();
-
-    sorted_types.sort_by(|item1, item2| item1.renamed_type_name().cmp(item2.renamed_type_name()));
-
-    let mut parsed_data_combined = ParsedData::default();
-
-    for item in sorted_types {
-        match item {
-            RustItem::Struct(s) => {
-                parsed_data_combined.structs.push(s);
-            }
-            RustItem::Enum(e) => {
-                parsed_data_combined.enums.push(e);
-            }
-            RustItem::Alias(a) => {
-                parsed_data_combined.aliases.push(a);
-            }
-            t => eprintln!("Unsupported type {t:?}"),
-        }
-    }
-
-    lang.generate_types(&mut output, &HashMap::new(), parsed_data_combined)?;
+    lang.generate_types(&mut output, &HashMap::new(), parsed_data)?;
 
     let outfile = Path::new(file_name).to_path_buf();
     check_write_file(&outfile, output)?;

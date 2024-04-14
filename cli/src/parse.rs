@@ -8,7 +8,7 @@ use std::{
     path::PathBuf,
 };
 use typeshare_core::{
-    language::{CrateName, CrateTypes, SupportedLanguage},
+    language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
 };
 
@@ -26,6 +26,7 @@ pub struct ParserInput {
 pub fn parser_inputs(
     walker_builder: WalkBuilder,
     language_type: SupportedLanguage,
+    multi_file: bool,
 ) -> Vec<ParserInput> {
     walker_builder
         .build()
@@ -33,7 +34,11 @@ pub fn parser_inputs(
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
             let extension = language_type.language_extension();
-            let crate_name = CrateName::find_crate_name(dir_entry.path())?;
+            let crate_name = if multi_file {
+                CrateName::find_crate_name(dir_entry.path())?
+            } else {
+                SINGLE_FILE_CRATE_NAME
+            };
             let file_path = dir_entry.path().to_path_buf();
             let file_name = format!("{crate_name}.{extension}");
             Some(ParserInput {

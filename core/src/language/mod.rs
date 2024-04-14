@@ -46,6 +46,9 @@ impl From<String> for CrateName {
     }
 }
 
+/// When using single file output we put all types into a single virtual name space.
+pub const SINGLE_FILE_CRATE_NAME: CrateName = CrateName(String::new());
+
 impl CrateName {
     /// View this crate name as a string slice.
     pub fn as_str(&self) -> &str {

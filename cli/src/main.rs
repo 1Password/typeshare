@@ -111,7 +111,7 @@ fn main() -> anyhow::Result<()> {
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
     let crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type),
+        parser_inputs(walker_builder, language_type, multi_file),
         &ignored_types,
         multi_file,
     )?;
@@ -119,7 +119,11 @@ fn main() -> anyhow::Result<()> {
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
     // imports in generated files.
-    let import_candidates = all_types(&crate_parsed_data);
+    let import_candidates = if multi_file {
+        all_types(&crate_parsed_data)
+    } else {
+        HashMap::new()
+    };
 
     check_parse_errors(&crate_parsed_data)?;
     write_generated(options, lang, crate_parsed_data, import_candidates)?;
@@ -127,6 +131,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Get the language trait impl for the given supported language and configuration.
 fn language(language_type: SupportedLanguage, config: Config) -> Box<dyn Language> {
     match language_type {
         SupportedLanguage::Swift => Box::new(Swift {
@@ -203,6 +208,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     config
 }
 
+/// Prints out all parsing errors if any and returns Err.
 fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow::Result<()> {
     let mut errors_encountered = false;
     for data in parsed_crates

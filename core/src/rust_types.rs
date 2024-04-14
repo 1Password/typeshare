@@ -625,14 +625,3 @@ pub enum RustItem {
     /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
 }
-
-impl RustItem {
-    /// Get the renamed type name for this type.
-    pub fn renamed_type_name(&self) -> &str {
-        match self {
-            RustItem::Struct(s) => s.id.renamed.as_str(),
-            RustItem::Enum(e) => e.shared().id.renamed.as_str(),
-            RustItem::Alias(a) => a.id.renamed.as_str(),
-        }
-    }
-}
