@@ -179,10 +179,10 @@ impl Language for TypeScript {
         imports: ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
-            write!(w, "import {{")?;
-            let ty_list = ty.iter().join(",");
+            write!(w, "import {{ ")?;
+            let ty_list = ty.iter().join(", ");
             write!(w, "{ty_list}")?;
-            writeln!(w, "}} from \"./{path}\";")?;
+            writeln!(w, " }} from \"./{path}\";")?;
         }
         writeln!(w)?;
         Ok(())
