@@ -32,13 +32,21 @@ pub fn process_input(
     imports: &CrateTypes,
     out: &mut dyn Write,
 ) -> Result<(), ProcessInputError> {
-    let parsed_data = parser::parse(
+    let mut parsed_data = parser::parse(
         input,
         "default_name".into(),
         "file_name".into(),
         "file_path".into(),
         &[],
-    )?;
-    language.generate_types(out, imports, parsed_data.unwrap())?;
+    )?
+    .unwrap();
+
+    if !parsed_data.errors.is_empty() {
+        return Err(ProcessInputError::ParseError(
+            parsed_data.errors.remove(0).error,
+        ));
+    }
+
+    language.generate_types(out, imports, parsed_data)?;
     Ok(())
 }

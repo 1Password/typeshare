@@ -315,7 +315,6 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .all(|v| matches!(v, RustEnumVariant::Unit(_)))
     {
         // All enum variants are unit-type
-
         if maybe_tag_key.is_some() {
             return Err(ParseError::SerdeTagNotAllowed {
                 enum_ident: original_enum_ident,
