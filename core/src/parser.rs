@@ -90,6 +90,7 @@ pub struct ParsedData {
 // }
 
 impl ParsedData {
+    /// Create a new parsed data.
     pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {
         Self {
             crate_name,

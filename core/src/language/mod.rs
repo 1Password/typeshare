@@ -72,12 +72,15 @@ impl From<&str> for CrateName {
     }
 }
 
+/// A type name.
 pub type TypeName = String;
 
 /// Mapping of crate names to typeshare type names.
 pub type CrateTypes = HashMap<CrateName, HashSet<TypeName>>;
 
+/// A sorted crate name ref.
 pub type SortedCrateNames<'a> = &'a CrateName;
+/// A sorted type name ref.
 pub type SortedTypeNames<'a> = BTreeSet<&'a str>;
 
 /// Refence types by crate that are scoped for a given output module.
@@ -101,6 +104,7 @@ impl SupportedLanguage {
         [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
     }
 
+    /// Get the file name extension for the supported language.
     pub fn language_extension(&self) -> &'static str {
         match self {
             SupportedLanguage::Go => "go",
