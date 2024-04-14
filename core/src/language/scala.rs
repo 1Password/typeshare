@@ -28,12 +28,12 @@ impl Language for Scala {
         &mut self,
         writable: &mut dyn Write,
         _imports: &CrateTypes,
-        data: &ParsedData,
+        data: ParsedData,
     ) -> std::io::Result<()> {
-        self.begin_file(writable, data)?;
+        self.begin_file(writable, &data)?;
 
         // Package object to hold type aliases: aliases must be in class or object in Scala 2)
-        let unsigned_used = self.unsigned_integer_used(data);
+        let unsigned_used = self.unsigned_integer_used(&data);
         if unsigned_used || !data.aliases.is_empty() {
             self.begin_package_object(writable)?;
             if unsigned_used {

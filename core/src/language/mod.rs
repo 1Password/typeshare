@@ -147,29 +147,30 @@ pub trait Language {
         &mut self,
         writable: &mut dyn Write,
         all_types: &CrateTypes,
-        data: &ParsedData,
+        data: ParsedData,
     ) -> std::io::Result<()> {
-        self.begin_file(writable, data)?;
+        self.begin_file(writable, &data)?;
 
-        self.write_imports(writable, used_imports(data, all_types))?;
+        self.write_imports(writable, used_imports(&data, all_types))?;
 
-        let mut items: Vec<RustItem> = vec![];
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            ..
+        } = data;
 
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
-        }
+        let mut items = Vec::from_iter(
+            aliases
+                .into_iter()
+                .map(RustItem::Alias)
+                .chain(structs.into_iter().map(RustItem::Struct))
+                .chain(enums.into_iter().map(RustItem::Enum)),
+        );
 
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
+        topsort(&mut items);
 
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
-
-        let sorted = topsort(items.iter().collect());
-
-        for &thing in &sorted {
+        for thing in &items {
             match thing {
                 RustItem::Enum(e) => self.write_enum(writable, e)?,
                 RustItem::Struct(s) => self.write_struct(writable, s)?,

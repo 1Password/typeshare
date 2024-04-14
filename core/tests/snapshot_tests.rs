@@ -75,7 +75,7 @@ fn check(
         &[],
     )?
     .unwrap();
-    lang.generate_types(&mut typeshare_output, &HashMap::new(), &parsed_data)?;
+    lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
     let expected = expect_test::expect_file![&expected_file_path];

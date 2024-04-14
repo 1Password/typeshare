@@ -39,6 +39,6 @@ pub fn process_input(
         "file_path".into(),
         &[],
     )?;
-    language.generate_types(out, imports, &parsed_data.unwrap())?;
+    language.generate_types(out, imports, parsed_data.unwrap())?;
     Ok(())
 }

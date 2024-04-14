@@ -32,39 +32,40 @@ impl Language for Go {
         &mut self,
         w: &mut dyn Write,
         _imports: &CrateTypes,
-        data: &ParsedData,
+        data: ParsedData,
     ) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
         let mut types_mapping_to_struct = HashSet::new();
         for s in &data.structs {
-            types_mapping_to_struct.insert(s.id.original.as_str());
+            types_mapping_to_struct.insert(s.id.original.clone());
         }
         for alias in &data.aliases {
-            if types_mapping_to_struct.contains(&alias.r#type.id()) {
-                types_mapping_to_struct.insert(alias.id.original.as_str());
+            if types_mapping_to_struct.contains(alias.r#type.id()) {
+                types_mapping_to_struct.insert(alias.id.original.clone());
             }
         }
 
-        self.begin_file(w, data)?;
+        self.begin_file(w, &data)?;
 
-        let mut items: Vec<RustItem> = vec![];
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            ..
+        } = data;
 
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
-        }
+        let mut items = Vec::from_iter(
+            aliases
+                .into_iter()
+                .map(RustItem::Alias)
+                .chain(structs.into_iter().map(RustItem::Struct))
+                .chain(enums.into_iter().map(RustItem::Enum)),
+        );
 
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
+        topsort(&mut items);
 
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
-
-        let sorted = topsort(items.iter().collect());
-
-        for &thing in &sorted {
+        for thing in &items {
             match thing {
                 RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
                 RustItem::Struct(s) => self.write_struct(w, s)?,
@@ -173,7 +174,7 @@ impl Go {
         &mut self,
         w: &mut dyn Write,
         e: &RustEnum,
-        custom_structs: &HashSet<&str>,
+        custom_structs: &HashSet<String>,
     ) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
         let uppercase_acronyms = self.uppercase_acronyms.clone();
@@ -264,7 +265,7 @@ impl Go {
 
                     if let Some(variant_type) = variant_type {
                         let (variant_pointer, variant_deref, variant_ref) =
-                            match (v, custom_structs.contains(&variant_type.as_str())) {
+                            match (v, custom_structs.contains(&variant_type)) {
                                 (RustEnumVariant::AnonymousStruct { .. }, ..) | (.., true) => {
                                     ("*", "", "")
                                 }

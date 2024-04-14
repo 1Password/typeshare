@@ -39,7 +39,7 @@ fn write_multiple_files(
     for (_crate_name, parsed_data) in crate_parsed_data {
         let outfile = Path::new(output_folder).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &import_candidates, &parsed_data)?;
+        lang.generate_types(&mut generated_contents, &import_candidates, parsed_data)?;
         if let ControlFlow::Break(_) = check_write_file(&outfile, generated_contents)? {
             continue;
         }
@@ -77,7 +77,7 @@ fn write_single_file(
     crate_parsed_data: HashMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
     let mut output = Vec::new();
-    for data in crate_parsed_data.values() {
+    for data in crate_parsed_data.into_values() {
         lang.generate_types(&mut output, &HashMap::new(), data)?;
     }
 
