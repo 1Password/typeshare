@@ -1,8 +1,6 @@
 //! The core library for typeshare.
 //! Contains the parser and language converters.
 
-use language::{CrateTypes, Language};
-use std::io::Write;
 use thiserror::Error;
 
 mod rename;
@@ -23,31 +21,4 @@ pub enum ProcessInputError {
     ParseError(#[from] parser::ParseError),
     #[error("a type generation error occurred: {0}")]
     IoError(#[from] std::io::Error),
-}
-
-/// Parse and generate types for a single Rust input file.
-pub fn process_input(
-    input: &str,
-    language: &mut dyn Language,
-    imports: &CrateTypes,
-    out: &mut dyn Write,
-) -> Result<(), ProcessInputError> {
-    let mut parsed_data = parser::parse(
-        input,
-        "default_name".into(),
-        "file_name".into(),
-        "file_path".into(),
-        &[],
-        false,
-    )?
-    .unwrap();
-
-    if !parsed_data.errors.is_empty() {
-        return Err(ProcessInputError::ParseError(
-            parsed_data.errors.remove(0).error,
-        ));
-    }
-
-    language.generate_types(out, imports, parsed_data)?;
-    Ok(())
 }
