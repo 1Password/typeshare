@@ -18,7 +18,7 @@ permissions:
   contents: write
 
 # This task will run whenever you push a git tag that looks like a version
-# like "v1", "v1.2.0", "v0.stableprerelease01", "my-app-v1.0.0", etc.
+# like "v1", "v1.2.0", "v0.1.0-prerelease01", "my-app-v1.0.0", etc.
 # The version will be roughly parsed as ({PACKAGE_NAME}-)?v{VERSION}, where
 # PACKAGE_NAME must be the name of a Cargo package in your workspace, and VERSION
 # must be a Cargo-style SemVer Version.
