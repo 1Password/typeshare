@@ -1,7 +1,7 @@
 [package]
 name = "typeshare-cli"
 version = "1.9.2"
-rust-version = "1.57"
+rust-version = "1.75"
 edition = "2021"
 description = "Command Line Tool for generating language files with typeshare"
 license = "MIT OR Apache-2.0"
