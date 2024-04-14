@@ -85,10 +85,6 @@ pub struct ParsedData {
     pub multi_file: bool,
 }
 
-// pub struct ParsedModule {
-//     pub module: HashMap<String, Vec<ParsedData>>,
-// }
-
 impl ParsedData {
     /// Create a new parsed data.
     pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {

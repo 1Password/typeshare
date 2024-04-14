@@ -36,10 +36,9 @@ impl Language for Go {
     ) -> std::io::Result<()> {
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
-        let mut types_mapping_to_struct = HashSet::new();
-        for s in &data.structs {
-            types_mapping_to_struct.insert(s.id.original.clone());
-        }
+        let mut types_mapping_to_struct =
+            HashSet::from_iter(data.structs.iter().map(|s| s.id.original.clone()));
+
         for alias in &data.aliases {
             if types_mapping_to_struct.contains(alias.r#type.id()) {
                 types_mapping_to_struct.insert(alias.id.original.clone());

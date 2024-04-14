@@ -1,3 +1,4 @@
+//! Command line argument parsing.
 use clap::{command, Arg, ArgGroup, Command};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");

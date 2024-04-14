@@ -1,3 +1,4 @@
+//! Source file parsing.
 use anyhow::Context;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -6,8 +7,6 @@ use std::{
     ops::Not,
     path::PathBuf,
 };
-#[cfg(feature = "go")]
-use typeshare_core::language::Go;
 use typeshare_core::{
     language::{CrateName, CrateTypes, SupportedLanguage},
     parser::ParsedData,
@@ -15,11 +14,15 @@ use typeshare_core::{
 
 /// Input data for parsing each source file.
 pub struct ParserInput {
+    /// Rust source file path.
     file_path: PathBuf,
+    /// File name source from crate for output.
     file_name: String,
+    /// The crate name the source file belongs to.
     crate_name: CrateName,
 }
 
+/// Walk the source folder and collect all parser inputs.
 pub fn parser_inputs(
     walker_builder: WalkBuilder,
     language_type: SupportedLanguage,

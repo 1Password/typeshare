@@ -428,7 +428,7 @@ fn used_imports<'a, 'b: 'a>(
                 })
                 .or_insert(BTreeSet::from([ty.as_str()]));
         } else {
-            println!("Could not lookup reference {referenced_import:?}");
+            // println!("Could not lookup reference {referenced_import:?}");
         }
     };
 
