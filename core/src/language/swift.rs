@@ -228,20 +228,7 @@ impl Language for Swift {
 
     fn end_file(&mut self, w: &mut dyn Write) -> io::Result<()> {
         if self.should_emit_codable_void.load(Ordering::SeqCst) && !self.multi_file {
-            writeln!(w)?;
-            writeln!(
-                w,
-                r"/// () isn't codable, so we use this instead to represent Rust's unit type"
-            )?;
-
-            let mut decs = self.get_default_decorators();
-
-            // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
-            if !decs.contains(&CODABLE.to_string()) {
-                decs.push(CODABLE.to_string());
-            }
-
-            writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))?;
+            self.write_codable(w)?;
         }
 
         Ok(())
@@ -790,7 +777,11 @@ impl Swift {
             .create(true)
             .truncate(true)
             .open(PathBuf::from(output_folder).join("Codable.swift"))?;
+        self.write_codable(&mut w)
+    }
 
+    /// Write the `CodableVoid` type.
+    fn write_codable(&self, w: &mut dyn Write) -> io::Result<()> {
         writeln!(w)?;
         writeln!(
             w,
