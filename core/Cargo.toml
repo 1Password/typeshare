@@ -10,10 +10,10 @@ repository = "https://github.com/1Password/typeshare"
 [dependencies]
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "2.0.18", features = ["full", "visit"] }
-thiserror = "1.0.40"
-itertools = "0.10"
-lazy_format = "1.8"
+syn = { version = "2", features = ["full", "visit"] }
+thiserror = "1"
+itertools = "0.12"
+lazy_format = "2"
 joinery = "2"
 
 [dev-dependencies]

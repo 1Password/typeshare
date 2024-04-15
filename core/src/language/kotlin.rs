@@ -225,6 +225,10 @@ impl Language for Kotlin {
         writeln!(w)?;
         Ok(())
     }
+
+    fn ignored_reference_types(&self) -> Vec<String> {
+        self.type_mappings.keys().map(|s| s.to_string()).collect()
+    }
 }
 
 impl Kotlin {
