@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "clap",
  "clap_complete_command",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-core"
-version = "1.9.0"
+version = "1.9.1"
 dependencies = [
  "anyhow",
  "expect-test",
