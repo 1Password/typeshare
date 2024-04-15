@@ -23,6 +23,8 @@ const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript"
 
 #[cfg(not(feature = "go"))]
 const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+
+/// Parse command line arguments.
 pub(crate) fn build_command() -> Command<'static> {
     command!("typeshare")
         .version(VERSION)
