@@ -533,6 +533,17 @@ impl Language for Swift {
 
         writeln!(w, "}}")
     }
+
+    fn write_imports(
+        &mut self,
+        w: &mut dyn Write,
+        imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        for module in imports.keys() {
+            writeln!(w, "import {}", module.0.to_pascal_case())?;
+        }
+        writeln!(w)
+    }
 }
 
 impl Swift {

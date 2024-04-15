@@ -14,6 +14,8 @@ pub mod rust_types;
 mod topsort;
 mod visitors;
 
+pub use rename::RenameExt;
+
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum ProcessInputError {

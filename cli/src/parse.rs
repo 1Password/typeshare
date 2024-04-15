@@ -10,6 +10,7 @@ use std::{
 use typeshare_core::{
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
+    RenameExt,
 };
 
 /// Input data for parsing each source file.
@@ -33,14 +34,13 @@ pub fn parser_inputs(
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
-            let extension = language_type.language_extension();
             let crate_name = if multi_file {
                 CrateName::find_crate_name(dir_entry.path())?
             } else {
                 SINGLE_FILE_CRATE_NAME
             };
             let file_path = dir_entry.path().to_path_buf();
-            let file_name = format!("{crate_name}.{extension}");
+            let file_name = output_file_name(language_type, &crate_name);
             Some(ParserInput {
                 file_path,
                 file_name,
@@ -48,6 +48,22 @@ pub fn parser_inputs(
             })
         })
         .collect()
+}
+
+/// The output file name to write to.
+fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) -> String {
+    let extension = language_type.language_extension();
+
+    let snake_case = || format!("{crate_name}.{extension}");
+    let pascal_case = || format!("{}.{extension}", crate_name.to_string().to_pascal_case());
+
+    match language_type {
+        SupportedLanguage::Go => snake_case(),
+        SupportedLanguage::Kotlin => snake_case(),
+        SupportedLanguage::Scala => snake_case(),
+        SupportedLanguage::Swift => pascal_case(),
+        SupportedLanguage::TypeScript => snake_case(),
+    }
 }
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This

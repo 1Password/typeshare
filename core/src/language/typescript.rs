@@ -184,8 +184,7 @@ impl Language for TypeScript {
             write!(w, "{ty_list}")?;
             writeln!(w, " }} from \"./{path}\";")?;
         }
-        writeln!(w)?;
-        Ok(())
+        writeln!(w)
     }
 
     fn ignored_reference_types(&self) -> Vec<String> {
