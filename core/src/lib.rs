@@ -24,3 +24,11 @@ pub enum ProcessInputError {
     #[error("a type generation error occurred: {0}")]
     IoError(#[from] std::io::Error),
 }
+
+#[derive(Debug, Error)]
+/// Errors during file generation.
+pub enum GenerationError {
+    /// The post generation step failed.
+    #[error("Post generation failed: {0}")]
+    PostGeneration(String),
+}

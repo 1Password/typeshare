@@ -6,6 +6,7 @@ use crate::{
     },
     topsort::topsort,
     visitors::ImportedType,
+    GenerationError,
 };
 use itertools::Itertools;
 use proc_macro2::Ident;
@@ -400,6 +401,12 @@ pub trait Language {
     /// Types that are remapped will be excluded from import references.
     fn ignored_reference_types(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    /// Any other final steps after modules have been generated. For example creating a new
+    /// module with special types.
+    fn post_generation(&self, _output_folder: &str) -> Result<(), GenerationError> {
+        Ok(())
     }
 }
 

@@ -44,6 +44,10 @@ fn write_multiple_files(
         lang.generate_types(&mut generated_contents, &import_candidates, parsed_data)?;
         check_write_file(&outfile, generated_contents)?;
     }
+
+    lang.post_generation(output_folder)
+        .context("Post generation failed")?;
+
     Ok(())
 }
 

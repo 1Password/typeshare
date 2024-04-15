@@ -1,5 +1,6 @@
 use crate::parser::{remove_dash_from_identifier, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
+use crate::GenerationError;
 use crate::{
     language::{Language, SupportedLanguage},
     rename::RenameExt,
@@ -9,7 +10,9 @@ use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::collections::BTreeSet;
+use std::fs::OpenOptions;
 use std::io;
+use std::path::PathBuf;
 use std::{
     collections::HashMap,
     io::Write,
@@ -146,6 +149,8 @@ pub struct Swift {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Are we generating mutliple modules?
+    pub multi_file: bool,
 }
 
 impl Language for Swift {
@@ -222,7 +227,7 @@ impl Language for Swift {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> io::Result<()> {
-        if self.should_emit_codable_void.load(Ordering::SeqCst) {
+        if self.should_emit_codable_void.load(Ordering::SeqCst) && !self.multi_file {
             writeln!(w)?;
             writeln!(
                 w,
@@ -534,15 +539,25 @@ impl Language for Swift {
         writeln!(w, "}}")
     }
 
-    fn write_imports(
-        &mut self,
-        w: &mut dyn Write,
-        imports: super::ScopedCrateTypes<'_>,
-    ) -> std::io::Result<()> {
-        for module in imports.keys() {
-            writeln!(w, "import {}", module.0.to_pascal_case())?;
+    // TODO: This will be addded in the future.
+    // fn write_imports(
+    //     &mut self,
+    //     w: &mut dyn Write,
+    //     imports: super::ScopedCrateTypes<'_>,
+    // ) -> std::io::Result<()> {
+    //     for module in imports.keys() {
+    //         writeln!(w, "import {}", module.0.to_pascal_case())?;
+    //     }
+    //     writeln!(w)
+    // }
+
+    fn post_generation(&self, output_folder: &str) -> Result<(), GenerationError> {
+        //
+        if self.should_emit_codable_void.load(Ordering::SeqCst) && self.multi_file {
+            self.write_codable_file(output_folder)
+                .map_err(|e| GenerationError::PostGeneration(e.to_string()))?;
         }
-        writeln!(w)
+        Ok(())
     }
 }
 
@@ -765,6 +780,31 @@ impl Swift {
         let mut decs: Vec<String> = vec![CODABLE.to_string()];
         decs.extend(self.default_decorators.iter().cloned());
         decs
+    }
+
+    /// When using mulitple file generation we write this into a separate module vs at the
+    /// end of the generated file.
+    fn write_codable_file(&self, output_folder: &str) -> std::io::Result<()> {
+        let mut w = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(PathBuf::from(output_folder).join("Codable.swift"))?;
+
+        writeln!(w)?;
+        writeln!(
+            w,
+            r"/// () isn't codable, so we use this instead to represent Rust's unit type"
+        )?;
+
+        let mut decs = self.get_default_decorators();
+
+        // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
+        if !decs.contains(&CODABLE.to_string()) {
+            decs.push(CODABLE.to_string());
+        }
+
+        writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))
     }
 }
 

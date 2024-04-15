@@ -73,8 +73,6 @@ fn main() -> anyhow::Result<()> {
         .and_then(|lang| lang.parse::<SupportedLanguage>().ok())
         .ok_or_else(|| anyhow::Error::msg("argument parser didn't validate ARG_TYPE correctly"))?;
 
-    let lang = language(language_type, config);
-
     let mut types = TypesBuilder::new();
     types
         .add("rust", "*.rs")
@@ -104,9 +102,9 @@ fn main() -> anyhow::Result<()> {
         walker_builder.add(root);
     }
 
-    let ignored_types = lang.ignored_reference_types();
-
     let multi_file = options.value_of(ARG_OUTPUT_FOLDER).is_some();
+    let lang = language(language_type, config, multi_file);
+    let ignored_types = lang.ignored_reference_types();
 
     // The walker ignores directories that are git-ignored. If you need
     // a git-ignored directory to be processed, add the specific directory to
@@ -134,7 +132,11 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Get the language trait impl for the given supported language and configuration.
-fn language(language_type: SupportedLanguage, config: Config) -> Box<dyn Language> {
+fn language(
+    language_type: SupportedLanguage,
+    config: Config,
+    multi_file: bool,
+) -> Box<dyn Language> {
     match language_type {
         SupportedLanguage::Swift => Box::new(Swift {
             prefix: config.swift.prefix,
@@ -143,6 +145,7 @@ fn language(language_type: SupportedLanguage, config: Config) -> Box<dyn Languag
             default_generic_constraints: GenericConstraints::from_config(
                 config.swift.default_generic_constraints,
             ),
+            multi_file,
             ..Default::default()
         }),
         SupportedLanguage::Kotlin => Box::new(Kotlin {
