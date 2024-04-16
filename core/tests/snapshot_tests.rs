@@ -29,6 +29,7 @@ fn load_file(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(true)
         .open(path)
         .with_context(|| format!("failed to open file at path {}", path.to_string_lossy()))?;
     let mut contents = String::new();
