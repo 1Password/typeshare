@@ -1,3 +1,19 @@
+# Version 1.9.2
+
+This release fixes a Cargo.lock error introduced in 1.9.1.
+
+# Version 1.9.1
+
+This release fixes a bug with Kotlin prefixes introduced in 1.9.0.
+
+- Fix inner class referencing incorrect superclass referencing in Kotlin. [#165](https://github.com/1Password/typeshare/pull/165)
+
+# Version 1.9.0
+
+This release adds support for prefixing Kotlin type names (similarly to Swift) and some minor fixes.
+
+- Added support for prefixing type names in Kotlin. [#159](https://github.com/1Password/typeshare/pull/159)
+
 # Version 1.8.0
 
 This release brings support for various Rust std smart pointers, as well as a CLI flag to opt-into following symbolic links. In addition, typeshare has been updated to use syn 2.0
