@@ -1,4 +1,4 @@
 [toolchain]
-channel = "stable"
+channel = "1.75"
 components = ["clippy"]
 profile = "default"
