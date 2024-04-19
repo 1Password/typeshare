@@ -447,18 +447,15 @@ fn used_imports<'a, 'b: 'a>(
     {
         // Look up the types for the referenced imported crate.
         if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
-            // We can have "*" wildcard here. We need to add all.
             if referenced_import.type_name == "*" {
+                // We can have "*" wildcard here. We need to add all.
                 used_imports
                     .entry(&referenced_import.base_crate)
                     .and_modify(|names: &mut BTreeSet<&str>| {
                         names.extend(type_names.iter().map(|s| s.as_str()))
                     });
-                continue;
-            }
-
-            // Add referenced import for each matching type.
-            if let Some(ty_name) = type_names.get(&referenced_import.type_name) {
+            } else if let Some(ty_name) = type_names.get(&referenced_import.type_name) {
+                // Add referenced import for each matching type.
                 used_imports
                     .entry(&referenced_import.base_crate)
                     .and_modify(|v| {
