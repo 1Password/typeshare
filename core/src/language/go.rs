@@ -81,9 +81,7 @@ impl Language for Go {
             }
         }
 
-        self.end_file(w)?;
-
-        Ok(())
+        self.end_file(w)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
