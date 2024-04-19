@@ -188,9 +188,7 @@ pub trait Language {
             }
         }
 
-        self.end_file(writable)?;
-
-        Ok(())
+        self.end_file(writable)
     }
 
     /// Get the type mapping for this language `(Rust type name -> lang type name)`

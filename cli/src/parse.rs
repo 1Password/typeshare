@@ -140,13 +140,13 @@ pub fn parse_input(
             },
         )
         .try_reduce(HashMap::new, |mut file_maps, mapping| {
-            for (key, val) in mapping {
-                match file_maps.entry(key) {
+            for (crate_name, parsed_data) in mapping {
+                match file_maps.entry(crate_name) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().add(val);
+                        e.get_mut().add(parsed_data);
                     }
                     Entry::Vacant(e) => {
-                        e.insert(val);
+                        e.insert(parsed_data);
                     }
                 }
             }
