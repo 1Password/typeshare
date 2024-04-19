@@ -1,7 +1,7 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use args::{
     build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
     ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
@@ -66,12 +66,12 @@ fn main() -> anyhow::Result<()> {
 
     let mut directories = options
         .values_of("directories")
-        .ok_or_else(|| anyhow::Error::msg("missing directories argument"))?;
+        .ok_or_else(|| anyhow!("missing directories argument"))?;
 
     let language_type = options
         .value_of(ARG_TYPE)
         .and_then(|lang| lang.parse::<SupportedLanguage>().ok())
-        .ok_or_else(|| anyhow::Error::msg("argument parser didn't validate ARG_TYPE correctly"))?;
+        .ok_or_else(|| anyhow!("argument parser didn't validate ARG_TYPE correctly"))?;
 
     let mut types = TypesBuilder::new();
     types
@@ -82,7 +82,7 @@ fn main() -> anyhow::Result<()> {
     // This is guaranteed to always have at least one value by the clap configuration
     let first_root = directories
         .next()
-        .ok_or_else(|| anyhow::Error::msg("directories is empty"))?;
+        .ok_or_else(|| anyhow!("directories is empty"))?;
 
     let overrides = OverrideBuilder::new(first_root)
         // Don't process files inside of tools/typeshare/
@@ -230,7 +230,7 @@ fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow:
     }
 
     if errors_encountered {
-        Err(anyhow::Error::msg("Errors encountered during parsing."))
+        Err(anyhow!("Errors encountered during parsing."))
     } else {
         Ok(())
     }
