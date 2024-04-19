@@ -5,7 +5,7 @@
 # repository.
 # https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/development/tools/rust/typeshare/default.nix#L32
 #
-# To use this in your repository, 
+# To use this in your repository,
 {
   description = "Create types in Rust and convert them to other languages";
 
@@ -15,37 +15,42 @@
   };
 
   outputs = inputs@{ self, nixpkgs, flake-utils }:
-  flake-utils.lib.eachDefaultSystem (system:
-    let
-      pkgs = import nixpkgs { inherit system; };
-        typeshare = with pkgs;
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+       typeshare = with pkgs;
+
+
           rustPlatform.buildRustPackage rec {
-          pname = "typeshare";
-          version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
+            pname = "typeshare";
+            version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
 
-          src = lib.cleanSource ./.;
+            src = lib.cleanSource ./.;
 
-          cargoLock = { lockFile = ./Cargo.lock; };
+            cargoLock = { lockFile = ./Cargo.lock; };
 
-          nativeBuildInputs = [ installShellFiles ];
+            nativeBuildInputs = [ installShellFiles ];
 
-          buildFeatures = [ "go" ];
+            buildFeatures = [ "go" ];
 
-          postInstall = ''
-            installShellCompletion --cmd typeshare \
-              --bash <($out/bin/typeshare completions bash) \
-              --fish <($out/bin/typeshare completions fish) \
-              --zsh <($out/bin/typeshare completions zsh)
-          '';
+            postInstall = ''
+              installShellCompletion --cmd typeshare \
+                --bash <($out/bin/typeshare completions bash) \
+                --fish <($out/bin/typeshare completions fish) \
+                --zsh <($out/bin/typeshare completions zsh)
+            '';
 
-          meta = with lib; {
-            description = "Command Line Tool for generating language files with typeshare";
-            homepage = "https://github.com/1password/typeshare";
-            changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
-            license = with licenses; [ asl20 /* or */ mit ];
+            meta = with lib; {
+              description = "Command Line Tool for generating language files with typeshare";
+              homepage = "https://github.com/1password/typeshare";
+              changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
+              license = with licenses; [ asl20 /* or */ mit ];
+            };
           };
-        };
-    in rec {
-      packages.default = typeshare;
-    });
+      in
+      rec {
+        # nixpkgs.overlays = [ rust-overlay.overlays.default ];
+        # environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
+        packages.default = typeshare;
+      });
 }
