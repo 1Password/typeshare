@@ -34,17 +34,6 @@ impl Language for Go {
         _imports: &CrateTypes,
         data: ParsedData,
     ) -> std::io::Result<()> {
-        // Generate a list of all types that either are a struct or are aliased to a struct.
-        // This is used to determine whether a type should be defined as a pointer or not.
-        let mut types_mapping_to_struct =
-            HashSet::from_iter(data.structs.iter().map(|s| s.id.original.clone()));
-
-        for alias in &data.aliases {
-            if types_mapping_to_struct.contains(alias.r#type.id()) {
-                types_mapping_to_struct.insert(alias.id.original.clone());
-            }
-        }
-
         self.begin_file(w, &data)?;
 
         let ParsedData {
@@ -62,6 +51,27 @@ impl Language for Go {
             .collect::<Vec<_>>();
 
         topsort(&mut items);
+
+        // Generate a list of all types that either are a struct or are aliased to a struct.
+        // This is used to determine whether a type should be defined as a pointer or not.
+        let mut types_mapping_to_struct = items
+            .iter()
+            .flat_map(|item| match item {
+                RustItem::Struct(s) => Some(s.id.original.as_str()),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+
+        let alias_iter = items.iter().flat_map(|item| match item {
+            RustItem::Alias(a) => Some(a),
+            _ => None,
+        });
+
+        for alias in alias_iter {
+            if types_mapping_to_struct.contains(alias.r#type.id()) {
+                types_mapping_to_struct.insert(alias.id.original.as_str());
+            }
+        }
 
         for thing in &items {
             match thing {
@@ -180,7 +190,7 @@ impl Go {
         &mut self,
         w: &mut dyn Write,
         e: &RustEnum,
-        custom_structs: &HashSet<String>,
+        custom_structs: &HashSet<&str>,
     ) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
         let uppercase_acronyms = self.uppercase_acronyms.clone();
@@ -271,7 +281,7 @@ impl Go {
 
                     if let Some(variant_type) = variant_type {
                         let (variant_pointer, variant_deref, variant_ref) =
-                            match (v, custom_structs.contains(&variant_type)) {
+                            match (v, custom_structs.contains(&variant_type.as_str())) {
                                 (RustEnumVariant::AnonymousStruct { .. }, ..) | (.., true) => {
                                     ("*", "", "")
                                 }
