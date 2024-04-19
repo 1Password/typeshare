@@ -20,17 +20,12 @@
         pkgs = import nixpkgs { inherit system; };
         typeshare = with pkgs;
 
-
           rustPlatform.buildRustPackage rec {
             pname = "typeshare";
             version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
-
             src = lib.cleanSource ./.;
-
             cargoLock = { lockFile = ./Cargo.lock; };
-
             nativeBuildInputs = [ installShellFiles ];
-
             buildFeatures = [ "go" ];
 
             postInstall = ''
@@ -49,8 +44,6 @@
           };
       in
       {
-        # nixpkgs.overlays = [ rust-overlay.overlays.default ];
-        # environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
         packages.default = typeshare;
       });
 }
