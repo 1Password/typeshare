@@ -538,6 +538,15 @@ impl Language for Swift {
     //     writeln!(w)
     // }
 
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        // This will be added to Foundation for now.
+        Ok(())
+    }
+
     fn post_generation(&self, output_folder: &str) -> Result<(), GenerationError> {
         //
         if self.should_emit_codable_void.load(Ordering::SeqCst) && self.multi_file {

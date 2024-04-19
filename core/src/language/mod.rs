@@ -277,9 +277,7 @@ pub trait Language {
         &mut self,
         _writer: &mut dyn Write,
         _imports: ScopedCrateTypes<'_>,
-    ) -> std::io::Result<()> {
-        Ok(())
-    }
+    ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
     fn end_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {

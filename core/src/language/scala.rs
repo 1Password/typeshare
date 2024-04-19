@@ -213,6 +213,14 @@ impl Language for Scala {
         self.write_enum_variants(w, e)?;
         writeln!(w, "}}\n")
     }
+
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        unimplemented!()
+    }
 }
 
 impl Scala {

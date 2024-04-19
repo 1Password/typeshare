@@ -165,6 +165,14 @@ impl Language for Go {
 
         writeln!(w, "}}")
     }
+
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        unimplemented!()
+    }
 }
 
 impl Go {
