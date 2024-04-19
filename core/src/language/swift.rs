@@ -1,21 +1,20 @@
-use crate::parser::{remove_dash_from_identifier, ParsedData};
-use crate::rust_types::{RustTypeFormatError, SpecialRustType};
-use crate::GenerationError;
 use crate::{
     language::{Language, SupportedLanguage},
+    parser::{remove_dash_from_identifier, ParsedData},
     rename::RenameExt,
-    rust_types::{RustEnum, RustEnumVariant, RustStruct, RustTypeAlias},
+    rust_types::{
+        RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError, SpecialRustType,
+    },
+    GenerationError,
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::collections::BTreeSet;
-use std::fs::OpenOptions;
-use std::io;
-use std::path::PathBuf;
 use std::{
-    collections::HashMap,
-    io::Write,
+    collections::{BTreeSet, HashMap},
+    fs::File,
+    io::{self, Write},
+    path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -781,11 +780,7 @@ impl Swift {
     /// When using mulitple file generation we write this into a separate module vs at the
     /// end of the generated file.
     fn write_codable_file(&self, output_folder: &str) -> std::io::Result<()> {
-        let mut w = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(PathBuf::from(output_folder).join("Codable.swift"))?;
+        let mut w = File::create(Path::new(output_folder).join("Codable.swift"))?;
         self.write_codable(&mut w)
     }
 
