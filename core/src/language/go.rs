@@ -54,13 +54,12 @@ impl Language for Go {
             ..
         } = data;
 
-        let mut items = Vec::from_iter(
-            aliases
-                .into_iter()
-                .map(RustItem::Alias)
-                .chain(structs.into_iter().map(RustItem::Struct))
-                .chain(enums.into_iter().map(RustItem::Enum)),
-        );
+        let mut items = aliases
+            .into_iter()
+            .map(RustItem::Alias)
+            .chain(structs.into_iter().map(RustItem::Struct))
+            .chain(enums.into_iter().map(RustItem::Enum))
+            .collect::<Vec<_>>();
 
         topsort(&mut items);
 
