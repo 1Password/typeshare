@@ -121,6 +121,7 @@ pub(crate) fn build_command() -> Command<'static> {
                 .required_unless_present_any([ARG_GENERATE_CONFIG, ARG_OUTPUT_FOLDER])
                 .takes_value(true)
                 .long(ARG_OUTPUT_FILE)
+                .conflicts_with(ARG_OUTPUT_FOLDER)
         )
         .arg(
             Arg::new(ARG_OUTPUT_FOLDER)
@@ -130,8 +131,9 @@ pub(crate) fn build_command() -> Command<'static> {
                 .required_unless_present_any([ARG_GENERATE_CONFIG, ARG_OUTPUT_FILE])
                 .takes_value(true)
                 .long(ARG_OUTPUT_FOLDER)
+                .conflicts_with(ARG_OUTPUT_FILE)
         )
-        .group(ArgGroup::new("output").args(&["output-file", "output-folder"]).required(true))
+        .group(ArgGroup::new("output").args(&["output-file", "output-folder"]))
         .arg(
             Arg::new(ARG_FOLLOW_LINKS)
             .short('L')
