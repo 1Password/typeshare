@@ -14,11 +14,11 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = inputs@{ self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-       typeshare = with pkgs;
+        typeshare = with pkgs;
 
 
           rustPlatform.buildRustPackage rec {
@@ -48,7 +48,7 @@
             };
           };
       in
-      rec {
+      {
         # nixpkgs.overlays = [ rust-overlay.overlays.default ];
         # environment.systemPackages = [ pkgs.rust-bin.stable.latest.default ];
         packages.default = typeshare;
