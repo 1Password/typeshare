@@ -222,8 +222,7 @@ impl Language for Kotlin {
                 writeln!(w, "import {}.{path}.{t}", self.package)?;
             }
         }
-        writeln!(w)?;
-        Ok(())
+        writeln!(w)
     }
 
     fn ignored_reference_types(&self) -> Vec<&str> {
