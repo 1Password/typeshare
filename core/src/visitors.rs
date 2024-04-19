@@ -49,7 +49,7 @@ pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
     #[allow(dead_code)]
     file_path: PathBuf,
-    ignored_types: &'a [String],
+    ignored_types: &'a [&'a str],
 }
 
 impl<'a> TypeShareVisitor<'a> {
@@ -58,7 +58,7 @@ impl<'a> TypeShareVisitor<'a> {
         crate_name: CrateName,
         file_name: String,
         file_path: PathBuf,
-        ignored_types: &'a [String],
+        ignored_types: &'a [&'a str],
         multi_file: bool,
     ) -> Self {
         Self {
@@ -208,7 +208,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
             (accept_crate(&crate_candidate)
                 && accept_type(&type_candidate)
-                && !self.ignored_types.contains(&type_candidate)
+                && !self.ignored_types.contains(&type_candidate.as_str())
                 && crate_candidate != type_candidate)
                 .then(|| {
                     // resolve crate and super aliases into the crate name.
@@ -240,7 +240,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         }
         self.parsed_data.import_types.extend(
             parse_import(i, &self.parsed_data.crate_name)
-                .filter(|imp| !self.ignored_types.contains(&imp.type_name)),
+                .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
         );
         syn::visit::visit_item_use(self, i);
     }

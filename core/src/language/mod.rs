@@ -397,7 +397,7 @@ pub trait Language {
     }
 
     /// Types that are remapped will be excluded from import references.
-    fn ignored_reference_types(&self) -> Vec<String> {
+    fn ignored_reference_types(&self) -> Vec<&str> {
         Vec::new()
     }
 

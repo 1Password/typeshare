@@ -226,8 +226,8 @@ impl Language for Kotlin {
         Ok(())
     }
 
-    fn ignored_reference_types(&self) -> Vec<String> {
-        self.type_mappings.keys().map(|s| s.to_string()).collect()
+    fn ignored_reference_types(&self) -> Vec<&str> {
+        self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
 }
 

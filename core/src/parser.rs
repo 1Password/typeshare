@@ -130,7 +130,7 @@ pub fn parse(
     crate_name: CrateName,
     file_name: String,
     file_path: PathBuf,
-    ignored_types: &[String],
+    ignored_types: &[&str],
     mult_file: bool,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`

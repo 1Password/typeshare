@@ -91,7 +91,7 @@ pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
     inputs: Vec<ParserInput>,
-    ignored_types: &[String],
+    ignored_types: &[&str],
     multi_file: bool,
 ) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
     inputs
