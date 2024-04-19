@@ -60,10 +60,10 @@ impl CrateName {
     pub fn find_crate_name(path: &Path) -> Option<Self> {
         let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
 
-        let mut crate_finder = path.iter().rev().skip_while(|p| *p != "src");
-        crate_finder.next();
-        crate_finder
-            .next()
+        path.iter()
+            .rev()
+            .skip_while(|p| *p != "src")
+            .nth(1)
             .and_then(|s| s.to_str())
             .map(file_name_to_crate_name)
             .map(CrateName::from)
