@@ -99,12 +99,10 @@ impl Language for Kotlin {
                 writeln!(w, " */")?;
                 writeln!(w)?;
             }
-            writeln!(w, "@file:NoLiveLiterals")?;
-            writeln!(w)?;
             writeln!(w, "package {}", self.package)?;
             writeln!(w)?;
-            writeln!(w, "import androidx.compose.runtime.NoLiveLiterals")?;
-            writeln!(w, "import kotlinx.serialization.*")?;
+            writeln!(w, "import kotlinx.serialization.Serializable")?;
+            writeln!(w, "import kotlinx.serialization.SerialName")?;
             writeln!(w)?;
         }
 
