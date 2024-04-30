@@ -15,7 +15,7 @@ pub struct BestHockeyTeams2 {
     Lies: String,
 }
 
-#[typeshare(kotlin = "idk")]
+#[typeshare(kotlin = "redacted_to_string")]
 pub struct BestHockeyTeams3 {
     PittsburghPenguins: u32,
     Lies: String,

@@ -11,6 +11,8 @@ use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::{collections::HashMap, io::Write};
 
+const REDACTED_TO_STRING: &str = "redacted_to_string";
+
 /// All information needed for Kotlin type-code
 #[derive(Default)]
 pub struct Kotlin {
@@ -162,7 +164,16 @@ impl Language for Kotlin {
                 self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
                 writeln!(w)?;
             }
-            writeln!(w, ")\n")?;
+            write!(w, ")")?;
+            if let Some(kotlin_decorators) = rs.decorators.get(&SupportedLanguage::Kotlin) {
+                let redacted_decorator = String::from(REDACTED_TO_STRING);
+                if kotlin_decorators.iter().any(|d| *d == redacted_decorator) {
+                    writeln!(w, " {{")?;
+                    writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
+                    write!(w, "}}")?;
+                }
+            }
+            writeln!(w, "\n")?;
         }
         Ok(())
     }

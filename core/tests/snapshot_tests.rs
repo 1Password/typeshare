@@ -541,7 +541,7 @@ tests! {
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
-    struct_decorator: [ swift{ prefix: "OP".to_string(), } ];
+    struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
     serialize_field_as: [kotlin, swift, typescript, scala,  go];
     serialize_type_alias: [kotlin, swift, typescript, scala,  go];
     serialize_anonymous_field_as: [kotlin, swift, typescript, scala,  go];

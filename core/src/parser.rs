@@ -676,6 +676,14 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<St
         decs.dedup(); //removing any duplicates just in case
     }
 
+    for value in get_name_value_meta_items(attrs, "kotlin", TYPESHARE) {
+        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+        let decs = out.entry(SupportedLanguage::Kotlin).or_default();
+        decs.extend(decorators);
+        decs.sort_unstable();
+        decs.dedup(); //removing any duplicates just in case
+    }
+
     //return our hashmap mapping of language -> Vec<decorators>
     out
 }
