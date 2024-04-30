@@ -9,6 +9,7 @@ use std::{collections::HashMap, fmt::Debug, io::Write, str::FromStr};
 
 mod go;
 mod kotlin;
+mod python;
 mod scala;
 mod swift;
 mod typescript;
@@ -16,6 +17,7 @@ mod typescript;
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
+pub use python::Python;
 pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
@@ -30,13 +32,14 @@ pub enum SupportedLanguage {
     Scala,
     Swift,
     TypeScript,
+    Python,
 }
 
 impl SupportedLanguage {
     /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+        [Go, Kotlin, Scala, Swift, TypeScript, Python].into_iter()
     }
 }
 
@@ -50,6 +53,7 @@ impl FromStr for SupportedLanguage {
             "scala" => Ok(Self::Scala),
             "swift" => Ok(Self::Swift),
             "typescript" => Ok(Self::TypeScript),
+            "python" => Ok(Self::Python),
             _ => Err(ParseError::UnsupportedLanguage(s.into())),
         }
     }

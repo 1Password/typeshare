@@ -9,6 +9,12 @@ use std::{
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+pub struct PythonParams {
+    pub type_mappings: HashMap<String, String>,
+}
+
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
 pub struct KotlinParams {
@@ -59,6 +65,7 @@ pub(crate) struct Config {
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
     pub scala: ScalaParams,
+    pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
 }

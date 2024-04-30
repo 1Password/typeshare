@@ -8,9 +8,9 @@ use ignore::types::TypesBuilder;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs, path::Path};
-use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
+use typeshare_core::language::{GenericConstraints, Python};
 use typeshare_core::{
     language::{Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
@@ -35,10 +35,10 @@ const ARG_OUTPUT_FILE: &str = "output-file";
 const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "python"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "python"];
 
 fn build_command() -> Command<'static> {
     command!("typeshare")
@@ -223,6 +223,10 @@ fn main() {
         }),
         Some(SupportedLanguage::TypeScript) => Box::new(TypeScript {
             type_mappings: config.typescript.type_mappings,
+            ..Default::default()
+        }),
+        Some(SupportedLanguage::Python) => Box::new(Python {
+            type_mappings: config.python.type_mappings,
             ..Default::default()
         }),
         #[cfg(feature = "go")]

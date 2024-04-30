@@ -15,6 +15,9 @@ thiserror = "1.0.40"
 itertools = "0.10"
 lazy_format = "1.8"
 joinery = "2"
+topological-sort = { version = "0.2.2"}
+once_cell = { version = "1"}
+convert_case = { version = "0.6.0"}
 
 [dev-dependencies]
 anyhow = "1"
