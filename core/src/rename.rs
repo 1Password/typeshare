@@ -1,11 +1,18 @@
 // Based off Serde implementation: https://github.com/serde-rs/serde/blob/7950f3cdc52d4898aa4195b853cbec12d65bb091/serde_derive/src/internals/case.rs
 
+/// Trait to rename a string using common case or character separators.
 pub trait RenameExt {
+    /// Convert to camelCase.
     fn to_camel_case(&self) -> String;
+    /// Convert to PascalCase.
     fn to_pascal_case(&self) -> String;
+    /// Convert to snake_case.
     fn to_snake_case(&self) -> String;
+    /// Convert to SCREAMING_SNAKE_CASE.
     fn to_screaming_snake_case(&self) -> String;
+    /// Convert to kebab-case.
     fn to_kebab_case(&self) -> String;
+    /// Convert to SCREAMING-KEBAB-CASE.
     fn to_screaming_kebab_case(&self) -> String;
 }
 

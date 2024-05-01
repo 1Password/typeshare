@@ -153,7 +153,6 @@ pub fn usize_from_u64_saturated(value: u64) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::convert::TryInto;
 
     // I54
     #[test]
@@ -278,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_formatter_flags() {
-        let value: I54 = 125.try_into().unwrap();
+        let value: I54 = 125.into();
 
         // Right-aligned, include the + sign, width=8,
         assert_eq!(format!("{:>+8}", value), "    +125");

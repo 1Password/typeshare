@@ -40,7 +40,7 @@ impl<'de> Visitor<'de> for DateTimeVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{NaiveDateTime, Utc};
+    use chrono::Utc;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -53,10 +53,7 @@ mod tests {
     fn test_deserialize() {
         let data = r#"{"time":"2020-02-01T03:16:46.229Z"}"#;
         let expect = Test {
-            time: DateTime::from_utc(
-                NaiveDateTime::from_timestamp(1_580_527_006, 229_000_000),
-                Utc,
-            ),
+            time: DateTime::from_timestamp(1_580_527_006, 229_000_000).unwrap(),
         };
 
         assert_eq!(serde_json::from_str::<Test>(data).unwrap(), expect);
@@ -65,10 +62,7 @@ mod tests {
     #[test]
     fn test_serialize() {
         let data = Test {
-            time: DateTime::from_utc(
-                NaiveDateTime::from_timestamp(1_580_527_006, 229_000_000),
-                Utc,
-            ),
+            time: DateTime::from_timestamp(1_580_527_006, 229_000_000).unwrap(),
         };
         let expect = r#"{"time":"2020-02-01T03:16:46.229Z"}"#;
 

@@ -12,13 +12,13 @@ fn get_dependencies_from_type(
 ) {
     match tp {
         RustType::Generic { id, parameters } => {
-            if let Some(&tp) = types.get(id) {
+            if let Some(tp) = types.get(id) {
                 if seen.insert(id.clone()) {
                     res.push(id.clone());
                     get_dependencies(tp, types, res, seen);
                     for parameter in parameters {
                         let id = parameter.id().to_string();
-                        if let Some(&tp) = types.get(&id) {
+                        if let Some(tp) = types.get(&id) {
                             if seen.insert(id.clone()) {
                                 res.push(id.clone());
                                 get_dependencies(tp, types, res, seen);
@@ -31,7 +31,7 @@ fn get_dependencies_from_type(
             }
         }
         RustType::Simple { id } => {
-            if let Some(&tp) = types.get(id) {
+            if let Some(tp) = types.get(id) {
                 if seen.insert(id.clone()) {
                     res.push(id.clone());
                     get_dependencies(tp, types, res, seen);
@@ -112,7 +112,7 @@ fn get_type_alias_dependencies(
     if seen.insert(ta.id.original.to_string()) {
         get_dependencies_from_type(&ta.r#type, types, res, seen);
         for generic in &ta.generic_types {
-            if let Some(&thing) = types.get(generic) {
+            if let Some(thing) = types.get(generic) {
                 get_dependencies(thing, types, res, seen)
             }
         }
@@ -133,10 +133,10 @@ fn get_dependencies(
     }
 }
 
-fn get_index(thing: &RustItem, things: &[&RustItem]) -> usize {
+fn get_index(thing: &RustItem, things: &[RustItem]) -> usize {
     things
         .iter()
-        .position(|&r| r == thing)
+        .position(|r| r == thing)
         .expect("Unable to find thing in things!")
 }
 
@@ -181,8 +181,8 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
     res
 }
 
-pub(crate) fn topsort(things: Vec<&RustItem>) -> Vec<&RustItem> {
-    let types = HashMap::from_iter(things.iter().map(|&thing| {
+pub(crate) fn topsort(things: &mut [RustItem]) {
+    let types = HashMap::from_iter(things.iter().map(|thing| {
         let id = match thing {
             RustItem::Enum(e) => match e {
                 RustEnum::Algebraic {
@@ -197,18 +197,36 @@ pub(crate) fn topsort(things: Vec<&RustItem>) -> Vec<&RustItem> {
         };
         (id, thing)
     }));
+
     let dag: Vec<Vec<usize>> = things
         .iter()
-        .map(|&thing| {
-            let mut deps = vec![];
+        .map(|thing| {
+            let mut deps = Vec::new();
             get_dependencies(thing, &types, &mut deps, &mut HashSet::new());
             deps.iter()
-                .map(|dep| get_index(types.get(dep).unwrap(), &things))
+                .map(|dep| get_index(types.get(dep).unwrap(), things))
                 .collect()
         })
         .collect();
-    let sorted = toposort_impl(&dag);
-    sorted.iter().map(|&idx| things[idx]).collect()
+    sort_by_indices(things, toposort_impl(&dag));
+}
+
+/// In place sort of array using provided indices.
+pub(crate) fn sort_by_indices<T>(data: &mut [T], mut indices: Vec<usize>) {
+    for idx in 0..data.len() {
+        if indices[idx] != idx {
+            let mut current_idx = idx;
+            loop {
+                let target_idx = indices[current_idx];
+                indices[current_idx] = current_idx;
+                if indices[target_idx] == target_idx {
+                    break;
+                }
+                data.swap(current_idx, target_idx);
+                current_idx = target_idx;
+            }
+        }
+    }
 }
 
 #[test]
