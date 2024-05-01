@@ -6,6 +6,7 @@ use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
 use crate::language::SupportedLanguage;
+use crate::visitors::accept_type;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]
@@ -355,6 +356,38 @@ impl RustType {
             Self::Generic { parameters, .. } => Box::new(parameters.iter()),
             Self::Special(special) => special.parameters(),
         }
+    }
+
+    /// Yield all the type names including nested generic types.
+    pub fn all_reference_type_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
+        RustRefTypeIter {
+            ty: Some(self),
+            parameters: Vec::new(),
+        }
+        .filter(|s| accept_type(s))
+    }
+}
+
+struct RustRefTypeIter<'a> {
+    ty: Option<&'a RustType>,
+    parameters: Vec<&'a RustType>,
+}
+
+impl<'a> Iterator for RustRefTypeIter<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(t) = self.parameters.pop() {
+            self.parameters.extend(t.parameters());
+            return Some(t.id());
+        }
+
+        if let Some(t) = self.ty.take() {
+            self.parameters = t.parameters().collect();
+            return Some(t.id());
+        }
+
+        None
     }
 }
 

@@ -2,10 +2,10 @@
 
 | Crate                | Status                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 |----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| typeshare            | [![crates.io version](https://img.shields.io/crates/v/typeshare.svg)](https://crates.io/crates/typeshare) [![crate documentation](https://docs.rs/typeshare/badge.svg)](https://docs.rs/typeshare) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare.svg)](https://crates.io/crates/typeshare)                                                                   |
-| typeshare-core       | [![crates.io version](https://img.shields.io/crates/v/typeshare-core.svg)](https://crates.io/crates/typeshare-core) [![crate documentation](https://docs.rs/typeshare-core/badge.svg)](https://docs.rs/typeshare-core) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-core.svg)](https://crates.io/crates/typeshare-core)                                     |
-| typeshare-annotation | [![crates.io version](https://img.shields.io/crates/v/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) [![crate documentation](https://docs.rs/typeshare-annotation/badge.svg)](https://docs.rs/typeshare-annotation) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) |
-| typeshare-cli        | [![crates.io version](https://img.shields.io/crates/v/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli) ![MSRV](https://img.shields.io/badge/rustc-1.57+-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli)                                                                                                                                            |
+| typeshare            | [![crates.io version](https://img.shields.io/crates/v/typeshare.svg)](https://crates.io/crates/typeshare) [![crate documentation](https://docs.rs/typeshare/badge.svg)](https://docs.rs/typeshare) ![MSRV](https://img.shields.io/badge/rustc-stable-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare.svg)](https://crates.io/crates/typeshare)                                                                   |
+| typeshare-core       | [![crates.io version](https://img.shields.io/crates/v/typeshare-core.svg)](https://crates.io/crates/typeshare-core) [![crate documentation](https://docs.rs/typeshare-core/badge.svg)](https://docs.rs/typeshare-core) ![MSRV](https://img.shields.io/badge/rustc-stable-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-core.svg)](https://crates.io/crates/typeshare-core)                                     |
+| typeshare-annotation | [![crates.io version](https://img.shields.io/crates/v/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) [![crate documentation](https://docs.rs/typeshare-annotation/badge.svg)](https://docs.rs/typeshare-annotation) ![MSRV](https://img.shields.io/badge/rustc-stable-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-annotation.svg)](https://crates.io/crates/typeshare-annotation) |
+| typeshare-cli        | [![crates.io version](https://img.shields.io/crates/v/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli) ![MSRV](https://img.shields.io/badge/rustc-stable-blue.svg) [![crates.io downloads](https://img.shields.io/crates/d/typeshare-cli.svg)](https://crates.io/crates/typeshare-cli)                                                                                                                                            |
 
 
 _One tool to rule the types,_
@@ -23,7 +23,7 @@ your cross-language codebase in sync. With automatic implementation for serializ
 
 **A few caveats. See [here](#a-quick-refresher-on-supported-languages) for more details.
 
-## Installation 
+## Installation
 
 
 To install the CLI (Command Line Interface):
@@ -81,7 +81,7 @@ export interface MyStruct {
     my_age: number;
 }
 
-export type MyEnum = 
+export type MyEnum =
     | { type: "MyVariant", content: boolean }
     | { type: "MyOtherVariant", content: undefined }
     | { type: "MyNumber", content: number };
@@ -113,7 +113,7 @@ Made with ❤️ and ☕ by the [1Password](https://1password.com/) team.
 
 Does your team need a secure way to manage passwords and other credentials for your open source project? Head on over to our [other repository](https://github.com/1Password/1password-teams-open-source) to get a 1Password Teams account on us:
 
-✨[1Password for Open Source Projects](https://github.com/1Password/1password-teams-open-source) 
+✨[1Password for Open Source Projects](https://github.com/1Password/1password-teams-open-source)
 
 #### License
 
