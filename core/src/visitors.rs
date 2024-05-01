@@ -97,6 +97,7 @@ impl<'a> TypeShareVisitor<'a> {
         // the typeshared types we have parsed.
         let mut all_references = HashSet::new();
 
+        // Structs
         all_references.extend(
             self.parsed_data
                 .structs
@@ -105,6 +106,7 @@ impl<'a> TypeShareVisitor<'a> {
                 .flat_map(|f| f.ty.all_reference_type_names()),
         );
 
+        // Enums
         for v in self
             .parsed_data
             .enums
@@ -123,12 +125,12 @@ impl<'a> TypeShareVisitor<'a> {
             }
         }
 
+        // Aliases
         all_references.extend(
             self.parsed_data
-                .type_names
+                .aliases
                 .iter()
-                .filter(|s| accept_type(s))
-                .map(|s| s.as_str()),
+                .flat_map(|alias| alias.r#type.all_reference_type_names()),
         );
 
         // Build a set of a all type names.
