@@ -1,9 +1,7 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /// Generated type representing the anonymous struct variant `List` of the `AnonymousStructWithRename` Rust enum
 @Serializable
