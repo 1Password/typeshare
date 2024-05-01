@@ -1,3 +1,13 @@
+# Version 1.10.0-beta.0
+
+This release brings support for multiple file generation, allowing splitting generated
+files when used in large projects. This can dramatically increase compilation speed of
+the generated files and increase maintainability.
+
+This is a *pre-release* version which may have bugs or break compatibility.
+
+- Multiple file output [#166](https://github.com/1Password/typeshare/pull/166)
+
 # Version 1.9.2
 
 This release fixes a Cargo.lock error introduced in 1.9.1.
