@@ -1,4 +1,10 @@
-# Version 1.10.0-beta.0
+# Version 1.10.0-beta
+
+## 1.10.0-beta.1
+
+Fixed a bug involving type aliases.
+
+## 1.10.0-beta.0
 
 This release brings support for multiple file generation, allowing splitting generated
 files when used in large projects. This can dramatically increase compilation speed of
