@@ -568,4 +568,5 @@ tests! {
         scala,
         go
     ];
+    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
 }

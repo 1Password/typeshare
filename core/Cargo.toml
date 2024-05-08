@@ -17,6 +17,6 @@ joinery = "2"
 
 [dev-dependencies]
 anyhow = "1"
-expect-test = "1.1"
+expect-test = "1.5"
 once_cell = "1"
 cool_asserts = "2"
