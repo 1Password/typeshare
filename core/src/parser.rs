@@ -385,6 +385,7 @@ fn parse_enum_variant(
             fields: fields_named
                 .named
                 .iter()
+                .filter(|f| !is_skipped(&f.attrs))
                 .map(|f| {
                     let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?

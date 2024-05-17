@@ -1,6 +1,6 @@
 # Version 1.10.0-beta
 
-## 1.10.0-beta.1
+## 1.10.0-beta.2
 
 Fixed a bug involving type aliases.
 
@@ -36,7 +36,7 @@ This release brings support for various Rust std smart pointers, as well as a CL
 
 - Added support for various Rust std smart pointers. [#134](https://github.com/1Password/typeshare/pull/134)
 - Added CLI flag to opt-into following symbolic links. [#156](https://github.com/1Password/typeshare/pull/156)
-- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130) 
+- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130)
 
 ### Community contributors
 
