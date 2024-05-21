@@ -386,7 +386,7 @@ pub trait Language {
                         &shared.id.original,
                         &e.shared().id.original,
                     )],
-                    decorators: HashMap::new(),
+                    decorators: e.shared().decorators.clone(),
                 },
             )?;
         }
