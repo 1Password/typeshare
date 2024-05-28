@@ -16,10 +16,7 @@ use std::collections::HashMap;
 use typeshare_core::language::Go;
 use typeshare_core::language::{GenericConstraints, Python};
 use typeshare_core::{
-    language::{
-        CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift,
-        TypeScript,
-    },
+    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 use writer::write_generated;

@@ -1,3 +1,4 @@
+use crate::parser::ParsedData;
 use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
@@ -8,11 +9,9 @@ use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::hash::Hash;
-use crate::parser::ParsedData;
 use std::{collections::HashMap, io::Write};
 
 use super::CrateTypes;
-
 
 use convert_case::{Case, Casing};
 use topological_sort::TopologicalSort;
@@ -88,7 +87,8 @@ impl Module {
         let mut missing: Vec<String> = self
             .globals
             .keys()
-            .filter(|&k| !existing.contains(k)).cloned()
+            .filter(|&k| !existing.contains(k))
+            .cloned()
             .collect();
         missing.sort();
         res.extend(missing);
@@ -632,7 +632,7 @@ impl Language for Python {
         };
         Ok(())
     }
-    
+
     fn write_imports(
         &mut self,
         _writer: &mut dyn Write,
