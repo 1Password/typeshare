@@ -25,7 +25,7 @@ pub struct Module {
 }
 
 #[derive(Debug)]
-struct GenerationError(String);
+struct GenerationError;
 
 impl Module {
     // Idempotently insert an import
@@ -46,7 +46,6 @@ impl Module {
     }
     fn get_type_vars(&mut self, n: usize) -> Vec<String> {
         let vars: Vec<String> = (0..n)
-            .into_iter()
             .map(|i| {
                 if i == 0 {
                     "T".to_string()
@@ -76,7 +75,7 @@ impl Module {
             res.extend_from_slice(&level);
             if level.is_empty() {
                 if !ts.is_empty() {
-                    return Err(GenerationError("Cyclical runtime dependency".to_string()));
+                    return Err(GenerationError);
                 }
                 break;
             }
@@ -84,8 +83,8 @@ impl Module {
         let existing: HashSet<&String> = HashSet::from_iter(res.iter());
         let mut missing: Vec<String> = self
             .globals
-            .iter()
-            .map(|(k, _)| k.clone())
+            .keys()
+            .cloned()
             .filter(|k| !existing.contains(k))
             .collect();
         missing.sort();
@@ -154,6 +153,7 @@ fn dedup<T: Eq + Hash + Clone>(v: &mut Vec<T>) {
 pub struct Python {
     /// Mappings from Rust type names to Python type names
     pub type_mappings: HashMap<String, String>,
+    /// The Python module for the generated code.
     pub module: RefCell<Module>,
 }
 
@@ -631,15 +631,6 @@ impl Language for Python {
 }
 
 impl Python {
-    pub fn new(type_mappings: HashMap<String, String>) -> Self {
-        let mut mappings = type_mappings;
-        mappings.insert("DateTime".to_string(), "datetime".to_string());
-        mappings.insert("Url".to_string(), "AnyUrl".to_string());
-        Python {
-            type_mappings: mappings,
-            module: RefCell::new(Module::default()),
-        }
-    }
     fn add_imports(&self, tp: &str) {
         match tp {
             "Url" => {
