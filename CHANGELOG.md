@@ -1,5 +1,9 @@
 # Version 1.10.0-beta
 
+## 1.10.0-beta.3
+
+Fixed a bug involving `#[typeshare(skip)]` on fields in struct variants of enums.
+
 ## 1.10.0-beta.2
 
 Fixed a bug involving type aliases.

@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-cli"
-version = "1.10.0-beta.2"
+version = "1.10.0-beta.3"
 edition = "2021"
 description = "Command Line Tool for generating language files with typeshare"
 license = "MIT OR Apache-2.0"
