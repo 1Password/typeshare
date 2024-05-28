@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -70,17 +71,15 @@ pub(crate) struct Config {
     pub go: GoParams,
 }
 
-pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> Result<(), io::Error> {
+pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {
     let file_path = file_path.unwrap_or(DEFAULT_CONFIG_FILE_NAME);
+    let config_output = toml::to_string_pretty(config).context("Failed to serialize to toml")?;
 
     // Fail if trying to overwrite an existing config file
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(file_path)?;
-
-    let config_output =
-        toml::to_string_pretty(config).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
     file.write_all(config_output.as_bytes())?;
 

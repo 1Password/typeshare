@@ -1,3 +1,19 @@
+# Version 1.10.0-beta
+
+## 1.10.0-beta.2
+
+Fixed a bug involving type aliases.
+
+## 1.10.0-beta.0
+
+This release brings support for multiple file generation, allowing splitting generated
+files when used in large projects. This can dramatically increase compilation speed of
+the generated files and increase maintainability.
+
+This is a *pre-release* version which may have bugs or break compatibility.
+
+- Multiple file output [#166](https://github.com/1Password/typeshare/pull/166)
+
 # Version 1.9.2
 
 This release fixes a Cargo.lock error introduced in 1.9.1.
@@ -20,7 +36,7 @@ This release brings support for various Rust std smart pointers, as well as a CL
 
 - Added support for various Rust std smart pointers. [#134](https://github.com/1Password/typeshare/pull/134)
 - Added CLI flag to opt-into following symbolic links. [#156](https://github.com/1Password/typeshare/pull/156)
-- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130) 
+- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130)
 
 ### Community contributors
 

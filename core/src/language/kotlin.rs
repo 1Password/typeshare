@@ -1,6 +1,6 @@
-use super::Language;
+use super::{Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
-use crate::parser::remove_dash_from_identifier;
+use crate::parser::{remove_dash_from_identifier, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
@@ -10,6 +10,8 @@ use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::{collections::HashMap, io::Write};
+
+const REDACTED_TO_STRING: &str = "redacted_to_string";
 
 /// All information needed for Kotlin type-code
 #[derive(Default)]
@@ -91,7 +93,7 @@ impl Language for Kotlin {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.package.is_empty() {
             if !self.no_version_header {
                 writeln!(w, "/**")?;
@@ -99,7 +101,11 @@ impl Language for Kotlin {
                 writeln!(w, " */")?;
                 writeln!(w)?;
             }
-            writeln!(w, "package {}", self.package)?;
+            if parsed_data.multi_file {
+                writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
+            } else {
+                writeln!(w, "package {}", self.package)?;
+            }
             writeln!(w)?;
             writeln!(w, "import kotlinx.serialization.Serializable")?;
             writeln!(w, "import kotlinx.serialization.SerialName")?;
@@ -162,7 +168,16 @@ impl Language for Kotlin {
                 self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
                 writeln!(w)?;
             }
-            writeln!(w, ")\n")?;
+            write!(w, ")")?;
+            if let Some(kotlin_decorators) = rs.decorators.get(&SupportedLanguage::Kotlin) {
+                let redacted_decorator = String::from(REDACTED_TO_STRING);
+                if kotlin_decorators.iter().any(|d| *d == redacted_decorator) {
+                    writeln!(w, " {{")?;
+                    writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
+                    write!(w, "}}")?;
+                }
+            }
+            writeln!(w, "\n")?;
         }
         Ok(())
     }
@@ -206,6 +221,23 @@ impl Language for Kotlin {
         self.write_enum_variants(w, e)?;
 
         writeln!(w, "}}\n")
+    }
+
+    fn write_imports(
+        &mut self,
+        w: &mut dyn Write,
+        imports: ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        for (path, ty) in imports {
+            for t in ty {
+                writeln!(w, "import {}.{path}.{t}", self.package)?;
+            }
+        }
+        writeln!(w)
+    }
+
+    fn ignored_reference_types(&self) -> Vec<&str> {
+        self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
 }
 
@@ -354,8 +386,8 @@ impl Kotlin {
             remove_dash_from_identifier(&f.id.renamed),
             ty,
             (f.has_default && !f.ty.is_optional())
-                .then(|| "? = null")
-                .or_else(|| f.ty.is_optional().then(|| " = null"))
+                .then_some("? = null")
+                .or_else(|| f.ty.is_optional().then_some(" = null"))
                 .unwrap_or_default()
         )
     }

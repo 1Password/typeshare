@@ -1,7 +1,6 @@
 [package]
 name = "typeshare-cli"
-version = "1.9.2"
-rust-version = "1.57"
+version = "1.10.0-beta.2"
 edition = "2021"
 description = "Command Line Tool for generating language files with typeshare"
 license = "MIT OR Apache-2.0"
@@ -20,7 +19,8 @@ clap = { version = "3", features = ["cargo"] }
 clap_complete_command = "0.3"
 ignore = "0.4"
 once_cell = "1"
-rayon = "1.5"
-serde = { version = "1.0.164", features = ["derive"] }
-toml = "0.5"
-typeshare-core = { path = "../core", version = "1.9.2" }
+rayon = "1.10"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+typeshare-core = { path = "../core", version = "1.10.0-beta.2" }
+anyhow = "1"

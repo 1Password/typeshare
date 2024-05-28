@@ -8,7 +8,11 @@ use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::hash::Hash;
+use crate::parser::ParsedData;
 use std::{collections::HashMap, io::Write};
+
+use super::CrateTypes;
+
 
 use convert_case::{Case, Casing};
 use topological_sort::TopologicalSort;
@@ -84,8 +88,7 @@ impl Module {
         let mut missing: Vec<String> = self
             .globals
             .keys()
-            .cloned()
-            .filter(|k| !existing.contains(k))
+            .filter(|&k| !existing.contains(k)).cloned()
             .collect();
         missing.sort();
         res.extend(missing);
@@ -164,7 +167,8 @@ impl Language for Python {
     fn generate_types(
         &mut self,
         w: &mut dyn Write,
-        data: &crate::parser::ParsedData,
+        _imports: &CrateTypes,
+        data: ParsedData,
     ) -> std::io::Result<()> {
         let mut globals: Vec<ParsedRusthThing>;
         {
@@ -220,7 +224,7 @@ impl Language for Python {
                 ParsedRusthThing::TypeAlias(t) => self.write_type_alias(&mut body, t)?,
             };
         }
-        self.begin_file(w)?;
+        self.begin_file(w, &data)?;
         let _ = w.write(&body)?;
         Ok(())
     }
@@ -315,7 +319,7 @@ impl Language for Python {
         }
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         let module = self.module.borrow();
         let mut type_var_names: Vec<String> = module.type_variables.iter().cloned().collect();
         type_var_names.sort();
@@ -627,6 +631,14 @@ impl Language for Python {
             }
         };
         Ok(())
+    }
+    
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        todo!()
     }
 }
 

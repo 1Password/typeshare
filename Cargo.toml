@@ -1,17 +1,12 @@
 [workspace]
-members = [
-    "annotation",
-    "cli",
-    "core",
-    "lib"
-]
+members = ["annotation", "cli", "core", "lib"]
+resolver = "2"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.0.4"
 # The preferred Rust toolchain to use in CI (rustup toolchain syntax)
-rust-toolchain-version = "1.57.1"
 # CI backends to support (see 'cargo dist generate-ci')
 ci = ["github"]
 # The installers to generate for each app

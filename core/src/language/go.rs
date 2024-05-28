@@ -11,6 +11,8 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
+use super::CrateTypes;
+
 /// All information needed to generate Go type-code
 #[derive(Default)]
 pub struct Go {
@@ -26,38 +28,52 @@ pub struct Go {
 }
 
 impl Language for Go {
-    fn generate_types(&mut self, w: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        w: &mut dyn Write,
+        _imports: &CrateTypes,
+        data: ParsedData,
+    ) -> std::io::Result<()> {
+        self.begin_file(w, &data)?;
+
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            ..
+        } = data;
+
+        let mut items = aliases
+            .into_iter()
+            .map(RustItem::Alias)
+            .chain(structs.into_iter().map(RustItem::Struct))
+            .chain(enums.into_iter().map(RustItem::Enum))
+            .collect::<Vec<_>>();
+
+        topsort(&mut items);
+
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
-        let mut types_mapping_to_struct = HashSet::new();
-        for s in &data.structs {
-            types_mapping_to_struct.insert(s.id.original.as_str());
-        }
-        for alias in &data.aliases {
-            if types_mapping_to_struct.contains(&alias.r#type.id()) {
+        let mut types_mapping_to_struct = items
+            .iter()
+            .flat_map(|item| match item {
+                RustItem::Struct(s) => Some(s.id.original.as_str()),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+
+        let alias_iter = items.iter().flat_map(|item| match item {
+            RustItem::Alias(a) => Some(a),
+            _ => None,
+        });
+
+        for alias in alias_iter {
+            if types_mapping_to_struct.contains(alias.r#type.id()) {
                 types_mapping_to_struct.insert(alias.id.original.as_str());
             }
         }
 
-        self.begin_file(w)?;
-
-        let mut items: Vec<RustItem> = vec![];
-
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
-        }
-
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
-
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
-
-        let sorted = topsort(items.iter().collect());
-
-        for &thing in &sorted {
+        for thing in &items {
             match thing {
                 RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
                 RustItem::Struct(s) => self.write_struct(w, s)?,
@@ -65,9 +81,7 @@ impl Language for Go {
             }
         }
 
-        self.end_file(w)?;
-
-        Ok(())
+        self.end_file(w)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
@@ -114,7 +128,7 @@ impl Language for Go {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.no_version_header {
             // This comment is specifically formatted to satisfy gosec's template for a generated file,
             // so the generated Go file can be ignored with `gosec -exclude-generated`.
@@ -158,6 +172,14 @@ impl Language for Go {
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
         writeln!(w, "}}")
+    }
+
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -423,7 +445,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             "\t{} {}{} `json:\"{}{}\"`",
             self.format_field_name(field.id.original.to_string(), true),
             (field.has_default && !field.ty.is_optional())
-                .then(|| "*")
+                .then_some("*")
                 .unwrap_or_default(),
             go_type,
             renamed_id,

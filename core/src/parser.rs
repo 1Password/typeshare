@@ -1,22 +1,23 @@
-use crate::language::SupportedLanguage;
-use crate::rename::RenameExt;
-use crate::rust_types::{
-    FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
-    RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+use crate::{
+    language::{CrateName, SupportedLanguage},
+    rename::RenameExt,
+    rust_types::{
+        FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
+        RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+    },
+    visitors::{ImportedType, TypeShareVisitor},
 };
-
-use std::collections::{BTreeSet, HashMap, HashSet};
-use std::convert::TryFrom;
-
 use proc_macro2::Ident;
-use syn::ext::IdentExt;
-use syn::parse::ParseBuffer;
-use syn::punctuated::Punctuated;
+use std::{
+    collections::{BTreeSet, HashMap, HashSet},
+    convert::TryFrom,
+    path::PathBuf,
+};
 use syn::{
-    Attribute, Expr, ExprLit, Fields, Item, ItemEnum, ItemStruct, ItemType, LitStr, MetaList,
+    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
     MetaNameValue, Token,
 };
-use syn::{GenericParam, Meta};
 use thiserror::Error;
 
 const TYPESHARE: &str = "typeshare";
@@ -50,6 +51,17 @@ pub enum ParseError {
     SerdeFlattenNotAllowed,
 }
 
+/// Error with it's related data.
+#[derive(Debug)]
+pub struct ErrorInfo {
+    /// The crate where this error occured.
+    pub crate_name: CrateName,
+    /// The file name being parsed.
+    pub file_name: String,
+    /// The parse error.
+    pub error: ParseError,
+}
+
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
 pub struct ParsedData {
@@ -59,78 +71,81 @@ pub struct ParsedData {
     pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+    /// Imports used by this file
+    pub import_types: HashSet<ImportedType>,
+    /// Crate this belongs to.
+    pub crate_name: CrateName,
+    /// File name to write to for generated type.
+    pub file_name: String,
+    /// All type names
+    pub type_names: HashSet<String>,
+    /// Failures during parsing.
+    pub errors: Vec<ErrorInfo>,
+    /// Using multi file support.
+    pub multi_file: bool,
 }
 
 impl ParsedData {
+    /// Create a new parsed data.
+    pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {
+        Self {
+            crate_name,
+            file_name,
+            multi_file,
+            ..Default::default()
+        }
+    }
+
     /// Add the parsed data from `other` to `self`.
     pub fn add(&mut self, mut other: Self) {
         self.structs.append(&mut other.structs);
         self.enums.append(&mut other.enums);
         self.aliases.append(&mut other.aliases);
+        self.import_types.extend(other.import_types);
+        self.type_names.extend(other.type_names);
+        self.errors.append(&mut other.errors);
     }
 
-    fn push(&mut self, rust_thing: RustItem) {
+    pub(crate) fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
-            RustItem::Struct(s) => self.structs.push(s),
-            RustItem::Enum(e) => self.enums.push(e),
-            RustItem::Alias(a) => self.aliases.push(a),
+            RustItem::Struct(s) => {
+                self.type_names.insert(s.id.renamed.clone());
+                self.structs.push(s);
+            }
+            RustItem::Enum(e) => {
+                self.type_names.insert(e.shared().id.renamed.clone());
+                self.enums.push(e);
+            }
+            RustItem::Alias(a) => {
+                self.type_names.insert(a.id.renamed.clone());
+                self.aliases.push(a);
+            }
         }
-    }
-
-    fn parse(&mut self, item: &Item) -> Result<(), ParseError> {
-        match item {
-            syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                self.push(parse_struct(s)?);
-            }
-            syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                self.push(parse_enum(e)?);
-            }
-            syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                self.aliases.push(parse_type_alias(t)?);
-            }
-            _ => {}
-        }
-
-        Ok(())
     }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
-    let mut parsed_data = ParsedData::default();
-
+pub fn parse(
+    source_code: &str,
+    crate_name: CrateName,
+    file_name: String,
+    file_path: PathBuf,
+    ignored_types: &[&str],
+    mult_file: bool,
+) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !input.contains(TYPESHARE) {
-        return Ok(parsed_data);
+    if !source_code.contains("#[typeshare") {
+        return Ok(None);
     }
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let source = syn::parse_file(input)?;
+    let mut import_visitor =
+        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, mult_file);
+    import_visitor.visit_file(&syn::parse_file(source_code)?);
 
-    for item in flatten_items(source.items.iter()) {
-        parsed_data.parse(item)?;
-    }
-
-    Ok(parsed_data)
-}
-
-/// Given an iterator over items, will return an iterator that flattens the contents of embedded
-/// module items into the iterator.
-fn flatten_items<'a>(
-    items: impl Iterator<Item = &'a syn::Item>,
-) -> impl Iterator<Item = &'a syn::Item> {
-    items.flat_map(|item| {
-        match item {
-            syn::Item::Mod(syn::ItemMod {
-                content: Some((_, items)),
-                ..
-            }) => flatten_items(items.iter()).collect(),
-            item => vec![item],
-        }
-        .into_iter()
-    })
+    Ok(Some(import_visitor.parsed_data()))
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -138,7 +153,7 @@ fn flatten_items<'a>(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -238,7 +253,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -302,7 +317,6 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .all(|v| matches!(v, RustEnumVariant::Unit(_)))
     {
         // All enum variants are unit-type
-
         if maybe_tag_key.is_some() {
             return Err(ParseError::SerdeTagNotAllowed {
                 enum_ident: original_enum_ident,
@@ -371,6 +385,7 @@ fn parse_enum_variant(
             fields: fields_named
                 .named
                 .iter()
+                .filter(|f| !is_skipped(&f.attrs))
                 .map(|f| {
                     let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -397,7 +412,7 @@ fn parse_enum_variant(
 
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
+pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
         ty.parse()?
     } else {
@@ -414,12 +429,12 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
         })
         .collect();
 
-    Ok(RustTypeAlias {
+    Ok(RustItem::Alias(RustTypeAlias {
         id: get_ident(Some(&t.ident), &t.attrs, &None),
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
-    })
+    }))
 }
 
 // Helpers
@@ -672,6 +687,14 @@ fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<St
         let decs = out.entry(SupportedLanguage::Swift).or_default();
         decs.extend(decorators);
         // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
+        decs.sort_unstable();
+        decs.dedup(); //removing any duplicates just in case
+    }
+
+    for value in get_name_value_meta_items(attrs, "kotlin", TYPESHARE) {
+        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
+        let decs = out.entry(SupportedLanguage::Kotlin).or_default();
+        decs.extend(decorators);
         decs.sort_unstable();
         decs.dedup(); //removing any duplicates just in case
     }
