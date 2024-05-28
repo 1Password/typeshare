@@ -19,10 +19,10 @@ pub const ARG_OUTPUT_FOLDER: &str = "output-folder";
 pub const ARG_FOLLOW_LINKS: &str = "follow-links";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "python"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "python"];
 
 /// Parse command line arguments.
 pub(crate) fn build_command() -> Command<'static> {
