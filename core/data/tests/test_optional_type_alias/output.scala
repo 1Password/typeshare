@@ -7,9 +7,9 @@ type UShort = Short
 type UInt = Int
 type ULong = Int
 
-type OptionalU32 = Option[UInt]
-
 type OptionalU16 = Option[UShort]
+
+type OptionalU32 = Option[UInt]
 
 }
 package onepassword {

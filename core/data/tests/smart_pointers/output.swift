@@ -14,6 +14,35 @@ public struct ArcyColors: Codable {
 }
 
 /// This is a comment.
+public struct CellyColors: Codable {
+	public let red: String
+	public let blue: [String]
+
+	public init(red: String, blue: [String]) {
+		self.red = red
+		self.blue = blue
+	}
+}
+
+/// This is a comment.
+public struct CowyColors: Codable {
+	public let lifetime: String
+
+	public init(lifetime: String) {
+		self.lifetime = lifetime
+	}
+}
+
+/// This is a comment.
+public struct LockyColors: Codable {
+	public let red: String
+
+	public init(red: String) {
+		self.red = red
+	}
+}
+
+/// This is a comment.
 public struct MutexyColors: Codable {
 	public let blue: [String]
 	public let green: String
@@ -34,35 +63,6 @@ public struct RcyColors: Codable {
 		self.red = red
 		self.blue = blue
 		self.green = green
-	}
-}
-
-/// This is a comment.
-public struct CellyColors: Codable {
-	public let red: String
-	public let blue: [String]
-
-	public init(red: String, blue: [String]) {
-		self.red = red
-		self.blue = blue
-	}
-}
-
-/// This is a comment.
-public struct LockyColors: Codable {
-	public let red: String
-
-	public init(red: String) {
-		self.red = red
-	}
-}
-
-/// This is a comment.
-public struct CowyColors: Codable {
-	public let lifetime: String
-
-	public init(lifetime: String) {
-		self.lifetime = lifetime
 	}
 }
 

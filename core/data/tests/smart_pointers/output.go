@@ -9,6 +9,19 @@ type ArcyColors struct {
 	Green []string `json:"green"`
 }
 // This is a comment.
+type CellyColors struct {
+	Red string `json:"red"`
+	Blue []string `json:"blue"`
+}
+// This is a comment.
+type CowyColors struct {
+	Lifetime string `json:"lifetime"`
+}
+// This is a comment.
+type LockyColors struct {
+	Red string `json:"red"`
+}
+// This is a comment.
 type MutexyColors struct {
 	Blue []string `json:"blue"`
 	Green string `json:"green"`
@@ -18,19 +31,6 @@ type RcyColors struct {
 	Red string `json:"red"`
 	Blue []string `json:"blue"`
 	Green string `json:"green"`
-}
-// This is a comment.
-type CellyColors struct {
-	Red string `json:"red"`
-	Blue []string `json:"blue"`
-}
-// This is a comment.
-type LockyColors struct {
-	Red string `json:"red"`
-}
-// This is a comment.
-type CowyColors struct {
-	Lifetime string `json:"lifetime"`
 }
 // This is a comment.
 type BoxyColorsTypes string

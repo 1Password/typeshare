@@ -14,11 +14,11 @@ case class A (
 	field: UInt
 )
 
-case class ABC (
+case class AB (
 	field: UInt
 )
 
-case class AB (
+case class ABC (
 	field: UInt
 )
 

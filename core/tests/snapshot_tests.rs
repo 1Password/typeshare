@@ -51,6 +51,7 @@ fn check(
     test_name: &str,
     file_name: impl AsRef<Path>,
     mut lang: Box<dyn Language>,
+    target_os: Option<&str>,
 ) -> Result<(), anyhow::Error> {
     let _extension = file_name
         .as_ref()
@@ -72,6 +73,7 @@ fn check(
         "file_path".into(),
         &[],
         false,
+        target_os.map(|s| s.to_owned()),
     )?
     .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
@@ -221,6 +223,16 @@ macro_rules! language_instance {
     };
 }
 
+macro_rules! target_os {
+    ($target_os:literal) => {
+        Some($target_os)
+    };
+
+    () => {
+        None
+    };
+}
+
 /// This macro removes the boilerplate involved in creating typeshare snapshot
 /// tests. Usage looks like:
 ///
@@ -299,12 +311,13 @@ macro_rules! tests {
                 })?
             ),+
             $(,)?
-        ];
+        ] $(target_os: $target_os:tt)?;
     )*) => {$(
         mod $test {
             use super::check;
 
             const TEST_NAME: &str = stringify!($test);
+            const TARGET_OS: Option<&str> = target_os!($($target_os)?);
 
             $(
                 #[test]
@@ -313,6 +326,7 @@ macro_rules! tests {
                         TEST_NAME,
                         output_file_for_ident!($language),
                         language_instance!($language $({ $($lang_config)* })?),
+                        TARGET_OS
                     )
                 }
             )+
@@ -383,6 +397,7 @@ tests! {
     can_generate_generic_struct: [
         swift {
             prefix: "Core".into(),
+            codablevoid_constraints: vec!["Equatable".into()]
         },
         kotlin,
         scala,
@@ -542,7 +557,7 @@ tests! {
     generate_types_with_keywords: [swift];
     // TODO: how is this different from generates_empty_structs_and_initializers?
     use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go];
-    can_handle_unit_type: [swift, kotlin, scala,  typescript, go];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
@@ -569,4 +584,7 @@ tests! {
         go
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
+    generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: "android";
+    // excluded_by_target_os_full_module: [swift] target_os: "ios";
 }

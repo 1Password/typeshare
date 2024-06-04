@@ -2,11 +2,11 @@ export interface A {
 	field: number;
 }
 
-export interface ABC {
+export interface AB {
 	field: number;
 }
 
-export interface AB {
+export interface ABC {
 	field: number;
 }
 

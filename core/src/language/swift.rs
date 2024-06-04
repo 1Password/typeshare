@@ -1,16 +1,18 @@
 use crate::{
     language::{Language, SupportedLanguage},
-    parser::{remove_dash_from_identifier, ParsedData},
+    parser::{remove_dash_from_identifier, DecoratorKind, ParsedData},
     rename::RenameExt,
     rust_types::{
-        RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError, SpecialRustType,
+        DecoratorMap, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError,
+        SpecialRustType,
     },
     GenerationError,
 };
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::{
+    borrow::Cow,
     collections::{BTreeSet, HashMap},
     fs::File,
     io::{self, Write},
@@ -112,8 +114,8 @@ impl GenericConstraints {
         }
     }
     /// Get an iterator over all constraints.
-    pub fn get_constraints(&self) -> impl Iterator<Item = &String> {
-        self.constraints.iter()
+    pub fn get_constraints(&self) -> impl Iterator<Item = &str> {
+        self.constraints.iter().map(|s| s.as_str())
     }
 
     fn split_constraints(constraints: String) -> Vec<String> {
@@ -150,6 +152,8 @@ pub struct Swift {
     pub no_version_header: bool,
     /// Are we generating mutliple modules?
     pub multi_file: bool,
+    /// The contraints to apply to `CodableVoid`.
+    pub codablevoid_constraints: Vec<String>,
 }
 
 impl Language for Swift {
@@ -238,7 +242,7 @@ impl Language for Swift {
         self.write_comments(w, 0, &ty.comments)?;
 
         let swift_prefix = &self.prefix;
-        let type_name = swift_keyword_aware_rename(&format!("{}{}", swift_prefix, ty.id.renamed));
+        let type_name = swift_keyword_aware_rename(format!("{}{}", swift_prefix, ty.id.renamed));
 
         writeln!(
             w,
@@ -261,45 +265,37 @@ impl Language for Swift {
         writeln!(w)?;
         self.write_comments(w, 0, &rs.comments)?;
 
-        let type_name = swift_keyword_aware_rename(&format!("{}{}", self.prefix, rs.id.renamed));
+        let type_name = swift_keyword_aware_rename(format!("{}{}", self.prefix, rs.id.renamed));
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
-        let mut decs = self.get_default_decorators();
-
-        let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
-        if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
+        let decs = if let Some(swift_decs) = rs.decorators.get(&DecoratorKind::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
             // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
             // Note: the list received from `rs.decorators` is already deduped
-            swift_decs
-                .iter()
-                .filter(|d| d.as_str() != CODABLE)
-                .for_each(|d| decs.push(d.clone()));
+            Either::Left(
+                self.get_default_decorators().chain(
+                    swift_decs
+                        .iter()
+                        .filter(|d| d.as_str() != CODABLE)
+                        .map(|s| s.as_str()),
+                ),
+            )
+        } else {
+            Either::Right(self.get_default_decorators())
         }
+        .join(", ");
 
-        let generic_constraint_string = default_generic_constraints.get_constraints().join(" & ");
+        let generic_names_and_constraints =
+            self.generic_constraints(&rs.decorators, &rs.generic_types);
 
         writeln!(
             w,
-            "public struct {}{}: {} {{",
-            type_name,
+            "public struct {type_name}{}: {} {{",
             (!rs.generic_types.is_empty())
-                .then(|| format!(
-                    "<{}>",
-                    rs.generic_types
-                        .iter()
-                        .map(|t| format!(
-                            "{}{}",
-                            t,
-                            (!generic_constraint_string.is_empty())
-                                .then(|| format!(": {}", generic_constraint_string))
-                                .unwrap_or_default()
-                        ))
-                        .join(", ")
-                ))
+                .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
-            decs.join(", ")
+            decs
         )?;
 
         for f in &rs.fields {
@@ -312,7 +308,7 @@ impl Language for Swift {
             if f.id.renamed.chars().any(|c| c == '-') {
                 coding_keys.push(format!(
                     r##"{} = "{}""##,
-                    remove_dash_from_identifier(&swift_keyword_aware_rename(&f.id.renamed)),
+                    remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                     &f.id.renamed
                 ));
 
@@ -320,9 +316,9 @@ impl Language for Swift {
                 // situation like this
                 should_write_coding_keys = true;
             } else {
-                coding_keys.push(remove_dash_from_identifier(&swift_keyword_aware_rename(
-                    &f.id.renamed,
-                )));
+                coding_keys.push(remove_dash_from_identifier(
+                    swift_keyword_aware_rename(&f.id.renamed).as_ref(),
+                ));
             }
 
             let case_type: String = match f.type_override(SupportedLanguage::Swift) {
@@ -335,7 +331,7 @@ impl Language for Swift {
             writeln!(
                 w,
                 "\tpublic let {}: {}{}",
-                remove_dash_from_identifier(&swift_keyword_aware_rename(&f.id.renamed)),
+                remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                 case_type,
                 (f.has_default && !f.ty.is_optional())
                     .then_some("?")
@@ -383,7 +379,7 @@ impl Language for Swift {
                 w,
                 "\n\t\tself.{} = {}",
                 remove_dash_from_identifier(&f.id.renamed),
-                remove_dash_from_identifier(&swift_keyword_aware_rename(&f.id.renamed))
+                remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref())
             )?;
         }
         if !rs.fields.is_empty() {
@@ -398,43 +394,38 @@ impl Language for Swift {
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         /// Determines the decorators needed for an enum given an array of decorators
         /// that should always be present
-        fn determine_decorators(always_present: &[String], e: &RustEnum) -> Vec<String> {
-            let mut decs = vec![];
-
-            // Add the decorators that should always be present
-            always_present
-                .iter()
-                .cloned()
-                .for_each(|dec| decs.push(dec));
-
-            // Check if this enum's decorators contains swift in the hashmap
-            if let Some(swift_decs) = e.shared().decorators.get(&SupportedLanguage::Swift) {
-                // Add any decorators from the typeshared enum
-                decs.extend(
+        fn determine_decorators<'a>(
+            always_present: &'a [&str],
+            e: &'a RustEnum,
+        ) -> impl Iterator<Item = &'a str> {
+            always_present.iter().copied().chain(
+                if let Some(swift_decs) = e.shared().decorators.get(&DecoratorKind::Swift) {
+                    // Add any decorators from the typeshared enum
                     // Note: `swift_decs` is already deduped
-                    swift_decs
-                        .iter()
-                        // Avoids needing to sort / dedup
-                        .filter(|d| !always_present.contains(d))
-                        .map(|d| d.to_owned()),
-                );
-            }
-
-            decs
+                    Either::Left(
+                        swift_decs
+                            .iter()
+                            .map(|s| s.as_str())
+                            // Avoids needing to sort / dedup
+                            .filter(|d| !always_present.contains(d)),
+                    )
+                } else {
+                    Either::Right(std::iter::empty())
+                },
+            )
         }
 
         let shared = e.shared();
-        let enum_name =
-            swift_keyword_aware_rename(&format!("{}{}", self.prefix, shared.id.renamed));
+        let enum_name = swift_keyword_aware_rename(format!("{}{}", self.prefix, shared.id.renamed));
         let always_present = match e {
-            RustEnum::Unit(_) => {
-                let mut always_present = vec!["String".into()];
-                always_present.append(&mut self.get_default_decorators());
-                always_present
-            }
-            RustEnum::Algebraic { .. } => self.get_default_decorators(),
+            RustEnum::Unit(_) => ["String"]
+                .into_iter()
+                .chain(self.get_default_decorators())
+                .collect::<Vec<_>>(),
+            RustEnum::Algebraic { .. } => self.get_default_decorators().collect::<Vec<_>>(),
         };
-        let decs = determine_decorators(&always_present, e);
+        let decs = determine_decorators(&always_present, e).join(", ");
+
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name =
             |variant_name: &str| format!("{}{}Inner", shared.id.renamed, variant_name);
@@ -446,32 +437,17 @@ impl Language for Swift {
 
         self.write_comments(w, 0, &shared.comments)?;
         let indirect = if shared.is_recursive { "indirect " } else { "" };
-        let generic_constraint_string = self
-            .default_generic_constraints
-            .get_constraints()
-            .join(" & ");
+
+        let generic_names_and_constraints =
+            self.generic_constraints(&e.shared().decorators, &e.shared().generic_types);
+
         writeln!(
             w,
-            "public {}enum {}{}: {} {{",
-            indirect,
-            enum_name,
+            "public {indirect}enum {enum_name}{}: {} {{",
             (!e.shared().generic_types.is_empty())
-                .then(|| format!(
-                    "<{}>",
-                    e.shared()
-                        .generic_types
-                        .iter()
-                        .map(|t| format!(
-                            "{}{}",
-                            t,
-                            (!generic_constraint_string.is_empty())
-                                .then(|| format!(": {}", generic_constraint_string))
-                                .unwrap_or_default()
-                        ))
-                        .join(", ")
-                ))
+                .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
-            decs.join(", ")
+            decs
         )?;
 
         let coding_keys_info = self.write_enum_variants(w, e, make_anonymous_struct_name)?;
@@ -614,7 +590,7 @@ impl Swift {
                     };
 
                     coding_keys.push(if variant_name == v.shared().id.renamed {
-                        swift_keyword_aware_rename(&variant_name)
+                        swift_keyword_aware_rename(&variant_name).into_owned()
                     } else {
                         format!(
                             r##"{} = "{}""##,
@@ -771,10 +747,10 @@ impl Swift {
 }
 
 impl Swift {
-    fn get_default_decorators(&self) -> Vec<String> {
-        let mut decs: Vec<String> = vec![CODABLE.to_string()];
-        decs.extend(self.default_decorators.iter().cloned());
-        decs
+    fn get_default_decorators(&self) -> impl Iterator<Item = &str> {
+        [CODABLE]
+            .into_iter()
+            .chain(self.default_decorators.iter().map(|s| s.as_str()))
     }
 
     /// When using mulitple file generation we write this into a separate module vs at the
@@ -792,20 +768,75 @@ impl Swift {
             r"/// () isn't codable, so we use this instead to represent Rust's unit type"
         )?;
 
-        let mut decs = self.get_default_decorators();
+        let mut decs = self
+            .get_default_decorators()
+            .chain(self.codablevoid_constraints.iter().map(|s| s.as_str()))
+            .collect::<Vec<_>>();
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
-        if !decs.contains(&CODABLE.to_string()) {
-            decs.push(CODABLE.to_string());
+        if !decs.contains(&CODABLE) {
+            decs.push(CODABLE);
         }
 
         writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))
     }
+
+    /// Build the generic constraints output. This checks for the `swiftGenericConstraints` typeshare attribute and combines
+    /// it with the `default_generic_constraints` configuration. If no `swiftGenericConstraints` is defined then we just use
+    /// `default_generic_constraints`.
+    fn generic_constraints<'a>(
+        &'a self,
+        decorator_map: &'a DecoratorMap,
+        generic_types: &'a [String],
+    ) -> String {
+        let swift_generic_contraints_annotated = decorator_map
+            .get(&DecoratorKind::SwiftGenericConstraints)
+            .map(|generic_constraints| {
+                generic_constraints
+                    .iter()
+                    .filter_map(|generic_constraint| {
+                        let mut gen_name_val_iter = generic_constraint.split(':');
+                        let generic_name = gen_name_val_iter.next()?;
+                        let mut generic_name_constraints = gen_name_val_iter
+                            .next()?
+                            .split('&')
+                            .map(|s| s.trim())
+                            .collect::<BTreeSet<_>>();
+                        // Merge default generic constraints with annotated constraints.
+                        generic_name_constraints
+                            .extend(self.default_generic_constraints.get_constraints());
+                        Some((generic_name, generic_name_constraints))
+                    })
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default();
+
+        generic_types
+            .iter()
+            .map(
+                |type_name| match swift_generic_contraints_annotated.get(type_name.as_str()) {
+                    // Use constraints from swiftGenericConstraints decorator.
+                    Some(constraints) => (type_name, Either::Left(constraints.iter().copied())),
+                    // Use the default generic constraints if it is not part of a swiftGenericConstraints decorator.
+                    None => (
+                        type_name,
+                        Either::Right(self.default_generic_constraints.get_constraints()),
+                    ),
+                },
+            )
+            .map(|(type_name, mut constraints)| format!("{type_name}: {}", constraints.join(" & ")))
+            .join(", ")
+    }
 }
 
-fn swift_keyword_aware_rename(name: &str) -> String {
-    if SWIFT_KEYWORDS.contains(&name) {
-        return format!("`{}`", name);
+fn swift_keyword_aware_rename<'a, T>(name: T) -> Cow<'a, str>
+where
+    T: Into<Cow<'a, str>>,
+{
+    let name = name.into();
+    if SWIFT_KEYWORDS.contains(&name.as_ref()) {
+        Cow::Owned(format!("`{name}`"))
+    } else {
+        name
     }
-    name.to_string()
 }
