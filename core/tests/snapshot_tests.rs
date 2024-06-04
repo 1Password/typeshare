@@ -569,4 +569,5 @@ tests! {
         go
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
+    generic_struct_with_constraints_and_decorators: [swift];
 }
