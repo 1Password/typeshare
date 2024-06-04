@@ -6,7 +6,11 @@ use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
 use crate::language::SupportedLanguage;
+use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
+
+/// Type level typeshare attributes are mapped by target language and a mapping of attribute.
+pub type DecoratorMap = HashMap<DecoratorKind, BTreeSet<String>>;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +47,7 @@ pub struct RustStruct {
     /// so we need to collect them here.
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
-    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
+    pub decorators: DecoratorMap,
 }
 
 /// Rust type alias.
@@ -566,7 +570,7 @@ pub struct RustEnumShared {
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
+    pub decorators: DecoratorMap,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,

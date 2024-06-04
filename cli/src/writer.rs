@@ -67,13 +67,14 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
     if !output.is_empty() {
         let out_dir = outfile
             .parent()
-            .context(format!("Could not get parent for {outfile:?}"))?;
+            .with_context(|| format!("Could not get parent for {outfile:?}"))?;
         // If the output directory doesn't already exist, create it.
         if !out_dir.exists() {
             fs::create_dir_all(out_dir).context("failed to create output directory")?;
         }
 
-        fs::write(outfile, output).context("failed to write output")?;
+        fs::write(outfile, output)
+            .with_context(|| format!("failed to write output: {}", outfile.to_string_lossy()))?;
     }
     Ok(())
 }
