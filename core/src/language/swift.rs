@@ -278,7 +278,13 @@ impl Language for Swift {
                 .for_each(|d| decs.push(d.clone()));
         }
 
-        let generic_constraint_string = default_generic_constraints.get_constraints().join(" & ");
+        // Include any decorator constraints on the generic types.
+        let generic_constraint_string = default_generic_constraints
+            .get_constraints()
+            .chain(decs.iter())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .join(" & ");
 
         writeln!(
             w,
