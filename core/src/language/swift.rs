@@ -452,10 +452,15 @@ impl Language for Swift {
 
         self.write_comments(w, 0, &shared.comments)?;
         let indirect = if shared.is_recursive { "indirect " } else { "" };
+
         let generic_constraint_string = self
             .default_generic_constraints
             .get_constraints()
+            .chain(decs.iter())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
             .join(" & ");
+
         writeln!(
             w,
             "public {}enum {}{}: {} {{",
