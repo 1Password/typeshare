@@ -53,6 +53,14 @@ pub struct GoParams {
     pub uppercase_acronyms: Vec<String>,
 }
 
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+pub struct CSharpParams {
+    pub type_mappings: HashMap<String, String>,
+    pub namespace: String,
+    pub without_csharp_naming_convention: bool,
+}
+
 /// The paramters that are used to configure the behaviour of typeshare
 /// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
@@ -66,6 +74,7 @@ pub(crate) struct Config {
     pub go: GoParams,
     #[serde(skip)]
     pub target_os: Option<String>,
+    pub csharp: CSharpParams,
 }
 
 pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {
