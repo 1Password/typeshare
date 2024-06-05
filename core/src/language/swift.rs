@@ -1,9 +1,6 @@
 use crate::{
     language::{Language, SupportedLanguage},
-    parser::{
-        remove_dash_from_identifier, ParsedData, SWIFT_DECORATOR,
-        SWIFT_GENERIC_CONSTRAINTS_DECORATOR,
-    },
+    parser::{remove_dash_from_identifier, DecoratorKind, ParsedData},
     rename::RenameExt,
     rust_types::{
         DecoratorMap, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError,
@@ -272,11 +269,7 @@ impl Language for Swift {
 
         // let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
-        if let Some(swift_decs) = rs
-            .decorators
-            .get(&SupportedLanguage::Swift)
-            .and_then(|d| d.get(SWIFT_DECORATOR))
-        {
+        if let Some(swift_decs) = rs.decorators.get(&DecoratorKind::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
             // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
             // Note: the list received from `rs.decorators` is already deduped
@@ -404,12 +397,7 @@ impl Language for Swift {
                 .for_each(|dec| decs.push(dec));
 
             // Check if this enum's decorators contains swift in the hashmap
-            if let Some(swift_decs) = e
-                .shared()
-                .decorators
-                .get(&SupportedLanguage::Swift)
-                .and_then(|d| d.get(SWIFT_DECORATOR))
-            {
+            if let Some(swift_decs) = e.shared().decorators.get(&DecoratorKind::Swift) {
                 // Add any decorators from the typeshared enum
                 decs.extend(
                     // Note: `swift_decs` is already deduped
@@ -800,8 +788,7 @@ impl Swift {
         generic_types: &'a [String],
     ) -> String {
         let swift_generic_contraints_annotated = decorator_map
-            .get(&SupportedLanguage::Swift)
-            .and_then(|d| d.get(SWIFT_GENERIC_CONSTRAINTS_DECORATOR))
+            .get(&DecoratorKind::SwiftGenericConstraints)
             .map(|generic_constraints| {
                 generic_constraints
                     .iter()

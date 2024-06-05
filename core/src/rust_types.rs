@@ -6,11 +6,11 @@ use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
 use crate::language::SupportedLanguage;
-use crate::parser::DecoratorName;
+use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
 
 /// Type level typeshare attributes are mapped by target language and a mapping of attribute.
-pub type DecoratorMap = HashMap<SupportedLanguage, HashMap<DecoratorName, BTreeSet<String>>>;
+pub type DecoratorMap = HashMap<DecoratorKind, BTreeSet<String>>;
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq)]

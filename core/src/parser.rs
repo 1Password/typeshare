@@ -24,15 +24,27 @@ use thiserror::Error;
 const TYPESHARE: &str = "typeshare";
 const SERDE: &str = "serde";
 
-/// The typeshare decorator name attribute.
-pub type DecoratorName = &'static str;
+/// Supported typeshare type level decorator attributes.
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum DecoratorKind {
+    /// The typeshare attribute for swift type constraints "swift"
+    Swift,
+    /// The typeshare attribute for swift generic constraints "swiftGenericConstraints"
+    SwiftGenericConstraints,
+    /// The typeshare attribute for kotlin "kotlin"
+    Kotlin,
+}
 
-/// The typeshare attribute for swift type constraints.
-pub const SWIFT_DECORATOR: DecoratorName = "swift";
-/// The typeshare attribute for kotlin.
-pub const KOTLIN_DECORATOR: DecoratorName = "kotlin";
-/// The typeshare attribute for swift generic constraints.
-pub const SWIFT_GENERIC_CONSTRAINTS_DECORATOR: DecoratorName = "swiftGenericConstraints";
+impl DecoratorKind {
+    /// This decorator as a str.
+    fn as_str(&self) -> &str {
+        match self {
+            DecoratorKind::Swift => "swift",
+            DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
+            DecoratorKind::Kotlin => "kotlin",
+        }
+    }
+}
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -691,28 +703,18 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut out: DecoratorMap = HashMap::new();
 
-    let add_decorators =
-        |name: &'static str, supported_lang: SupportedLanguage, map: &mut DecoratorMap| {
-            for value in get_name_value_meta_items(attrs, name, TYPESHARE) {
-                let constraints = || value.split(',').map(|s| s.trim().to_string());
-                map.entry(supported_lang)
-                    .and_modify(|dec_map| {
-                        dec_map
-                            .entry(name)
-                            .and_modify(|dec_vals| dec_vals.extend(constraints()))
-                            .or_insert(constraints().collect());
-                    })
-                    .or_insert(HashMap::from_iter([(name, constraints().collect())]));
-            }
-        };
+    let add_decorators = |name: DecoratorKind, map: &mut DecoratorMap| {
+        for value in get_name_value_meta_items(attrs, name.as_str(), TYPESHARE) {
+            let constraints = || value.split(',').map(|s| s.trim().to_string());
+            map.entry(name)
+                .and_modify(|dec_vals| dec_vals.extend(constraints()))
+                .or_insert(constraints().collect());
+        }
+    };
 
-    add_decorators(SWIFT_DECORATOR, SupportedLanguage::Swift, &mut out);
-    add_decorators(
-        SWIFT_GENERIC_CONSTRAINTS_DECORATOR,
-        SupportedLanguage::Swift,
-        &mut out,
-    );
-    add_decorators(KOTLIN_DECORATOR, SupportedLanguage::Kotlin, &mut out);
+    add_decorators(DecoratorKind::Swift, &mut out);
+    add_decorators(DecoratorKind::SwiftGenericConstraints, &mut out);
+    add_decorators(DecoratorKind::Kotlin, &mut out);
 
     out
 }
