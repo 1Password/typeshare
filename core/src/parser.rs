@@ -701,22 +701,23 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
 fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
     // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out: DecoratorMap = HashMap::new();
+    let mut decorator_map: DecoratorMap = HashMap::new();
 
-    let add_decorators = |name: DecoratorKind, map: &mut DecoratorMap| {
-        for value in get_name_value_meta_items(attrs, name.as_str(), TYPESHARE) {
+    for decorator_kind in [
+        DecoratorKind::Swift,
+        DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Kotlin,
+    ] {
+        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
             let constraints = || value.split(',').map(|s| s.trim().to_string());
-            map.entry(name)
+            decorator_map
+                .entry(decorator_kind)
                 .and_modify(|dec_vals| dec_vals.extend(constraints()))
                 .or_insert(constraints().collect());
         }
-    };
+    }
 
-    add_decorators(DecoratorKind::Swift, &mut out);
-    add_decorators(DecoratorKind::SwiftGenericConstraints, &mut out);
-    add_decorators(DecoratorKind::Kotlin, &mut out);
-
-    out
+    decorator_map
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
