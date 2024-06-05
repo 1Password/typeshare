@@ -1,9 +1,13 @@
 use crate::{
     language::{Language, SupportedLanguage},
-    parser::{remove_dash_from_identifier, ParsedData},
+    parser::{
+        remove_dash_from_identifier, ParsedData, SWIFT_DECORATOR,
+        SWIFT_GENERIC_CONSTRAINTS_DECORATOR,
+    },
     rename::RenameExt,
     rust_types::{
-        RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError, SpecialRustType,
+        DecoratorMap, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError,
+        SpecialRustType,
     },
     GenerationError,
 };
@@ -266,9 +270,13 @@ impl Language for Swift {
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         let mut decs = self.get_default_decorators();
 
-        let default_generic_constraints = self.default_generic_constraints.clone();
+        // let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
-        if let Some(swift_decs) = rs.decorators.get(&SupportedLanguage::Swift) {
+        if let Some(swift_decs) = rs
+            .decorators
+            .get(&SupportedLanguage::Swift)
+            .and_then(|d| d.get(SWIFT_DECORATOR))
+        {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
             // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
             // Note: the list received from `rs.decorators` is already deduped
@@ -278,32 +286,14 @@ impl Language for Swift {
                 .for_each(|d| decs.push(d.clone()));
         }
 
-        // Include any decorator constraints on the generic types.
-        let generic_constraint_string = default_generic_constraints
-            .get_constraints()
-            .chain(decs.iter())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .join(" & ");
+        let generic_names_and_constraints =
+            self.generic_constraints(&rs.decorators, &rs.generic_types);
 
         writeln!(
             w,
-            "public struct {}{}: {} {{",
-            type_name,
+            "public struct {type_name}{}: {} {{",
             (!rs.generic_types.is_empty())
-                .then(|| format!(
-                    "<{}>",
-                    rs.generic_types
-                        .iter()
-                        .map(|t| format!(
-                            "{}{}",
-                            t,
-                            (!generic_constraint_string.is_empty())
-                                .then(|| format!(": {}", generic_constraint_string))
-                                .unwrap_or_default()
-                        ))
-                        .join(", ")
-                ))
+                .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
             decs.join(", ")
         )?;
@@ -414,7 +404,12 @@ impl Language for Swift {
                 .for_each(|dec| decs.push(dec));
 
             // Check if this enum's decorators contains swift in the hashmap
-            if let Some(swift_decs) = e.shared().decorators.get(&SupportedLanguage::Swift) {
+            if let Some(swift_decs) = e
+                .shared()
+                .decorators
+                .get(&SupportedLanguage::Swift)
+                .and_then(|d| d.get(SWIFT_DECORATOR))
+            {
                 // Add any decorators from the typeshared enum
                 decs.extend(
                     // Note: `swift_decs` is already deduped
@@ -453,34 +448,14 @@ impl Language for Swift {
         self.write_comments(w, 0, &shared.comments)?;
         let indirect = if shared.is_recursive { "indirect " } else { "" };
 
-        let generic_constraint_string = self
-            .default_generic_constraints
-            .get_constraints()
-            .chain(decs.iter())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .join(" & ");
+        let generic_names_and_constraints =
+            self.generic_constraints(&e.shared().decorators, &e.shared().generic_types);
 
         writeln!(
             w,
-            "public {}enum {}{}: {} {{",
-            indirect,
-            enum_name,
+            "public {indirect}enum {enum_name}{}: {} {{",
             (!e.shared().generic_types.is_empty())
-                .then(|| format!(
-                    "<{}>",
-                    e.shared()
-                        .generic_types
-                        .iter()
-                        .map(|t| format!(
-                            "{}{}",
-                            t,
-                            (!generic_constraint_string.is_empty())
-                                .then(|| format!(": {}", generic_constraint_string))
-                                .unwrap_or_default()
-                        ))
-                        .join(", ")
-                ))
+                .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
             decs.join(", ")
         )?;
@@ -811,6 +786,67 @@ impl Swift {
         }
 
         writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))
+    }
+
+    /// Build the generic constraints output. This checks for the `swiftGenericConstraints` typeshare attribute and combines
+    /// it with the `default_generic_constraints` configuration. If no `swiftGenericConstraints` is defined then we just use
+    /// `default_generic_constraints`.
+    fn generic_constraints<'a>(
+        &'a self,
+        decorator_map: &'a DecoratorMap,
+        generic_types: &'a [String],
+    ) -> String {
+        let swift_generic_contraints_annotated = decorator_map
+            .get(&SupportedLanguage::Swift)
+            .and_then(|d| d.get(SWIFT_GENERIC_CONSTRAINTS_DECORATOR))
+            .map(|generic_constraints| {
+                generic_constraints
+                    .iter()
+                    .flat_map(|generic_constraint| {
+                        let mut gen_name_val_iter = generic_constraint.split(':');
+                        let generic_name = gen_name_val_iter.next()?;
+                        let generic_name_constraints = gen_name_val_iter
+                            .next()?
+                            .split('&')
+                            .map(|s| s.trim())
+                            .collect::<BTreeSet<_>>();
+                        Some((generic_name, generic_name_constraints))
+                    })
+                    .map(|(gen_name, mut gen_constraints)| {
+                        gen_constraints.extend(
+                            self.default_generic_constraints
+                                .get_constraints()
+                                .map(|s| s.as_str()),
+                        );
+                        (gen_name, gen_constraints)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        if swift_generic_contraints_annotated.is_empty() {
+            generic_types
+                .iter()
+                .map(|type_name| {
+                    format!(
+                        "{type_name}: {}",
+                        self.default_generic_constraints
+                            .get_constraints()
+                            .join(" & ")
+                    )
+                })
+                .join(", ")
+        } else {
+            swift_generic_contraints_annotated
+                .iter()
+                .map(|(type_name, constraints)| {
+                    format!(
+                        "{type_name}: {constraints}",
+                        constraints = constraints.iter().join(" & ")
+                    )
+                })
+                .join(", ")
+        }
     }
 }
 

@@ -1,5 +1,8 @@
-#[typeshare(swift = "Equatable")]
-pub struct Button<T> {
+#[typeshare(
+    swift = "Equatable, Identifiable",
+    swiftGenericConstraints = "T: Equatable & SomeThingElse, V: Equatable"
+)]
+pub struct Button<T, V> {
     /// Label of the button
     pub label: String,
     /// Accessibility label if it needed to be different than label
@@ -9,7 +12,7 @@ pub struct Button<T> {
     /// Button action if there one
     pub action: Option<T>,
     /// Icon if there is one
-    pub icon: Option<Icon>,
+    pub icon: Option<V>,
     /// Button state
     pub state: ButtonState,
     /// Button Mode
