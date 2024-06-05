@@ -698,9 +698,8 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
+/// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
 fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
-    // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
     let mut decorator_map: DecoratorMap = HashMap::new();
 
     for decorator_kind in [
