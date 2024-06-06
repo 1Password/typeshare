@@ -8,7 +8,7 @@ use crate::{
     },
     GenerationError,
 };
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
 use std::{
@@ -113,8 +113,8 @@ impl GenericConstraints {
         }
     }
     /// Get an iterator over all constraints.
-    pub fn get_constraints(&self) -> impl Iterator<Item = &String> {
-        self.constraints.iter()
+    pub fn get_constraints(&self) -> impl Iterator<Item = &str> {
+        self.constraints.iter().map(|s| s.as_str())
     }
 
     fn split_constraints(constraints: String) -> Vec<String> {
@@ -792,51 +792,38 @@ impl Swift {
             .map(|generic_constraints| {
                 generic_constraints
                     .iter()
-                    .flat_map(|generic_constraint| {
+                    .filter_map(|generic_constraint| {
                         let mut gen_name_val_iter = generic_constraint.split(':');
                         let generic_name = gen_name_val_iter.next()?;
-                        let generic_name_constraints = gen_name_val_iter
+                        let mut generic_name_constraints = gen_name_val_iter
                             .next()?
                             .split('&')
                             .map(|s| s.trim())
                             .collect::<BTreeSet<_>>();
+                        // Merge default generic constraints with annotated constraints.
+                        generic_name_constraints
+                            .extend(self.default_generic_constraints.get_constraints());
                         Some((generic_name, generic_name_constraints))
                     })
-                    .map(|(gen_name, mut gen_constraints)| {
-                        gen_constraints.extend(
-                            self.default_generic_constraints
-                                .get_constraints()
-                                .map(|s| s.as_str()),
-                        );
-                        (gen_name, gen_constraints)
-                    })
-                    .collect::<Vec<_>>()
+                    .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default();
 
-        if swift_generic_contraints_annotated.is_empty() {
-            generic_types
-                .iter()
-                .map(|type_name| {
-                    format!(
-                        "{type_name}: {}",
-                        self.default_generic_constraints
-                            .get_constraints()
-                            .join(" & ")
-                    )
-                })
-                .join(", ")
-        } else {
-            swift_generic_contraints_annotated
-                .iter()
-                .map(|(type_name, constraints)| {
-                    format!(
-                        "{type_name}: {constraints}",
-                        constraints = constraints.iter().join(" & ")
-                    )
-                })
-                .join(", ")
-        }
+        generic_types
+            .iter()
+            .map(
+                |type_name| match swift_generic_contraints_annotated.get(type_name.as_str()) {
+                    // Use constraints from swiftGenericConstraints decorator.
+                    Some(constraints) => (type_name, Either::Left(constraints.iter().copied())),
+                    // Use the default generic constraints if it is not part of a swiftGenericConstraints decorator.
+                    None => (
+                        type_name,
+                        Either::Right(self.default_generic_constraints.get_constraints()),
+                    ),
+                },
+            )
+            .map(|(type_name, mut constraints)| format!("{type_name}: {}", constraints.join(" & ")))
+            .join(", ")
     }
 }
 
