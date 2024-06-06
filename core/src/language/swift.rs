@@ -267,19 +267,23 @@ impl Language for Swift {
         let type_name = swift_keyword_aware_rename(&format!("{}{}", self.prefix, rs.id.renamed));
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
-        let mut decs = self.get_default_decorators();
-
-        // let default_generic_constraints = self.default_generic_constraints.clone();
         // Check if this struct's decorators contains swift in the hashmap
-        if let Some(swift_decs) = rs.decorators.get(&DecoratorKind::Swift) {
+        let decs = if let Some(swift_decs) = rs.decorators.get(&DecoratorKind::Swift) {
             // For reach item in the received decorators in the typeshared struct add it to the original vector
             // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
             // Note: the list received from `rs.decorators` is already deduped
-            swift_decs
-                .iter()
-                .filter(|d| d.as_str() != CODABLE)
-                .for_each(|d| decs.push(d));
+            Either::Left(
+                self.get_default_decorators().chain(
+                    swift_decs
+                        .iter()
+                        .filter(|d| d.as_str() != CODABLE)
+                        .map(|s| s.as_str()),
+                ),
+            )
+        } else {
+            Either::Right(self.get_default_decorators())
         }
+        .join(", ");
 
         let generic_names_and_constraints =
             self.generic_constraints(&rs.decorators, &rs.generic_types);
@@ -290,7 +294,7 @@ impl Language for Swift {
             (!rs.generic_types.is_empty())
                 .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
-            decs.join(", ")
+            decs
         )?;
 
         for f in &rs.fields {
@@ -389,40 +393,39 @@ impl Language for Swift {
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         /// Determines the decorators needed for an enum given an array of decorators
         /// that should always be present
-        fn determine_decorators<'a>(always_present: &'a [&str], e: &'a RustEnum) -> Vec<&'a str> {
-            let mut decs: Vec<&str> = vec![];
-
-            // Add the decorators that should always be present
-            decs.extend(always_present);
-
-            // Check if this enum's decorators contains swift in the hashmap
-            if let Some(swift_decs) = e.shared().decorators.get(&DecoratorKind::Swift) {
-                // Add any decorators from the typeshared enum
-                decs.extend(
+        fn determine_decorators<'a>(
+            always_present: &'a [&str],
+            e: &'a RustEnum,
+        ) -> impl Iterator<Item = &'a str> {
+            always_present.iter().copied().chain(
+                if let Some(swift_decs) = e.shared().decorators.get(&DecoratorKind::Swift) {
+                    // Add any decorators from the typeshared enum
                     // Note: `swift_decs` is already deduped
-                    swift_decs
-                        .iter()
-                        // Avoids needing to sort / dedup
-                        .filter(|d| !always_present.contains(&d.as_str()))
-                        .map(|d| d.as_str()),
-                );
-            }
-
-            decs
+                    Either::Left(
+                        swift_decs
+                            .iter()
+                            .map(|s| s.as_str())
+                            // Avoids needing to sort / dedup
+                            .filter(|d| !always_present.contains(d)),
+                    )
+                } else {
+                    Either::Right(std::iter::empty())
+                },
+            )
         }
 
         let shared = e.shared();
         let enum_name =
             swift_keyword_aware_rename(&format!("{}{}", self.prefix, shared.id.renamed));
         let always_present = match e {
-            RustEnum::Unit(_) => {
-                let mut always_present = vec!["String"];
-                always_present.append(&mut self.get_default_decorators());
-                always_present
-            }
-            RustEnum::Algebraic { .. } => self.get_default_decorators(),
+            RustEnum::Unit(_) => ["String"]
+                .into_iter()
+                .chain(self.get_default_decorators())
+                .collect::<Vec<_>>(),
+            RustEnum::Algebraic { .. } => self.get_default_decorators().collect::<Vec<_>>(),
         };
         let decs = determine_decorators(&always_present, e).join(", ");
+
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name =
             |variant_name: &str| format!("{}{}Inner", shared.id.renamed, variant_name);
@@ -744,10 +747,10 @@ impl Swift {
 }
 
 impl Swift {
-    fn get_default_decorators(&self) -> Vec<&str> {
-        let mut decs = vec![CODABLE];
-        decs.extend(self.default_decorators.iter().map(|s| s.as_str()));
-        decs
+    fn get_default_decorators(&self) -> impl Iterator<Item = &str> {
+        [CODABLE]
+            .into_iter()
+            .chain(self.default_decorators.iter().map(|s| s.as_str()))
     }
 
     /// When using mulitple file generation we write this into a separate module vs at the
@@ -765,10 +768,10 @@ impl Swift {
             r"/// () isn't codable, so we use this instead to represent Rust's unit type"
         )?;
 
-        let mut decs = self.get_default_decorators();
-
-        // Unit type can be used as generic impl constrained to Equatable.
-        decs.extend(self.codablevoid_constraints.iter().map(|s| s.as_str()));
+        let mut decs = self
+            .get_default_decorators()
+            .chain(self.codablevoid_constraints.iter().map(|s| s.as_str()))
+            .collect::<Vec<_>>();
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         if !decs.contains(&CODABLE) {
