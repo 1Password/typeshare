@@ -700,7 +700,7 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
 /// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
 fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
-    let mut decorator_map: DecoratorMap = HashMap::new();
+    let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
     for decorator_kind in [
         DecoratorKind::Swift,
@@ -708,11 +708,10 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         DecoratorKind::Kotlin,
     ] {
         for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
-            let constraints = || value.split(',').map(|s| s.trim().to_string());
             decorator_map
                 .entry(decorator_kind)
-                .and_modify(|dec_vals| dec_vals.extend(constraints()))
-                .or_insert(constraints().collect());
+                .or_default()
+                .extend(value.split(',').map(|s| s.trim().to_string()));
         }
     }
 
