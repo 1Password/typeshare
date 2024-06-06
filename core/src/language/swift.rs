@@ -242,8 +242,7 @@ impl Language for Swift {
         self.write_comments(w, 0, &ty.comments)?;
 
         let swift_prefix = &self.prefix;
-        let type_name =
-            swift_keyword_aware_rename(Cow::Owned(format!("{}{}", swift_prefix, ty.id.renamed)));
+        let type_name = swift_keyword_aware_rename(format!("{}{}", swift_prefix, ty.id.renamed));
 
         writeln!(
             w,
@@ -266,8 +265,7 @@ impl Language for Swift {
         writeln!(w)?;
         self.write_comments(w, 0, &rs.comments)?;
 
-        let type_name =
-            swift_keyword_aware_rename(Cow::Owned(format!("{}{}", self.prefix, rs.id.renamed)));
+        let type_name = swift_keyword_aware_rename(format!("{}{}", self.prefix, rs.id.renamed));
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
         // Check if this struct's decorators contains swift in the hashmap
@@ -310,9 +308,7 @@ impl Language for Swift {
             if f.id.renamed.chars().any(|c| c == '-') {
                 coding_keys.push(format!(
                     r##"{} = "{}""##,
-                    remove_dash_from_identifier(
-                        swift_keyword_aware_rename(Cow::Borrowed(&f.id.renamed)).as_ref()
-                    ),
+                    remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                     &f.id.renamed
                 ));
 
@@ -321,7 +317,7 @@ impl Language for Swift {
                 should_write_coding_keys = true;
             } else {
                 coding_keys.push(remove_dash_from_identifier(
-                    swift_keyword_aware_rename(Cow::Borrowed(&f.id.renamed)).as_ref(),
+                    swift_keyword_aware_rename(&f.id.renamed).as_ref(),
                 ));
             }
 
@@ -335,9 +331,7 @@ impl Language for Swift {
             writeln!(
                 w,
                 "\tpublic let {}: {}{}",
-                remove_dash_from_identifier(
-                    swift_keyword_aware_rename(Cow::Borrowed(&f.id.renamed)).as_ref()
-                ),
+                remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                 case_type,
                 (f.has_default && !f.ty.is_optional())
                     .then_some("?")
@@ -385,9 +379,7 @@ impl Language for Swift {
                 w,
                 "\n\t\tself.{} = {}",
                 remove_dash_from_identifier(&f.id.renamed),
-                remove_dash_from_identifier(
-                    swift_keyword_aware_rename(Cow::Borrowed(&f.id.renamed)).as_ref()
-                )
+                remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref())
             )?;
         }
         if !rs.fields.is_empty() {
@@ -424,8 +416,7 @@ impl Language for Swift {
         }
 
         let shared = e.shared();
-        let enum_name =
-            swift_keyword_aware_rename(Cow::Owned(format!("{}{}", self.prefix, shared.id.renamed)));
+        let enum_name = swift_keyword_aware_rename(format!("{}{}", self.prefix, shared.id.renamed));
         let always_present = match e {
             RustEnum::Unit(_) => ["String"]
                 .into_iter()
@@ -560,17 +551,13 @@ impl Swift {
                     self.write_comments(w, 1, &v.shared().comments)?;
                     if v.shared().id.renamed == variant_name {
                         // We don't need to handle any renaming
-                        writeln!(
-                            w,
-                            "\tcase {}",
-                            &swift_keyword_aware_rename(Cow::Borrowed(&variant_name))
-                        )?;
+                        writeln!(w, "\tcase {}", &swift_keyword_aware_rename(&variant_name))?;
                     } else {
                         // We do need to handle renaming
                         writeln!(
                             w,
                             "\tcase {} = {:?}",
-                            swift_keyword_aware_rename(Cow::Borrowed(&variant_name)),
+                            swift_keyword_aware_rename(&variant_name),
                             &v.shared().id.renamed
                         )?;
                     }
@@ -603,20 +590,16 @@ impl Swift {
                     };
 
                     coding_keys.push(if variant_name == v.shared().id.renamed {
-                        swift_keyword_aware_rename(Cow::Borrowed(&variant_name)).into_owned()
+                        swift_keyword_aware_rename(&variant_name).into_owned()
                     } else {
                         format!(
                             r##"{} = "{}""##,
-                            swift_keyword_aware_rename(Cow::Borrowed(&variant_name)),
+                            swift_keyword_aware_rename(&variant_name),
                             &v.shared().id.renamed
                         )
                     });
 
-                    write!(
-                        w,
-                        "\tcase {}",
-                        swift_keyword_aware_rename(Cow::Borrowed(&variant_name))
-                    )?;
+                    write!(w, "\tcase {}", swift_keyword_aware_rename(&variant_name))?;
 
                     match v {
                         RustEnumVariant::Unit(_) => {
@@ -633,8 +616,7 @@ impl Swift {
 		case .{case_name}:
 			try container.encode(CodingKeys.{case_name}, forKey: .{tag_key})",
                                 tag_key = tag_key,
-                                case_name =
-                                    swift_keyword_aware_rename(Cow::Borrowed(&variant_name)),
+                                case_name = swift_keyword_aware_rename(&variant_name),
                             ));
                         }
                         RustEnumVariant::Tuple { ty, .. } => {
@@ -642,11 +624,7 @@ impl Swift {
                             let case_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
                                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-                            write!(
-                                w,
-                                "({})",
-                                swift_keyword_aware_rename(Cow::Borrowed(&case_type))
-                            )?;
+                            write!(w, "({})", swift_keyword_aware_rename(&case_type))?;
 
                             if content_optional {
                                 decoding_cases.push(format!(
@@ -661,8 +639,7 @@ impl Swift {
 					return
 				}}",
                                     content_key = content_key,
-                                    case_type =
-                                        swift_keyword_aware_rename(Cow::Borrowed(&case_type)),
+                                    case_type = swift_keyword_aware_rename(&case_type),
                                     case_name = &variant_name
                                 ))
                             } else {
@@ -674,8 +651,7 @@ impl Swift {
 					return
 				}}",
                                     content_key = content_key,
-                                    case_type =
-                                        swift_keyword_aware_rename(Cow::Borrowed(&case_type)),
+                                    case_type = swift_keyword_aware_rename(&case_type),
                                     case_name = &variant_name,
                                 ));
                             }
@@ -853,7 +829,11 @@ impl Swift {
     }
 }
 
-fn swift_keyword_aware_rename(name: Cow<str>) -> Cow<str> {
+fn swift_keyword_aware_rename<'a, T>(name: T) -> Cow<'a, str>
+where
+    T: Into<Cow<'a, str>>,
+{
+    let name = name.into();
     if SWIFT_KEYWORDS.contains(&name.as_ref()) {
         Cow::Owned(format!("`{name}`"))
     } else {
