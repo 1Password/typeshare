@@ -1,8 +1,16 @@
 import Foundation
 
-public struct Button<T: Codable & Equatable & SomeThingElse, V: Codable & Equatable>: Codable, Equatable, Identifiable {
+public struct ButtonState: Codable {
+	public init() {}
+}
+
+public struct ButtonStyle: Codable {
+	public init() {}
+}
+
+public struct Button<T: Codable & Equatable & SomeThingElse, V: Codable & Equatable, I: Codable>: Codable, Equatable, Identifiable {
 	/// Label of the button
-	public let label: String
+	public let label: I
 	/// Accessibility label if it needed to be different than label
 	public let accessibility_label: String?
 	/// Optional tooltips that provide extra explanation for a button
@@ -16,7 +24,7 @@ public struct Button<T: Codable & Equatable & SomeThingElse, V: Codable & Equata
 	/// Button Mode
 	public let style: ButtonStyle
 
-	public init(label: String, accessibility_label: String?, tooltip: String?, action: T?, icon: V?, state: ButtonState, style: ButtonStyle) {
+	public init(label: I, accessibility_label: String?, tooltip: String?, action: T?, icon: V?, state: ButtonState, style: ButtonStyle) {
 		self.label = label
 		self.accessibility_label = accessibility_label
 		self.tooltip = tooltip

@@ -2,9 +2,9 @@
     swift = "Equatable, Identifiable",
     swiftGenericConstraints = "T: Equatable & SomeThingElse, V: Equatable"
 )]
-pub struct Button<T, V> {
+pub struct Button<T, V, I> {
     /// Label of the button
-    pub label: String,
+    pub label: I,
     /// Accessibility label if it needed to be different than label
     pub accessibility_label: Option<String>,
     /// Optional tooltips that provide extra explanation for a button
@@ -18,3 +18,9 @@ pub struct Button<T, V> {
     /// Button Mode
     pub style: ButtonStyle,
 }
+
+#[typeshare]
+pub struct ButtonState;
+
+#[typeshare]
+pub struct ButtonStyle;
