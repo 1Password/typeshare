@@ -151,6 +151,8 @@ pub struct Swift {
     pub no_version_header: bool,
     /// Are we generating mutliple modules?
     pub multi_file: bool,
+    /// The contraints to apply to `CodableVoid`.
+    pub codablevoid_constraints: Vec<String>,
 }
 
 impl Language for Swift {
@@ -276,7 +278,7 @@ impl Language for Swift {
             swift_decs
                 .iter()
                 .filter(|d| d.as_str() != CODABLE)
-                .for_each(|d| decs.push(d.clone()));
+                .for_each(|d| decs.push(d));
         }
 
         let generic_names_and_constraints =
@@ -387,14 +389,11 @@ impl Language for Swift {
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         /// Determines the decorators needed for an enum given an array of decorators
         /// that should always be present
-        fn determine_decorators(always_present: &[String], e: &RustEnum) -> Vec<String> {
-            let mut decs = vec![];
+        fn determine_decorators<'a>(always_present: &'a [&str], e: &'a RustEnum) -> Vec<&'a str> {
+            let mut decs: Vec<&str> = vec![];
 
             // Add the decorators that should always be present
-            always_present
-                .iter()
-                .cloned()
-                .for_each(|dec| decs.push(dec));
+            decs.extend(always_present);
 
             // Check if this enum's decorators contains swift in the hashmap
             if let Some(swift_decs) = e.shared().decorators.get(&DecoratorKind::Swift) {
@@ -404,8 +403,8 @@ impl Language for Swift {
                     swift_decs
                         .iter()
                         // Avoids needing to sort / dedup
-                        .filter(|d| !always_present.contains(d))
-                        .map(|d| d.to_owned()),
+                        .filter(|d| !always_present.contains(&d.as_str()))
+                        .map(|d| d.as_str()),
                 );
             }
 
@@ -417,13 +416,13 @@ impl Language for Swift {
             swift_keyword_aware_rename(&format!("{}{}", self.prefix, shared.id.renamed));
         let always_present = match e {
             RustEnum::Unit(_) => {
-                let mut always_present = vec!["String".into()];
+                let mut always_present = vec!["String"];
                 always_present.append(&mut self.get_default_decorators());
                 always_present
             }
             RustEnum::Algebraic { .. } => self.get_default_decorators(),
         };
-        let decs = determine_decorators(&always_present, e);
+        let decs = determine_decorators(&always_present, e).join(", ");
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name =
             |variant_name: &str| format!("{}{}Inner", shared.id.renamed, variant_name);
@@ -445,7 +444,7 @@ impl Language for Swift {
             (!e.shared().generic_types.is_empty())
                 .then(|| format!("<{generic_names_and_constraints}>",))
                 .unwrap_or_default(),
-            decs.join(", ")
+            decs
         )?;
 
         let coding_keys_info = self.write_enum_variants(w, e, make_anonymous_struct_name)?;
@@ -745,9 +744,9 @@ impl Swift {
 }
 
 impl Swift {
-    fn get_default_decorators(&self) -> Vec<String> {
-        let mut decs: Vec<String> = vec![CODABLE.to_string()];
-        decs.extend(self.default_decorators.iter().cloned());
+    fn get_default_decorators(&self) -> Vec<&str> {
+        let mut decs = vec![CODABLE];
+        decs.extend(self.default_decorators.iter().map(|s| s.as_str()));
         decs
     }
 
@@ -769,11 +768,11 @@ impl Swift {
         let mut decs = self.get_default_decorators();
 
         // Unit type can be used as generic impl constrained to Equatable.
-        decs.push("Equatable".into());
+        decs.extend(self.codablevoid_constraints.iter().map(|s| s.as_str()));
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
-        if !decs.contains(&CODABLE.to_string()) {
-            decs.push(CODABLE.to_string());
+        if !decs.contains(&CODABLE) {
+            decs.push(CODABLE);
         }
 
         writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))
