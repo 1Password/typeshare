@@ -383,6 +383,7 @@ tests! {
     can_generate_generic_struct: [
         swift {
             prefix: "Core".into(),
+            codablevoid_constraints: vec!["Equatable".into()]
         },
         kotlin,
         scala,
@@ -542,7 +543,7 @@ tests! {
     generate_types_with_keywords: [swift];
     // TODO: how is this different from generates_empty_structs_and_initializers?
     use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go];
-    can_handle_unit_type: [swift, kotlin, scala,  typescript, go];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
@@ -569,5 +570,5 @@ tests! {
         go
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
-    generic_struct_with_constraints_and_decorators: [swift];
+    generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()]}];
 }

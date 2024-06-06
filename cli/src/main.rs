@@ -146,6 +146,7 @@ fn language(
                 config.swift.default_generic_constraints,
             ),
             multi_file,
+            codablevoid_constraints: config.swift.codablevoid_constraints,
             ..Default::default()
         }),
         SupportedLanguage::Kotlin => Box::new(Kotlin {

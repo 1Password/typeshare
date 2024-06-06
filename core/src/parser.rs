@@ -2,8 +2,9 @@ use crate::{
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
-        FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
-        RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+        DecoratorMap, FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant,
+        RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
+        RustTypeParseError,
     },
     visitors::{ImportedType, TypeShareVisitor},
 };
@@ -22,6 +23,28 @@ use thiserror::Error;
 
 const TYPESHARE: &str = "typeshare";
 const SERDE: &str = "serde";
+
+/// Supported typeshare type level decorator attributes.
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum DecoratorKind {
+    /// The typeshare attribute for swift type constraints "swift"
+    Swift,
+    /// The typeshare attribute for swift generic constraints "swiftGenericConstraints"
+    SwiftGenericConstraints,
+    /// The typeshare attribute for kotlin "kotlin"
+    Kotlin,
+}
+
+impl DecoratorKind {
+    /// This decorator as a str.
+    fn as_str(&self) -> &str {
+        match self {
+            DecoratorKind::Swift => "swift",
+            DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
+            DecoratorKind::Kotlin => "kotlin",
+        }
+    }
+}
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -675,32 +698,24 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
-    // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
+/// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
+fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
+    let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
-    for value in get_name_value_meta_items(attrs, "swift", TYPESHARE) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-
-        // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry(SupportedLanguage::Swift).or_default();
-        decs.extend(decorators);
-        // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
+    for decorator_kind in [
+        DecoratorKind::Swift,
+        DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Kotlin,
+    ] {
+        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
+            decorator_map
+                .entry(decorator_kind)
+                .or_default()
+                .extend(value.split(',').map(|s| s.trim().to_string()));
+        }
     }
 
-    for value in get_name_value_meta_items(attrs, "kotlin", TYPESHARE) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-        let decs = out.entry(SupportedLanguage::Kotlin).or_default();
-        decs.extend(decorators);
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
-    }
-
-    //return our hashmap mapping of language -> Vec<decorators>
-    out
+    decorator_map
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {

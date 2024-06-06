@@ -1,6 +1,6 @@
 use super::{Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
-use crate::parser::{remove_dash_from_identifier, ParsedData};
+use crate::parser::{remove_dash_from_identifier, DecoratorKind, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
@@ -169,7 +169,7 @@ impl Language for Kotlin {
                 writeln!(w)?;
             }
             write!(w, ")")?;
-            if let Some(kotlin_decorators) = rs.decorators.get(&SupportedLanguage::Kotlin) {
+            if let Some(kotlin_decorators) = rs.decorators.get(&DecoratorKind::Kotlin) {
                 let redacted_decorator = String::from(REDACTED_TO_STRING);
                 if kotlin_decorators.iter().any(|d| *d == redacted_decorator) {
                     writeln!(w, " {{")?;

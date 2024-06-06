@@ -46,4 +46,4 @@ public enum EnumHasVoidType: Codable {
 }
 
 /// () isn't codable, so we use this instead to represent Rust's unit type
-public struct CodableVoid: Codable {}
+public struct CodableVoid: Codable, Equatable {}
