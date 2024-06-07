@@ -11,3 +11,7 @@ enum class TestEnum(val string: String) {
 	Variant5("Variant5"),
 }
 
+@Serializable
+enum class SomeEnum(val string: String) {
+}
+

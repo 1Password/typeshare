@@ -3,3 +3,6 @@ export enum TestEnum {
 	Variant5 = "Variant5",
 }
 
+export enum SomeEnum {
+}
+

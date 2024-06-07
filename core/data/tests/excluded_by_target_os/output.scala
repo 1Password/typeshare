@@ -14,4 +14,10 @@ object TestEnum {
 	}
 }
 
+sealed trait SomeEnum {
+	def serialName: String
+}
+object SomeEnum {
+}
+
 }

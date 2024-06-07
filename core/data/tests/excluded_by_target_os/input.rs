@@ -22,3 +22,8 @@ type TypeAlias = String;
 #[typeshare]
 #[cfg(any(target_os = "ios", feature = "test"))]
 pub enum Test {}
+
+#[typeshare]
+#[cfg(feature = "super")]
+#[cfg(target_os = "android")]
+pub enum SomeEnum {}
