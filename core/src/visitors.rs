@@ -2,13 +2,13 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
-        ParseError, ParsedData,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_skip,
+        ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
 };
 use std::{collections::HashSet, path::PathBuf};
-use syn::{visit::Visit, ItemUse, UseTree};
+use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 
 /// List of some popular crate names that we can ignore
 /// during import parsing.
@@ -184,6 +184,15 @@ impl<'a> TypeShareVisitor<'a> {
 
         self.parsed_data.import_types = diff;
     }
+
+    /// Is this type annoted with at `#[cfg(target_os = "target")]` that does
+    /// not match `--target-os` argument?
+    fn target_os_skipped(&self, attrs: &[Attribute]) -> bool {
+        self.target_os
+            .as_ref()
+            .map(|target_os| attrs.iter().any(|attr| target_os_skip(attr, target_os)))
+            .unwrap_or(false)
+    }
 }
 
 impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
@@ -252,7 +261,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        if has_typeshare_annotation(&i.attrs) {
+        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
             self.collect_result(parse_struct(i, self.target_os.as_deref()));
         }
 
@@ -261,7 +270,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        if has_typeshare_annotation(&i.attrs) {
+        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
             self.collect_result(parse_enum(i, self.target_os.as_deref()));
         }
 
@@ -270,7 +279,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust type aliases.
     fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
-        if has_typeshare_annotation(&i.attrs) {
+        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
             self.collect_result(parse_type_alias(i));
         }
 

@@ -584,11 +584,11 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     }) || target_os
-        .map(|target| attrs.iter().any(|attr| target_os_check(attr, target)))
+        .map(|target| attrs.iter().any(|attr| target_os_skip(attr, target)))
         .unwrap_or(false)
 }
 
-fn target_os_check(attr: &Attribute, target_os: &str) -> bool {
+pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
     let target = get_meta_items(attr, "cfg")
         .into_iter()
         .find_map(|arg| match &arg {
@@ -600,14 +600,14 @@ fn target_os_check(attr: &Attribute, target_os: &str) -> bool {
                     }),
                 ..
             }) if path.is_ident("target_os") => Some(v.value()),
-            Meta::List(meta_list) => target_os_check_list(meta_list),
+            Meta::List(meta_list) => target_os_skip_list(meta_list),
             _ => None,
         });
 
     target.map(|os| os != target_os).unwrap_or(false)
 }
 
-fn target_os_check_list(list: &MetaList) -> Option<String> {
+fn target_os_skip_list(list: &MetaList) -> Option<String> {
     let _ = list
         .path
         .segments

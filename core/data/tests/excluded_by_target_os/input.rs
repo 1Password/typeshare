@@ -10,3 +10,15 @@ pub enum TestEnum {
     #[cfg(target_os = "android")]
     Variant5,
 }
+
+#[typeshare]
+#[cfg(target_os = "ios")]
+pub struct TestStruct;
+
+#[typeshare]
+#[cfg(target_os = "ios")]
+type TypeAlias = String;
+
+#[typeshare]
+#[cfg(any(target_os = "ios", feature = "test"))]
+pub enum Test {}
