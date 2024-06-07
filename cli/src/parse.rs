@@ -93,6 +93,7 @@ pub fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[&str],
     multi_file: bool,
+    target_os: Option<String>,
 ) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
@@ -114,6 +115,7 @@ pub fn parse_input(
                             file_path,
                             ignored_types,
                             multi_file,
+                            target_os.clone(),
                         )
                         .context("Failed to parse")
                     })

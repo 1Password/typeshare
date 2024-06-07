@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context};
 use args::{
     build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
     ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
-    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
+    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TARGET_OS, ARG_TYPE,
 };
 use clap::ArgMatches;
 use config::Config;
@@ -103,6 +103,9 @@ fn main() -> anyhow::Result<()> {
     }
 
     let multi_file = options.value_of(ARG_OUTPUT_FOLDER).is_some();
+
+    let target_os = config.target_os.clone();
+
     let lang = language(language_type, config, multi_file);
     let ignored_types = lang.ignored_reference_types();
 
@@ -114,6 +117,7 @@ fn main() -> anyhow::Result<()> {
         parser_inputs(walker_builder, language_type, multi_file),
         &ignored_types,
         multi_file,
+        target_os,
     )?;
 
     // Collect all the types into a map of the file name they
@@ -211,6 +215,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
         config.go.package = go_package.to_string();
     }
 
+    config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
     config
 }
 

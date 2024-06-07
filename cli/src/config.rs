@@ -64,6 +64,8 @@ pub(crate) struct Config {
     pub scala: ScalaParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
+    #[serde(skip)]
+    pub target_os: Option<String>,
 }
 
 pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {

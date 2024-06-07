@@ -8,7 +8,8 @@ use crate::{
     },
     visitors::{ImportedType, TypeShareVisitor},
 };
-use proc_macro2::Ident;
+use itertools::Itertools;
+use proc_macro2::{Ident, TokenTree};
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
@@ -16,7 +17,7 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta, MetaList,
     MetaNameValue, Token,
 };
 use thiserror::Error;
@@ -155,6 +156,7 @@ pub fn parse(
     file_path: PathBuf,
     ignored_types: &[&str],
     mult_file: bool,
+    target_os: Option<String>,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -164,8 +166,14 @@ pub fn parse(
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor =
-        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, mult_file);
+    let mut import_visitor = TypeShareVisitor::new(
+        crate_name,
+        file_name,
+        file_path,
+        ignored_types,
+        mult_file,
+        target_os,
+    );
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
     Ok(Some(import_visitor.parsed_data()))
@@ -176,7 +184,10 @@ pub fn parse(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(
+    s: &ItemStruct,
+    target_os: Option<&str>,
+) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -207,7 +218,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             let fields = f
                 .named
                 .iter()
-                .filter(|field| !is_skipped(&field.attrs))
+                .filter(|field| !is_skipped(&field.attrs, target_os))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -276,7 +287,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -311,8 +322,8 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .variants
         .iter()
         // Filter out variants we've been told to skip
-        .filter(|v| !is_skipped(&v.attrs))
-        .map(|v| parse_enum_variant(v, &serde_rename_all))
+        .filter(|v| !is_skipped(&v.attrs, target_os))
+        .map(|v| parse_enum_variant(v, &serde_rename_all, target_os))
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
@@ -374,6 +385,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
 fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<String>,
+    target_os: Option<&str>,
 ) -> Result<RustEnumVariant, ParseError> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
@@ -408,7 +420,7 @@ fn parse_enum_variant(
             fields: fields_named
                 .named
                 .iter()
-                .filter(|f| !is_skipped(&f.attrs))
+                .filter(|f| !is_skipped(&f.attrs, target_os))
                 .map(|f| {
                     let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -565,13 +577,50 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
-fn is_skipped(attrs: &[syn::Attribute]) -> bool {
+fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
             .into_iter()
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
-    })
+    }) || target_os
+        .map(|target| attrs.iter().any(|attr| target_os_check(attr, target)))
+        .unwrap_or(false)
+}
+
+fn target_os_check(attr: &Attribute, target_os: &str) -> bool {
+    let target = get_meta_items(attr, "cfg")
+        .into_iter()
+        .find_map(|arg| match &arg {
+            Meta::NameValue(MetaNameValue {
+                path,
+                value:
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(v), ..
+                    }),
+                ..
+            }) if path.is_ident("target_os") => Some(v.value()),
+            Meta::List(meta_list) => target_os_check_list(meta_list),
+            _ => None,
+        });
+
+    target.map(|os| os != target_os).unwrap_or(false)
+}
+
+fn target_os_check_list(list: &MetaList) -> Option<String> {
+    let _ = list
+        .path
+        .segments
+        .iter()
+        .find(|segment| segment.ident == "any" || segment.ident == "all")?;
+
+    let tokens = list.tokens.clone().into_iter().collect::<Vec<_>>();
+
+    let (target_os_index, _) = tokens
+        .iter()
+        .find_position(|tt| matches!(tt, TokenTree::Ident(ident) if ident == "target_os"))?;
+
+    Some(tokens[target_os_index + 2].to_string().replace('"', ""))
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
@@ -601,14 +650,14 @@ fn get_field_decorators(
     attrs
         .iter()
         .flat_map(|attr| get_meta_items(attr, TYPESHARE))
-        .flat_map(|meta| {
+        .filter_map(|meta| {
             if let Meta::List(list) = meta {
                 Some(list)
             } else {
                 None
             }
         })
-        .flat_map(|list: MetaList| match list.path.get_ident() {
+        .filter_map(|list: MetaList| match list.path.get_ident() {
             Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
                 Some((ident.try_into().unwrap(), list))
             }

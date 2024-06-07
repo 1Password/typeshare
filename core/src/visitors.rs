@@ -50,6 +50,7 @@ pub struct TypeShareVisitor<'a> {
     #[allow(dead_code)]
     file_path: PathBuf,
     ignored_types: &'a [&'a str],
+    target_os: Option<String>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
@@ -60,11 +61,13 @@ impl<'a> TypeShareVisitor<'a> {
         file_path: PathBuf,
         ignored_types: &'a [&'a str],
         multi_file: bool,
+        target_os: Option<String>,
     ) -> Self {
         Self {
             parsed_data: ParsedData::new(crate_name, file_name, multi_file),
             file_path,
             ignored_types,
+            target_os,
         }
     }
 
@@ -250,7 +253,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
         if has_typeshare_annotation(&i.attrs) {
-            self.collect_result(parse_struct(i));
+            self.collect_result(parse_struct(i, self.target_os.as_deref()));
         }
 
         syn::visit::visit_item_struct(self, i);
@@ -259,7 +262,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
         if has_typeshare_annotation(&i.attrs) {
-            self.collect_result(parse_enum(i));
+            self.collect_result(parse_enum(i, self.target_os.as_deref()));
         }
 
         syn::visit::visit_item_enum(self, i);
@@ -573,6 +576,7 @@ mod test {
             "file_path".into(),
             &[],
             true,
+            None,
         );
         visitor.visit_file(&file);
 
