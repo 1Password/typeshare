@@ -7,4 +7,6 @@ pub enum TestEnum {
     Variant3,
     #[cfg(all(target_os = "ios", feature = "test"))]
     Variant4,
+    #[cfg(target_os = "android")]
+    Variant5,
 }

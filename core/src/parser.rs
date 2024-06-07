@@ -620,7 +620,9 @@ fn target_os_check_list(list: &MetaList) -> Option<String> {
         .iter()
         .find_position(|tt| matches!(tt, TokenTree::Ident(ident) if ident == "target_os"))?;
 
-    Some(tokens[target_os_index + 2].to_string().replace('"', ""))
+    tokens
+        .get(target_os_index + 2)
+        .map(|target| target.to_string().replace('"', ""))
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
