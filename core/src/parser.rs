@@ -588,10 +588,13 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
         .unwrap_or(false)
 }
 
+/// Check if we have a `target_os` cfg that dooes not match command line
+/// argument `--target-os`.
 pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
-    let target = get_meta_items(attr, "cfg")
+    get_meta_items(attr, "cfg")
         .into_iter()
         .find_map(|arg| match &arg {
+            // a single #[cfg(target_os = "target")]
             Meta::NameValue(MetaNameValue {
                 path,
                 value:
@@ -600,11 +603,13 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
                     }),
                 ..
             }) if path.is_ident("target_os") => Some(v.value()),
+            // combined with any or all
+            // Ex: #[cfg(any(target_os = "target", feature = "test"))]
             Meta::List(meta_list) => target_os_skip_list(meta_list),
             _ => None,
-        });
-
-    target.map(|os| os != target_os).unwrap_or(false)
+        })
+        .map(|os| os != target_os)
+        .unwrap_or(false)
 }
 
 fn target_os_skip_list(list: &MetaList) -> Option<String> {
