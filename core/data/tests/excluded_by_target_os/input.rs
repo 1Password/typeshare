@@ -1,3 +1,8 @@
+#![cfg(feature = "online")]
+#![allow(dead_code)]
+
+use std::collection::HashMap;
+
 #[typeshare]
 pub enum TestEnum {
     Variant1,

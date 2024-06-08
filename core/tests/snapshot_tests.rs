@@ -586,4 +586,5 @@ tests! {
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
     excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: "android";
+    excluded_by_target_os_full_module: [swift] target_os: "ios";
 }

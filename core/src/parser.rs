@@ -9,7 +9,7 @@ use crate::{
     visitors::{ImportedType, TypeShareVisitor},
 };
 use itertools::Itertools;
-use proc_macro2::{Ident, TokenTree};
+use proc_macro2::{Ident, TokenStream, TokenTree};
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
@@ -618,13 +618,18 @@ fn target_os_skip_list(list: &MetaList) -> Option<String> {
         .segments
         .iter()
         .find(|segment| segment.ident == "any" || segment.ident == "all")?;
+    target_os_from_token_tree(list.tokens.clone())
+}
 
-    let tokens = list.tokens.clone().into_iter().collect::<Vec<_>>();
+pub(crate) fn target_os_from_token_tree(tokens: TokenStream) -> Option<String> {
+    let tokens = tokens.into_iter().collect::<Vec<_>>();
 
     let (target_os_index, _) = tokens
         .iter()
         .find_position(|tt| matches!(tt, TokenTree::Ident(ident) if ident == "target_os"))?;
 
+    // Skip the "=" token to get the os_name value.
+    // target_os = os_name
     tokens
         .get(target_os_index + 2)
         .map(|target| target.to_string().replace('"', ""))

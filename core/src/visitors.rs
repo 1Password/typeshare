@@ -2,13 +2,14 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_skip,
-        ErrorInfo, ParseError, ParsedData,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias,
+        target_os_from_token_tree, target_os_skip, ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
 };
+use proc_macro2::TokenTree;
 use std::{collections::HashSet, path::PathBuf};
-use syn::{visit::Visit, Attribute, ItemUse, UseTree};
+use syn::{visit::Visit, Attribute, ItemUse, Meta, MetaList, UseTree};
 
 /// List of some popular crate names that we can ignore
 /// during import parsing.
@@ -193,6 +194,50 @@ impl<'a> TypeShareVisitor<'a> {
             .map(|target_os| attrs.iter().any(|attr| target_os_skip(attr, target_os)))
             .unwrap_or(false)
     }
+
+    /// Should this file be skipped?
+    fn is_file_skipped(&self, attrs: &[Attribute]) -> bool {
+        self.target_os
+            .as_ref()
+            .map(|target_os| {
+                attrs.iter().any(|attr| match &attr.meta {
+                    Meta::List(list) => Self::target_os_skip(list)
+                        .map(|os| &os != target_os)
+                        .unwrap_or(false),
+                    _ => false,
+                })
+            })
+            .unwrap_or(false)
+    }
+
+    /// Check if this file is ignored via a target_os attribute that does not
+    /// match the `--target-os` command line argument.
+    fn target_os_skip(meta_list: &MetaList) -> Option<String> {
+        let single_rule = || {
+            meta_list
+                .path
+                .segments
+                .iter()
+                .find(|segment| segment.ident == "cfg")
+                .and_then(|_| target_os_from_token_tree(meta_list.tokens.clone()))
+        };
+
+        let composite_rule =
+            || {
+                let tokens = meta_list.tokens.clone().into_iter().collect::<Vec<_>>();
+                tokens
+            .iter()
+            .find(|tt| matches!(tt, TokenTree::Ident(ident) if ident == "any" || ident == "all"))
+            .and_then(|_| {
+                tokens.iter().find_map(|tt| match tt {
+                    TokenTree::Group(group) => target_os_from_token_tree(group.stream()),
+                    _ => None,
+                })
+            })
+            };
+
+        single_rule().or_else(composite_rule)
+    }
 }
 
 impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
@@ -284,6 +329,12 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         }
 
         syn::visit::visit_item_type(self, i);
+    }
+
+    fn visit_file(&mut self, i: &'ast syn::File) {
+        if !self.is_file_skipped(&i.attrs) {
+            syn::visit::visit_file(self, i);
+        }
     }
 }
 
