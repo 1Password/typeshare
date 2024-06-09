@@ -4,7 +4,6 @@ use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
-    ops::Not,
     path::PathBuf,
 };
 use typeshare_core::{
@@ -105,37 +104,23 @@ pub fn parse_input(
                  file_name,
                  crate_name,
              }| {
-                match std::fs::read_to_string(&file_path)
-                    .context("Failed to read input")
-                    .and_then(|data| {
-                        typeshare_core::parser::parse(
-                            &data,
-                            crate_name.clone(),
-                            file_name.clone(),
-                            file_path,
-                            ignored_types,
-                            multi_file,
-                            target_os.clone(),
-                        )
-                        .context("Failed to parse")
-                    })
-                    .map(|parsed_data| {
-                        parsed_data.and_then(|parsed_data| {
-                            is_parsed_data_empty(&parsed_data)
-                                .not()
-                                .then_some((crate_name, parsed_data))
-                        })
-                    })? {
-                    Some((crate_name, parsed_data)) => {
-                        match results.entry(crate_name) {
-                            Entry::Occupied(mut entry) => {
-                                entry.get_mut().add(parsed_data);
-                            }
-                            Entry::Vacant(entry) => {
-                                entry.insert(parsed_data);
-                            }
-                        }
-                        Ok::<_, anyhow::Error>(results)
+                let file_contents =
+                    std::fs::read_to_string(&file_path).context("Failed to read input")?;
+                let parsed_result = typeshare_core::parser::parse(
+                    &file_contents,
+                    crate_name.clone(),
+                    file_name.clone(),
+                    file_path,
+                    ignored_types,
+                    multi_file,
+                    target_os.clone(),
+                )
+                .context("Failed to parse")?;
+
+                match parsed_result {
+                    Some(parsed_data) => {
+                        results.entry(crate_name).or_default().add(parsed_data);
+                        Ok(results)
                     }
                     None => Ok(results),
                 }
@@ -143,23 +128,8 @@ pub fn parse_input(
         )
         .try_reduce(HashMap::new, |mut file_maps, mapping| {
             for (crate_name, parsed_data) in mapping {
-                match file_maps.entry(crate_name) {
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().add(parsed_data);
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(parsed_data);
-                    }
-                }
+                file_maps.entry(crate_name).or_default().add(parsed_data);
             }
             Ok(file_maps)
         })
-}
-
-/// Check if we have not parsed any relavent typehsared types.
-fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
-    parsed_data.enums.is_empty()
-        && parsed_data.aliases.is_empty()
-        && parsed_data.structs.is_empty()
-        && parsed_data.errors.is_empty()
 }

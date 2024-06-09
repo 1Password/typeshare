@@ -146,6 +146,14 @@ impl ParsedData {
             }
         }
     }
+
+    /// If this file was skipped by the visitor.
+    pub fn is_empty(&self) -> bool {
+        self.structs.is_empty()
+            && self.enums.is_empty()
+            && self.aliases.is_empty()
+            && self.errors.is_empty()
+    }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
@@ -176,7 +184,7 @@ pub fn parse(
     );
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
-    Ok(Some(import_visitor.parsed_data()))
+    Ok(import_visitor.parsed_data())
 }
 
 /// Parses a struct into a definition that more succinctly represents what

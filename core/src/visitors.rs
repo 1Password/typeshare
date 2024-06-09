@@ -8,7 +8,7 @@ use crate::{
     rust_types::{RustEnumVariant, RustItem},
 };
 use proc_macro2::TokenTree;
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, ops::Not, path::PathBuf};
 use syn::{visit::Visit, Attribute, ItemUse, Meta, MetaList, UseTree};
 
 /// List of some popular crate names that we can ignore
@@ -73,14 +73,16 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     /// Consume the visitor and return parsed data.
-    pub fn parsed_data(self) -> ParsedData {
-        if self.parsed_data.multi_file {
-            let mut s = self;
-            s.reconcile_referenced_types();
-            s.parsed_data
-        } else {
-            self.parsed_data
-        }
+    pub fn parsed_data(self) -> Option<ParsedData> {
+        self.parsed_data.is_empty().not().then(|| {
+            if self.parsed_data.multi_file {
+                let mut s = self;
+                s.reconcile_referenced_types();
+                s.parsed_data
+            } else {
+                self.parsed_data
+            }
+        })
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
