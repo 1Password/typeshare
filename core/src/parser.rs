@@ -128,6 +128,10 @@ impl ParsedData {
         self.import_types.extend(other.import_types);
         self.type_names.extend(other.type_names);
         self.errors.append(&mut other.errors);
+
+        self.file_name = other.file_name;
+        self.crate_name = other.crate_name;
+        self.multi_file = other.multi_file;
     }
 
     pub(crate) fn push(&mut self, rust_thing: RustItem) {

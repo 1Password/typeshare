@@ -27,12 +27,12 @@ pub fn parser_inputs(
     walker_builder: WalkBuilder,
     language_type: SupportedLanguage,
     multi_file: bool,
-) -> Vec<ParserInput> {
+) -> impl Iterator<Item = ParserInput> {
     walker_builder
         .build()
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
-        .filter_map(|dir_entry| {
+        .filter_map(move |dir_entry| {
             let crate_name = if multi_file {
                 CrateName::find_crate_name(dir_entry.path())?
             } else {
@@ -46,7 +46,6 @@ pub fn parser_inputs(
                 crate_name,
             })
         })
-        .collect()
 }
 
 /// The output file name to write to.
@@ -89,7 +88,7 @@ pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
-    inputs: Vec<ParserInput>,
+    inputs: impl ParallelIterator<Item = ParserInput>,
     ignored_types: &[&str],
     multi_file: bool,
     target_os: Option<String>,

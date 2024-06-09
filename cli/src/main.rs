@@ -11,6 +11,7 @@ use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use parse::{all_types, parse_input, parser_inputs};
+use rayon::iter::ParallelBridge;
 use std::collections::HashMap;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
@@ -114,7 +115,7 @@ fn main() -> anyhow::Result<()> {
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
     let crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type, multi_file),
+        parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &ignored_types,
         multi_file,
         target_os,
