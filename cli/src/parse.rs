@@ -98,16 +98,15 @@ pub fn parse_input(
         .into_par_iter()
         .try_fold(
             HashMap::new,
-            |mut results: HashMap<CrateName, ParsedData>,
+            |mut parsed_crates: HashMap<CrateName, ParsedData>,
              ParserInput {
                  file_path,
                  file_name,
                  crate_name,
              }| {
-                let file_contents =
-                    std::fs::read_to_string(&file_path).context("Failed to read input")?;
                 let parsed_result = typeshare_core::parser::parse(
-                    &file_contents,
+                    &std::fs::read_to_string(&file_path)
+                        .with_context(|| format!("Failed to read input: {file_name}"))?,
                     crate_name.clone(),
                     file_name.clone(),
                     file_path,
@@ -115,19 +114,20 @@ pub fn parse_input(
                     multi_file,
                     target_os.clone(),
                 )
-                .context("Failed to parse")?;
+                .with_context(|| format!("Failed to parse: {file_name}"))?;
 
-                match parsed_result {
-                    Some(parsed_data) => {
-                        results.entry(crate_name).or_default().add(parsed_data);
-                        Ok(results)
-                    }
-                    None => Ok(results),
+                if let Some(parsed_data) = parsed_result {
+                    parsed_crates
+                        .entry(crate_name)
+                        .or_default()
+                        .add(parsed_data);
                 }
+
+                Ok(parsed_crates)
             },
         )
-        .try_reduce(HashMap::new, |mut file_maps, mapping| {
-            for (crate_name, parsed_data) in mapping {
+        .try_reduce(HashMap::new, |mut file_maps, parsed_crates| {
+            for (crate_name, parsed_data) in parsed_crates {
                 file_maps.entry(crate_name).or_default().add(parsed_data);
             }
             Ok(file_maps)
