@@ -96,7 +96,7 @@ impl Module {
 }
 
 #[derive(Debug, Clone)]
-enum ParsedRusthThing<'a> {
+enum ParsedRustThing<'a> {
     Struct(&'a RustStruct),
     Enum(&'a RustEnum),
     TypeAlias(&'a RustTypeAlias),
@@ -169,10 +169,10 @@ impl Language for Python {
         _imports: &CrateTypes,
         data: ParsedData,
     ) -> std::io::Result<()> {
-        let mut globals: Vec<ParsedRusthThing>;
+        let mut globals: Vec<ParsedRustThing>;
         {
             for alias in &data.aliases {
-                let thing = ParsedRusthThing::TypeAlias(alias);
+                let thing = ParsedRustThing::TypeAlias(alias);
                 let identifier = self.get_identifier(thing);
                 match &alias.r#type {
                     RustType::Generic { id, parameters: _ } => {
@@ -183,21 +183,21 @@ impl Language for Python {
                 }
             }
             for strct in &data.structs {
-                let thing = ParsedRusthThing::Struct(strct);
+                let thing = ParsedRustThing::Struct(strct);
                 let identifier = self.get_identifier(thing);
                 self.module.add_global(identifier, vec![]);
             }
             for enm in &data.enums {
-                let thing = ParsedRusthThing::Enum(enm);
+                let thing = ParsedRustThing::Enum(enm);
                 let identifier = self.get_identifier(thing);
                 self.module.add_global(identifier, vec![]);
             }
             globals = data
                 .aliases
                 .iter()
-                .map(ParsedRusthThing::TypeAlias)
-                .chain(data.structs.iter().map(ParsedRusthThing::Struct))
-                .chain(data.enums.iter().map(ParsedRusthThing::Enum))
+                .map(ParsedRustThing::TypeAlias)
+                .chain(data.structs.iter().map(ParsedRustThing::Struct))
+                .chain(data.enums.iter().map(ParsedRustThing::Enum))
                 .collect();
             let sorted_identifiers = self.module.topologically_sorted_globals().unwrap();
             globals.sort_by(|a, b| {
@@ -217,9 +217,9 @@ impl Language for Python {
         let mut body: Vec<u8> = Vec::new();
         for thing in globals {
             match thing {
-                ParsedRusthThing::Enum(e) => self.write_enum(&mut body, e)?,
-                ParsedRusthThing::Struct(rs) => self.write_struct(&mut body, rs)?,
-                ParsedRusthThing::TypeAlias(t) => self.write_type_alias(&mut body, t)?,
+                ParsedRustThing::Enum(e) => self.write_enum(&mut body, e)?,
+                ParsedRustThing::Struct(rs) => self.write_struct(&mut body, rs)?,
+                ParsedRustThing::TypeAlias(t) => self.write_type_alias(&mut body, t)?,
             };
         }
         self.begin_file(w, &data)?;
@@ -634,11 +634,11 @@ impl Python {
         }
     }
 
-    fn get_identifier(&self, thing: ParsedRusthThing) -> String {
+    fn get_identifier(&self, thing: ParsedRustThing) -> String {
         match thing {
-            ParsedRusthThing::TypeAlias(alias) => alias.id.original.clone(),
-            ParsedRusthThing::Struct(strct) => strct.id.original.clone(),
-            ParsedRusthThing::Enum(enm) => match enm {
+            ParsedRustThing::TypeAlias(alias) => alias.id.original.clone(),
+            ParsedRustThing::Struct(strct) => strct.id.original.clone(),
+            ParsedRustThing::Enum(enm) => match enm {
                 RustEnum::Unit(u) => u.id.original.clone(),
                 RustEnum::Algebraic {
                     tag_key: _,
