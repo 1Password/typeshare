@@ -602,7 +602,7 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
 /// argument `--target-os`.
 pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
     get_meta_items(attr, "cfg")
-        .find_map(|arg| match &arg {
+        .find_map(|meta| match &meta {
             // a single #[cfg(target_os = "target")]
             Meta::NameValue(MetaNameValue {
                 path,
@@ -614,7 +614,11 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
             }) if path.is_ident("target_os") => Some(v.value()),
             // combined with any or all
             // Ex: #[cfg(any(target_os = "target", feature = "test"))]
-            Meta::List(meta_list) => target_os_skip_list(meta_list),
+            Meta::List(meta_list)
+                if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
+            {
+                target_os_from_meta_list(meta_list)
+            }
             _ => None,
         })
         .map(|os| os != target_os)
@@ -622,25 +626,24 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
 }
 
 /// Parses `target_os = "os"` value from `any` or `all` meta list.
-pub(crate) fn target_os_skip_list(list: &MetaList) -> Option<String> {
-    (list.path.is_ident("any") || list.path.is_ident("all")).then_some(())?;
-
+pub(crate) fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
     let name_values: Punctuated<MetaNameValue, Token![,]> =
         list.parse_args_with(Punctuated::parse_terminated).ok()?;
 
-    let expr = name_values.into_iter().find_map(|name_value| {
-        name_value
-            .path
-            .is_ident("target_os")
-            .then_some(name_value.value)
-    })?;
-
-    match expr {
-        Expr::Lit(ExprLit {
-            lit: Lit::Str(val), ..
-        }) => Some(val.value()),
-        _ => None,
-    }
+    name_values
+        .into_iter()
+        .find_map(|name_value| {
+            name_value
+                .path
+                .is_ident("target_os")
+                .then_some(name_value.value)
+        })
+        .and_then(|val_expr| match val_expr {
+            Expr::Lit(ExprLit {
+                lit: Lit::Str(val), ..
+            }) => Some(val.value()),
+            _ => None,
+        })
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {

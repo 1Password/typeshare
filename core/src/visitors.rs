@@ -2,15 +2,15 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_skip,
-        target_os_skip_list, ErrorInfo, ParseError, ParsedData,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias,
+        target_os_from_meta_list, target_os_skip, ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
 };
 use std::{collections::HashSet, ops::Not, path::PathBuf};
 use syn::{
-    parse::Parse, visit::Visit, Attribute, Expr, ExprLit, ItemUse, Lit, Meta, MetaList,
-    MetaNameValue, UseTree,
+    parse::Parse, visit::Visit, Attribute, Expr, ExprLit, ItemUse, Lit, MetaList, MetaNameValue,
+    UseTree,
 };
 
 /// List of some popular crate names that we can ignore
@@ -200,41 +200,44 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     /// Should this file be skipped?
+    ///
+    /// If any module level `target_os` attributes are set that differ
+    /// from the `--target-os` optional command line argument.
     fn is_file_skipped(&self, attrs: &[Attribute]) -> bool {
         self.target_os
             .as_ref()
             .map(|target_os| {
-                attrs.iter().any(|attr| match &attr.meta {
-                    Meta::List(list) => Self::file_target_os_skip(list)
-                        .map(|os| &os != target_os)
-                        .unwrap_or(false),
-                    _ => false,
-                })
+                attrs
+                    .iter()
+                    .filter(|attr| attr.path().is_ident("cfg"))
+                    .filter_map(Self::target_os_value)
+                    .any(|os| &os != target_os)
             })
             .unwrap_or(false)
     }
 
-    /// Check if this file is ignored via a target_os attribute that does not
-    /// match the `--target-os` command line argument.
-    fn file_target_os_skip(meta_list: &MetaList) -> Option<String> {
-        meta_list.path.is_ident("cfg").then_some(())?;
-
+    /// Get the value for `target_os` from attribute.
+    fn target_os_value(attr: &Attribute) -> Option<String> {
         let single_rule = || {
-            let name_value = meta_list.parse_args_with(MetaNameValue::parse).ok()?;
-
-            name_value.path.is_ident("target_os").then_some(())?;
-
-            match name_value.value {
-                Expr::Lit(ExprLit {
-                    lit: Lit::Str(val), ..
-                }) => Some(val.value()),
-                _ => None,
-            }
+            attr.parse_args_with(MetaNameValue::parse)
+                .ok()
+                .filter(|name_value| name_value.path.is_ident("target_os"))
+                .and_then(|name_value| match name_value.value {
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(val), ..
+                    }) => Some(val.value()),
+                    _ => None,
+                })
         };
 
         let composite_rule = || {
-            let expr: MetaList = meta_list.parse_args().ok()?;
-            target_os_skip_list(&expr)
+            attr.parse_args::<MetaList>()
+                .ok()
+                .filter(|meta_list: &MetaList| {
+                    meta_list.path.is_ident("any") || meta_list.path.is_ident("all")
+                })
+                .as_ref()
+                .and_then(target_os_from_meta_list)
         };
 
         single_rule().or_else(composite_rule)
