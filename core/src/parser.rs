@@ -634,13 +634,11 @@ pub(crate) fn target_os_skip_list(list: &MetaList) -> Option<String> {
             .then_some(name_value.value)
     })?;
 
-    if let Expr::Lit(ExprLit {
-        lit: Lit::Str(val), ..
-    }) = expr
-    {
-        Some(val.value())
-    } else {
-        None
+    match expr {
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(val), ..
+        }) => Some(val.value()),
+        _ => None,
     }
 }
 

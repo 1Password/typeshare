@@ -224,13 +224,11 @@ impl<'a> TypeShareVisitor<'a> {
 
             name_value.path.is_ident("target_os").then_some(())?;
 
-            if let Expr::Lit(ExprLit {
-                lit: Lit::Str(val), ..
-            }) = name_value.value
-            {
-                Some(val.value())
-            } else {
-                None
+            match name_value.value {
+                Expr::Lit(ExprLit {
+                    lit: Lit::Str(val), ..
+                }) => Some(val.value()),
+                _ => None,
             }
         };
 
