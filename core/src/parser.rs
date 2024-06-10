@@ -8,8 +8,7 @@ use crate::{
     },
     visitors::{ImportedType, TypeShareVisitor},
 };
-use itertools::Itertools;
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
@@ -624,27 +623,27 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn target_os_skip_list(list: &MetaList) -> Option<String> {
-    let _ = list
-        .path
-        .segments
-        .iter()
-        .find(|segment| segment.ident == "any" || segment.ident == "all")?;
-    target_os_from_token_tree(list.tokens.clone())
-}
+pub(crate) fn target_os_skip_list(list: &MetaList) -> Option<String> {
+    (list.path.is_ident("any") || list.path.is_ident("all")).then_some(())?;
 
-pub(crate) fn target_os_from_token_tree(tokens: TokenStream) -> Option<String> {
-    let tokens = tokens.into_iter().collect::<Vec<_>>();
+    let name_values: Punctuated<MetaNameValue, Token![,]> =
+        list.parse_args_with(Punctuated::parse_terminated).ok()?;
 
-    let (target_os_index, _) = tokens
-        .iter()
-        .find_position(|tt| matches!(tt, TokenTree::Ident(ident) if ident == "target_os"))?;
+    let expr = name_values.into_iter().find_map(|name_value| {
+        name_value
+            .path
+            .is_ident("target_os")
+            .then_some(name_value.value)
+    })?;
 
-    // Skip the "=" token to get the os_name value.
-    // target_os = os_name
-    tokens
-        .get(target_os_index + 2)
-        .map(|target| target.to_string().replace('"', ""))
+    if let Expr::Lit(ExprLit {
+        lit: Lit::Str(val), ..
+    }) = expr
+    {
+        Some(val.value())
+    } else {
+        None
+    }
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
