@@ -272,7 +272,9 @@ impl Language for Python {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
-            SpecialRustType::Vec(rtype) => {
+            SpecialRustType::Vec(rtype)
+            | SpecialRustType::Array(rtype, _)
+            | SpecialRustType::Slice(rtype) => {
                 self.module
                     .borrow_mut()
                     .add_import("typing".to_string(), "List".to_string());
@@ -296,7 +298,7 @@ impl Language for Python {
                 ))
             }
             SpecialRustType::Unit => Ok("None".into()),
-            SpecialRustType::String => Ok("str".into()),
+            SpecialRustType::String | SpecialRustType::Char => Ok("str".into()),
             SpecialRustType::I8
             | SpecialRustType::U8
             | SpecialRustType::I16
@@ -304,18 +306,13 @@ impl Language for Python {
             | SpecialRustType::I32
             | SpecialRustType::U32
             | SpecialRustType::I54
-            | SpecialRustType::U53 => Ok("int".into()),
-            SpecialRustType::F32 | SpecialRustType::F64 => Ok("float".into()),
-            SpecialRustType::Bool => Ok("bool".into()),
-            SpecialRustType::U64
+            | SpecialRustType::U53
+            | SpecialRustType::U64
             | SpecialRustType::I64
             | SpecialRustType::ISize
-            | SpecialRustType::USize => {
-                panic!("64 bit types not allowed in Typeshare")
-            }
-            SpecialRustType::Array(_, _) => todo!(),
-            SpecialRustType::Slice(_) => todo!(),
-            SpecialRustType::Char => todo!(),
+            | SpecialRustType::USize => Ok("int".into()),
+            SpecialRustType::F32 | SpecialRustType::F64 => Ok("float".into()),
+            SpecialRustType::Bool => Ok("bool".into()),
         }
     }
 
