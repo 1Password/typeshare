@@ -74,6 +74,7 @@ impl<'a> TypeShareVisitor<'a> {
         }
     }
 
+    #[inline]
     /// Consume the visitor and return parsed data.
     pub fn parsed_data(self) -> Option<ParsedData> {
         self.parsed_data.is_empty().not().then(|| {
@@ -87,6 +88,7 @@ impl<'a> TypeShareVisitor<'a> {
         })
     }
 
+    #[inline]
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
         match result {
             Ok(data) => self.parsed_data.push(data),
@@ -192,6 +194,7 @@ impl<'a> TypeShareVisitor<'a> {
 
     /// Is this type annoted with at `#[cfg(target_os = "target")]` that does
     /// not match `--target-os` argument?
+    #[inline(always)]
     fn target_os_skipped(&self, attrs: &[Attribute]) -> bool {
         self.target_os
             .as_ref()
@@ -203,6 +206,7 @@ impl<'a> TypeShareVisitor<'a> {
     ///
     /// If any module level `target_os` attributes are set that differ
     /// from the `--target-os` optional command line argument.
+    #[inline(always)]
     fn is_file_skipped(&self, attrs: &[Attribute]) -> bool {
         self.target_os
             .as_ref()
@@ -217,6 +221,7 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     /// Get the value for `target_os` from attribute.
+    #[inline(always)]
     fn target_os_value(attr: &Attribute) -> Option<String> {
         let single_rule = || {
             attr.parse_args_with(MetaNameValue::parse)

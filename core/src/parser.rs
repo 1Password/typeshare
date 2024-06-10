@@ -524,6 +524,7 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
+#[inline(always)]
 fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
     if attr.path().is_ident(ident) {
         Either::Left(
@@ -600,6 +601,7 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
 
 /// Check if we have a `target_os` cfg that dooes not match command line
 /// argument `--target-os`.
+#[inline]
 pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
     get_meta_items(attr, "cfg")
         .find_map(|meta| match &meta {
@@ -626,6 +628,7 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
 }
 
 /// Parses `target_os = "os"` value from `any` or `all` meta list.
+#[inline]
 pub(crate) fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
     let name_values: Punctuated<MetaNameValue, Token![,]> =
         list.parse_args_with(Punctuated::parse_terminated).ok()?;
