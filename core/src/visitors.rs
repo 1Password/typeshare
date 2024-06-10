@@ -2,16 +2,13 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias,
-        target_os_from_meta_list, target_os_skip, ErrorInfo, ParseError, ParsedData,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_skip,
+        ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
 };
 use std::{collections::HashSet, ops::Not, path::PathBuf};
-use syn::{
-    parse::Parse, visit::Visit, Attribute, Expr, ExprLit, ItemUse, Lit, MetaList, MetaNameValue,
-    UseTree,
-};
+use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 
 /// List of some popular crate names that we can ignore
 /// during import parsing.
@@ -201,52 +198,6 @@ impl<'a> TypeShareVisitor<'a> {
             .map(|target_os| attrs.iter().any(|attr| target_os_skip(attr, target_os)))
             .unwrap_or(false)
     }
-
-    /// Should this file be skipped?
-    ///
-    /// If any module level `target_os` attributes are set that differ
-    /// from the `--target-os` optional command line argument.
-    #[inline(always)]
-    fn is_file_skipped(&self, attrs: &[Attribute]) -> bool {
-        self.target_os
-            .as_ref()
-            .map(|target_os| {
-                attrs
-                    .iter()
-                    .filter(|attr| attr.path().is_ident("cfg"))
-                    .filter_map(Self::target_os_value)
-                    .any(|os| &os != target_os)
-            })
-            .unwrap_or(false)
-    }
-
-    /// Get the value for `target_os` from attribute.
-    #[inline(always)]
-    fn target_os_value(attr: &Attribute) -> Option<String> {
-        let single_rule = || {
-            attr.parse_args_with(MetaNameValue::parse)
-                .ok()
-                .filter(|name_value| name_value.path.is_ident("target_os"))
-                .and_then(|name_value| match name_value.value {
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(val), ..
-                    }) => Some(val.value()),
-                    _ => None,
-                })
-        };
-
-        let composite_rule = || {
-            attr.parse_args::<MetaList>()
-                .ok()
-                .filter(|meta_list: &MetaList| {
-                    meta_list.path.is_ident("any") || meta_list.path.is_ident("all")
-                })
-                .as_ref()
-                .and_then(target_os_from_meta_list)
-        };
-
-        single_rule().or_else(composite_rule)
-    }
 }
 
 impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
@@ -340,8 +291,19 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         syn::visit::visit_item_type(self, i);
     }
 
+    /// Track potentially skipped modules.
+    fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
+        if let Some(target_os) = self.target_os.as_ref() {
+            if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
+                println!("skip {}", i.ident);
+            }
+        };
+
+        syn::visit::visit_item_mod(self, i);
+    }
+
     fn visit_file(&mut self, i: &'ast syn::File) {
-        if !self.is_file_skipped(&i.attrs) {
+        if !self.target_os_skipped(&i.attrs) {
             syn::visit::visit_file(self, i);
         }
     }

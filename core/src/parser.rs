@@ -530,7 +530,7 @@ fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Me
         Either::Left(
             attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .into_iter()
-                .flat_map(|meta| meta.into_iter()),
+                .flat_map(|punctuated| punctuated.into_iter()),
         )
     } else {
         Either::Right(std::iter::empty())
@@ -629,7 +629,7 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
 
 /// Parses `target_os = "os"` value from `any` or `all` meta list.
 #[inline]
-pub(crate) fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
+fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
     let name_values: Punctuated<MetaNameValue, Token![,]> =
         list.parse_args_with(Punctuated::parse_terminated).ok()?;
 
