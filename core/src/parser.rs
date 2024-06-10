@@ -8,6 +8,7 @@ use crate::{
     },
     visitors::{ImportedType, TypeShareVisitor},
 };
+use itertools::Either;
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -512,7 +513,6 @@ pub(crate) fn get_name_value_meta_items<'a>(
 ) -> impl Iterator<Item = String> + 'a {
     attrs.iter().flat_map(move |attr| {
         get_meta_items(attr, ident)
-            .iter()
             .filter_map(|arg| match arg {
                 Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
                     expr_to_string(&name_value.value)
@@ -524,15 +524,15 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
-fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
+fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
     if attr.path().is_ident(ident) {
-        attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .iter()
-            .flat_map(|meta| meta.iter())
-            .cloned()
-            .collect()
+        Either::Left(
+            attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .into_iter()
+                .flat_map(|meta| meta.into_iter()),
+        )
     } else {
-        Vec::default()
+        Either::Right(std::iter::empty())
     }
 }
 
@@ -591,7 +591,6 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .into_iter()
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     }) || target_os
@@ -603,7 +602,6 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
 /// argument `--target-os`.
 pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
     get_meta_items(attr, "cfg")
-        .into_iter()
         .find_map(|arg| match &arg {
             // a single #[cfg(target_os = "target")]
             Meta::NameValue(MetaNameValue {
@@ -649,7 +647,6 @@ pub(crate) fn target_os_skip_list(list: &MetaList) -> Option<String> {
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .iter()
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
 }
