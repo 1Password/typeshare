@@ -621,6 +621,7 @@ pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Parses `target_os = "os"` value from `any` or `all` meta list.
 pub(crate) fn target_os_skip_list(list: &MetaList) -> Option<String> {
     (list.path.is_ident("any") || list.path.is_ident("all")).then_some(())?;
 
