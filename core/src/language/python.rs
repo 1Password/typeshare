@@ -5,7 +5,6 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use once_cell::sync::Lazy;
-use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -157,7 +156,7 @@ pub struct Python {
     /// Mappings from Rust type names to Python type names
     pub type_mappings: HashMap<String, String>,
     /// The Python module for the generated code.
-    pub module: RefCell<Module>,
+    pub module: Module,
 }
 
 impl Language for Python {
@@ -172,27 +171,26 @@ impl Language for Python {
     ) -> std::io::Result<()> {
         let mut globals: Vec<ParsedRusthThing>;
         {
-            let mut module = self.module.borrow_mut();
             for alias in &data.aliases {
                 let thing = ParsedRusthThing::TypeAlias(alias);
                 let identifier = self.get_identifier(thing);
                 match &alias.r#type {
                     RustType::Generic { id, parameters: _ } => {
-                        module.add_global(identifier, vec![id.clone()])
+                        self.module.add_global(identifier, vec![id.clone()])
                     }
-                    RustType::Simple { id } => module.add_global(identifier, vec![id.clone()]),
+                    RustType::Simple { id } => self.module.add_global(identifier, vec![id.clone()]),
                     RustType::Special(_) => {}
                 }
             }
             for strct in &data.structs {
                 let thing = ParsedRusthThing::Struct(strct);
                 let identifier = self.get_identifier(thing);
-                module.add_global(identifier, vec![]);
+                self.module.add_global(identifier, vec![]);
             }
             for enm in &data.enums {
                 let thing = ParsedRusthThing::Enum(enm);
                 let identifier = self.get_identifier(thing);
-                module.add_global(identifier, vec![]);
+                self.module.add_global(identifier, vec![]);
             }
             globals = data
                 .aliases
@@ -201,7 +199,7 @@ impl Language for Python {
                 .chain(data.structs.iter().map(ParsedRusthThing::Struct))
                 .chain(data.enums.iter().map(ParsedRusthThing::Enum))
                 .collect();
-            let sorted_identifiers = module.topologically_sorted_globals().unwrap();
+            let sorted_identifiers = self.module.topologically_sorted_globals().unwrap();
             globals.sort_by(|a, b| {
                 let identifier_a = self.get_identifier(a.clone());
                 let identifier_b = self.get_identifier(b.clone());
@@ -276,7 +274,6 @@ impl Language for Python {
             | SpecialRustType::Array(rtype, _)
             | SpecialRustType::Slice(rtype) => {
                 self.module
-                    .borrow_mut()
                     .add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -284,7 +281,6 @@ impl Language for Python {
             SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),
             SpecialRustType::HashMap(rtype1, rtype2) => {
                 self.module
-                    .borrow_mut()
                     .add_import("typing".to_string(), "Dict".to_string());
                 Ok(format!(
                     "Dict[{}, {}]",
@@ -317,15 +313,14 @@ impl Language for Python {
     }
 
     fn begin_file(&mut self, w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
-        let module = self.module.borrow();
-        let mut type_var_names: Vec<String> = module.type_variables.iter().cloned().collect();
+        let mut type_var_names: Vec<String> = self.module.type_variables.iter().cloned().collect();
         type_var_names.sort();
         let type_vars: Vec<String> = type_var_names
             .iter()
             .map(|name| format!("{} = TypeVar(\"{}\")", name, name))
             .collect();
         let mut imports = vec![];
-        for (import_module, identifiers) in &module.imports {
+        for (import_module, identifiers) in &self.module.imports {
             let mut identifier_vec = identifiers.iter().cloned().collect::<Vec<String>>();
             identifier_vec.sort();
             imports.push(format!(
@@ -369,20 +364,17 @@ impl Language for Python {
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
         {
-            let mut module = self.module.borrow_mut();
             rs.generic_types
                 .iter()
                 .cloned()
-                .for_each(|v| module.add_type_var(v))
+                .for_each(|v| self.module.add_type_var(v))
         }
         let bases = match rs.generic_types.is_empty() {
             true => "BaseModel".to_string(),
             false => {
                 self.module
-                    .borrow_mut()
                     .add_import("pydantic.generics".to_string(), "GenericModel".to_string());
                 self.module
-                    .borrow_mut()
                     .add_import("typing".to_string(), "Generic".to_string());
                 format!("GenericModel, Generic[{}]", rs.generic_types.join(", "))
             }
@@ -400,7 +392,6 @@ impl Language for Python {
         }
         write!(w, "\n\n")?;
         self.module
-            .borrow_mut()
             .add_import("pydantic".to_string(), "BaseModel".to_string());
         Ok(())
     }
@@ -418,7 +409,6 @@ impl Language for Python {
             // this case)
             RustEnum::Unit(shared) => {
                 self.module
-                    .borrow_mut()
                     .add_import("typing".to_string(), "Literal".to_string());
                 write!(
                     w,
@@ -450,19 +440,17 @@ impl Language for Python {
                 ..
             } => {
                 {
-                    let mut module = self.module.borrow_mut();
                     shared
                         .generic_types
                         .iter()
                         .cloned()
-                        .for_each(|v| module.add_type_var(v))
+                        .for_each(|v| self.module.add_type_var(v))
                 }
                 let mut variants: Vec<(String, Vec<String>)> = Vec::new();
                 shared.variants.iter().for_each(|variant| {
                     match variant {
                         RustEnumVariant::Unit(unit_variant) => {
                             self.module
-                                .borrow_mut()
                                 .add_import("typing".to_string(), "Literal".to_string());
                             let variant_name =
                                 format!("{}{}", shared.id.original, unit_variant.id.original);
@@ -480,7 +468,6 @@ impl Language for Python {
                             shared: variant_shared,
                         } => {
                             self.module
-                                .borrow_mut()
                                 .add_import("typing".to_string(), "Literal".to_string());
                             let variant_name =
                                 format!("{}{}", shared.id.original, variant_shared.id.original);
@@ -494,26 +481,23 @@ impl Language for Python {
                                         })
                                         .collect();
                                     dedup(&mut generic_parameters);
-                                    let type_vars = self
-                                        .module
-                                        .borrow_mut()
-                                        .get_type_vars(generic_parameters.len());
+                                    let type_vars =
+                                        self.module.get_type_vars(generic_parameters.len());
                                     variants.push((variant_name.clone(), type_vars));
                                     {
-                                        let mut module = self.module.borrow_mut();
                                         if generic_parameters.is_empty() {
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "pydantic".to_string(),
                                                 "BaseModel".to_string(),
                                             );
                                             writeln!(w, "class {}(BaseModel):", variant_name)
                                                 .unwrap();
                                         } else {
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "typing".to_string(),
                                                 "Generic".to_string(),
                                             );
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "pydantic.generics".to_string(),
                                                 "GenericModel".to_string(),
                                             );
@@ -538,20 +522,19 @@ impl Language for Python {
                                     }
                                     variants.push((variant_name.clone(), generics.clone()));
                                     {
-                                        let mut module = self.module.borrow_mut();
                                         if generics.is_empty() {
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "pydantic".to_string(),
                                                 "BaseModel".to_string(),
                                             );
                                             writeln!(w, "class {}(BaseModel):", variant_name)
                                                 .unwrap();
                                         } else {
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "typing".to_string(),
                                                 "Generic".to_string(),
                                             );
-                                            module.add_import(
+                                            self.module.add_import(
                                                 "pydantic.generics".to_string(),
                                                 "GenericModel".to_string(),
                                             );
@@ -600,10 +583,7 @@ impl Language for Python {
                                     collect_generics_for_variant(&f.ty, &shared.generic_types)
                                 })
                                 .count();
-                            let type_vars = self
-                                .module
-                                .borrow_mut()
-                                .get_type_vars(num_generic_parameters);
+                            let type_vars = self.module.get_type_vars(num_generic_parameters);
                             let name = make_anonymous_struct_name(&variant_shared.id.original);
                             variants.push((name, type_vars));
                         }
@@ -640,16 +620,14 @@ impl Language for Python {
 }
 
 impl Python {
-    fn add_imports(&self, tp: &str) {
+    fn add_imports(&mut self, tp: &str) {
         match tp {
             "Url" => {
                 self.module
-                    .borrow_mut()
                     .add_import("pydantic.networks".to_string(), "AnyUrl".to_string());
             }
             "DateTime" => {
                 self.module
-                    .borrow_mut()
                     .add_import("datetime".to_string(), "datetime".to_string());
             }
             _ => {}
@@ -683,7 +661,6 @@ impl Python {
         if field.ty.is_optional() || field.has_default {
             python_type = format!("Optional[{}]", python_type);
             self.module
-                .borrow_mut()
                 .add_import("typing".to_string(), "Optional".to_string());
         }
         let mut default = None;
@@ -695,10 +672,8 @@ impl Python {
             true => python_type,
             false => {
                 self.module
-                    .borrow_mut()
                     .add_import("typing".to_string(), "Annotated".to_string());
                 self.module
-                    .borrow_mut()
                     .add_import("pydantic".to_string(), "Field".to_string());
                 format!(
                     "Annotated[{}, Field(alias=\"{}\")]",
