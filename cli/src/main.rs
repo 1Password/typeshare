@@ -114,6 +114,10 @@ fn main() -> anyhow::Result<()> {
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
+    // TODO: The `ignore` walker supports parallel walking. We should use this
+    // and implement a `ParallelVisitor` that builds up the mapping of parsed
+    // data. That way both walking and parsing are in parallel.
+    // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
     let crate_parsed_data = parse_input(
         parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &ignored_types,
