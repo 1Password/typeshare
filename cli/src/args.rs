@@ -152,6 +152,7 @@ pub(crate) fn build_command() -> Command<'static> {
             Arg::new(ARG_TARGET_OS)
                 .long("target-os")
                 .help("Optional restrict to target_os")
+                .takes_value(true)
                 .required(false)
         )
 }
