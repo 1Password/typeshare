@@ -1,5 +1,10 @@
 # Version 1.10.0-beta
 
+## 1.10.0-beta.5
+
+- Added support for Swift generic constraints via `#[typeshare(swiftGenericConstraints)]` [#174](https://github.com/1Password/typeshare/pull/174)
+- Added Swift config option for defining constraints on `CodableVoid` generated type [#174](https://github.com/1Password/typeshare/pull/174)
+
 ## 1.10.0-beta.4
 
 Fixed a bug involving `#[typeshare(skip)]` on fields in struct variants of enums.
@@ -14,7 +19,7 @@ This release brings support for multiple file generation, allowing splitting gen
 files when used in large projects. This can dramatically increase compilation speed of
 the generated files and increase maintainability.
 
-This is a *pre-release* version which may have bugs or break compatibility.
+This is a _pre-release_ version which may have bugs or break compatibility.
 
 - Multiple file output [#166](https://github.com/1Password/typeshare/pull/166)
 
