@@ -4,4 +4,4 @@
 #![cfg(target_os = "wasm32")]
 
 #[typeshare]
-pub struct IgoredUnlessAndroid;
+pub struct IgnoredUnlessAndroid;
