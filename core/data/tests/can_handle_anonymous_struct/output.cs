@@ -8,14 +8,17 @@ using System.Runtime.Serialization;
 /** Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum */
 public class AutofilledByUsInner {
 	/** The UUID for the fill */
+	[JsonProperty(Required = Required.Always)]
 	public string Uuid { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum */
 public class AutofilledBySomethingElseInner {
 	/** The UUID for the fill */
+	[JsonProperty(Required = Required.Always)]
 	public string Uuid { get; set; }
 	/** Some other thing */
+	[JsonProperty(Required = Required.Always)]
 	public int Thing { get; set; }
 }
 
@@ -34,12 +37,15 @@ public abstract record AutofilledBy
 
 /** Generated type representing the anonymous struct variant `AnonVariant` of the `EnumWithManyVariants` Rust enum */
 public class EnumWithManyVariantsAnonVariantInner {
+	[JsonProperty(Required = Required.Always)]
 	public string Uuid { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `AnotherAnonVariant` of the `EnumWithManyVariants` Rust enum */
 public class EnumWithManyVariantsAnotherAnonVariantInner {
+	[JsonProperty(Required = Required.Always)]
 	public string Uuid { get; set; }
+	[JsonProperty(Required = Required.Always)]
 	public int Thing { get; set; }
 }
 

@@ -6,11 +6,13 @@ using Newtonsoft.Json;
 using System.Runtime.Serialization;
 
 public class OverrideStruct {
+	[JsonProperty(Required = Required.Always)]
 	public char fieldToOverride { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `AnonymousStructVariant` of the `OverrideEnum` Rust enum */
 public class OverrideEnumAnonymousStructVariantInner {
+	[JsonProperty(Required = Required.Always)]
 	public char fieldToOverride { get; set; }
 }
 
