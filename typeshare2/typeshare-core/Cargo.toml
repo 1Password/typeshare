@@ -1,0 +1,12 @@
+[package]
+name = "typeshare-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quote = { version = "1.0.36", default-features = false }
+syn = { version = "2.0.64", default-features = false, features = [
+    "full",
+    "extra-traits",
+] }
+thiserror = { version = "1.0.61", default-features = false }

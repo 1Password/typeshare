@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "langs/swift",
+    "langs/typescript",
+    "typeshare-core",
+    "typeshare-engine",
+    "typeshare-main",
+]
+resolver = "2"
