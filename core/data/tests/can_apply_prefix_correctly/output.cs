@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System.Runtime.Serialization;
 
 public class ItemDetailsFieldValue {
+	[JsonProperty(Required = Required.Always)]
 	public string Hello { get; set; }
 }
 

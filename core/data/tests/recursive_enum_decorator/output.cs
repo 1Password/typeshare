@@ -19,11 +19,13 @@ public abstract record Options
 
 /** Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum */
 public class MoreOptionsExactlyInner {
+	[JsonProperty(Required = Required.Always)]
 	public string Config { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `Built` of the `MoreOptions` Rust enum */
 public class MoreOptionsBuiltInner {
+	[JsonProperty(Required = Required.Always)]
 	public MoreOptions Top { get; set; }
 }
 
