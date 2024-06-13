@@ -16,6 +16,7 @@ public abstract record GenericEnum<TA, TB>
 
 
 public class StructUsingGenericEnum {
+	[JsonProperty(Required = Required.Always)]
 	public GenericEnum<string, short> EnumField { get; set; }
 }
 
@@ -33,23 +34,29 @@ public abstract record GenericEnumUsingGenericEnum<T>
 
 /** Generated type representing the anonymous struct variant `VariantF` of the `GenericEnumsUsingStructVariants` Rust enum */
 public class GenericEnumsUsingStructVariantsVariantFInner<T> {
+	[JsonProperty(Required = Required.Always)]
 	public T Action { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `VariantG` of the `GenericEnumsUsingStructVariants` Rust enum */
 public class GenericEnumsUsingStructVariantsVariantGInner<T, TU> {
+	[JsonProperty(Required = Required.Always)]
 	public T Action { get; set; }
+	[JsonProperty(Required = Required.Always)]
 	public TU Response { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `VariantH` of the `GenericEnumsUsingStructVariants` Rust enum */
 public class GenericEnumsUsingStructVariantsVariantHInner {
+	[JsonProperty(Required = Required.Always)]
 	public int NonGeneric { get; set; }
 }
 
 /** Generated type representing the anonymous struct variant `VariantI` of the `GenericEnumsUsingStructVariants` Rust enum */
 public class GenericEnumsUsingStructVariantsVariantIInner<T, TU> {
+	[JsonProperty(Required = Required.Always)]
 	public IEnumerable<T> Vec { get; set; }
+	[JsonProperty(Required = Required.Always)]
 	public MyType<T, TU> Action { get; set; }
 }
 

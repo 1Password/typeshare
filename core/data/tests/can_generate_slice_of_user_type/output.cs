@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System.Runtime.Serialization;
 
 public class Video {
+	[JsonProperty(Required = Required.Always)]
 	public IEnumerable<Tag> Tags { get; set; }
 }
 
