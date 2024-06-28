@@ -1,5 +1,9 @@
 # Version 1.10.0-beta
 
+## 1.10.0-beta.6
+
+- Added support for skipping fields/variants via the `target_os` argument [#176](https://github.com/1Password/typeshare/pull/176)
+
 ## 1.10.0-beta.5
 
 - Added support for Swift generic constraints via `#[typeshare(swiftGenericConstraints)]` [#174](https://github.com/1Password/typeshare/pull/174)
