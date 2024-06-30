@@ -5,8 +5,10 @@ struct OverrideStruct {
     #[typeshare(
         swift(type = "Int"),
         typescript(readonly, type = "any | undefined"),
-        kotlin(type = "Int"), go(type = "uint"),
-        scala(type = "Short")
+        kotlin(type = "Int"),
+        go(type = "uint"),
+        scala(type = "Short"),
+        csharp(type = "char")
     )]
     field_to_override: String,
 }
@@ -21,9 +23,11 @@ enum OverrideEnum {
         #[typeshare(
             swift(type = "Int"),
             typescript(readonly, type = "any | undefined"),
-            kotlin(type = "Int"), go(type = "uint"),
-            scala(type = "Short")
+            kotlin(type = "Int"),
+            go(type = "uint"),
+            scala(type = "Short"),
+            csharp(type = "char")
         )]
-        field_to_override: String
-    }
+        field_to_override: String,
+    },
 }
