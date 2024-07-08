@@ -29,6 +29,8 @@ The behaviour of Typeshare can be customized by either passing options on the co
     A list argument that you can pass any number of glob patterns to. All folders and files given will be searched recursively, and all Rust sources found will be used to create a singular language source file.
 - `--go-package`
     The name of the Go package for use with building for Go. This will be included in the header of the output file. This option will only be available if `typeshare-cli` was built with the `go` feature.
+- `--target-os`
+    Optional argument to skip any types annotated with Rust `#[target_os = "target"]` that do not match the argument provided.
 
 ## Configuration File
 
