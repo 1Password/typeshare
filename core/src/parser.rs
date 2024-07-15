@@ -221,6 +221,7 @@ pub(crate) fn parse_struct(
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
+            decorators: get_decorators(&s.attrs),
         }));
     }
 
@@ -281,6 +282,7 @@ pub(crate) fn parse_struct(
                 r#type: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
+                decorators: get_decorators(&s.attrs),
             })
         }
         // Unit structs or `None`
@@ -320,6 +322,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustIt
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
+            decorators: get_decorators(&e.attrs),
         }));
     }
 
@@ -481,6 +484,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
+        decorators: get_decorators(&t.attrs),
     }))
 }
 

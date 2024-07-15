@@ -64,6 +64,8 @@ pub struct RustTypeAlias {
     pub r#type: RustType,
     /// Comments that were in the type alias source.
     pub comments: Vec<String>,
+    /// Attributes that exist for this struct.
+    pub decorators: DecoratorMap,
 }
 
 /// Rust field definition.
