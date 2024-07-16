@@ -12,7 +12,6 @@ use lazy_format::lazy_format;
 use std::{collections::BTreeSet, collections::HashMap, io::Write};
 
 const INLINE: &str = "JvmInline";
-const REDACTED: &str = "Redacted";
 
 /// All information needed for Kotlin type-code
 #[derive(Default)]
@@ -143,7 +142,7 @@ impl Language for Kotlin {
 
             writeln!(w)?;
 
-            if self.is_redacted(&ty.decorators) {
+            if ty.is_redacted {
                 writeln!(w, ") {{")?;
                 writeln!(w, "\toverride fun toString(): String = \"***\"")?;
                 writeln!(w, "}}")?;
@@ -204,7 +203,7 @@ impl Language for Kotlin {
                 writeln!(w)?;
             }
 
-            if self.is_redacted(&rs.decorators) {
+            if rs.is_redacted {
                 writeln!(w, ") {{")?;
                 writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
                 writeln!(w, "}}")?;
@@ -446,13 +445,6 @@ impl Kotlin {
         comments
             .iter()
             .try_for_each(|comment| self.write_comment(w, indent, comment))
-    }
-
-    fn is_redacted(&self, decorators: &HashMap<DecoratorKind, BTreeSet<String>>) -> bool {
-        match decorators.get(&DecoratorKind::Kotlin) {
-            Some(kotlin_decorators) => kotlin_decorators.iter().contains(&String::from(REDACTED)),
-            _ => false,
-        }
     }
 
     fn is_inline(&self, decorators: &HashMap<DecoratorKind, BTreeSet<String>>) -> bool {

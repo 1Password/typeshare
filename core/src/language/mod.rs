@@ -387,6 +387,7 @@ pub trait Language {
                         &e.shared().id.original,
                     )],
                     decorators: e.shared().decorators.clone(),
+                    is_redacted: e.shared().is_redacted,
                 },
             )?;
         }

@@ -15,7 +15,7 @@ pub struct BestHockeyTeams2 {
     Lies: String,
 }
 
-#[typeshare(kotlin = "Redacted")]
+#[typeshare(redacted)]
 pub struct BestHockeyTeams3 {
     PittsburghPenguins: u32,
     Lies: String,
@@ -27,5 +27,5 @@ pub struct BestHockeyTeams4 {
     Lies: String,
 }
 
-#[typeshare(kotlin = "JvmInline, Redacted")]
+#[typeshare(kotlin = "JvmInline", redacted)]
 pub struct BestHockeyTeams5(String);
