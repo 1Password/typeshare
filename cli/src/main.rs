@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     let options = command.get_matches();
     #[cfg(feature = "go")]
     {
-        if !is_package_present(&options){
+        if !is_package_present(&options) {
             return Err(anyhow!("Please provide a package name in the typeshare.toml or using --go-package <package name>"));
         }
     }
