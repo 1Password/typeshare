@@ -12,7 +12,7 @@ use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use parse::{all_types, parse_input, parser_inputs};
 use rayon::iter::ParallelBridge;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
                 .long("go-package")
                 .help("Go package name")
                 .takes_value(true)
-                .required_if(ARG_TYPE, "go"),
+                .required(false),
         );
     }
 
@@ -57,10 +57,10 @@ fn main() -> anyhow::Result<()> {
 
     let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
-    let config = override_configuration(config, &options);
+    let config = override_configuration(config, &options)?;
 
     if options.is_present(ARG_GENERATE_CONFIG) {
-        let config = override_configuration(Config::default(), &options);
+        let config = override_configuration(Config::default(), &options)?;
         let file_path = options.value_of(ARG_CONFIG_FILE_NAME);
         config::store_config(&config, file_path).context("Failed to create new config file")?;
     }
@@ -190,7 +190,7 @@ fn language(
 }
 
 /// Overrides any configuration values with provided arguments
-fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
+fn override_configuration(mut config: Config, options: &ArgMatches) -> anyhow::Result<Config> {
     if let Some(swift_prefix) = options.value_of(ARG_SWIFT_PREFIX) {
         config.swift.prefix = swift_prefix.to_string();
     }
@@ -216,16 +216,23 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
     }
 
     #[cfg(feature = "go")]
-    if let Some(go_package) = options.value_of(args::ARG_GO_PACKAGE) {
-        config.go.package = go_package.to_string();
+    {
+        match options.value_of(args::ARG_GO_PACKAGE) {
+            Some(go_package) => {
+                config.go.package = go_package.to_string();
+            }
+            None => {
+                config.go.package = is_go_package_present(&config)?;
+            }
+        }
     }
 
     config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
-    config
+    Ok(config)
 }
 
 /// Prints out all parsing errors if any and returns Err.
-fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow::Result<()> {
+fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow::Result<()> {
     let mut errors_encountered = false;
     for data in parsed_crates
         .values()
@@ -245,4 +252,14 @@ fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow:
     } else {
         Ok(())
     }
+}
+
+#[cfg(feature = "go")]
+fn is_go_package_present(config: &Config) -> anyhow::Result<String> {
+    if !config.go.package.is_empty() {
+        return Ok(config.go.package.clone());
+    }
+    Err(anyhow!(
+        "Please provide a package name in the typeshare.toml or using --go-package <package name>"
+    ))
 }

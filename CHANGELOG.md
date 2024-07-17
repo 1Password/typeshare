@@ -1,5 +1,14 @@
 # Version 1.10.0-beta
 
+## 1.10.0-beta.7
+
+- Added support for [inline value classes](https://kotlinlang.org/docs/inline-classes.html) in Kotlin - [#182](https://github.com/1Password/typeshare/pull/182)
+- Added the ability to specify that a struct should have information redacted - [#170](https://github.com/1Password/typeshare/pull/170)
+  - What this means is language-specific. In Kotlin, the toString method is overridden
+  - This was actually added in 1.10.0-beta.4 but went unannounced.
+- Made the output deterministic (this broke in 1.10.0-beta.6) - [#185](https://github.com/1Password/typeshare/pull/185)
+- Algebraic Enum Variant names are now capitalized appropriately - [#183](https://github.com/1Password/typeshare/pull/183)
+
 ## 1.10.0-beta.6
 
 - Added support for skipping fields/variants via the `target_os` argument [#176](https://github.com/1Password/typeshare/pull/176)

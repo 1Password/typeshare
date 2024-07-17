@@ -286,17 +286,19 @@ impl Go {
                                 _ => ("", "*", "&"),
                             };
 
+                        let formatted_variant_type = self.acronyms_to_uppercase(&variant_type);
+
                         decoding_cases.push(format!(
-                            "\t\tvar res {variant_type}
+                            "\t\tvar res {formatted_variant_type}
 \t\t{short_name}.{content_field} = &res
 ",
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             short_name = struct_short_name,
                             content_field = content_field,
                         ));
                         variant_accessors.push(format!(
-                            r#"func ({short_name} {full_name}) {variant_name}() {variant_pointer}{variant_type} {{
-	res, _ := {short_name}.{content_field}.(*{variant_type})
+                            r#"func ({short_name} {full_name}) {variant_name}() {variant_pointer}{formatted_variant_type} {{
+	res, _ := {short_name}.{content_field}.(*{formatted_variant_type})
 	return {variant_deref}res
 }}
 "#,
@@ -305,11 +307,11 @@ impl Go {
                             variant_name = variant_name,
                             variant_pointer = variant_pointer,
                             variant_deref = variant_deref,
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             content_field = content_field,
                         ));
                         variant_constructors.push(format!(
-                            r#"func New{variant_type_const}(content {variant_pointer}{variant_type}) {struct_name} {{
+                            r#"func New{variant_type_const}(content {variant_pointer}{formatted_variant_type}) {struct_name} {{
     return {struct_name}{{
         {tag_field}: {variant_type_const},
         {content_field}: {variant_ref}content,
@@ -320,7 +322,7 @@ impl Go {
                             tag_field = tag_field,
                             variant_type_const = variant_type_const,
                             variant_pointer = variant_pointer,
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             variant_ref = variant_ref,
                             content_field = content_field,
                         ));

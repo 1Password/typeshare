@@ -34,7 +34,7 @@ impl std::fmt::Display for Id {
 }
 
 /// Rust struct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustStruct {
     /// The identifier for the struct.
     pub id: Id,
@@ -48,13 +48,35 @@ pub struct RustStruct {
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
     pub decorators: DecoratorMap,
+    /// True if this struct contains data that needs to be redacted
+    pub is_redacted: bool,
+}
+
+impl PartialEq for RustStruct {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+impl Eq for RustStruct {}
+
+impl PartialOrd for RustStruct {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RustStruct {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.original.cmp(&other.id.original)
+    }
 }
 
 /// Rust type alias.
 /// ```
 /// pub struct MasterPassword(String);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustTypeAlias {
     /// The identifier for the alias.
     pub id: Id,
@@ -64,6 +86,30 @@ pub struct RustTypeAlias {
     pub r#type: RustType,
     /// Comments that were in the type alias source.
     pub comments: Vec<String>,
+    /// Attributes that exist for this struct.
+    pub decorators: DecoratorMap,
+    /// True if this type alias contains data that needs to be redacted
+    pub is_redacted: bool,
+}
+
+impl PartialEq for RustTypeAlias {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+impl Eq for RustTypeAlias {}
+
+impl Ord for RustTypeAlias {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.original.cmp(&other.id.original)
+    }
+}
+
+impl PartialOrd for RustTypeAlias {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Rust field definition.
@@ -110,9 +156,9 @@ pub enum RustType {
     /// - `SomeStruct<String>`
     /// - `SomeEnum<u32>`
     /// - `SomeTypeAlias<(), &str>`
-    /// However, there are some generic types that are considered to be _special_. These
-    /// include `Vec<T>` `HashMap<K, V>`, and `Option<T>`, which are part of `SpecialRustType` instead
-    /// of `RustType::Generic`.
+    ///   However, there are some generic types that are considered to be _special_. These
+    ///   include `Vec<T>` `HashMap<K, V>`, and `Option<T>`, which are part of `SpecialRustType` instead
+    ///   of `RustType::Generic`.
     ///
     /// If a generic type is type-mapped via `typeshare.toml`, the generic parameters will be dropped automatically.
     Generic {
@@ -507,7 +553,7 @@ impl SpecialRustType {
 }
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum RustEnum {
     /// A unit enum
     ///
@@ -547,6 +593,26 @@ pub enum RustEnum {
     },
 }
 
+impl PartialEq for RustEnum {
+    fn eq(&self, other: &Self) -> bool {
+        self.shared().id.original == other.shared().id.original
+    }
+}
+
+impl Eq for RustEnum {}
+
+impl PartialOrd for RustEnum {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RustEnum {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.shared().id.original.cmp(&other.shared().id.original)
+    }
+}
+
 impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
@@ -574,6 +640,8 @@ pub struct RustEnumShared {
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,
+    /// True if this enum contains data that needs to be redacted
+    pub is_redacted: bool,
 }
 
 /// Parsed information about a Rust enum variant

@@ -1,0 +1,19 @@
+determinism_qty := '100'
+
+all: determinism
+
+generate-determinism-files:
+    #!/bin/sh
+    mkdir -p input
+    for i in $(seq 1 {{determinism_qty}}); do
+        cat data/determinism-base.rs | sd '(struct )(\w+)' "\${1}\${2}$i" > "input/input$i.rs"
+    done
+determinism: clean generate-determinism-files
+    mkdir -p out
+    cargo run -p typeshare-cli -- -l typescript -o "out/output1.ts" input
+    cargo run -p typeshare-cli -- -l typescript -o "out/output2.ts" input
+    diff -q out/*.ts
+
+clean:
+    rm -rf out
+    rm -rf input

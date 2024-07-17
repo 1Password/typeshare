@@ -6,6 +6,22 @@ export interface ArcyColors {
 }
 
 /** This is a comment. */
+export interface CellyColors {
+	red: string;
+	blue: string[];
+}
+
+/** This is a comment. */
+export interface CowyColors {
+	lifetime: string;
+}
+
+/** This is a comment. */
+export interface LockyColors {
+	red: string;
+}
+
+/** This is a comment. */
 export interface MutexyColors {
 	blue: string[];
 	green: string;
@@ -16,22 +32,6 @@ export interface RcyColors {
 	red: string;
 	blue: string[];
 	green: string;
-}
-
-/** This is a comment. */
-export interface CellyColors {
-	red: string;
-	blue: string[];
-}
-
-/** This is a comment. */
-export interface LockyColors {
-	red: string;
-}
-
-/** This is a comment. */
-export interface CowyColors {
-	lifetime: string;
 }
 
 /** This is a comment. */

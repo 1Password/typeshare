@@ -18,6 +18,22 @@ case class ArcyColors (
 )
 
 // This is a comment.
+case class CellyColors (
+	red: String,
+	blue: Vector[String]
+)
+
+// This is a comment.
+case class CowyColors (
+	lifetime: String
+)
+
+// This is a comment.
+case class LockyColors (
+	red: String
+)
+
+// This is a comment.
 case class MutexyColors (
 	blue: Vector[String],
 	green: String
@@ -28,22 +44,6 @@ case class RcyColors (
 	red: String,
 	blue: Vector[String],
 	green: String
-)
-
-// This is a comment.
-case class CellyColors (
-	red: String,
-	blue: Vector[String]
-)
-
-// This is a comment.
-case class LockyColors (
-	red: String
-)
-
-// This is a comment.
-case class CowyColors (
-	lifetime: String
 )
 
 // This is a comment.

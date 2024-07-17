@@ -8,7 +8,7 @@ public struct A: Codable {
 	}
 }
 
-public struct ABC: Codable {
+public struct AB: Codable {
 	public let field: UInt32
 
 	public init(field: UInt32) {
@@ -16,7 +16,7 @@ public struct ABC: Codable {
 	}
 }
 
-public struct AB: Codable {
+public struct ABC: Codable {
 	public let field: UInt32
 
 	public init(field: UInt32) {

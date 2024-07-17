@@ -3,7 +3,7 @@ use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
 use anyhow::Context;
 use clap::ArgMatches;
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
 };
@@ -16,7 +16,7 @@ use typeshare_core::{
 pub fn write_generated(
     options: ArgMatches,
     lang: Box<dyn Language>,
-    crate_parsed_data: HashMap<CrateName, ParsedData>,
+    crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
     let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
@@ -35,7 +35,7 @@ pub fn write_generated(
 fn write_multiple_files(
     mut lang: Box<dyn Language>,
     output_folder: &str,
-    crate_parsed_data: HashMap<CrateName, ParsedData>,
+    crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
     for (_crate_name, parsed_data) in crate_parsed_data {
@@ -83,7 +83,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 fn write_single_file(
     mut lang: Box<dyn Language>,
     file_name: &str,
-    mut crate_parsed_data: HashMap<CrateName, ParsedData>,
+    mut crate_parsed_data: BTreeMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
     let parsed_data = crate_parsed_data
         .remove(&SINGLE_FILE_CRATE_NAME)
