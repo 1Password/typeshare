@@ -40,7 +40,7 @@ fn main() -> anyhow::Result<()> {
                 .long("go-package")
                 .help("Go package name")
                 .takes_value(true)
-                .required_if(ARG_TYPE, "go"),
+                .required(false),
         );
     }
 

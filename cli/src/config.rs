@@ -180,4 +180,12 @@ mod test {
 
         assert_eq!(config.swift.prefix, "test");
     }
+    #[test]
+    #[cfg(feature = "go")]
+    fn go_package_test() {
+        let path = config_file_path("go_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.go.package, "testPackage");
+    }
 }
