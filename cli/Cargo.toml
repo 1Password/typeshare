@@ -24,3 +24,4 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 typeshare-core = { path = "../core", version = "1.10.0-beta.6" }
 anyhow = "1"
+indexmap = "2"
