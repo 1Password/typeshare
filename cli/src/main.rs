@@ -10,6 +10,7 @@ use args::{
 use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use indexmap::IndexMap;
 use parse::{all_types, parse_input, parser_inputs};
 use rayon::iter::ParallelBridge;
 use std::collections::HashMap;
@@ -225,7 +226,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
 }
 
 /// Prints out all parsing errors if any and returns Err.
-fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow::Result<()> {
+fn check_parse_errors(parsed_crates: &IndexMap<CrateName, ParsedData>) -> anyhow::Result<()> {
     let mut errors_encountered = false;
     for data in parsed_crates
         .values()

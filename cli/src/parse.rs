@@ -1,6 +1,7 @@
 //! Source file parsing.
 use anyhow::Context;
 use ignore::WalkBuilder;
+use indexmap::IndexMap;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
@@ -66,7 +67,7 @@ fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) ->
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 /// mapping is used to lookup and generated import statements for generated files.
-pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
+pub fn all_types(file_mappings: &IndexMap<CrateName, ParsedData>) -> CrateTypes {
     file_mappings
         .iter()
         .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
@@ -92,12 +93,12 @@ pub fn parse_input(
     ignored_types: &[&str],
     multi_file: bool,
     target_os: Option<String>,
-) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
+) -> anyhow::Result<IndexMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
         .try_fold(
-            HashMap::new,
-            |mut parsed_crates: HashMap<CrateName, ParsedData>,
+            IndexMap::new,
+            |mut parsed_crates: IndexMap<CrateName, ParsedData>,
              ParserInput {
                  file_path,
                  file_name,
@@ -125,7 +126,7 @@ pub fn parse_input(
                 Ok(parsed_crates)
             },
         )
-        .try_reduce(HashMap::new, |mut file_maps, parsed_crates| {
+        .try_reduce(IndexMap::new, |mut file_maps, parsed_crates| {
             for (crate_name, parsed_data) in parsed_crates {
                 file_maps.entry(crate_name).or_default().add(parsed_data);
             }

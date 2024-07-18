@@ -616,6 +616,7 @@ dependencies = [
  "clap",
  "clap_complete_command",
  "ignore",
+ "indexmap 2.2.6",
  "once_cell",
  "rayon",
  "serde",
