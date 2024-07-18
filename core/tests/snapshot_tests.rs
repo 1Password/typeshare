@@ -715,7 +715,11 @@ tests! {
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go, python];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
-    excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
+    csharp_without_naming_convention: [csharp {
+            without_csharp_naming_convention: true,
+        }
+    ];
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go, python ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
     serde_rename_references: [ swift, kotlin, scala, typescript, go ];
 }
