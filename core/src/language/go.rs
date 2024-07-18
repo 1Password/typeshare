@@ -278,6 +278,7 @@ impl Go {
                     ));
 
                     if let Some(variant_type) = variant_type {
+                        let variant_type = self.acronyms_to_uppercase(&variant_type);
                         let (variant_pointer, variant_deref, variant_ref) =
                             match (v, custom_structs.contains(&variant_type.as_str())) {
                                 (RustEnumVariant::AnonymousStruct { .. }, ..) | (.., true) => {
