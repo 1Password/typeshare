@@ -179,7 +179,11 @@ impl Language for CSharp {
                 writeln!(w, "\n}}\n")
             }
             RustEnum::Algebraic { shared, .. } => {
-                write_discriminated_union_json_attributes(w, e)?;
+                write_discriminated_union_json_attributes(
+                    w,
+                    e,
+                    self.without_csharp_naming_convention,
+                )?;
                 write!(
                     w,
                     "public abstract record {}{} \n{{",
@@ -203,7 +207,11 @@ impl Language for CSharp {
     }
 }
 
-fn write_discriminated_union_json_attributes(w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
+fn write_discriminated_union_json_attributes(
+    w: &mut dyn Write,
+    e: &RustEnum,
+    with_rename: bool,
+) -> io::Result<()> {
     match e {
         RustEnum::Algebraic {
             tag_key,
@@ -213,9 +221,11 @@ fn write_discriminated_union_json_attributes(w: &mut dyn Write, e: &RustEnum) ->
             writeln!(w, "[JsonConverter(typeof(JsonSubtypes), \"{}\")]", tag_key)?;
             let case_attributes = shared.variants.iter().map(|v| {
                 let case_name = match v {
-                    RustEnumVariant::AnonymousStruct { shared, .. } => &shared.id.original,
-                    RustEnumVariant::Unit(shared) => &shared.id.original,
-                    RustEnumVariant::Tuple { shared, .. } => &shared.id.original,
+                    RustEnumVariant::AnonymousStruct { shared, .. } => {
+                        get_property_name(with_rename, shared)
+                    }
+                    RustEnumVariant::Unit(shared) => get_property_name(with_rename, shared),
+                    RustEnumVariant::Tuple { shared, .. } => get_property_name(with_rename, shared),
                 };
                 format!(
                     "[JsonSubtypes.KnownSubType(typeof({0}), \"{0}\")]",
@@ -226,6 +236,17 @@ fn write_discriminated_union_json_attributes(w: &mut dyn Write, e: &RustEnum) ->
             writeln!(w, "{}", case_attributes.join_with("\n"))
         }
         _ => Ok(()),
+    }
+}
+
+fn get_property_name(
+    with_rename: bool,
+    shared: &crate::rust_types::RustEnumVariantShared,
+) -> &String {
+    if with_rename {
+        &shared.id.renamed
+    } else {
+        &shared.id.original
     }
 }
 
