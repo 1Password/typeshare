@@ -2,6 +2,12 @@ package com.agilebits
 
 package onepassword {
 
+sealed trait SomeEnum {
+	def serialName: String
+}
+object SomeEnum {
+}
+
 sealed trait TestEnum {
 	def serialName: String
 }
@@ -12,12 +18,6 @@ object TestEnum {
 	case object Variant5 extends TestEnum {
 		val serialName: String = "Variant5"
 	}
-}
-
-sealed trait SomeEnum {
-	def serialName: String
-}
-object SomeEnum {
 }
 
 }

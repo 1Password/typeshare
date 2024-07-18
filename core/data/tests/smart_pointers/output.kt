@@ -13,6 +13,25 @@ data class ArcyColors (
 
 /// This is a comment.
 @Serializable
+data class CellyColors (
+	val red: String,
+	val blue: List<String>
+)
+
+/// This is a comment.
+@Serializable
+data class CowyColors (
+	val lifetime: String
+)
+
+/// This is a comment.
+@Serializable
+data class LockyColors (
+	val red: String
+)
+
+/// This is a comment.
+@Serializable
 data class MutexyColors (
 	val blue: List<String>,
 	val green: String
@@ -24,25 +43,6 @@ data class RcyColors (
 	val red: String,
 	val blue: List<String>,
 	val green: String
-)
-
-/// This is a comment.
-@Serializable
-data class CellyColors (
-	val red: String,
-	val blue: List<String>
-)
-
-/// This is a comment.
-@Serializable
-data class LockyColors (
-	val red: String
-)
-
-/// This is a comment.
-@Serializable
-data class CowyColors (
-	val lifetime: String
 )
 
 /// This is a comment.

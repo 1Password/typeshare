@@ -11,10 +11,10 @@ type B struct {
 type C struct {
 	DependsOn B `json:"dependsOn"`
 }
+type E struct {
+	DependsOn D `json:"dependsOn"`
+}
 type D struct {
 	DependsOn C `json:"dependsOn"`
 	AlsoDependsOn *E `json:"alsoDependsOn,omitempty"`
-}
-type E struct {
-	DependsOn D `json:"dependsOn"`
 }

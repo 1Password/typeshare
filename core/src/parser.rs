@@ -90,11 +90,11 @@ pub struct ErrorInfo {
 #[derive(Default, Debug)]
 pub struct ParsedData {
     /// Structs defined in the source
-    pub structs: Vec<RustStruct>,
+    pub structs: BTreeSet<RustStruct>,
     /// Enums defined in the source
-    pub enums: Vec<RustEnum>,
+    pub enums: BTreeSet<RustEnum>,
     /// Type aliases defined in the source
-    pub aliases: Vec<RustTypeAlias>,
+    pub aliases: BTreeSet<RustTypeAlias>,
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
@@ -138,15 +138,15 @@ impl ParsedData {
         match rust_thing {
             RustItem::Struct(s) => {
                 self.type_names.insert(s.id.renamed.clone());
-                self.structs.push(s);
+                self.structs.insert(s);
             }
             RustItem::Enum(e) => {
                 self.type_names.insert(e.shared().id.renamed.clone());
-                self.enums.push(e);
+                self.enums.insert(e);
             }
             RustItem::Alias(a) => {
                 self.type_names.insert(a.id.renamed.clone());
-                self.aliases.push(a);
+                self.aliases.insert(a);
             }
         }
     }

@@ -5,10 +5,10 @@ import "encoding/json"
 type A struct {
 	Field uint32 `json:"field"`
 }
-type ABC struct {
+type AB struct {
 	Field uint32 `json:"field"`
 }
-type AB struct {
+type ABC struct {
 	Field uint32 `json:"field"`
 }
 type OutsideOfModules struct {
