@@ -2,21 +2,6 @@ package com.agilebits
 
 package onepassword {
 
-sealed trait Options {
-	def serialName: String
-}
-object Options {
-	case class Red(content: Boolean) extends Options {
-		val serialName: String = "red"
-	}
-	case class Banana(content: String) extends Options {
-		val serialName: String = "banana"
-	}
-	case class Vermont(content: Options) extends Options {
-		val serialName: String = "vermont"
-	}
-}
-
 // Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 case class MoreOptionsExactlyInner (
 	config: String
@@ -39,6 +24,21 @@ object MoreOptions {
 	}
 	case class Built(content: MoreOptionsBuiltInner) extends MoreOptions {
 		val serialName: String = "built"
+	}
+}
+
+sealed trait Options {
+	def serialName: String
+}
+object Options {
+	case class Red(content: Boolean) extends Options {
+		val serialName: String = "red"
+	}
+	case class Banana(content: String) extends Options {
+		val serialName: String = "banana"
+	}
+	case class Vermont(content: Options) extends Options {
+		val serialName: String = "vermont"
 	}
 }
 

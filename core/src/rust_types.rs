@@ -34,7 +34,7 @@ impl std::fmt::Display for Id {
 }
 
 /// Rust struct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustStruct {
     /// The identifier for the struct.
     pub id: Id,
@@ -50,11 +50,31 @@ pub struct RustStruct {
     pub decorators: DecoratorMap,
 }
 
+impl PartialEq for RustStruct {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+impl Eq for RustStruct {}
+
+impl PartialOrd for RustStruct {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RustStruct {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.original.cmp(&other.id.original)
+    }
+}
+
 /// Rust type alias.
 /// ```
 /// pub struct MasterPassword(String);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustTypeAlias {
     /// The identifier for the alias.
     pub id: Id,
@@ -64,6 +84,26 @@ pub struct RustTypeAlias {
     pub r#type: RustType,
     /// Comments that were in the type alias source.
     pub comments: Vec<String>,
+}
+
+impl PartialEq for RustTypeAlias {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+impl Eq for RustTypeAlias {}
+
+impl Ord for RustTypeAlias {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.id.original.cmp(&other.id.original)
+    }
+}
+
+impl PartialOrd for RustTypeAlias {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// Rust field definition.
@@ -507,7 +547,7 @@ impl SpecialRustType {
 }
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum RustEnum {
     /// A unit enum
     ///
@@ -545,6 +585,26 @@ pub enum RustEnum {
         /// Shared context for this enum.
         shared: RustEnumShared,
     },
+}
+
+impl PartialEq for RustEnum {
+    fn eq(&self, other: &Self) -> bool {
+        self.shared().id.original == other.shared().id.original
+    }
+}
+
+impl Eq for RustEnum {}
+
+impl PartialOrd for RustEnum {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RustEnum {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.shared().id.original.cmp(&other.shared().id.original)
+    }
 }
 
 impl RustEnum {

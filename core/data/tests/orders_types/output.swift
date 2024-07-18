@@ -24,6 +24,14 @@ public struct C: Codable {
 	}
 }
 
+public struct E: Codable {
+	public let dependsOn: D
+
+	public init(dependsOn: D) {
+		self.dependsOn = dependsOn
+	}
+}
+
 public struct D: Codable {
 	public let dependsOn: C
 	public let alsoDependsOn: E?
@@ -31,13 +39,5 @@ public struct D: Codable {
 	public init(dependsOn: C, alsoDependsOn: E?) {
 		self.dependsOn = dependsOn
 		self.alsoDependsOn = alsoDependsOn
-	}
-}
-
-public struct E: Codable {
-	public let dependsOn: D
-
-	public init(dependsOn: D) {
-		self.dependsOn = dependsOn
 	}
 }
