@@ -221,6 +221,8 @@ pub(crate) fn parse_struct(
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
+            decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }));
     }
 
@@ -261,6 +263,7 @@ pub(crate) fn parse_struct(
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Tuple structs
@@ -281,6 +284,8 @@ pub(crate) fn parse_struct(
                 r#type: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
+                decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Unit structs or `None`
@@ -290,6 +295,7 @@ pub(crate) fn parse_struct(
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
             decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }),
     })
 }
@@ -320,6 +326,8 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustIt
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
+            decorators: get_decorators(&e.attrs),
+            is_redacted: is_redacted(&e.attrs),
         }));
     }
 
@@ -354,6 +362,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustIt
         decorators: get_decorators(&e.attrs),
         generic_types,
         is_recursive,
+        is_redacted: is_redacted(&e.attrs),
     };
 
     // Figure out if we're dealing with a unit enum or an algebraic enum
@@ -481,6 +490,8 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
+        decorators: get_decorators(&t.attrs),
+        is_redacted: is_redacted(&t.attrs),
     }))
 }
 
@@ -597,6 +608,14 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
     }) || target_os
         .map(|target| attrs.iter().any(|attr| target_os_skip(attr, target)))
         .unwrap_or(false)
+}
+
+// `#[typeshare(redacted)]`
+fn is_redacted(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        get_meta_items(attr, TYPESHARE)
+            .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
+    })
 }
 
 /// Check if we have a `target_os` cfg that dooes not match command line

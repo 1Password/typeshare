@@ -48,6 +48,8 @@ pub struct RustStruct {
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
     pub decorators: DecoratorMap,
+    /// True if this struct contains data that needs to be redacted
+    pub is_redacted: bool,
 }
 
 /// Rust type alias.
@@ -64,6 +66,10 @@ pub struct RustTypeAlias {
     pub r#type: RustType,
     /// Comments that were in the type alias source.
     pub comments: Vec<String>,
+    /// Attributes that exist for this struct.
+    pub decorators: DecoratorMap,
+    /// True if this type alias contains data that needs to be redacted
+    pub is_redacted: bool,
 }
 
 /// Rust field definition.
@@ -574,6 +580,8 @@ pub struct RustEnumShared {
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,
+    /// True if this enum contains data that needs to be redacted
+    pub is_redacted: bool,
 }
 
 /// Parsed information about a Rust enum variant

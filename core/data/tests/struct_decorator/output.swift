@@ -1,5 +1,7 @@
 import Foundation
 
+public typealias OPBestHockeyTeams5 = String
+
 public struct OPBestHockeyTeams: Codable {
 	public let PittsburghPenguins: UInt32
 	public let Lies: String
