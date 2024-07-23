@@ -179,11 +179,7 @@ impl Language for CSharp {
                 writeln!(w, "\n}}\n")
             }
             RustEnum::Algebraic { shared, .. } => {
-                write_discriminated_union_json_attributes(
-                    w,
-                    e,
-                    self.without_csharp_naming_convention,
-                )?;
+                write_discriminated_union_json_attributes(w, e)?;
                 write!(
                     w,
                     "public abstract record {}{} \n{{",
@@ -207,11 +203,7 @@ impl Language for CSharp {
     }
 }
 
-fn write_discriminated_union_json_attributes(
-    w: &mut dyn Write,
-    e: &RustEnum,
-    with_rename: bool,
-) -> io::Result<()> {
+fn write_discriminated_union_json_attributes(w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
     match e {
         RustEnum::Algebraic {
             tag_key,
@@ -220,33 +212,24 @@ fn write_discriminated_union_json_attributes(
         } => {
             writeln!(w, "[JsonConverter(typeof(JsonSubtypes), \"{}\")]", tag_key)?;
             let case_attributes = shared.variants.iter().map(|v| {
-                let case_name = match v {
+                let (case_name, renamed) = match v {
                     RustEnumVariant::AnonymousStruct { shared, .. } => {
-                        get_property_name(with_rename, shared)
+                        (&shared.id.original, &shared.id.renamed)
                     }
-                    RustEnumVariant::Unit(shared) => get_property_name(with_rename, shared),
-                    RustEnumVariant::Tuple { shared, .. } => get_property_name(with_rename, shared),
+                    RustEnumVariant::Unit(shared) => (&shared.id.original, &shared.id.renamed),
+                    RustEnumVariant::Tuple { shared, .. } => {
+                        (&shared.id.original, &shared.id.renamed)
+                    }
                 };
                 format!(
-                    "[JsonSubtypes.KnownSubType(typeof({0}), \"{0}\")]",
-                    case_name,
+                    "[JsonSubtypes.KnownSubType(typeof({0}), \"{1}\")]",
+                    case_name, renamed
                 )
             });
 
             writeln!(w, "{}", case_attributes.join_with("\n"))
         }
         _ => Ok(()),
-    }
-}
-
-fn get_property_name(
-    with_rename: bool,
-    shared: &crate::rust_types::RustEnumVariantShared,
-) -> &String {
-    if with_rename {
-        &shared.id.renamed
-    } else {
-        &shared.id.original
     }
 }
 
@@ -331,7 +314,11 @@ impl CSharp {
                         write!(
                             w,
                             "\tpublic record {}({}{}Inner{} {}): {}{}();",
-                            shared.id.renamed,
+                            if self.without_csharp_naming_convention {
+                                &shared.id.renamed
+                            } else {
+                                &shared.id.original
+                            },
                             e.shared().id.original,
                             shared.id.original,
                             generics,

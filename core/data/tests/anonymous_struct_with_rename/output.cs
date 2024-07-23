@@ -32,9 +32,9 @@ public class AnonymousStructWithRenameKebabCaseInner {
 }
 
 [JsonConverter(typeof(JsonSubtypes), "type")]
-[JsonSubtypes.KnownSubType(typeof(List), "List")]
-[JsonSubtypes.KnownSubType(typeof(LongFieldNames), "LongFieldNames")]
-[JsonSubtypes.KnownSubType(typeof(KebabCase), "KebabCase")]
+[JsonSubtypes.KnownSubType(typeof(List), "list")]
+[JsonSubtypes.KnownSubType(typeof(LongFieldNames), "longFieldNames")]
+[JsonSubtypes.KnownSubType(typeof(KebabCase), "kebabCase")]
 public abstract record AnonymousStructWithRename 
 {
 	public record list(AnonymousStructWithRenameListInner Content): AnonymousStructWithRename();
