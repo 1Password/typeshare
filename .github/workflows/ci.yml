@@ -40,6 +40,27 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: rustup run ${{ matrix.rust }} cargo test --all-features
 
+  
+  check-deterministic:
+    name: Ensure Deterministic Output
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - uses: actions/checkout@v2
+      - uses: extractions/setup-just@v1
+        with:
+          just-version: 1
+      - uses: kenji-miyake/setup-sd@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+      - run: rustup toolchain install ${{ matrix.rust }}
+      - run: just --justfile tests/justfile determinism
+    
 
   fmt:
     name: Rustfmt
