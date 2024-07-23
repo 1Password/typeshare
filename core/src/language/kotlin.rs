@@ -1,17 +1,17 @@
 use super::{Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
-use crate::parser::{remove_dash_from_identifier, ParsedData};
+use crate::parser::{remove_dash_from_identifier, DecoratorKind, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::{collections::HashMap, io::Write};
+use std::{collections::BTreeSet, collections::HashMap, io::Write};
 
-const REDACTED_TO_STRING: &str = "redacted_to_string";
+const INLINE: &str = "JvmInline";
 
 /// All information needed for Kotlin type-code
 #[derive(Default)]
@@ -119,16 +119,50 @@ impl Language for Kotlin {
         self.write_comments(w, 0, &ty.comments)?;
         let type_name = format!("{}{}", &self.prefix, ty.id.original);
 
-        writeln!(
-            w,
-            "typealias {}{} = {}\n",
-            type_name,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
-            self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
-        )?;
+        if self.is_inline(&ty.decorators) {
+            writeln!(w, "@Serializable")?;
+            writeln!(w, "@JvmInline")?;
+            writeln!(w, "value class {}{}(", self.prefix, ty.id.renamed)?;
+
+            self.write_element(
+                w,
+                &RustField {
+                    id: Id {
+                        original: String::from("value"),
+                        renamed: String::from("value"),
+                    },
+                    ty: ty.r#type.clone(),
+                    comments: vec![],
+                    has_default: false,
+                    decorators: HashMap::new(),
+                },
+                &[],
+                false,
+            )?;
+
+            writeln!(w)?;
+
+            if ty.is_redacted {
+                writeln!(w, ") {{")?;
+                writeln!(w, "\toverride fun toString(): String = \"***\"")?;
+                writeln!(w, "}}")?;
+            } else {
+                writeln!(w, ")")?;
+            }
+
+            writeln!(w)?;
+        } else {
+            writeln!(
+                w,
+                "typealias {}{} = {}\n",
+                type_name,
+                (!ty.generic_types.is_empty())
+                    .then(|| format!("<{}>", ty.generic_types.join(", ")))
+                    .unwrap_or_default(),
+                self.format_type(&ty.r#type, ty.generic_types.as_slice())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+            )?;
+        }
 
         Ok(())
     }
@@ -168,16 +202,16 @@ impl Language for Kotlin {
                 self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
                 writeln!(w)?;
             }
-            write!(w, ")")?;
-            if let Some(kotlin_decorators) = rs.decorators.get(&SupportedLanguage::Kotlin) {
-                let redacted_decorator = String::from(REDACTED_TO_STRING);
-                if kotlin_decorators.iter().any(|d| *d == redacted_decorator) {
-                    writeln!(w, " {{")?;
-                    writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
-                    write!(w, "}}")?;
-                }
+
+            if rs.is_redacted {
+                writeln!(w, ") {{")?;
+                writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
+                writeln!(w, "}}")?;
+            } else {
+                writeln!(w, ")")?;
             }
-            writeln!(w, "\n")?;
+
+            writeln!(w)?;
         }
         Ok(())
     }
@@ -411,5 +445,12 @@ impl Kotlin {
         comments
             .iter()
             .try_for_each(|comment| self.write_comment(w, indent, comment))
+    }
+
+    fn is_inline(&self, decorators: &HashMap<DecoratorKind, BTreeSet<String>>) -> bool {
+        match decorators.get(&DecoratorKind::Kotlin) {
+            Some(kotlin_decorators) => kotlin_decorators.iter().contains(&String::from(INLINE)),
+            _ => false,
+        }
     }
 }

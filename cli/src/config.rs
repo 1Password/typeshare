@@ -40,6 +40,8 @@ pub struct SwiftParams {
     pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
+    /// The contraints to apply to `CodableVoid`.
+    pub codablevoid_constraints: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -69,6 +71,8 @@ pub(crate) struct Config {
     pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
+    #[serde(skip)]
+    pub target_os: Option<String>,
 }
 
 pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {

@@ -1,8 +1,8 @@
 import Foundation
 
-public typealias OptionalU32 = UInt32?
-
 public typealias OptionalU16 = UInt16?
+
+public typealias OptionalU32 = UInt32?
 
 public struct FooBar: Codable {
 	public let foo: OptionalU32

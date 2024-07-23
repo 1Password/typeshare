@@ -17,6 +17,7 @@ pub const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 pub const ARG_OUTPUT_FILE: &str = "output-file";
 pub const ARG_OUTPUT_FOLDER: &str = "output-folder";
 pub const ARG_FOLLOW_LINKS: &str = "follow-links";
+pub const ARG_TARGET_OS: &str = "target_os";
 
 #[cfg(feature = "go")]
 const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "python"];
@@ -147,5 +148,11 @@ pub(crate) fn build_command() -> Command<'static> {
                 .help("Directories within which to recursively find and process rust files")
                 .required_unless(ARG_GENERATE_CONFIG)
                 .min_values(1),
+        ).arg(
+            Arg::new(ARG_TARGET_OS)
+                .long("target-os")
+                .help("Optional restrict to target_os")
+                .takes_value(true)
+                .required(false)
         )
 }

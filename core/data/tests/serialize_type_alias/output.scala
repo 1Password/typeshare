@@ -2,13 +2,13 @@ package com.agilebits
 
 package object onepassword {
 
-type AlsoString = String
-
-type Uuid = String
-
 // Unique identifier for an Account
 type AccountUuid = Uuid
 
+type AlsoString = String
+
 type ItemUuid = String
+
+type Uuid = String
 
 }

@@ -5,13 +5,14 @@ use anyhow::{anyhow, Context};
 use args::{
     build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
     ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
-    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TYPE,
+    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TARGET_OS, ARG_TYPE,
 };
 use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use parse::{all_types, parse_input, parser_inputs};
-use std::collections::HashMap;
+use rayon::iter::ParallelBridge;
+use std::collections::{BTreeMap, HashMap};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::language::{GenericConstraints, Python};
@@ -101,6 +102,9 @@ fn main() -> anyhow::Result<()> {
     }
 
     let multi_file = options.value_of(ARG_OUTPUT_FOLDER).is_some();
+
+    let target_os = config.target_os.clone();
+
     let lang = language(language_type, config, multi_file);
     let ignored_types = lang.ignored_reference_types();
 
@@ -108,10 +112,15 @@ fn main() -> anyhow::Result<()> {
     // a git-ignored directory to be processed, add the specific directory to
     // the list of directories given to typeshare when it's invoked in the
     // makefiles
+    // TODO: The `ignore` walker supports parallel walking. We should use this
+    // and implement a `ParallelVisitor` that builds up the mapping of parsed
+    // data. That way both walking and parsing are in parallel.
+    // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
     let crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type, multi_file),
+        parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &ignored_types,
         multi_file,
+        target_os,
     )?;
 
     // Collect all the types into a map of the file name they
@@ -144,6 +153,7 @@ fn language(
                 config.swift.default_generic_constraints,
             ),
             multi_file,
+            codablevoid_constraints: config.swift.codablevoid_constraints,
             ..Default::default()
         }),
         SupportedLanguage::Kotlin => Box::new(Kotlin {
@@ -212,11 +222,12 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
         config.go.package = go_package.to_string();
     }
 
+    config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
     config
 }
 
 /// Prints out all parsing errors if any and returns Err.
-fn check_parse_errors(parsed_crates: &HashMap<CrateName, ParsedData>) -> anyhow::Result<()> {
+fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow::Result<()> {
     let mut errors_encountered = false;
     for data in parsed_crates
         .values()

@@ -4,6 +4,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
 @Serializable
+@JvmInline
+value class BestHockeyTeams5(
+	val value: String
+) {
+	override fun toString(): String = "***"
+}
+
+@Serializable
 data class BestHockeyTeams (
 	val PittsburghPenguins: UInt,
 	val Lies: String

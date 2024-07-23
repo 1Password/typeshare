@@ -625,7 +625,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "1.10.0-beta.2"
+version = "1.10.0-beta.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -640,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-core"
-version = "1.10.0-beta.2"
+version = "1.10.0-beta.6"
 dependencies = [
  "anyhow",
  "convert_case",

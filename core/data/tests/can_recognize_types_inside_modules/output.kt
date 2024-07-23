@@ -9,12 +9,12 @@ data class A (
 )
 
 @Serializable
-data class ABC (
+data class AB (
 	val field: UInt
 )
 
 @Serializable
-data class AB (
+data class ABC (
 	val field: UInt
 )
 

@@ -2,11 +2,13 @@ use crate::{
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
-        FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared,
-        RustField, RustItem, RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+        DecoratorMap, FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant,
+        RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
+        RustTypeParseError,
     },
     visitors::{ImportedType, TypeShareVisitor},
 };
+use itertools::Either;
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -15,13 +17,35 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta, MetaList,
     MetaNameValue, Token,
 };
 use thiserror::Error;
 
 const TYPESHARE: &str = "typeshare";
 const SERDE: &str = "serde";
+
+/// Supported typeshare type level decorator attributes.
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum DecoratorKind {
+    /// The typeshare attribute for swift type constraints "swift"
+    Swift,
+    /// The typeshare attribute for swift generic constraints "swiftGenericConstraints"
+    SwiftGenericConstraints,
+    /// The typeshare attribute for kotlin "kotlin"
+    Kotlin,
+}
+
+impl DecoratorKind {
+    /// This decorator as a str.
+    fn as_str(&self) -> &str {
+        match self {
+            DecoratorKind::Swift => "swift",
+            DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
+            DecoratorKind::Kotlin => "kotlin",
+        }
+    }
+}
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -66,11 +90,11 @@ pub struct ErrorInfo {
 #[derive(Default, Debug)]
 pub struct ParsedData {
     /// Structs defined in the source
-    pub structs: Vec<RustStruct>,
+    pub structs: BTreeSet<RustStruct>,
     /// Enums defined in the source
-    pub enums: Vec<RustEnum>,
+    pub enums: BTreeSet<RustEnum>,
     /// Type aliases defined in the source
-    pub aliases: Vec<RustTypeAlias>,
+    pub aliases: BTreeSet<RustTypeAlias>,
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
@@ -104,23 +128,35 @@ impl ParsedData {
         self.import_types.extend(other.import_types);
         self.type_names.extend(other.type_names);
         self.errors.append(&mut other.errors);
+
+        self.file_name = other.file_name;
+        self.crate_name = other.crate_name;
+        self.multi_file = other.multi_file;
     }
 
     pub(crate) fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
             RustItem::Struct(s) => {
                 self.type_names.insert(s.id.renamed.clone());
-                self.structs.push(s);
+                self.structs.insert(s);
             }
             RustItem::Enum(e) => {
                 self.type_names.insert(e.shared().id.renamed.clone());
-                self.enums.push(e);
+                self.enums.insert(e);
             }
             RustItem::Alias(a) => {
                 self.type_names.insert(a.id.renamed.clone());
-                self.aliases.push(a);
+                self.aliases.insert(a);
             }
         }
+    }
+
+    /// If this file was skipped by the visitor.
+    pub fn is_empty(&self) -> bool {
+        self.structs.is_empty()
+            && self.enums.is_empty()
+            && self.aliases.is_empty()
+            && self.errors.is_empty()
     }
 }
 
@@ -132,6 +168,7 @@ pub fn parse(
     file_path: PathBuf,
     ignored_types: &[&str],
     mult_file: bool,
+    target_os: Option<String>,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -141,11 +178,17 @@ pub fn parse(
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor =
-        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, mult_file);
+    let mut import_visitor = TypeShareVisitor::new(
+        crate_name,
+        file_name,
+        file_path,
+        ignored_types,
+        mult_file,
+        target_os,
+    );
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
-    Ok(Some(import_visitor.parsed_data()))
+    Ok(import_visitor.parsed_data())
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -153,7 +196,10 @@ pub fn parse(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(
+    s: &ItemStruct,
+    target_os: Option<&str>,
+) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -175,6 +221,8 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
+            decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }));
     }
 
@@ -184,7 +232,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             let fields = f
                 .named
                 .iter()
-                .filter(|field| !is_skipped(&field.attrs))
+                .filter(|field| !is_skipped(&field.attrs, target_os))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -215,6 +263,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Tuple structs
@@ -235,6 +284,8 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 r#type: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
+                decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Unit structs or `None`
@@ -244,6 +295,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
             decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }),
     })
 }
@@ -253,7 +305,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -274,6 +326,8 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
+            decorators: get_decorators(&e.attrs),
+            is_redacted: is_redacted(&e.attrs),
         }));
     }
 
@@ -288,8 +342,8 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .variants
         .iter()
         // Filter out variants we've been told to skip
-        .filter(|v| !is_skipped(&v.attrs))
-        .map(|v| parse_enum_variant(v, &serde_rename_all))
+        .filter(|v| !is_skipped(&v.attrs, target_os))
+        .map(|v| parse_enum_variant(v, &serde_rename_all, target_os))
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
@@ -308,6 +362,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         decorators: get_decorators(&e.attrs),
         generic_types,
         is_recursive,
+        is_redacted: is_redacted(&e.attrs),
     };
 
     // Figure out if we're dealing with a unit enum or an algebraic enum
@@ -351,6 +406,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
 fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<String>,
+    target_os: Option<&str>,
 ) -> Result<RustEnumVariant, ParseError> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
@@ -385,7 +441,7 @@ fn parse_enum_variant(
             fields: fields_named
                 .named
                 .iter()
-                .filter(|f| !is_skipped(&f.attrs))
+                .filter(|f| !is_skipped(&f.attrs, target_os))
                 .map(|f| {
                     let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -434,6 +490,8 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
+        decorators: get_decorators(&t.attrs),
+        is_redacted: is_redacted(&t.attrs),
     }))
 }
 
@@ -466,7 +524,6 @@ pub(crate) fn get_name_value_meta_items<'a>(
 ) -> impl Iterator<Item = String> + 'a {
     attrs.iter().flat_map(move |attr| {
         get_meta_items(attr, ident)
-            .iter()
             .filter_map(|arg| match arg {
                 Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
                     expr_to_string(&name_value.value)
@@ -478,15 +535,16 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
-fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
+#[inline(always)]
+fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
     if attr.path().is_ident(ident) {
-        attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .iter()
-            .flat_map(|meta| meta.iter())
-            .cloned()
-            .collect()
+        Either::Left(
+            attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .into_iter()
+                .flat_map(|punctuated| punctuated.into_iter()),
+        )
     } else {
-        Vec::default()
+        Either::Right(std::iter::empty())
     }
 }
 
@@ -542,19 +600,77 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
-fn is_skipped(attrs: &[syn::Attribute]) -> bool {
+fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .into_iter()
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
+    }) || target_os
+        .map(|target| attrs.iter().any(|attr| target_os_skip(attr, target)))
+        .unwrap_or(false)
+}
+
+// `#[typeshare(redacted)]`
+fn is_redacted(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        get_meta_items(attr, TYPESHARE)
+            .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
     })
+}
+
+/// Check if we have a `target_os` cfg that dooes not match command line
+/// argument `--target-os`.
+#[inline]
+pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
+    get_meta_items(attr, "cfg")
+        .find_map(|meta| match &meta {
+            // a single #[cfg(target_os = "target")]
+            Meta::NameValue(MetaNameValue {
+                path,
+                value:
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(v), ..
+                    }),
+                ..
+            }) if path.is_ident("target_os") => Some(v.value()),
+            // combined with any or all
+            // Ex: #[cfg(any(target_os = "target", feature = "test"))]
+            Meta::List(meta_list)
+                if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
+            {
+                target_os_from_meta_list(meta_list)
+            }
+            _ => None,
+        })
+        .map(|os| os != target_os)
+        .unwrap_or(false)
+}
+
+/// Parses `target_os = "os"` value from `any` or `all` meta list.
+#[inline]
+fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
+    let name_values: Punctuated<MetaNameValue, Token![,]> =
+        list.parse_args_with(Punctuated::parse_terminated).ok()?;
+
+    name_values
+        .into_iter()
+        .find_map(|name_value| {
+            name_value
+                .path
+                .is_ident("target_os")
+                .then_some(name_value.value)
+        })
+        .and_then(|val_expr| match val_expr {
+            Expr::Lit(ExprLit {
+                lit: Lit::Str(val), ..
+            }) => Some(val.value()),
+            _ => None,
+        })
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .iter()
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
 }
@@ -578,14 +694,14 @@ fn get_field_decorators(
     attrs
         .iter()
         .flat_map(|attr| get_meta_items(attr, TYPESHARE))
-        .flat_map(|meta| {
+        .filter_map(|meta| {
             if let Meta::List(list) = meta {
                 Some(list)
             } else {
                 None
             }
         })
-        .flat_map(|list: MetaList| match list.path.get_ident() {
+        .filter_map(|list: MetaList| match list.path.get_ident() {
             Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
                 Some((ident.try_into().unwrap(), list))
             }
@@ -675,32 +791,24 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
-    // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
+/// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
+fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
+    let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
-    for value in get_name_value_meta_items(attrs, "swift", TYPESHARE) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-
-        // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry(SupportedLanguage::Swift).or_default();
-        decs.extend(decorators);
-        // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
+    for decorator_kind in [
+        DecoratorKind::Swift,
+        DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Kotlin,
+    ] {
+        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
+            decorator_map
+                .entry(decorator_kind)
+                .or_default()
+                .extend(value.split(',').map(|s| s.trim().to_string()));
+        }
     }
 
-    for value in get_name_value_meta_items(attrs, "kotlin", TYPESHARE) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-        let decs = out.entry(SupportedLanguage::Kotlin).or_default();
-        decs.extend(decorators);
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
-    }
-
-    //return our hashmap mapping of language -> Vec<decorators>
-    out
+    decorator_map
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {

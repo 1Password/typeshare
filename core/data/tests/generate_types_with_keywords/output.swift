@@ -10,11 +10,6 @@ public struct `catch`: Codable {
 	}
 }
 
-public enum `throws`: String, Codable {
-	case `case`
-	case `default`
-}
-
 public enum `switch`: Codable {
 	case `default`(`catch`)
 
@@ -48,4 +43,9 @@ public enum `switch`: Codable {
 			try container.encode(content, forKey: .content)
 		}
 	}
+}
+
+public enum `throws`: String, Codable {
+	case `case`
+	case `default`
 }
