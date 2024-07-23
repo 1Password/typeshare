@@ -9,10 +9,10 @@ public class ItemDetailsFieldValue {
 }
 
 [JsonConverter(typeof(JsonSubtypes), "type")]
-[JsonSubtypes.KnownSubType(typeof(String), "String")]
-[JsonSubtypes.KnownSubType(typeof(Number), "Number")]
-[JsonSubtypes.KnownSubType(typeof(NumberArray), "NumberArray")]
-[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "ReallyCoolType")]
+[JsonSubtypes.KnownSubType(typeof(String), "string")]
+[JsonSubtypes.KnownSubType(typeof(Number), "number")]
+[JsonSubtypes.KnownSubType(typeof(NumberArray), "number-array")]
+[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "reallyCoolType")]
 public abstract record AdvancedColors 
 {
 	public record String(string Content) : AdvancedColors();

@@ -25,9 +25,9 @@ public enum DimensionFitValue
 }
 
 [JsonConverter(typeof(JsonSubtypes), "type")]
-[JsonSubtypes.KnownSubType(typeof(fixed-size), "fixed-size")]
-[JsonSubtypes.KnownSubType(typeof(percentage), "percentage")]
-[JsonSubtypes.KnownSubType(typeof(fit), "fit")]
+[JsonSubtypes.KnownSubType(typeof(FixedSize), "fixed-size")]
+[JsonSubtypes.KnownSubType(typeof(Percentage), "percentage")]
+[JsonSubtypes.KnownSubType(typeof(Fit), "fit")]
 public abstract record DimensionValue 
 {
 	public record FixedSize(float Value) : DimensionValue();

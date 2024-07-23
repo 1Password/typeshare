@@ -31,10 +31,10 @@ public abstract record AdvancedColors
 
 
 [JsonConverter(typeof(JsonSubtypes), "type")]
-[JsonSubtypes.KnownSubType(typeof(String), "String")]
-[JsonSubtypes.KnownSubType(typeof(Number), "Number")]
-[JsonSubtypes.KnownSubType(typeof(NumberArray), "NumberArray")]
-[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "ReallyCoolType")]
+[JsonSubtypes.KnownSubType(typeof(String), "string")]
+[JsonSubtypes.KnownSubType(typeof(Number), "number")]
+[JsonSubtypes.KnownSubType(typeof(NumberArray), "number-array")]
+[JsonSubtypes.KnownSubType(typeof(ReallyCoolType), "really-cool-type")]
 public abstract record AdvancedColors2 
 {
 	/** This is a case comment */
