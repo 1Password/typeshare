@@ -12,6 +12,7 @@ pub const ARG_SCALA_PACKAGE: &str = "SCALAPACKAGE";
 pub const ARG_SCALA_MODULE_NAME: &str = "SCALAMODULENAME";
 #[cfg(feature = "go")]
 pub const ARG_GO_PACKAGE: &str = "GOPACKAGE";
+pub const ARG_CSHARP_NAMESPACE: &str = "CSHARP_NAMESPACE";
 pub const ARG_CONFIG_FILE_NAME: &str = "CONFIGFILENAME";
 pub const ARG_GENERATE_CONFIG: &str = "generate-config-file";
 pub const ARG_OUTPUT_FILE: &str = "output-file";
@@ -20,10 +21,10 @@ pub const ARG_FOLLOW_LINKS: &str = "follow-links";
 pub const ARG_TARGET_OS: &str = "target_os";
 
 #[cfg(feature = "go")]
-const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "go"];
+const AVAILABLE_LANGUAGES: [&str; 6] = ["kotlin", "scala", "swift", "typescript", "go", "csharp"];
 
 #[cfg(not(feature = "go"))]
-const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
+const AVAILABLE_LANGUAGES: [&str; 5] = ["kotlin", "scala", "swift", "typescript", "csharp"];
 
 /// Parse command line arguments.
 pub(crate) fn build_command() -> Command<'static> {
@@ -97,7 +98,13 @@ pub(crate) fn build_command() -> Command<'static> {
                 .takes_value(true)
                 .required(false),
         )
-
+        .arg(
+            Arg::new(ARG_CSHARP_NAMESPACE)
+                .long("namespace")
+                .help("C# namespace")
+                .takes_value(true)
+                .required(false)
+        )
         .arg(
             Arg::new(ARG_CONFIG_FILE_NAME)
                 .short('c')
