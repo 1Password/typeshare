@@ -231,7 +231,9 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
             let fields = f
                 .named
                 .iter()
+                .inspect(|field| println!("\t\tChecking field {:?}", field.ident))
                 .filter(|field| !is_skipped(&field.attrs, target_os))
+                .inspect(|field| println!("\t\tAccepted field {:?}", field.ident))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -602,13 +604,20 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
 fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
-    attrs.iter().any(|attr| {
+    let typeshare_skip = attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
-    }) || !target_os
-        .iter()
-        .any(|target| attrs.iter().any(|attr| target_os_accept(attr, target)))
+    });
+
+    let target_accepted = target_os.is_empty()
+        || target_os
+            .iter()
+            .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)));
+
+    println!("\t\ttarget_accepted {target_accepted}");
+
+    typeshare_skip || !target_accepted
 }
 
 // `#[typeshare(redacted)]`
@@ -638,10 +647,12 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
         }) if path.is_ident("target_os") => v.value() == target_os,
         // combined with any or all
         // Ex: #[cfg(any(target_os = "target", feature = "test"))]
-        Meta::List(meta_list)
-            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
-        {
-            target_os_from_meta_list(meta_list).any(|t| t == target_os)
+        Meta::List(meta_list) => {
+            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") {
+                target_os_from_meta_list(meta_list).any(|t| t == target_os)
+            } else {
+                false
+            }
         }
         // If this attribute is not a target_os we accept
         _ => {

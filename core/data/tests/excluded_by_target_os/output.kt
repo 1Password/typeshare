@@ -4,6 +4,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
 @Serializable
+data class DefinedTwice (
+	val field1: String
+)
+
+@Serializable
 object MultipleTargets
 
 @Serializable
@@ -12,10 +17,15 @@ enum class SomeEnum(val string: String) {
 
 /// Generated type representing the anonymous struct variant `Variant7` of the `TestEnum` Rust enum
 @Serializable
-object TestEnumVariant7Inner
+data class TestEnumVariant7Inner (
+	val field1: String
+)
 
 @Serializable
 sealed class TestEnum {
+	@Serializable
+	@SerialName("Variant1")
+	object Variant1: TestEnum()
 	@Serializable
 	@SerialName("Variant5")
 	object Variant5: TestEnum()

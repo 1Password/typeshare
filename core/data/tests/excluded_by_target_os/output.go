@@ -2,6 +2,9 @@ package proto
 
 import "encoding/json"
 
+type DefinedTwice struct {
+	Field1 string `json:"field1"`
+}
 type MultipleTargets struct {
 }
 type SomeEnum string
@@ -9,9 +12,11 @@ const (
 )
 // Generated type representing the anonymous struct variant `Variant7` of the `TestEnum` Rust enum
 type TestEnumVariant7Inner struct {
+	Field1 string `json:"field1"`
 }
 type TestEnumTypes string
 const (
+	TestEnumTypeVariantVariant1 TestEnumTypes = "Variant1"
 	TestEnumTypeVariantVariant5 TestEnumTypes = "Variant5"
 	TestEnumTypeVariantVariant7 TestEnumTypes = "Variant7"
 	TestEnumTypeVariantVariant8 TestEnumTypes = "Variant8"
@@ -32,6 +37,8 @@ func (t *TestEnum) UnmarshalJSON(data []byte) error {
 
 	t.Type = enum.Tag
 	switch t.Type {
+	case TestEnumTypeVariantVariant1:
+		return nil
 	case TestEnumTypeVariantVariant5:
 		return nil
 	case TestEnumTypeVariantVariant7:
@@ -63,6 +70,11 @@ func (t TestEnum) Variant7() *TestEnumVariant7Inner {
 	return res
 }
 
+func NewTestEnumTypeVariantVariant1() TestEnum {
+    return TestEnum{
+        Type: TestEnumTypeVariantVariant1,
+    }
+}
 func NewTestEnumTypeVariantVariant5() TestEnum {
     return TestEnum{
         Type: TestEnumTypeVariantVariant5,

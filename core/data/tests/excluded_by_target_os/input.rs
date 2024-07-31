@@ -47,3 +47,15 @@ pub struct ManyStruct;
 #[typeshare]
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub struct MultipleTargets;
+
+#[typeshare]
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub struct DefinedTwice {
+    field1: u64,
+}
+
+#[typeshare]
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub struct DefinedTwice {
+    field1: String,
+}
