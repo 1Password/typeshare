@@ -40,11 +40,17 @@ fn main() -> anyhow::Result<()> {
                 .long("go-package")
                 .help("Go package name")
                 .takes_value(true)
-                .required_if(ARG_TYPE, "go"),
+                .required(false),
         );
     }
 
     let options = command.get_matches();
+    #[cfg(feature = "go")]
+    {
+        if !is_package_present(&options) {
+            return Err(anyhow!("Please provide a package name in the typeshare.toml or using --go-package <package name>"));
+        }
+    }
 
     if let Some(options) = options.subcommand_matches("completions") {
         let shell = options
@@ -244,5 +250,25 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
         Err(anyhow!("Errors encountered during parsing."))
     } else {
         Ok(())
+    }
+}
+
+#[cfg(feature = "go")]
+fn is_package_present(options: &ArgMatches) -> bool {
+    if options.value_of(args::ARG_GO_PACKAGE).is_some() {
+        return true;
+    }
+
+    let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
+    let config = config::load_config(config_file).context("Unable to read configuration file");
+    match config {
+        Ok(config) => {
+            if !config.go.package.is_empty() {
+                true
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
     }
 }

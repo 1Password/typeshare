@@ -156,9 +156,9 @@ pub enum RustType {
     /// - `SomeStruct<String>`
     /// - `SomeEnum<u32>`
     /// - `SomeTypeAlias<(), &str>`
-    /// However, there are some generic types that are considered to be _special_. These
-    /// include `Vec<T>` `HashMap<K, V>`, and `Option<T>`, which are part of `SpecialRustType` instead
-    /// of `RustType::Generic`.
+    ///   However, there are some generic types that are considered to be _special_. These
+    ///   include `Vec<T>` `HashMap<K, V>`, and `Option<T>`, which are part of `SpecialRustType` instead
+    ///   of `RustType::Generic`.
     ///
     /// If a generic type is type-mapped via `typeshare.toml`, the generic parameters will be dropped automatically.
     Generic {
