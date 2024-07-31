@@ -122,7 +122,7 @@ fn main() -> anyhow::Result<()> {
         parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &ignored_types,
         multi_file,
-        target_os,
+        &target_os,
     )?;
 
     // Collect all the types into a map of the file name they
@@ -220,7 +220,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
         config.go.package = go_package.to_string();
     }
 
-    config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
+    config.target_os = options
+        .get_many::<String>(ARG_TARGET_OS)
+        .map(|arg| arg.into_iter().map(ToString::to_string).collect::<Vec<_>>())
+        .unwrap_or_default();
     config
 }
 

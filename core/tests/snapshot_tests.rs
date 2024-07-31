@@ -51,7 +51,7 @@ fn check(
     test_name: &str,
     file_name: impl AsRef<Path>,
     mut lang: Box<dyn Language>,
-    target_os: Option<&str>,
+    target_os: &[&str],
 ) -> Result<(), anyhow::Error> {
     let _extension = file_name
         .as_ref()
@@ -73,7 +73,10 @@ fn check(
         "file_path".into(),
         &[],
         false,
-        target_os.map(|s| s.to_owned()),
+        &target_os
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
     )?
     .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
@@ -224,12 +227,14 @@ macro_rules! language_instance {
 }
 
 macro_rules! target_os {
-    ($target_os:literal) => {
-        Some($target_os)
+    (
+        [$($target_os:literal),*]
+    ) => {
+        &[$($target_os),*]
     };
 
     () => {
-        None
+        &[]
     };
 }
 
@@ -317,7 +322,7 @@ macro_rules! tests {
             use super::check;
 
             const TEST_NAME: &str = stringify!($test);
-            const TARGET_OS: Option<&str> = target_os!($($target_os)?);
+            const TARGET_OS: &[&str] = target_os!($($target_os)?);
 
             $(
                 #[test]
@@ -585,6 +590,6 @@ tests! {
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
-    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: "android";
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
 }

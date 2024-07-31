@@ -2,7 +2,7 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_skip,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_accept,
         ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
@@ -50,7 +50,7 @@ pub struct TypeShareVisitor<'a> {
     #[allow(dead_code)]
     file_path: PathBuf,
     ignored_types: &'a [&'a str],
-    target_os: Option<String>,
+    target_os: &'a [String],
 }
 
 impl<'a> TypeShareVisitor<'a> {
@@ -61,7 +61,7 @@ impl<'a> TypeShareVisitor<'a> {
         file_path: PathBuf,
         ignored_types: &'a [&'a str],
         multi_file: bool,
-        target_os: Option<String>,
+        target_os: &'a [String],
     ) -> Self {
         Self {
             parsed_data: ParsedData::new(crate_name, file_name, multi_file),
@@ -192,11 +192,12 @@ impl<'a> TypeShareVisitor<'a> {
     /// Is this type annoted with at `#[cfg(target_os = "target")]` that does
     /// not match `--target-os` argument?
     #[inline(always)]
-    fn target_os_skipped(&self, attrs: &[Attribute]) -> bool {
-        self.target_os
-            .as_ref()
-            .map(|target_os| attrs.iter().any(|attr| target_os_skip(attr, target_os)))
-            .unwrap_or(false)
+    fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
+        self.target_os.is_empty()
+            || self
+                .target_os
+                .iter()
+                .any(|target_os| attrs.iter().all(|attr| target_os_accept(attr, target_os)))
     }
 }
 
@@ -266,8 +267,10 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
-            self.collect_result(parse_struct(i, self.target_os.as_deref()));
+        println!("Visiting {}", i.ident);
+        if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
+            println!("\tParsing {}", i.ident);
+            self.collect_result(parse_struct(i, self.target_os));
         }
 
         syn::visit::visit_item_struct(self, i);
@@ -275,8 +278,10 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
-            self.collect_result(parse_enum(i, self.target_os.as_deref()));
+        println!("Visiting {}", i.ident);
+        if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
+            println!("\tParsing {}", i.ident);
+            self.collect_result(parse_enum(i, self.target_os));
         }
 
         syn::visit::visit_item_enum(self, i);
@@ -284,7 +289,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust type aliases.
     fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
-        if has_typeshare_annotation(&i.attrs) && !self.target_os_skipped(&i.attrs) {
+        println!("Visiting {}", i.ident);
+        if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
+            println!("\tParsing {}", i.ident);
             self.collect_result(parse_type_alias(i));
         }
 
@@ -292,18 +299,18 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     }
 
     /// Track potentially skipped modules.
-    fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
-        if let Some(target_os) = self.target_os.as_ref() {
-            if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
-                println!("skip {}", i.ident);
-            }
-        };
+    // fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
+    //     if let Some(target_os) = self.target_os.as_ref() {
+    //         if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
+    //             println!("skip {}", i.ident);
+    //         }
+    //     };
 
-        syn::visit::visit_item_mod(self, i);
-    }
+    //     syn::visit::visit_item_mod(self, i);
+    // }
 
     fn visit_file(&mut self, i: &'ast syn::File) {
-        if !self.target_os_skipped(&i.attrs) {
+        if self.target_os_accepted(&i.attrs) {
             syn::visit::visit_file(self, i);
         }
     }
@@ -607,7 +614,7 @@ mod test {
             "file_path".into(),
             &[],
             true,
-            None,
+            &[],
         );
         visitor.visit_file(&file);
 

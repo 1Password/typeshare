@@ -4,6 +4,7 @@
 use std::collection::HashMap;
 
 #[typeshare]
+#[serde(tag = "type", content = "content")]
 pub enum TestEnum {
     Variant1,
     #[cfg(target_os = "ios")]
@@ -14,6 +15,12 @@ pub enum TestEnum {
     Variant4,
     #[cfg(target_os = "android")]
     Variant5,
+    #[cfg(target_os = "macos")]
+    Variant7 {
+        field1: String,
+    },
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    Variant8,
 }
 
 #[typeshare]
@@ -32,3 +39,11 @@ pub enum Test {}
 #[cfg(feature = "super")]
 #[cfg(target_os = "android")]
 pub enum SomeEnum {}
+
+#[typeshare]
+#[cfg(any(target_os = "ios", taget_os = "android"))]
+pub struct ManyStruct;
+
+#[typeshare]
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub struct MultipleTargets;

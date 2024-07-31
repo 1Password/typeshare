@@ -10,6 +10,7 @@ use crate::{
 };
 use itertools::Either;
 use proc_macro2::Ident;
+use quote::ToTokens;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
@@ -168,7 +169,7 @@ pub fn parse(
     file_path: PathBuf,
     ignored_types: &[&str],
     mult_file: bool,
-    target_os: Option<String>,
+    target_os: &[String],
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -176,6 +177,7 @@ pub fn parse(
         return Ok(None);
     }
 
+    println!("parsing {file_name}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(
@@ -196,10 +198,7 @@ pub fn parse(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-pub(crate) fn parse_struct(
-    s: &ItemStruct,
-    target_os: Option<&str>,
-) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -305,7 +304,7 @@ pub(crate) fn parse_struct(
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum, target_os: &[String]) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -341,8 +340,10 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustIt
     let variants = e
         .variants
         .iter()
+        .inspect(|v| println!("\t\tChecking variant {}", v.ident))
         // Filter out variants we've been told to skip
         .filter(|v| !is_skipped(&v.attrs, target_os))
+        .inspect(|v| println!("\t\taccepted variant {}", v.ident))
         .map(|v| parse_enum_variant(v, &serde_rename_all, target_os))
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -406,7 +407,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: Option<&str>) -> Result<RustIt
 fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<String>,
-    target_os: Option<&str>,
+    target_os: &[String],
 ) -> Result<RustEnumVariant, ParseError> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
@@ -600,14 +601,14 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 }
 
 // `#[typeshare(skip)]` or `#[serde(skip)]`
-fn is_skipped(attrs: &[syn::Attribute], target_os: Option<&str>) -> bool {
+fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
-    }) || target_os
-        .map(|target| attrs.iter().any(|attr| target_os_skip(attr, target)))
-        .unwrap_or(false)
+    }) || !target_os
+        .iter()
+        .any(|target| attrs.iter().any(|attr| target_os_accept(attr, target)))
 }
 
 // `#[typeshare(redacted)]`
@@ -621,51 +622,64 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
 /// Check if we have a `target_os` cfg that dooes not match command line
 /// argument `--target-os`.
 #[inline]
-pub(crate) fn target_os_skip(attr: &Attribute, target_os: &str) -> bool {
-    get_meta_items(attr, "cfg")
-        .find_map(|meta| match &meta {
-            // a single #[cfg(target_os = "target")]
-            Meta::NameValue(MetaNameValue {
-                path,
-                value:
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(v), ..
-                    }),
-                ..
-            }) if path.is_ident("target_os") => Some(v.value()),
-            // combined with any or all
-            // Ex: #[cfg(any(target_os = "target", feature = "test"))]
-            Meta::List(meta_list)
-                if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
-            {
-                target_os_from_meta_list(meta_list)
-            }
-            _ => None,
-        })
-        .map(|os| os != target_os)
-        .unwrap_or(false)
+pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
+    println!(
+        "\tchecking attribute {} for {target_os}",
+        attr.into_token_stream()
+    );
+    let b = get_meta_items(attr, "cfg").all(|meta| match &meta {
+        // a single #[cfg(target_os = "target")]
+        Meta::NameValue(MetaNameValue {
+            path,
+            value: Expr::Lit(ExprLit {
+                lit: Lit::Str(v), ..
+            }),
+            ..
+        }) if path.is_ident("target_os") => v.value() == target_os,
+        // combined with any or all
+        // Ex: #[cfg(any(target_os = "target", feature = "test"))]
+        Meta::List(meta_list)
+            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
+        {
+            target_os_from_meta_list(meta_list).any(|t| t == target_os)
+        }
+        // If this attribute is not a target_os we accept
+        _ => {
+            println!("\t\tNot a target_os");
+            true
+        }
+    });
+    println!("\t\taccept {b}");
+    b
 }
 
 /// Parses `target_os = "os"` value from `any` or `all` meta list.
 #[inline]
-fn target_os_from_meta_list(list: &MetaList) -> Option<String> {
-    let name_values: Punctuated<MetaNameValue, Token![,]> =
-        list.parse_args_with(Punctuated::parse_terminated).ok()?;
+fn target_os_from_meta_list(list: &MetaList) -> impl Iterator<Item = String> {
+    let name_values: Result<Punctuated<MetaNameValue, Token![,]>, _> =
+        list.parse_args_with(Punctuated::parse_terminated);
 
-    name_values
-        .into_iter()
-        .find_map(|name_value| {
-            name_value
-                .path
-                .is_ident("target_os")
-                .then_some(name_value.value)
-        })
-        .and_then(|val_expr| match val_expr {
-            Expr::Lit(ExprLit {
-                lit: Lit::Str(val), ..
-            }) => Some(val.value()),
-            _ => None,
-        })
+    match name_values {
+        Ok(nvps) => Either::Left(
+            nvps.into_iter()
+                .filter_map(|name_value| {
+                    name_value
+                        .path
+                        .is_ident("target_os")
+                        .then_some(name_value.value)
+                })
+                .filter_map(|val_expr| match val_expr {
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(val), ..
+                    }) => Some(val.value()),
+                    _ => None,
+                }),
+        ),
+        Err(err) => {
+            eprint!("Failed to parse meta list for target_os: {err}");
+            Either::Right(std::iter::empty())
+        }
+    }
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {

@@ -1,8 +1,12 @@
+export interface MultipleTargets {
+}
+
 export enum SomeEnum {
 }
 
-export enum TestEnum {
-	Variant1 = "Variant1",
-	Variant5 = "Variant5",
-}
+export type TestEnum = 
+	| { type: "Variant5", content?: undefined }
+	| { type: "Variant7", content: {
+}}
+	| { type: "Variant8", content?: undefined };
 
