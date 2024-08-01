@@ -15,12 +15,13 @@ use quote::ToTokens;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
+    fmt::Display,
     path::PathBuf,
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprAssign, ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta,
-    MetaList, MetaNameValue, Token,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta, MetaList,
+    MetaNameValue, Token,
 };
 use thiserror::Error;
 
@@ -700,74 +701,47 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
 /// Here we have a `#[cfg(not(..))]` attribute. There can be an `any` or `all` as well. We'll
 /// take any `target_os` and see if it matches the target_os parameter.
 fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
-    let expr: Result<Expr, _> = list.parse_args_with(Expr::parse_without_eager_brace);
+    let nested_meta_list =
+        list.parse_args_with(Punctuated::<MetaList, Token![,]>::parse_terminated);
 
-    fn parse_target_os(assign: &ExprAssign) -> Option<&Expr> {
-        match assign.left.as_ref() {
-            Expr::Path(p) if p.path.is_ident("target_os") => Some(&assign.right),
-            _ => None,
-        }
-    }
-
-    fn parse_lit(right: &Expr) -> Option<&Lit> {
-        match right {
-            Expr::Lit(lit) => Some(&lit.lit),
-            _ => None,
-        }
-    }
-
-    fn parse_value(lit: &Lit) -> Option<String> {
-        match lit {
-            Lit::Str(s) => Some(s.value()),
-            _ => None,
-        }
-    }
-
-    match expr {
-        Ok(expr) => {
-            match &expr {
-                // Combined with "any" or "all".
-                Expr::Call(c) => {
-                    if let Expr::Path(p) = &*c.func {
-                        // Assumption with all is that you can't combine multiple target_os
-                        // with all therefore we can treat it as any. The all most likely
-                        // includes other attributes.
-                        if p.path.is_ident("any") || p.path.is_ident("all") {
-                            //
-                            c.args
-                                .iter()
-                                .filter_map(|expr| match expr {
-                                    Expr::Assign(assign) => Some(assign),
-                                    _ => None,
-                                })
-                                .filter_map(parse_target_os)
-                                .filter_map(parse_lit)
-                                .filter_map(parse_value)
-                                .any(|s| s == target_os)
-                        } else {
-                            debug!("\t\tunexpected path {}", p.path.get_ident().unwrap());
-                            false
-                        }
-                    } else {
-                        false
+    let parse_meta_name_value = |mnv: Punctuated<MetaNameValue, Token![,]>| {
+        mnv.into_iter().any(|nvp| {
+            if nvp.path.is_ident("target_os") {
+                debug!("Found target_os");
+                if let Expr::Lit(expr_lit) = nvp.value {
+                    if let Lit::Str(s) = expr_lit.lit {
+                        let value = s.value();
+                        debug!("value {value}");
+                        return value == target_os;
                     }
                 }
-                // A single assignment.
-                Expr::Assign(assign) => parse_target_os(assign)
-                    .and_then(parse_lit)
-                    .and_then(parse_value)
-                    .map(|s| s == target_os)
-                    .unwrap_or(false),
-                _expr => {
-                    #[cfg(test)]
-                    debug!("\t\tunexpected expr {_expr:?}");
-                    false
-                }
             }
-        }
-        Err(err) => {
-            error!("Failed to parse not meta list {err}");
             false
+        })
+    };
+
+    fn log_err(err: &impl Display) {
+        error!("Could not parse meta name value: {err}");
+    }
+
+    match nested_meta_list {
+        Ok(punctuated_meta) => punctuated_meta.iter().any(|meta| {
+            debug!("condition: {}", meta.path.get_ident().unwrap());
+            if meta.path.is_ident("any") || meta.path.is_ident("all") {
+                meta.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
+                    .map(parse_meta_name_value)
+                    .inspect_err(log_err)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }),
+        Err(_err) => {
+            debug!("Fallback parse");
+            list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
+                .map(parse_meta_name_value)
+                .inspect_err(log_err)
+                .unwrap_or(false)
         }
     }
 }
