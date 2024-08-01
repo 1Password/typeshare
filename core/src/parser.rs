@@ -9,7 +9,7 @@ use crate::{
     visitors::{ImportedType, TypeShareVisitor},
 };
 use itertools::Either;
-use log::{debug, error};
+use log::{debug, error, log_enabled};
 use proc_macro2::Ident;
 use quote::ToTokens;
 use std::{
@@ -637,12 +637,17 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
+/// Check if this attribute rejects our optional `target_os` arguments.
+#[inline]
 pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
-    debug!(
-        "\tchecking attribute {} for {target_os} reject",
-        attr.into_token_stream()
-    );
-    let b = get_meta_items(attr, "cfg").any(|meta| match &meta {
+    if log_enabled!(log::Level::Debug) {
+        debug!(
+            "\tchecking attribute {} for {target_os} reject",
+            attr.into_token_stream()
+        );
+    }
+
+    let reject = get_meta_items(attr, "cfg").any(|meta| match &meta {
         //
         Meta::List(meta_list) => {
             if meta_list.path.is_ident("not") {
@@ -658,19 +663,21 @@ pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
             false
         }
     });
-    debug!("\t\treject {b}");
-    b
+    debug!("\t\treject {reject}");
+    reject
 }
 
-/// Check if we have a `target_os` cfg that dooes not match command line
-/// argument `--target-os`.
+/// Check if this attribute can accept our optional `target_os` arguments.
 #[inline]
 pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
-    debug!(
-        "\tchecking attribute {} for {target_os} accept",
-        attr.into_token_stream()
-    );
-    let b = get_meta_items(attr, "cfg").all(|meta| match &meta {
+    if log_enabled!(log::Level::Debug) {
+        debug!(
+            "\tchecking attribute {} for {target_os} accept",
+            attr.into_token_stream()
+        );
+    }
+
+    let accept = get_meta_items(attr, "cfg").all(|meta| match &meta {
         // a single #[cfg(target_os = "target")]
         Meta::NameValue(MetaNameValue {
             path,
@@ -694,25 +701,26 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
             true
         }
     });
-    debug!("\t\taccept {b}");
-    b
+    debug!("\t\taccept {accept}");
+    accept
 }
 
 /// Here we have a `#[cfg(not(..))]` attribute. There can be an `any` or `all` as well. We'll
 /// take any `target_os` and see if it matches the target_os parameter.
+#[inline]
 fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
     let nested_meta_list =
         list.parse_args_with(Punctuated::<MetaList, Token![,]>::parse_terminated);
 
-    let parse_meta_name_value = |mnv: Punctuated<MetaNameValue, Token![,]>| {
+    let has_target_os = |mnv: Punctuated<MetaNameValue, Token![,]>| {
         mnv.into_iter().any(|nvp| {
             if nvp.path.is_ident("target_os") {
                 debug!("Found target_os");
                 if let Expr::Lit(expr_lit) = nvp.value {
-                    if let Lit::Str(s) = expr_lit.lit {
-                        let value = s.value();
-                        debug!("value {value}");
-                        return value == target_os;
+                    if let Lit::Str(litstr) = expr_lit.lit {
+                        let v = litstr.value();
+                        debug!("value: {v}");
+                        return v == target_os;
                     }
                 }
             }
@@ -720,27 +728,34 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
         })
     };
 
-    fn log_err(err: &impl Display) {
+    fn log_parse_error(err: &impl Display) {
         error!("Could not parse meta name value: {err}");
     }
 
     match nested_meta_list {
         Ok(punctuated_meta) => punctuated_meta.iter().any(|meta| {
-            debug!("condition: {}", meta.path.get_ident().unwrap());
+            if log_enabled!(log::Level::Debug) {
+                if let Some(ident) = meta.path.get_ident() {
+                    debug!("condition: {ident}");
+                }
+            }
+
+            // The "all" here is treated as any. The assumption is there
+            // will be one "target_os" combined with "feature".
             if meta.path.is_ident("any") || meta.path.is_ident("all") {
                 meta.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
-                    .map(parse_meta_name_value)
-                    .inspect_err(log_err)
+                    .map(has_target_os)
+                    .inspect_err(log_parse_error)
                     .unwrap_or(false)
             } else {
                 false
             }
         }),
         Err(_err) => {
-            debug!("Fallback parse");
+            debug!("Parsing MetaNameValue");
             list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
-                .map(parse_meta_name_value)
-                .inspect_err(log_err)
+                .map(has_target_os)
+                .inspect_err(log_parse_error)
                 .unwrap_or(false)
         }
     }
@@ -749,8 +764,8 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
 /// Parses `target_os = "os"` value from `any` or `all` meta list.
 #[inline]
 fn target_os_from_meta_list(list: &MetaList) -> impl Iterator<Item = String> {
-    let name_values: Result<Punctuated<MetaNameValue, Token![,]>, _> =
-        list.parse_args_with(Punctuated::parse_terminated);
+    let name_values =
+        list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated);
 
     match name_values {
         Ok(nvps) => Either::Left(

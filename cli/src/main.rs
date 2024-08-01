@@ -10,6 +10,7 @@ use args::{
 use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use log::error;
 use parse::{all_types, parse_input, parser_inputs};
 use rayon::iter::ParallelBridge;
 use std::collections::{BTreeMap, HashMap};
@@ -241,7 +242,7 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
     {
         errors_encountered = true;
         for error in &data.errors {
-            eprintln!(
+            error!(
                 "Parsing error: \"{}\" in crate \"{}\" for file \"{}\"",
                 error.error, error.crate_name, error.file_name
             );
