@@ -59,3 +59,15 @@ pub struct DefinedTwice {
 pub struct DefinedTwice {
     field1: String,
 }
+
+#[typeshare]
+#[cfg(not(any(target_os = "wasm32", target_os = "ios")))]
+pub struct Excluded;
+
+#[typeshare]
+#[cfg(not(target_os = "wasm32"))]
+pub struct OtherExcluded;
+
+#[typeshare]
+#[cfg(not(target_os = "android"))]
+pub struct AndroidExcluded;

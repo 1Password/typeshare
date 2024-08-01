@@ -2,7 +2,13 @@ export interface DefinedTwice {
 	field1: string;
 }
 
+export interface Excluded {
+}
+
 export interface MultipleTargets {
+}
+
+export interface OtherExcluded {
 }
 
 export enum SomeEnum {

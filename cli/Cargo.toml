@@ -23,4 +23,6 @@ rayon = "1.10"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 typeshare-core = { path = "../core", version = "1.10.0-beta.7" }
-anyhow = "1"
+anyhow.workspace = true
+log.workspace = true
+flexi_logger.workspace = true

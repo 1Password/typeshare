@@ -3,10 +3,11 @@ use crate::{
     language::CrateName,
     parser::{
         has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_accept,
-        ErrorInfo, ParseError, ParsedData,
+        target_os_reject, ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
 };
+use log::debug;
 use std::{collections::HashSet, ops::Not, path::PathBuf};
 use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 
@@ -160,7 +161,7 @@ impl<'a> TypeShareVisitor<'a> {
                 .cloned();
 
             // if found.is_none() {
-            //     println!(
+            //     debug!(
             //         "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
             //         self.parsed_data.crate_name,
             //         self.file_path.as_os_str().to_str().unwrap_or_default()
@@ -193,11 +194,22 @@ impl<'a> TypeShareVisitor<'a> {
     /// not match `--target-os` argument?
     #[inline(always)]
     fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
-        self.target_os.is_empty()
-            || self
-                .target_os
-                .iter()
-                .any(|target_os| attrs.iter().all(|attr| target_os_accept(attr, target_os)))
+        let reject_target = || {
+            !self.target_os.is_empty()
+                && self
+                    .target_os
+                    .iter()
+                    .any(|target| attrs.iter().any(|attr| target_os_reject(attr, target)))
+        };
+
+        let accept_target = || {
+            self.target_os.is_empty()
+                || self
+                    .target_os
+                    .iter()
+                    .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)))
+        };
+        !reject_target() && accept_target()
     }
 }
 
@@ -267,9 +279,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        println!("Visiting {}", i.ident);
+        debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
-            println!("\tParsing {}", i.ident);
+            debug!("\tParsing {}", i.ident);
             self.collect_result(parse_struct(i, self.target_os));
         }
 
@@ -278,9 +290,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        println!("Visiting {}", i.ident);
+        debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
-            println!("\tParsing {}", i.ident);
+            debug!("\tParsing {}", i.ident);
             self.collect_result(parse_enum(i, self.target_os));
         }
 
@@ -289,9 +301,9 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust type aliases.
     fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
-        println!("Visiting {}", i.ident);
+        debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
-            println!("\tParsing {}", i.ident);
+            debug!("\tParsing {}", i.ident);
             self.collect_result(parse_type_alias(i));
         }
 
@@ -302,7 +314,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     // fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
     //     if let Some(target_os) = self.target_os.as_ref() {
     //         if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
-    //             println!("skip {}", i.ident);
+    //             debug!("skip {}", i.ident);
     //         }
     //     };
 

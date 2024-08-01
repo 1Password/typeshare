@@ -9,6 +9,7 @@ use crate::{
     visitors::{ImportedType, TypeShareVisitor},
 };
 use itertools::Either;
+use log::{debug, error};
 use proc_macro2::Ident;
 use quote::ToTokens;
 use std::{
@@ -18,8 +19,8 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta, MetaList,
-    MetaNameValue, Token,
+    ExprAssign, ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta,
+    MetaList, MetaNameValue, Token,
 };
 use thiserror::Error;
 
@@ -177,7 +178,7 @@ pub fn parse(
         return Ok(None);
     }
 
-    println!("parsing {file_name}");
+    debug!("parsing {file_name}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(
@@ -231,9 +232,9 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
             let fields = f
                 .named
                 .iter()
-                .inspect(|field| println!("\t\tChecking field {:?}", field.ident))
+                .inspect(|field| debug!("\t\tChecking field {:?}", field.ident))
                 .filter(|field| !is_skipped(&field.attrs, target_os))
-                .inspect(|field| println!("\t\tAccepted field {:?}", field.ident))
+                .inspect(|field| debug!("\t\tAccepted field {:?}", field.ident))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -342,10 +343,10 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: &[String]) -> Result<RustItem,
     let variants = e
         .variants
         .iter()
-        .inspect(|v| println!("\t\tChecking variant {}", v.ident))
+        .inspect(|v| debug!("\t\tChecking variant {}", v.ident))
         // Filter out variants we've been told to skip
         .filter(|v| !is_skipped(&v.attrs, target_os))
-        .inspect(|v| println!("\t\taccepted variant {}", v.ident))
+        .inspect(|v| debug!("\t\taccepted variant {}", v.ident))
         .map(|v| parse_enum_variant(v, &serde_rename_all, target_os))
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -610,14 +611,21 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     });
 
-    let target_accepted = target_os.is_empty()
-        || target_os
-            .iter()
-            .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)));
+    let target_rejected = || {
+        !target_os.is_empty()
+            && target_os
+                .iter()
+                .any(|target| attrs.iter().any(|attr| target_os_reject(attr, target)))
+    };
 
-    println!("\t\ttarget_accepted {target_accepted}");
+    let target_accepted = || {
+        target_os.is_empty()
+            || target_os
+                .iter()
+                .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)))
+    };
 
-    typeshare_skip || !target_accepted
+    typeshare_skip || target_rejected() || !target_accepted()
 }
 
 // `#[typeshare(redacted)]`
@@ -628,12 +636,37 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
+pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
+    debug!(
+        "\tchecking attribute {} for {target_os} reject",
+        attr.into_token_stream()
+    );
+    let b = get_meta_items(attr, "cfg").any(|meta| match &meta {
+        //
+        Meta::List(meta_list) => {
+            if meta_list.path.is_ident("not") {
+                debug!("\t\tparsing not");
+                target_os_parse_not(meta_list, target_os)
+            } else {
+                false
+            }
+        }
+        // If this attribute is not a target_os we accept
+        _ => {
+            debug!("\t\tNot a target_os");
+            false
+        }
+    });
+    debug!("\t\treject {b}");
+    b
+}
+
 /// Check if we have a `target_os` cfg that dooes not match command line
 /// argument `--target-os`.
 #[inline]
 pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
-    println!(
-        "\tchecking attribute {} for {target_os}",
+    debug!(
+        "\tchecking attribute {} for {target_os} accept",
         attr.into_token_stream()
     );
     let b = get_meta_items(attr, "cfg").all(|meta| match &meta {
@@ -651,17 +684,91 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
             if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") {
                 target_os_from_meta_list(meta_list).any(|t| t == target_os)
             } else {
-                false
+                true
             }
         }
         // If this attribute is not a target_os we accept
         _ => {
-            println!("\t\tNot a target_os");
+            debug!("\t\tNot a target_os");
             true
         }
     });
-    println!("\t\taccept {b}");
+    debug!("\t\taccept {b}");
     b
+}
+
+/// Here we have a `#[cfg(not(..))]` attribute. There can be an `any` or `all` as well. We'll
+/// take any `target_os` and see if it matches the target_os parameter.
+fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
+    let expr: Result<Expr, _> = list.parse_args_with(Expr::parse_without_eager_brace);
+
+    fn parse_target_os(assign: &ExprAssign) -> Option<&Box<Expr>> {
+        match assign.left.as_ref() {
+            Expr::Path(p) if p.path.is_ident("target_os") => Some(&assign.right),
+            _ => None,
+        }
+    }
+
+    fn parse_lit(right: &Box<Expr>) -> Option<&Lit> {
+        match right.as_ref() {
+            Expr::Lit(lit) => Some(&lit.lit),
+            _ => None,
+        }
+    }
+
+    fn parse_value(lit: &Lit) -> Option<String> {
+        match lit {
+            Lit::Str(s) => Some(s.value()),
+            _ => None,
+        }
+    }
+
+    match expr {
+        Ok(expr) => {
+            match &expr {
+                // Combined with "any" or "all".
+                Expr::Call(c) => {
+                    if let Expr::Path(p) = &*c.func {
+                        // Assumption with all is that you can't combine multiple target_os
+                        // with all therefore we can treat it as any. The all most likely
+                        // includes other attributes.
+                        if p.path.is_ident("any") || p.path.is_ident("all") {
+                            //
+                            c.args
+                                .iter()
+                                .filter_map(|expr| match expr {
+                                    Expr::Assign(assign) => Some(assign),
+                                    _ => None,
+                                })
+                                .filter_map(parse_target_os)
+                                .filter_map(parse_lit)
+                                .filter_map(parse_value)
+                                .any(|s| s == target_os)
+                        } else {
+                            debug!("\t\tunexpected path {}", p.path.get_ident().unwrap());
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                }
+                // A single assignment.
+                Expr::Assign(assign) => parse_target_os(assign)
+                    .and_then(parse_lit)
+                    .and_then(parse_value)
+                    .map(|s| s == target_os)
+                    .unwrap_or(false),
+                expr => {
+                    debug!("\t\tunexpected expr {expr:?}");
+                    false
+                }
+            }
+        }
+        Err(err) => {
+            error!("Failed to parse not meta list {err}");
+            false
+        }
+    }
 }
 
 /// Parses `target_os = "os"` value from `any` or `all` meta list.

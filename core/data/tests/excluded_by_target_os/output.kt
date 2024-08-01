@@ -9,7 +9,13 @@ data class DefinedTwice (
 )
 
 @Serializable
+object Excluded
+
+@Serializable
 object MultipleTargets
+
+@Serializable
+object OtherExcluded
 
 @Serializable
 enum class SomeEnum(val string: String) {

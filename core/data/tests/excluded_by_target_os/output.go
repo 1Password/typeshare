@@ -5,7 +5,11 @@ import "encoding/json"
 type DefinedTwice struct {
 	Field1 string `json:"field1"`
 }
+type Excluded struct {
+}
 type MultipleTargets struct {
+}
+type OtherExcluded struct {
 }
 type SomeEnum string
 const (

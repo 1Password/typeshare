@@ -8,7 +8,15 @@ public struct DefinedTwice: Codable {
 	}
 }
 
+public struct Excluded: Codable {
+	public init() {}
+}
+
 public struct MultipleTargets: Codable {
+	public init() {}
+}
+
+public struct OtherExcluded: Codable {
 	public init() {}
 }
 

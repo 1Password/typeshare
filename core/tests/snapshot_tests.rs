@@ -1,16 +1,47 @@
 use anyhow::Context;
+use flexi_logger::DeferredNow;
+use log::Record;
 use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
     env,
     fs::{self, OpenOptions},
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
+    sync::Once,
 };
 use typeshare_core::language::Language;
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
+
+static INIT: Once = Once::new();
+
+fn init_log() {
+    INIT.call_once(|| {
+        flexi_logger::Logger::try_with_env()
+            .unwrap()
+            .format(
+                |write: &mut dyn Write, _now: &mut DeferredNow, record: &Record<'_>| {
+                    let file_name = record.file().unwrap_or_default();
+                    let file_name = if file_name.len() > 15 {
+                        let split = file_name.len() - 15;
+                        &file_name[split..]
+                    } else {
+                        file_name
+                    };
+                    write!(
+                        write,
+                        "{file_name:>15}{:>5} - {}",
+                        record.line().unwrap_or_default(),
+                        record.args()
+                    )
+                },
+            )
+            .start()
+            .unwrap();
+    })
+}
 
 /// Reads the contents of the file at `path` into a string and returns it
 ///
@@ -327,6 +358,7 @@ macro_rules! tests {
             $(
                 #[test]
                 fn $language() -> Result<(), anyhow::Error> {
+                    crate::init_log();
                     check(
                         TEST_NAME,
                         output_file_for_ident!($language),

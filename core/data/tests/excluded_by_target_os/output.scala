@@ -6,7 +6,11 @@ case class DefinedTwice (
 	field1: String
 )
 
+class Excluded extends Serializable
+
 class MultipleTargets extends Serializable
+
+class OtherExcluded extends Serializable
 
 sealed trait SomeEnum {
 	def serialName: String

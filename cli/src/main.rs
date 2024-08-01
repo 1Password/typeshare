@@ -30,6 +30,11 @@ mod parse;
 mod writer;
 
 fn main() -> anyhow::Result<()> {
+    flexi_logger::Logger::try_with_env()
+        .unwrap()
+        .start()
+        .unwrap();
+
     #[allow(unused_mut)]
     let mut command = build_command();
 
