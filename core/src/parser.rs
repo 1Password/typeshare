@@ -702,15 +702,15 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
 fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
     let expr: Result<Expr, _> = list.parse_args_with(Expr::parse_without_eager_brace);
 
-    fn parse_target_os(assign: &ExprAssign) -> Option<&Box<Expr>> {
+    fn parse_target_os(assign: &ExprAssign) -> Option<&Expr> {
         match assign.left.as_ref() {
             Expr::Path(p) if p.path.is_ident("target_os") => Some(&assign.right),
             _ => None,
         }
     }
 
-    fn parse_lit(right: &Box<Expr>) -> Option<&Lit> {
-        match right.as_ref() {
+    fn parse_lit(right: &Expr) -> Option<&Lit> {
+        match right {
             Expr::Lit(lit) => Some(&lit.lit),
             _ => None,
         }
@@ -758,8 +758,9 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
                     .and_then(parse_value)
                     .map(|s| s == target_os)
                     .unwrap_or(false),
-                expr => {
-                    debug!("\t\tunexpected expr {expr:?}");
+                _expr => {
+                    #[cfg(test)]
+                    debug!("\t\tunexpected expr {_expr:?}");
                     false
                 }
             }
