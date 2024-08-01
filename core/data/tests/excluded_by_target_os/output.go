@@ -18,12 +18,17 @@ const (
 type TestEnumVariant7Inner struct {
 	Field1 string `json:"field1"`
 }
+// Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
+type TestEnumVariant9Inner struct {
+	Field2 string `json:"field2"`
+}
 type TestEnumTypes string
 const (
 	TestEnumTypeVariantVariant1 TestEnumTypes = "Variant1"
 	TestEnumTypeVariantVariant5 TestEnumTypes = "Variant5"
 	TestEnumTypeVariantVariant7 TestEnumTypes = "Variant7"
 	TestEnumTypeVariantVariant8 TestEnumTypes = "Variant8"
+	TestEnumTypeVariantVariant9 TestEnumTypes = "Variant9"
 )
 type TestEnum struct{ 
 	Type TestEnumTypes `json:"type"`
@@ -50,6 +55,9 @@ func (t *TestEnum) UnmarshalJSON(data []byte) error {
 		t.content = &res
 	case TestEnumTypeVariantVariant8:
 		return nil
+	case TestEnumTypeVariantVariant9:
+		var res TestEnumVariant9Inner
+		t.content = &res
 
 	}
 	if err := json.Unmarshal(enum.Content, &t.content); err != nil {
@@ -73,6 +81,10 @@ func (t TestEnum) Variant7() *TestEnumVariant7Inner {
 	res, _ := t.content.(*TestEnumVariant7Inner)
 	return res
 }
+func (t TestEnum) Variant9() *TestEnumVariant9Inner {
+	res, _ := t.content.(*TestEnumVariant9Inner)
+	return res
+}
 
 func NewTestEnumTypeVariantVariant1() TestEnum {
     return TestEnum{
@@ -93,6 +105,12 @@ func NewTestEnumTypeVariantVariant7(content *TestEnumVariant7Inner) TestEnum {
 func NewTestEnumTypeVariantVariant8() TestEnum {
     return TestEnum{
         Type: TestEnumTypeVariantVariant8,
+    }
+}
+func NewTestEnumTypeVariantVariant9(content *TestEnumVariant9Inner) TestEnum {
+    return TestEnum{
+        Type: TestEnumTypeVariantVariant9,
+        content: content,
     }
 }
 

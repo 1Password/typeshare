@@ -32,17 +32,28 @@ public struct TestEnumVariant7Inner: Codable {
 		self.field1 = field1
 	}
 }
+
+/// Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
+public struct TestEnumVariant9Inner: Codable {
+	public let field2: String
+
+	public init(field2: String) {
+		self.field2 = field2
+	}
+}
 public enum TestEnum: Codable {
 	case variant1
 	case variant5
 	case variant7(TestEnumVariant7Inner)
 	case variant8
+	case variant9(TestEnumVariant9Inner)
 
 	enum CodingKeys: String, CodingKey, Codable {
 		case variant1 = "Variant1",
 			variant5 = "Variant5",
 			variant7 = "Variant7",
-			variant8 = "Variant8"
+			variant8 = "Variant8",
+			variant9 = "Variant9"
 	}
 
 	private enum ContainerCodingKeys: String, CodingKey {
@@ -67,6 +78,11 @@ public enum TestEnum: Codable {
 			case .variant8:
 				self = .variant8
 				return
+			case .variant9:
+				if let content = try? container.decode(TestEnumVariant9Inner.self, forKey: .content) {
+					self = .variant9(content)
+					return
+				}
 			}
 		}
 		throw DecodingError.typeMismatch(TestEnum.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Wrong type for TestEnum"))
@@ -84,6 +100,9 @@ public enum TestEnum: Codable {
 			try container.encode(content, forKey: .content)
 		case .variant8:
 			try container.encode(CodingKeys.variant8, forKey: .type)
+		case .variant9(let content):
+			try container.encode(CodingKeys.variant9, forKey: .type)
+			try container.encode(content, forKey: .content)
 		}
 	}
 }

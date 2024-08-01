@@ -27,6 +27,12 @@ data class TestEnumVariant7Inner (
 	val field1: String
 )
 
+/// Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
+@Serializable
+data class TestEnumVariant9Inner (
+	val field2: String
+)
+
 @Serializable
 sealed class TestEnum {
 	@Serializable
@@ -41,5 +47,8 @@ sealed class TestEnum {
 	@Serializable
 	@SerialName("Variant8")
 	object Variant8: TestEnum()
+	@Serializable
+	@SerialName("Variant9")
+	data class Variant9(val content: TestEnumVariant9Inner): TestEnum()
 }
 

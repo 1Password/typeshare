@@ -23,6 +23,11 @@ case class TestEnumVariant7Inner (
 	field1: String
 )
 
+// Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
+case class TestEnumVariant9Inner (
+	field2: String
+)
+
 sealed trait TestEnum {
 	def serialName: String
 }
@@ -38,6 +43,9 @@ object TestEnum {
 	}
 	case object Variant8 extends TestEnum {
 		val serialName: String = "Variant8"
+	}
+	case class Variant9(content: TestEnumVariant9Inner) extends TestEnum {
+		val serialName: String = "Variant9"
 	}
 }
 

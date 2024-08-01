@@ -20,5 +20,8 @@ export type TestEnum =
 	| { type: "Variant7", content: {
 	field1: string;
 }}
-	| { type: "Variant8", content?: undefined };
+	| { type: "Variant8", content?: undefined }
+	| { type: "Variant9", content: {
+	field2: string;
+}};
 

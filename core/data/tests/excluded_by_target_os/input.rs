@@ -21,6 +21,11 @@ pub enum TestEnum {
     },
     #[cfg(any(target_os = "android", target_os = "ios"))]
     Variant8,
+    Variant9 {
+        #[cfg(not(target_os = "macos"))]
+        field1: String,
+        field2: String,
+    },
 }
 
 #[typeshare]
