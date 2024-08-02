@@ -689,7 +689,7 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
         // Ex: #[cfg(any(target_os = "target", feature = "test"))]
         Meta::List(meta_list) => {
             if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") {
-                target_os_from_meta_list(meta_list).any(|t| t == target_os)
+                argument_values("target_os", meta_list).any(|t| t == target_os)
             } else {
                 // we look for "not" before looking for "accept" so this is ok.
                 true
@@ -725,7 +725,7 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
             // will be one "target_os" combined with "feature" or some other
             // attribute that is not another "target_os".
             if meta.path.is_ident("any") || meta.path.is_ident("all") {
-                target_os_from_meta_list(meta).any(|target| target == target_os)
+                argument_values("target_os", meta).any(|target| target == target_os)
             } else {
                 false
             }
@@ -733,21 +733,21 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
         Err(_err) => {
             debug!("Parsing MetaNameValue");
             // "not" is not combined with "any" or "all".
-            target_os_from_meta_list(list).any(|target| target == target_os)
+            argument_values("target_os", list).any(|target| target == target_os)
         }
     }
 }
 
-/// Parses `target_os = "os"` value from `any` or `all` meta list.
+/// Yields all values for a given `arg_name`.
 #[inline]
-fn target_os_from_meta_list(list: &MetaList) -> impl Iterator<Item = String> {
+fn argument_values<'a>(arg_name: &'a str, list: &'a MetaList) -> impl Iterator<Item = String> + 'a {
     let name_values =
         list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated);
 
     match name_values {
         Ok(nvps) => Either::Left(nvps.into_iter().filter_map(|nvp| {
             nvp.path
-                .is_ident("target_os")
+                .is_ident(arg_name)
                 .then_some(&nvp.value)
                 .and_then(|value| match value {
                     Expr::Lit(ExprLit {
@@ -757,7 +757,7 @@ fn target_os_from_meta_list(list: &MetaList) -> impl Iterator<Item = String> {
                 })
         })),
         Err(err) => {
-            error!("Failed to parse meta list for target_os: {err}");
+            error!("Failed to parse meta list for {arg_name}: {err}");
             Either::Right(std::iter::empty())
         }
     }
