@@ -647,20 +647,13 @@ pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
     }
 
     let reject = get_meta_items(attr, "cfg").any(|meta| match &meta {
-        //
-        Meta::List(meta_list) => {
-            if meta_list.path.is_ident("not") {
-                debug!("\t\tparsing not");
-                target_os_parse_not(meta_list, target_os)
-            } else {
-                false
-            }
+        // Check for "not"
+        Meta::List(meta_list) if meta_list.path.is_ident("not") => {
+            debug!("\t\tparsing not");
+            target_os_parse_not(meta_list, target_os)
         }
         // If this attribute is not a target_os we accept
-        _ => {
-            debug!("\t\tNot a target_os");
-            false
-        }
+        _ => false,
     });
     debug!("\t\treject {reject}");
     reject
@@ -685,21 +678,15 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
             }),
             ..
         }) if path.is_ident("target_os") => v.value() == target_os,
-        // combined with any or all
+        // Combined with any or all
         // Ex: #[cfg(any(target_os = "target", feature = "test"))]
-        Meta::List(meta_list) => {
-            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") {
-                argument_values("target_os", meta_list).any(|t| t == target_os)
-            } else {
-                // we look for "not" before looking for "accept" so this is ok.
-                true
-            }
+        Meta::List(meta_list)
+            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
+        {
+            argument_values("target_os", meta_list).any(|t| t == target_os)
         }
         // If this attribute is not a target_os we accept
-        _ => {
-            debug!("\t\tNot a target_os");
-            true
-        }
+        _ => true,
     });
     debug!("\t\taccept {accept}");
     accept
@@ -724,11 +711,8 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
             // The "all" here is treated as any. The assumption is there
             // will be one "target_os" combined with "feature" or some other
             // attribute that is not another "target_os".
-            if meta.path.is_ident("any") || meta.path.is_ident("all") {
-                argument_values("target_os", meta).any(|target| target == target_os)
-            } else {
-                false
-            }
+            (meta.path.is_ident("any") || meta.path.is_ident("all"))
+                && argument_values("target_os", meta).any(|target| target == target_os)
         }),
         Err(_err) => {
             debug!("Parsing MetaNameValue");
