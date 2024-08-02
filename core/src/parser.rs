@@ -692,6 +692,7 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
             if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") {
                 target_os_from_meta_list(meta_list).any(|t| t == target_os)
             } else {
+                // we look for "not" before looking for "accept" so this is ok.
                 true
             }
         }
@@ -741,7 +742,8 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
             }
 
             // The "all" here is treated as any. The assumption is there
-            // will be one "target_os" combined with "feature".
+            // will be one "target_os" combined with "feature" or some other
+            // attribute that is not another "target_os".
             if meta.path.is_ident("any") || meta.path.is_ident("all") {
                 meta.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
                     .map(has_target_os)
