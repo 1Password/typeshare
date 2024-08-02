@@ -717,12 +717,13 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
         mnv.into_iter().any(|nvp| {
             if nvp.path.is_ident("target_os") {
                 debug!("Found target_os");
-                if let Expr::Lit(expr_lit) = nvp.value {
-                    if let Lit::Str(litstr) = expr_lit.lit {
-                        let v = litstr.value();
-                        debug!("value: {v}");
-                        return v == target_os;
-                    }
+                if let Expr::Lit(ExprLit {
+                    lit: Lit::Str(val), ..
+                }) = nvp.value
+                {
+                    let v = val.value();
+                    debug!("value: {v}");
+                    return v == target_os;
                 }
             }
             false
@@ -770,23 +771,19 @@ fn target_os_from_meta_list(list: &MetaList) -> impl Iterator<Item = String> {
         list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated);
 
     match name_values {
-        Ok(nvps) => Either::Left(
-            nvps.into_iter()
-                .filter_map(|name_value| {
-                    name_value
-                        .path
-                        .is_ident("target_os")
-                        .then_some(name_value.value)
-                })
-                .filter_map(|val_expr| match val_expr {
+        Ok(nvps) => Either::Left(nvps.into_iter().filter_map(|nvp| {
+            nvp.path
+                .is_ident("target_os")
+                .then_some(&nvp.value)
+                .and_then(|value| match value {
                     Expr::Lit(ExprLit {
                         lit: Lit::Str(val), ..
                     }) => Some(val.value()),
                     _ => None,
-                }),
-        ),
+                })
+        })),
         Err(err) => {
-            eprint!("Failed to parse meta list for target_os: {err}");
+            error!("Failed to parse meta list for target_os: {err}");
             Either::Right(std::iter::empty())
         }
     }

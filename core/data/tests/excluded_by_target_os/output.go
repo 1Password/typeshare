@@ -7,6 +7,8 @@ type DefinedTwice struct {
 }
 type Excluded struct {
 }
+type ManyStruct struct {
+}
 type MultipleTargets struct {
 }
 type OtherExcluded struct {

@@ -5,6 +5,9 @@ export interface DefinedTwice {
 export interface Excluded {
 }
 
+export interface ManyStruct {
+}
+
 export interface MultipleTargets {
 }
 

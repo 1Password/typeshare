@@ -8,6 +8,8 @@ case class DefinedTwice (
 
 class Excluded extends Serializable
 
+class ManyStruct extends Serializable
+
 class MultipleTargets extends Serializable
 
 class OtherExcluded extends Serializable

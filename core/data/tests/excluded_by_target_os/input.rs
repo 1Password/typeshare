@@ -46,7 +46,7 @@ pub enum Test {}
 pub enum SomeEnum {}
 
 #[typeshare]
-#[cfg(any(target_os = "ios", taget_os = "android"))]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub struct ManyStruct;
 
 #[typeshare]

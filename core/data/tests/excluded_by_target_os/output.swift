@@ -12,6 +12,10 @@ public struct Excluded: Codable {
 	public init() {}
 }
 
+public struct ManyStruct: Codable {
+	public init() {}
+}
+
 public struct MultipleTargets: Codable {
 	public init() {}
 }

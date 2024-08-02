@@ -12,6 +12,9 @@ data class DefinedTwice (
 object Excluded
 
 @Serializable
+object ManyStruct
+
+@Serializable
 object MultipleTargets
 
 @Serializable
