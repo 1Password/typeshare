@@ -15,7 +15,6 @@ use quote::ToTokens;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
-    fmt::Display,
     path::PathBuf,
 };
 use syn::{
@@ -710,29 +709,9 @@ pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
 /// take any `target_os` and see if it matches the target_os parameter.
 #[inline]
 fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
+    // Try to parse "any" or "all".
     let nested_meta_list =
         list.parse_args_with(Punctuated::<MetaList, Token![,]>::parse_terminated);
-
-    let has_target_os = |mnv: Punctuated<MetaNameValue, Token![,]>| {
-        mnv.into_iter().any(|nvp| {
-            if nvp.path.is_ident("target_os") {
-                debug!("Found target_os");
-                if let Expr::Lit(ExprLit {
-                    lit: Lit::Str(val), ..
-                }) = nvp.value
-                {
-                    let v = val.value();
-                    debug!("value: {v}");
-                    return v == target_os;
-                }
-            }
-            false
-        })
-    };
-
-    fn log_parse_error(err: &impl Display) {
-        error!("Could not parse meta name value: {err}");
-    }
 
     match nested_meta_list {
         Ok(punctuated_meta) => punctuated_meta.iter().any(|meta| {
@@ -746,20 +725,15 @@ fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
             // will be one "target_os" combined with "feature" or some other
             // attribute that is not another "target_os".
             if meta.path.is_ident("any") || meta.path.is_ident("all") {
-                meta.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
-                    .map(has_target_os)
-                    .inspect_err(log_parse_error)
-                    .unwrap_or(false)
+                target_os_from_meta_list(meta).any(|target| target == target_os)
             } else {
                 false
             }
         }),
         Err(_err) => {
             debug!("Parsing MetaNameValue");
-            list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
-                .map(has_target_os)
-                .inspect_err(log_parse_error)
-                .unwrap_or(false)
+            // "not" is not combined with "any" or "all".
+            target_os_from_meta_list(list).any(|target| target == target_os)
         }
     }
 }
