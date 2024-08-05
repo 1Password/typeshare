@@ -676,7 +676,7 @@ impl Python {
                 self.module
                     .add_import("pydantic".to_string(), "Field".to_string());
                 format!(
-                    "Annotated[{}, Field(alias=\"{}\")]",
+                    "Annotated[{}, Field(serialization_alias=\"{}\")]",
                     python_type, field.id.renamed
                 )
             }
