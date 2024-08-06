@@ -124,26 +124,46 @@ impl Language for Kotlin {
             writeln!(w, "@JvmInline")?;
             writeln!(w, "value class {}{}(", self.prefix, ty.id.renamed)?;
 
-            self.write_element(
-                w,
-                &RustField {
-                    id: Id {
-                        original: String::from("value"),
-                        renamed: String::from("value"),
+            if ty.is_redacted {
+                self.write_private_element(
+                    w,
+                    &RustField {
+                        id: Id {
+                            original: String::from("value"),
+                            renamed: String::from("value"),
+                        },
+                        ty: ty.r#type.clone(),
+                        comments: vec![],
+                        has_default: false,
+                        decorators: HashMap::new(),
                     },
-                    ty: ty.r#type.clone(),
-                    comments: vec![],
-                    has_default: false,
-                    decorators: HashMap::new(),
-                },
-                &[],
-                false,
-            )?;
+                    &[],
+                    false,
+                )?;
+            } else {
+                self.write_element(
+                    w,
+                    &RustField {
+                        id: Id {
+                            original: String::from("value"),
+                            renamed: String::from("value"),
+                        },
+                        ty: ty.r#type.clone(),
+                        comments: vec![],
+                        has_default: false,
+                        decorators: HashMap::new(),
+                    },
+                    &[],
+                    false,
+                )?;
+            }
 
             writeln!(w)?;
 
             if ty.is_redacted {
                 writeln!(w, ") {{")?;
+                writeln!(w, "\tfun unwrap() = value")?;
+                writeln!(w)?;
                 writeln!(w, "\toverride fun toString(): String = \"***\"")?;
                 writeln!(w, "}}")?;
             } else {
@@ -417,6 +437,36 @@ impl Kotlin {
         write!(
             w,
             "\tval {}: {}{}",
+            remove_dash_from_identifier(&f.id.renamed),
+            ty,
+            (f.has_default && !f.ty.is_optional())
+                .then_some("? = null")
+                .or_else(|| f.ty.is_optional().then_some(" = null"))
+                .unwrap_or_default()
+        )
+    }
+
+    fn write_private_element(
+        &mut self,
+        w: &mut dyn Write,
+        f: &RustField,
+        generic_types: &[String],
+        requires_serial_name: bool,
+    ) -> std::io::Result<()> {
+        self.write_comments(w, 1, &f.comments)?;
+        if requires_serial_name {
+            writeln!(w, "\t@SerialName({:?})", &f.id.renamed)?;
+        }
+        let ty = match f.type_override(SupportedLanguage::Kotlin) {
+            Some(type_override) => type_override.to_owned(),
+            None => self
+                .format_type(&f.ty, generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+        };
+
+        write!(
+            w,
+            "\tprivate val {}: {}{}",
             remove_dash_from_identifier(&f.id.renamed),
             ty,
             (f.has_default && !f.ty.is_optional())
