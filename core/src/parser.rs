@@ -637,6 +637,11 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
 }
 
 /// Check if this attribute rejects our optional `target_os` arguments.
+///
+/// Examples:
+/// - `#[cfg(not(target_os = "windows"))]`
+/// - `#[cfg(not(any(target_os = "windows", target_os = "macos", feature = "my-feature")))]`
+/// - `#[cfg(not(all(target_os = "windows", feature = "my-feature")))]`
 #[inline]
 pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
     if log_enabled!(log::Level::Debug) {
@@ -660,6 +665,11 @@ pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
 }
 
 /// Check if this attribute can accept our optional `target_os` arguments.
+///
+/// Examples:
+/// - `#[cfg(target_os = "windows")]`
+/// - `#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]`
+/// - `#[cfg(all(target_os = "windows", feature = "my-feature"))]`
 #[inline]
 pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
     if log_enabled!(log::Level::Debug) {
