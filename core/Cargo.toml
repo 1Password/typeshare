@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-core"
-version = "1.10.0-beta.7"
+version = "1.10.0-beta.8"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 description = "The code generator used by Typeshare's command line tool"

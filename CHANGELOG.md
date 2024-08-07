@@ -1,6 +1,6 @@
 # Version 1.10.0-beta
 
-## 1.10.0-beta.7
+## 1.10.0-beta.8
 
 - Added support for [inline value classes](https://kotlinlang.org/docs/inline-classes.html) in Kotlin - [#182](https://github.com/1Password/typeshare/pull/182)
 - Added the ability to specify that a struct should have information redacted - [#170](https://github.com/1Password/typeshare/pull/170)
