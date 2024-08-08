@@ -311,4 +311,16 @@ mod test {
 
         assert!(accept_target_os(&test_struct.attrs, &["android".into()]))
     }
+
+    #[test]
+    fn test_not_scope_reverse() {
+        init_log();
+
+        let test_struct: ItemStruct = parse_quote! {
+            #[cfg(all(target_os = "android", not(feature = "my-feature")))]
+            pub struct Test;
+        };
+
+        assert!(accept_target_os(&test_struct.attrs, &["android".into()]))
+    }
 }
