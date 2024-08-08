@@ -15,14 +15,12 @@ enum TargetScope {
 #[derive(Default)]
 struct TargetOsIterator {
     meta: VecDeque<(TargetScope, Meta)>,
-    // scope: TargetScope,
 }
 
 impl TargetOsIterator {
     fn new(meta: Meta) -> Self {
         Self {
             meta: VecDeque::from([(TargetScope::Accept, meta)]),
-            // ..Default::default()
         }
     }
 }
