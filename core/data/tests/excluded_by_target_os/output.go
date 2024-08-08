@@ -11,6 +11,8 @@ type ManyStruct struct {
 }
 type MultipleTargets struct {
 }
+type NestedNotTarget1 struct {
+}
 type OtherExcluded struct {
 }
 type SomeEnum string

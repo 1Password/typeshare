@@ -2,10 +2,11 @@
 use crate::{
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, target_os_accept,
-        target_os_reject, ErrorInfo, ParseError, ParsedData,
+        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
+        ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
+    target_os_check::accept_target_os,
 };
 use log::debug;
 use std::{collections::HashSet, ops::Not, path::PathBuf};
@@ -194,22 +195,7 @@ impl<'a> TypeShareVisitor<'a> {
     /// not match `--target-os` argument?
     #[inline(always)]
     fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
-        let reject_target = || {
-            !self.target_os.is_empty()
-                && self
-                    .target_os
-                    .iter()
-                    .any(|target| attrs.iter().any(|attr| target_os_reject(attr, target)))
-        };
-
-        let accept_target = || {
-            self.target_os.is_empty()
-                || self
-                    .target_os
-                    .iter()
-                    .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)))
-        };
-        !reject_target() && accept_target()
+        accept_target_os(attrs, self.target_os)
     }
 }
 

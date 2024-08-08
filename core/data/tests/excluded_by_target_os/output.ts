@@ -11,6 +11,9 @@ export interface ManyStruct {
 export interface MultipleTargets {
 }
 
+export interface NestedNotTarget1 {
+}
+
 export interface OtherExcluded {
 }
 

@@ -76,3 +76,7 @@ pub struct OtherExcluded;
 #[typeshare]
 #[cfg(not(target_os = "android"))]
 pub struct AndroidExcluded;
+
+#[typeshare]
+#[cfg(all(feature = "my-feature", not(target_os = "ios")))]
+pub struct NestedNotTarget1;

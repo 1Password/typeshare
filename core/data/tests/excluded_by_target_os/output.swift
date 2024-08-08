@@ -20,6 +20,10 @@ public struct MultipleTargets: Codable {
 	public init() {}
 }
 
+public struct NestedNotTarget1: Codable {
+	public init() {}
+}
+
 public struct OtherExcluded: Codable {
 	public init() {}
 }

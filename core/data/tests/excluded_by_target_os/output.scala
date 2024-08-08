@@ -12,6 +12,8 @@ class ManyStruct extends Serializable
 
 class MultipleTargets extends Serializable
 
+class NestedNotTarget1 extends Serializable
+
 class OtherExcluded extends Serializable
 
 sealed trait SomeEnum {

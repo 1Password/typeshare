@@ -18,6 +18,9 @@ object ManyStruct
 object MultipleTargets
 
 @Serializable
+object NestedNotTarget1
+
+@Serializable
 object OtherExcluded
 
 @Serializable

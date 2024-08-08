@@ -6,12 +6,12 @@ use crate::{
         RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
         RustTypeParseError,
     },
+    target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
 };
 use itertools::Either;
-use log::{debug, error, log_enabled};
+use log::debug;
 use proc_macro2::Ident;
-use quote::ToTokens;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
@@ -19,7 +19,7 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta, MetaList,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
     MetaNameValue, Token,
 };
 use thiserror::Error;
@@ -540,7 +540,7 @@ pub(crate) fn get_name_value_meta_items<'a>(
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
 #[inline(always)]
-fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
+pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
     if attr.path().is_ident(ident) {
         Either::Left(
             attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
@@ -611,21 +611,7 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     });
 
-    let target_rejected = || {
-        !target_os.is_empty()
-            && target_os
-                .iter()
-                .any(|target| attrs.iter().any(|attr| target_os_reject(attr, target)))
-    };
-
-    let target_accepted = || {
-        target_os.is_empty()
-            || target_os
-                .iter()
-                .any(|target| attrs.iter().all(|attr| target_os_accept(attr, target)))
-    };
-
-    typeshare_skip || target_rejected() || !target_accepted()
+    typeshare_skip || !accept_target_os(attrs, target_os)
 }
 
 // `#[typeshare(redacted)]`
@@ -634,127 +620,6 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
         get_meta_items(attr, TYPESHARE)
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
     })
-}
-
-/// Check if this attribute rejects our optional `target_os` arguments.
-///
-/// Examples:
-/// - `#[cfg(not(target_os = "windows"))]`
-/// - `#[cfg(not(any(target_os = "windows", target_os = "macos", feature = "my-feature")))]`
-/// - `#[cfg(not(all(target_os = "windows", feature = "my-feature")))]`
-#[inline]
-pub(crate) fn target_os_reject(attr: &Attribute, target_os: &str) -> bool {
-    if log_enabled!(log::Level::Debug) {
-        debug!(
-            "\tchecking attribute {} for {target_os} reject",
-            attr.into_token_stream()
-        );
-    }
-
-    let reject = get_meta_items(attr, "cfg").any(|meta| match &meta {
-        // Check for "not"
-        Meta::List(meta_list) if meta_list.path.is_ident("not") => {
-            debug!("\t\tparsing not");
-            target_os_parse_not(meta_list, target_os)
-        }
-        // If this attribute is not a target_os we accept
-        _ => false,
-    });
-    debug!("\t\treject {reject}");
-    reject
-}
-
-/// Check if this attribute can accept our optional `target_os` arguments.
-///
-/// Examples:
-/// - `#[cfg(target_os = "windows")]`
-/// - `#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]`
-/// - `#[cfg(all(target_os = "windows", feature = "my-feature"))]`
-#[inline]
-pub(crate) fn target_os_accept(attr: &Attribute, target_os: &str) -> bool {
-    if log_enabled!(log::Level::Debug) {
-        debug!(
-            "\tchecking attribute {} for {target_os} accept",
-            attr.into_token_stream()
-        );
-    }
-
-    let accept = get_meta_items(attr, "cfg").all(|meta| match &meta {
-        // a single #[cfg(target_os = "target")]
-        Meta::NameValue(MetaNameValue {
-            path,
-            value: Expr::Lit(ExprLit {
-                lit: Lit::Str(v), ..
-            }),
-            ..
-        }) if path.is_ident("target_os") => v.value() == target_os,
-        // Combined with any or all
-        // Ex: #[cfg(any(target_os = "target", feature = "test"))]
-        Meta::List(meta_list)
-            if meta_list.path.is_ident("any") || meta_list.path.is_ident("all") =>
-        {
-            argument_values("target_os", meta_list).any(|t| t == target_os)
-        }
-        // If this attribute is not a target_os we accept
-        _ => true,
-    });
-    debug!("\t\taccept {accept}");
-    accept
-}
-
-/// Here we have a `#[cfg(not(..))]` attribute. There can be an `any` or `all` as well. We'll
-/// take any `target_os` and see if it matches the target_os parameter.
-#[inline]
-fn target_os_parse_not(list: &MetaList, target_os: &str) -> bool {
-    // Try to parse "any" or "all".
-    let nested_meta_list =
-        list.parse_args_with(Punctuated::<MetaList, Token![,]>::parse_terminated);
-
-    match nested_meta_list {
-        Ok(punctuated_meta) => punctuated_meta.iter().any(|meta| {
-            if log_enabled!(log::Level::Debug) {
-                if let Some(ident) = meta.path.get_ident() {
-                    debug!("condition: {ident}");
-                }
-            }
-
-            // The "all" here is treated as any. The assumption is there
-            // will be one "target_os" combined with "feature" or some other
-            // attribute that is not another "target_os".
-            (meta.path.is_ident("any") || meta.path.is_ident("all"))
-                && argument_values("target_os", meta).any(|target| target == target_os)
-        }),
-        Err(_err) => {
-            debug!("Parsing MetaNameValue");
-            // "not" is not combined with "any" or "all".
-            argument_values("target_os", list).any(|target| target == target_os)
-        }
-    }
-}
-
-/// Yields all values for a given `arg_name`.
-#[inline]
-fn argument_values<'a>(arg_name: &'a str, list: &'a MetaList) -> impl Iterator<Item = String> + 'a {
-    let name_values =
-        list.parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated);
-
-    match name_values {
-        Ok(nvps) => Either::Left(nvps.into_iter().filter_map(|nvp| {
-            nvp.path
-                .is_ident(arg_name)
-                .then_some(&nvp.value)
-                .and_then(|value| match value {
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Str(val), ..
-                    }) => Some(val.value()),
-                    _ => None,
-                })
-        })),
-        Err(err) => {
-            error!("Failed to parse meta list for {arg_name}: {err}");
-            Either::Right(std::iter::empty())
-        }
-    }
 }
 
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
