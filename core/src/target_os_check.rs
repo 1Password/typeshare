@@ -14,15 +14,15 @@ enum TargetScope {
 
 #[derive(Default)]
 struct TargetOsIterator {
-    meta: VecDeque<Meta>,
-    scope: TargetScope,
+    meta: VecDeque<(TargetScope, Meta)>,
+    // scope: TargetScope,
 }
 
 impl TargetOsIterator {
     fn new(meta: Meta) -> Self {
         Self {
-            meta: VecDeque::from([meta]),
-            ..Default::default()
+            meta: VecDeque::from([(TargetScope::Accept, meta)]),
+            // ..Default::default()
         }
     }
 }
@@ -31,10 +31,10 @@ impl Iterator for TargetOsIterator {
     type Item = (TargetScope, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(meta) = self.meta.pop_front() {
+        while let Some((mut scope, meta)) = self.meta.pop_front() {
             if meta.path().is_ident("not") {
                 debug!("encountered not");
-                self.scope = TargetScope::Reject
+                scope = TargetScope::Reject
             }
 
             match meta {
@@ -54,7 +54,8 @@ impl Iterator for TargetOsIterator {
                         })
                         .ok()?;
                     debug!("\texpanding with {} meta", nested_meta_list.len());
-                    self.meta.extend(nested_meta_list);
+                    self.meta
+                        .extend(nested_meta_list.into_iter().map(|meta| (scope, meta)));
                 }
                 Meta::NameValue(nv) => {
                     #[cfg(test)]
@@ -70,7 +71,7 @@ impl Iterator for TargetOsIterator {
                                 _ => None,
                             })
                     {
-                        return Some((self.scope, value));
+                        return Some((scope, value));
                     }
                 }
             }
@@ -299,5 +300,17 @@ mod test {
             &test_struct.attrs,
             &["macos".into(), "android".into()]
         ));
+    }
+
+    #[test]
+    fn test_not_scope() {
+        init_log();
+
+        let test_struct: ItemStruct = parse_quote! {
+            #[cfg(all(not(feature = "my-feature"), target_os = "android"))]
+            pub struct Test;
+        };
+
+        assert!(accept_target_os(&test_struct.attrs, &["android".into()]))
     }
 }
