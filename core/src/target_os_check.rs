@@ -1,6 +1,6 @@
 //! Optional checks for `#[cfg(target_os = "target")]
 use crate::parser::get_meta_items;
-use log::{debug, error, log_enabled};
+use log::{debug, error, log_enabled, warn};
 use quote::ToTokens;
 use std::collections::VecDeque;
 use syn::{punctuated::Punctuated, Attribute, Expr, ExprLit, Lit, Meta, Token};
@@ -32,7 +32,6 @@ impl Iterator for TargetOsIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(meta) = self.meta.pop_front() {
-            debug!("working on meta");
             if meta.path().is_ident("not") {
                 debug!("encountered not");
                 self.scope = TargetScope::Reject
@@ -40,20 +39,26 @@ impl Iterator for TargetOsIterator {
 
             match meta {
                 Meta::Path(p) => {
-                    debug!("\tencountered path: {p:?}");
+                    if log_enabled!(log::Level::Warn) {
+                        warn!(
+                            "Encountered path while traversing target_os candidates: {}",
+                            p.into_token_stream()
+                        );
+                    }
                 }
                 Meta::List(meta_list) => {
                     let nested_meta_list = meta_list
                         .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                         .inspect_err(|err| {
-                            error!("\tfailed to parse nested meta: {err}");
+                            error!("Failed to parse nested meta while traversing target_os candidates: {err}");
                         })
                         .ok()?;
                     debug!("\texpanding with {} meta", nested_meta_list.len());
                     self.meta.extend(nested_meta_list);
                 }
                 Meta::NameValue(nv) => {
-                    debug!("\tworking on NameValue: {nv:?}");
+                    #[cfg(test)]
+                    debug!("\tworking with NameValue: {nv:?}");
                     if let Some(value) =
                         nv.path
                             .is_ident("target_os")
