@@ -140,7 +140,7 @@ impl Language for Kotlin {
                 false,
                 match ty.is_redacted {
                     true => Visibility::Private,
-                    false => Visibility::Public
+                    false => Visibility::Public,
                 },
             )?;
 
@@ -202,10 +202,22 @@ impl Language for Kotlin {
 
             if let Some((last, elements)) = rs.fields.split_last() {
                 for f in elements.iter() {
-                    self.write_element(w, f, rs.generic_types.as_slice(), requires_serial_name, Visibility::Public)?;
+                    self.write_element(
+                        w,
+                        f,
+                        rs.generic_types.as_slice(),
+                        requires_serial_name,
+                        Visibility::Public,
+                    )?;
                     writeln!(w, ",")?;
                 }
-                self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name, Visibility::Public)?;
+                self.write_element(
+                    w,
+                    last,
+                    rs.generic_types.as_slice(),
+                    requires_serial_name,
+                    Visibility::Public,
+                )?;
                 writeln!(w)?;
             }
 
@@ -283,7 +295,7 @@ impl Language for Kotlin {
 
 enum Visibility {
     Public,
-    Private
+    Private,
 }
 
 impl Kotlin {
@@ -446,7 +458,7 @@ impl Kotlin {
                     .then_some("? = null")
                     .or_else(|| f.ty.is_optional().then_some(" = null"))
                     .unwrap_or_default()
-            )
+            ),
         }
     }
 
