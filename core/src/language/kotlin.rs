@@ -124,39 +124,25 @@ impl Language for Kotlin {
             writeln!(w, "@JvmInline")?;
             writeln!(w, "value class {}{}(", self.prefix, ty.id.renamed)?;
 
-            if ty.is_redacted {
-                self.write_private_element(
-                    w,
-                    &RustField {
-                        id: Id {
-                            original: String::from("value"),
-                            renamed: String::from("value"),
-                        },
-                        ty: ty.r#type.clone(),
-                        comments: vec![],
-                        has_default: false,
-                        decorators: HashMap::new(),
+            self.write_element(
+                w,
+                &RustField {
+                    id: Id {
+                        original: String::from("value"),
+                        renamed: String::from("value"),
                     },
-                    &[],
-                    false,
-                )?;
-            } else {
-                self.write_element(
-                    w,
-                    &RustField {
-                        id: Id {
-                            original: String::from("value"),
-                            renamed: String::from("value"),
-                        },
-                        ty: ty.r#type.clone(),
-                        comments: vec![],
-                        has_default: false,
-                        decorators: HashMap::new(),
-                    },
-                    &[],
-                    false,
-                )?;
-            }
+                    ty: ty.r#type.clone(),
+                    comments: vec![],
+                    has_default: false,
+                    decorators: HashMap::new(),
+                },
+                &[],
+                false,
+                match ty.is_redacted {
+                    true => Visibility::Private,
+                    false => Visibility::Public
+                },
+            )?;
 
             writeln!(w)?;
 
@@ -216,10 +202,10 @@ impl Language for Kotlin {
 
             if let Some((last, elements)) = rs.fields.split_last() {
                 for f in elements.iter() {
-                    self.write_element(w, f, rs.generic_types.as_slice(), requires_serial_name)?;
+                    self.write_element(w, f, rs.generic_types.as_slice(), requires_serial_name, Visibility::Public)?;
                     writeln!(w, ",")?;
                 }
-                self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
+                self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name, Visibility::Public)?;
                 writeln!(w)?;
             }
 
@@ -293,6 +279,11 @@ impl Language for Kotlin {
     fn ignored_reference_types(&self) -> Vec<&str> {
         self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
+}
+
+enum Visibility {
+    Public,
+    Private
 }
 
 impl Kotlin {
@@ -422,6 +413,7 @@ impl Kotlin {
         f: &RustField,
         generic_types: &[String],
         requires_serial_name: bool,
+        visibility: Visibility,
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
         if requires_serial_name {
@@ -434,46 +426,28 @@ impl Kotlin {
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
         };
 
-        write!(
-            w,
-            "\tval {}: {}{}",
-            remove_dash_from_identifier(&f.id.renamed),
-            ty,
-            (f.has_default && !f.ty.is_optional())
-                .then_some("? = null")
-                .or_else(|| f.ty.is_optional().then_some(" = null"))
-                .unwrap_or_default()
-        )
-    }
-
-    fn write_private_element(
-        &mut self,
-        w: &mut dyn Write,
-        f: &RustField,
-        generic_types: &[String],
-        requires_serial_name: bool,
-    ) -> std::io::Result<()> {
-        self.write_comments(w, 1, &f.comments)?;
-        if requires_serial_name {
-            writeln!(w, "\t@SerialName({:?})", &f.id.renamed)?;
+        match visibility {
+            Visibility::Public => write!(
+                w,
+                "\tval {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            ),
+            Visibility::Private => write!(
+                w,
+                "\tprivate val {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            )
         }
-        let ty = match f.type_override(SupportedLanguage::Kotlin) {
-            Some(type_override) => type_override.to_owned(),
-            None => self
-                .format_type(&f.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-        };
-
-        write!(
-            w,
-            "\tprivate val {}: {}{}",
-            remove_dash_from_identifier(&f.id.renamed),
-            ty,
-            (f.has_default && !f.ty.is_optional())
-                .then_some("? = null")
-                .or_else(|| f.ty.is_optional().then_some(" = null"))
-                .unwrap_or_default()
-        )
     }
 
     fn write_comment(
