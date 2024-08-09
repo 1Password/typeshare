@@ -15,11 +15,9 @@ use rayon::iter::ParallelBridge;
 use std::collections::{BTreeMap, HashMap};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
+use typeshare_core::language::{GenericConstraints, Python};
 use typeshare_core::{
-    language::{
-        CrateName, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift,
-        TypeScript,
-    },
+    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
 use writer::write_generated;
@@ -186,6 +184,10 @@ fn language(
         SupportedLanguage::Go => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
+        SupportedLanguage::Python => Box::new(Python {
+            type_mappings: config.python.type_mappings,
+            ..Default::default()
+        }),
     }
 }
 
