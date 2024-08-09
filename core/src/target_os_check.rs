@@ -2,7 +2,6 @@
 use crate::parser::get_meta_items;
 use log::{debug, error, log_enabled, warn};
 use quote::ToTokens;
-use std::collections::VecDeque;
 use syn::{punctuated::Punctuated, Attribute, Expr, ExprLit, Lit, Meta, Token};
 
 #[derive(Copy, Clone, Default, Debug)]
@@ -14,13 +13,13 @@ enum TargetScope {
 
 #[derive(Default)]
 struct TargetOsIterator {
-    meta: VecDeque<(TargetScope, Meta)>,
+    meta: Vec<(TargetScope, Meta)>,
 }
 
 impl TargetOsIterator {
     fn new(meta: Meta) -> Self {
         Self {
-            meta: VecDeque::from([(TargetScope::Accept, meta)]),
+            meta: Vec::from([(TargetScope::Accept, meta)]),
         }
     }
 }
@@ -29,7 +28,7 @@ impl Iterator for TargetOsIterator {
     type Item = (TargetScope, String);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((mut scope, meta)) = self.meta.pop_front() {
+        while let Some((mut scope, meta)) = self.meta.pop() {
             if meta.path().is_ident("not") {
                 debug!("encountered not");
                 scope = TargetScope::Reject
