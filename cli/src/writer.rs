@@ -2,6 +2,7 @@
 use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
 use anyhow::Context;
 use clap::ArgMatches;
+use log::info;
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
@@ -58,7 +59,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
             // avoid writing the file to leave the mtime intact
             // for tools which might use it to know when to
             // rebuild.
-            println!("Skipping writing to {outfile:?} no changes");
+            info!("Skipping writing to {outfile:?} no changes");
             return Ok(());
         }
         _ => {}

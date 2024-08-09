@@ -153,6 +153,7 @@ pub(crate) fn build_command() -> Command<'static> {
                 .long("target-os")
                 .help("Optional restrict to target_os")
                 .takes_value(true)
+                .multiple_values(true)
                 .required(false)
         )
 }
