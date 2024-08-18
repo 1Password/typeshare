@@ -5,6 +5,8 @@ use quote::ToTokens;
 use syn::{punctuated::Punctuated, Attribute, Expr, ExprLit, Lit, Meta, Token};
 
 #[derive(Copy, Clone, Default, Debug)]
+/// Scoped inside a block that either accepts
+/// or rejects.
 enum TargetScope {
     #[default]
     Accept,
@@ -12,11 +14,13 @@ enum TargetScope {
 }
 
 #[derive(Default)]
+/// An iterator that yeilds all meta items and their contained scope.
 struct TargetOsIterator {
     meta: Vec<(TargetScope, Meta)>,
 }
 
 impl TargetOsIterator {
+    /// Create a new nested meta iterator.
     fn new(meta: Meta) -> Self {
         Self {
             meta: Vec::from([(TargetScope::Accept, meta)]),

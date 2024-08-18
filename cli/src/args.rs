@@ -150,6 +150,7 @@ pub(crate) fn build_command() -> Command<'static> {
                 .min_values(1),
         ).arg(
             Arg::new(ARG_TARGET_OS)
+                .short('t')
                 .long("target-os")
                 .help("Optional restrict to target_os")
                 .takes_value(true)
