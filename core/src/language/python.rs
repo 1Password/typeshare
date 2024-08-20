@@ -661,7 +661,7 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         if field.ty.is_optional() || field.has_default {
-            python_type = format!("Optional[{}]", python_type);
+            python_type = format!("Optional[{}] = None", python_type);
             self.module
                 .add_import("typing".to_string(), "Optional".to_string());
         }
@@ -678,7 +678,7 @@ impl Python {
                 self.module
                     .add_import("pydantic".to_string(), "Field".to_string());
                 format!(
-                    "Annotated[{}, Field(alias=\"{}\")]",
+                    "Annotated[{}, Field(alias=\"{}\")] = None",
                     python_type, field.id.renamed
                 )
             }
