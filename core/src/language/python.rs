@@ -760,6 +760,6 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Module, rs: &RustS
     });
     if visibly_renamed_field.is_some() {
         python_module.add_import("pydantic".to_string(), "ConfigDict".to_string());
-        let _ = writeln!(w, "model_config = ConfigDict(populate_by_name=True)");
+        let _ = writeln!(w, "    model_config = ConfigDict(populate_by_name=True)\n");
     };
 }
