@@ -383,6 +383,8 @@ impl Language for Python {
 
         self.write_comments(w, true, &rs.comments, 1)?;
 
+        handle_model_config(w, &mut self.module, rs);
+
         rs.fields
             .iter()
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
@@ -676,7 +678,7 @@ impl Python {
                 self.module
                     .add_import("pydantic".to_string(), "Field".to_string());
                 format!(
-                    "Annotated[{}, Field(serialization_alias=\"{}\")]",
+                    "Annotated[{}, Field(alias=\"{}\")]",
                     python_type, field.id.renamed
                 )
             }
@@ -748,4 +750,16 @@ fn python_property_aware_rename(name: &str) -> String {
         true => format!("{}_", name),
         false => snake_name,
     }
+}
+
+// If at least one field from within a class is changed when the serde rename is used (a.k.a the field has 2 words) then we must use aliasing and we must also use a config dict at the top level of the class.
+fn handle_model_config(w: &mut dyn Write, python_module: &mut Module, rs: &RustStruct) {
+    let visibly_renamed_field = rs.fields.iter().find(|f| {
+        let python_field_name = python_property_aware_rename(&f.id.original);
+        python_field_name != f.id.renamed
+    });
+    if visibly_renamed_field.is_some() {
+        python_module.add_import("pydantic".to_string(), "ConfigDict".to_string());
+        let _ = writeln!(w, "model_config = ConfigDict(populate_by_name=True)");
+    };
 }
