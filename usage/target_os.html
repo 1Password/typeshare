@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Overview - The Typeshare Book</title>
+        <title>Target OS - The Typeshare Book</title>
 
 
         <!-- Custom HTML head -->
@@ -12,21 +12,21 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon.svg">
-        <link rel="shortcut icon" href="favicon.png">
-        <link rel="stylesheet" href="css/variables.css">
-        <link rel="stylesheet" href="css/general.css">
-        <link rel="stylesheet" href="css/chrome.css">
-        <link rel="stylesheet" href="css/print.css" media="print">
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
-        <link rel="stylesheet" href="fonts/fonts.css">
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" href="highlight.css">
-        <link rel="stylesheet" href="tomorrow-night.css">
-        <link rel="stylesheet" href="ayu-highlight.css">
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
 
@@ -35,7 +35,7 @@
     <div id="body-container">
         <!-- Provide site root to javascript -->
         <script>
-            var path_to_root = "";
+            var path_to_root = "../";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
 
@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="overview.html" class="active"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="usage/configuration.html"><strong aria-hidden="true">3.2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="usage/target_os.html"><strong aria-hidden="true">3.3.</strong> Target OS</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="../installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="../usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="../usage/configuration.html"><strong aria-hidden="true">3.2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../usage/target_os.html" class="active"><strong aria-hidden="true">3.3.</strong> Target OS</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -144,7 +144,7 @@
                     <h1 class="menu-title">The Typeshare Book</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
 
@@ -173,17 +173,82 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<p>Typeshare is a tool for generating type definitions in other languages based on type definitions in Rust. Specifically, Typeshare is useful for FFI where types are passed as fully serialized blobs, and then decoded on the other side.</p>
-<p>Typeshare was originally developed as an internal tool at <a href="1password.com">1Password</a>, but has been released as an open-source crate that you can use and contribute to.</p>
-<p>This guide describes how to install and use Typeshare effectively.</p>
+                        <h1 id="target-os"><a class="header" href="#target-os">Target OS</a></h1>
+<p>The <code>--target-os</code> argument is an optional command line argument that allows you to specify a list of comma separated <code>target_os</code> values. In your
+Rust source code you can use the <a href="https://doc.rust-lang.org/reference/conditional-compilation.html#target_os"><code>target_os</code></a> attribute
+to restrict a type, variant or fields.</p>
+<p>If you do not use <code>--target-os</code> then typeshare will generate all types, variants and fields that are typeshared.</p>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><code>./typeshare ./my_rust_project \
+  --lang=typescript \
+  --output-file=my_typescript_definitions.ts \
+  --target-os=linux,macos
+</code></pre>
+<p>The example above is stating any types, variants, fields that are typeshared and are not applicable for <code>linux</code> or <code>macos</code> will be omitted from
+typeshare type generation.</p>
+<h2 id="supported-target_os-definitions"><a class="header" href="#supported-target_os-definitions">Supported <code>target_os</code> definitions.</a></h2>
+<h3 id="simple-standalone"><a class="header" href="#simple-standalone">Simple standalone.</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(target_os = "android")]
+pub struct MyType;
+<span class="boring">}</span></code></pre></pre>
+<p>This type will only be generated if <code>--target-os</code> has <code>android</code> in the list of target_os values.</p>
+<h3 id="simple-not-rule"><a class="header" href="#simple-not-rule">Simple not rule</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(not(target_os = "android"))]
+pub struct MyType;
+<span class="boring">}</span></code></pre></pre>
+<p>This type will only be generated if <code>--target-os</code> does not include <code>android</code> in the list of target_os values.</p>
+<h3 id="multiple-not-any-rule"><a class="header" href="#multiple-not-any-rule">Multiple not any rule</a></h3>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub struct MyType;
+<span class="boring">}</span></code></pre></pre>
+<p>This type will only be generated if <code>--target-os</code> does not include <code>android</code> or <code>ios</code> in the list of target_os values.</p>
+<p>The following example will allow <code>MyType</code> to be typeshared.</p>
+<pre><code>./typeshare ./my_rust_project \
+  --lang=typescript \
+  --output-file=my_typescript_definitions.ts \
+  --target-os=linux,macos
+</code></pre>
+<p>The following example will not allow <code>MyType</code> to be typeshared.</p>
+<pre><code>./typeshare ./my_rust_project \
+  --lang=typescript \
+  --output-file=my_typescript_definitions.ts \
+  --target-os=android,macos
+</code></pre>
+<h2 id="combined-with-features-or-other-cfg-attributes"><a class="header" href="#combined-with-features-or-other-cfg-attributes">Combined with features or other cfg attributes</a></h2>
+<p>Typehsare will not take into consideration any other <code>cfg</code> attributes other than <code>target_os</code> when generating types.</p>
+<p>For example:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(any(target_os = "android", feature = "android-test")]
+pub struct MyType;
+<span class="boring">}</span></code></pre></pre>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[cfg(all(target_os = "android", feature = "android-test")]
+pub struct MyType;
+<span class="boring">}</span></code></pre></pre>
+<pre><code>./typeshare ./my_rust_project \
+  --lang=typescript \
+  --output-file=my_typescript_definitions.ts \
+  --target-os=android
+</code></pre>
+<p>In both examples above, <code>MyType</code> will be typeshared.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
-                            <a rel="next prefetch" href="installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../contributing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -193,8 +258,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
-                    <a rel="next prefetch" href="installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../contributing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
@@ -209,13 +277,13 @@
         </script>
 
 
-        <script src="elasticlunr.min.js"></script>
-        <script src="mark.min.js"></script>
-        <script src="searcher.js"></script>
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
 
-        <script src="clipboard.min.js"></script>
-        <script src="highlight.js"></script>
-        <script src="book.js"></script>
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
 
         <!-- Custom JS scripts -->
 

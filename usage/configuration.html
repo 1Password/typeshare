@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="../installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="../usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="../usage/configuration.html" class="active"><strong aria-hidden="true">3.2.</strong> Configuration</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../overview.html"><strong aria-hidden="true">1.</strong> Overview</a></li><li class="chapter-item expanded "><a href="../installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="../usage/usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/annotations.html"><strong aria-hidden="true">3.1.</strong> Annotations</a></li><li class="chapter-item expanded "><a href="../usage/configuration.html" class="active"><strong aria-hidden="true">3.2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../usage/target_os.html"><strong aria-hidden="true">3.3.</strong> Target OS</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html"><strong aria-hidden="true">4.</strong> Contributing</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -183,7 +183,11 @@
 </li>
 <li>
 <p><code>-o</code>, <code>--output-file</code>
-(Required) The file path to which the generated definitions will be written.</p>
+(Required or -d) The file path to which the generated definitions will be written.</p>
+</li>
+<li>
+<p><code>-d</code>, <code>--directory</code>
+(Required or -o) The folder path to write the multiple module files to.</p>
 </li>
 <li>
 <p><code>-s</code>, <code>--swift-prefix</code>
@@ -192,6 +196,11 @@ Specify a prefix that will be prepended to type names when generating types in S
 <li>
 <p><code>-M</code>, <code>--module-name</code>
 Specify the name of the Kotlin module for generated Kotlin source code.</p>
+</li>
+<li>
+<p><code>-t</code>, <code>--target-os</code>
+Optional comma separated list of target os targets. Types that are restricted via <code>#[cfg(target_os = &lt;target&gt;]</code>
+that do not match the argument list will be filtered out.</p>
 </li>
 <li>
 <p><code>-j</code>, <code>--java-package</code>
@@ -245,7 +254,7 @@ package = 'com.example.package'
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="../contributing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../usage/target_os.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -259,7 +268,7 @@ package = 'com.example.package'
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="../contributing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../usage/target_os.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
