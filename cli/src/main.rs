@@ -10,6 +10,7 @@ use args::{
 use clap::ArgMatches;
 use config::Config;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use log::error;
 use parse::{all_types, parse_input, parser_inputs};
 use rayon::iter::ParallelBridge;
 use std::collections::{BTreeMap, HashMap};
@@ -30,6 +31,11 @@ mod parse;
 mod writer;
 
 fn main() -> anyhow::Result<()> {
+    flexi_logger::Logger::try_with_env()
+        .unwrap()
+        .start()
+        .unwrap();
+
     #[allow(unused_mut)]
     let mut command = build_command();
 
@@ -122,7 +128,7 @@ fn main() -> anyhow::Result<()> {
         parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &ignored_types,
         multi_file,
-        target_os,
+        &target_os,
     )?;
 
     // Collect all the types into a map of the file name they
@@ -220,7 +226,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> Config {
         config.go.package = go_package.to_string();
     }
 
-    config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
+    config.target_os = options
+        .get_many::<String>(ARG_TARGET_OS)
+        .map(|arg| arg.into_iter().map(ToString::to_string).collect::<Vec<_>>())
+        .unwrap_or_default();
     config
 }
 
@@ -233,7 +242,7 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
     {
         errors_encountered = true;
         for error in &data.errors {
-            eprintln!(
+            error!(
                 "Parsing error: \"{}\" in crate \"{}\" for file \"{}\"",
                 error.error, error.crate_name, error.file_name
             );

@@ -1,16 +1,47 @@
 use anyhow::Context;
+use flexi_logger::DeferredNow;
+use log::Record;
 use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
     env,
     fs::{self, OpenOptions},
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
+    sync::Once,
 };
 use typeshare_core::language::Language;
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
+
+static INIT: Once = Once::new();
+
+fn init_log() {
+    INIT.call_once(|| {
+        flexi_logger::Logger::try_with_env()
+            .unwrap()
+            .format(
+                |write: &mut dyn Write, _now: &mut DeferredNow, record: &Record<'_>| {
+                    let file_name = record.file().unwrap_or_default();
+                    let file_name = if file_name.len() > 15 {
+                        let split = file_name.len() - 15;
+                        &file_name[split..]
+                    } else {
+                        file_name
+                    };
+                    write!(
+                        write,
+                        "{file_name:>15}{:>5} - {}",
+                        record.line().unwrap_or_default(),
+                        record.args()
+                    )
+                },
+            )
+            .start()
+            .unwrap();
+    })
+}
 
 /// Reads the contents of the file at `path` into a string and returns it
 ///
@@ -51,7 +82,7 @@ fn check(
     test_name: &str,
     file_name: impl AsRef<Path>,
     mut lang: Box<dyn Language>,
-    target_os: Option<&str>,
+    target_os: &[&str],
 ) -> Result<(), anyhow::Error> {
     let _extension = file_name
         .as_ref()
@@ -73,7 +104,10 @@ fn check(
         "file_path".into(),
         &[],
         false,
-        target_os.map(|s| s.to_owned()),
+        &target_os
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
     )?
     .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
@@ -224,12 +258,14 @@ macro_rules! language_instance {
 }
 
 macro_rules! target_os {
-    ($target_os:literal) => {
-        Some($target_os)
+    (
+        [$($target_os:literal),*]
+    ) => {
+        &[$($target_os),*]
     };
 
     () => {
-        None
+        &[]
     };
 }
 
@@ -317,11 +353,12 @@ macro_rules! tests {
             use super::check;
 
             const TEST_NAME: &str = stringify!($test);
-            const TARGET_OS: Option<&str> = target_os!($($target_os)?);
+            const TARGET_OS: &[&str] = target_os!($($target_os)?);
 
             $(
                 #[test]
                 fn $language() -> Result<(), anyhow::Error> {
+                    crate::init_log();
                     check(
                         TEST_NAME,
                         output_file_for_ident!($language),
@@ -585,6 +622,6 @@ tests! {
     ];
     can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
-    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: "android";
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
 }
