@@ -662,6 +662,7 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         if field.ty.is_optional() || field.has_default {
+            // add_none_str sets Optional fields to None only when it is not wrapped by an Annotated field
             let mut add_none_str: &str = "";
             if python_field_name == field.id.renamed{
                 add_none_str = " = None";
