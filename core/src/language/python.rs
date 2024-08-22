@@ -662,11 +662,13 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         if field.ty.is_optional() || field.has_default {
+            let mut add_none_str: &str = "";
             if python_field_name == field.id.renamed{
-                python_type = format!("Optional[{}] = None", python_type);
-                self.module
-                    .add_import("typing".to_string(), "Optional".to_string());
-                }
+                add_none_str = " = None";
+            }
+            python_type = format!("Optional[{}]{}", python_type, add_none_str);
+            self.module
+                .add_import("typing".to_string(), "Optional".to_string());
         }
         let mut default = None;
         if field.has_default {
