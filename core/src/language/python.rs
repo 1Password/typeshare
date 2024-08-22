@@ -661,7 +661,7 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
-        python_type = match python_field_name == field.id.renamed || field.ty.is_optional() || field.has_default{
+        python_type = match python_field_name == field.id.renamed{
             true => python_type,
             false => {
                 self.module
