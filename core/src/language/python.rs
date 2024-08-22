@@ -670,7 +670,7 @@ impl Python {
             default = Some("None".to_string())
         }
         let python_field_name = python_property_aware_rename(&field.id.original);
-        python_type = match python_field_name == field.id.renamed {
+        python_type = match python_field_name == field.id.renamed && field.ty.is_optional() || field.has_default{
             true => python_type,
             false => {
                 self.module
