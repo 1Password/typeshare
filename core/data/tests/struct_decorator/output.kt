@@ -6,8 +6,10 @@ import kotlinx.serialization.SerialName
 @Serializable
 @JvmInline
 value class BestHockeyTeams5(
-	val value: String
+	private val value: String
 ) {
+	fun unwrap() = value
+
 	override fun toString(): String = "***"
 }
 
