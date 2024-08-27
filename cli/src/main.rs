@@ -232,7 +232,7 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> anyhow::R
         .get_many::<String>(ARG_TARGET_OS)
         .map(|arg| arg.into_iter().map(ToString::to_string).collect::<Vec<_>>())
         .unwrap_or_default();
-    config
+    Ok(config)
 }
 
 /// Prints out all parsing errors if any and returns Err.
