@@ -217,14 +217,10 @@ fn override_configuration(mut config: Config, options: &ArgMatches) -> anyhow::R
 
     #[cfg(feature = "go")]
     {
-        match options.value_of(args::ARG_GO_PACKAGE) {
-            Some(go_package) => {
-                config.go.package = go_package.to_string();
-            }
-            None => {
-                config.go.package = is_go_package_present(&config)?;
-            }
+        if let Some(go_package) = options.value_of(args::ARG_GO_PACKAGE) {
+            config.go.package = go_package.to_string();
         }
+        assert_go_package_present(&config)?;
     }
 
     config.target_os = options.value_of(ARG_TARGET_OS).map(|s| s.to_string());
@@ -255,11 +251,11 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
 }
 
 #[cfg(feature = "go")]
-fn is_go_package_present(config: &Config) -> anyhow::Result<String> {
-    if !config.go.package.is_empty() {
-        return Ok(config.go.package.clone());
+fn assert_go_package_present(config: &Config) -> anyhow::Result<()> {
+    if config.go.package.is_empty() {
+        return Err(anyhow!(
+            "Please provide a package name in the typeshare.toml or using --go-package <package name>"
+        ));
     }
-    Err(anyhow!(
-        "Please provide a package name in the typeshare.toml or using --go-package <package name>"
-    ))
+    Ok(())
 }
