@@ -661,12 +661,10 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
+        let mut add_none_default: bool = false;
         if field.ty.is_optional() || field.has_default {
-            let mut add_none_str: &str = "";
-            if python_field_name == field.id.renamed{
-                add_none_str = " = None";
-            }
-            python_type = format!("Optional[{}]{}", python_type, add_none_str);
+            add_none_default = true;
+            python_type = format!("Optional[{}]", python_type);
             self.module
                 .add_import("typing".to_string(), "Optional".to_string());
         }
@@ -682,15 +680,18 @@ impl Python {
                 self.module
                     .add_import("pydantic".to_string(), "Field".to_string());
                 format!(
-                    "Annotated[{}, Field(alias=\"{}\")] = None",
+                    "Annotated[{}, Field(alias=\"{}\")]",
                     python_type, field.id.renamed
                 )
             }
         };
+        if add_none_default {
+            python_type = format!("{python_type} = None");
+        }
         match default {
             Some(default) => writeln!(
                 w,
-                "    {}: {} = {}",
+                "    {}: {} = none python default {}",
                 python_field_name, python_type, default,
             )?,
             None => writeln!(w, "    {}: {}", python_field_name, python_type)?,
