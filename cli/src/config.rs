@@ -31,11 +31,11 @@ pub struct ScalaParams {
 #[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
-    pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
     /// The contraints to apply to `CodableVoid`.
     pub codablevoid_constraints: Vec<String>,
+    pub type_mappings: HashMap<String, String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -49,8 +49,8 @@ pub struct TypeScriptParams {
 #[cfg(feature = "go")]
 pub struct GoParams {
     pub package: String,
-    pub type_mappings: HashMap<String, String>,
     pub uppercase_acronyms: Vec<String>,
+    pub type_mappings: HashMap<String, String>,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare
@@ -124,6 +124,14 @@ mod test {
 
     fn config_file_path(filename: &str) -> PathBuf {
         [CURRENT_DIR, TEST_DIR, filename].iter().collect()
+    }
+
+    #[test]
+    fn to_string_and_back() {
+        let path = config_file_path("mappings_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        toml::from_str::<Config>(&toml::to_string_pretty(&config).unwrap()).unwrap();
     }
 
     #[test]
