@@ -186,6 +186,7 @@ fn language(
             package: config.go.package,
             type_mappings: config.go.type_mappings,
             uppercase_acronyms: config.go.uppercase_acronyms,
+            no_pointer_slice: config.go.no_pointer_slice,
             ..Default::default()
         }),
         #[cfg(not(feature = "go"))]

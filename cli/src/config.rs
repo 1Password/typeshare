@@ -51,6 +51,7 @@ pub struct GoParams {
     pub package: String,
     pub type_mappings: HashMap<String, String>,
     pub uppercase_acronyms: Vec<String>,
+    pub no_pointer_slice: bool,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare

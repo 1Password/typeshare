@@ -25,6 +25,8 @@ pub struct Go {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not slices should be translated with a pointer redirection.
+    pub no_pointer_slice: bool,
 }
 
 impl Language for Go {
@@ -103,7 +105,7 @@ impl Language for Go {
             }
             SpecialRustType::Option(rtype) => {
                 let formatted_type = self.format_type(rtype, generic_types)?;
-                let pointer = if rtype.is_vec() { "" } else { "*" };
+                let pointer = if rtype.is_vec() && self.no_pointer_slice { "" } else { "*" };
                 format!("{pointer}{formatted_type}")
             }
             SpecialRustType::HashMap(rtype1, rtype2) => format!(
