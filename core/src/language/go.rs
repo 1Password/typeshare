@@ -102,7 +102,9 @@ impl Language for Go {
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }
             SpecialRustType::Option(rtype) => {
-                format!("*{}", self.format_type(rtype, generic_types)?)
+                let formatted_type = self.format_type(rtype, generic_types)?;
+                let pointer = if rtype.is_vec() { "" } else { "*" };
+                format!("{pointer}{formatted_type}")
             }
             SpecialRustType::HashMap(rtype1, rtype2) => format!(
                 "map[{}]{}",
