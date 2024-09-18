@@ -105,7 +105,11 @@ impl Language for Go {
             }
             SpecialRustType::Option(rtype) => {
                 let formatted_type = self.format_type(rtype, generic_types)?;
-                let pointer = if rtype.is_vec() && self.no_pointer_slice { "" } else { "*" };
+                let pointer = if rtype.is_vec() && self.no_pointer_slice {
+                    ""
+                } else {
+                    "*"
+                };
                 format!("{pointer}{formatted_type}")
             }
             SpecialRustType::HashMap(rtype1, rtype2) => format!(
