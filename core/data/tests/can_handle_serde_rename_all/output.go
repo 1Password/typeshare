@@ -8,7 +8,7 @@ type Person struct {
 	LastName string `json:"lastName"`
 	Age int `json:"age"`
 	ExtraSpecialField1 int `json:"extraSpecialField1"`
-	ExtraSpecialField2 *[]string `json:"extraSpecialField2,omitempty"`
+	ExtraSpecialField2 []string `json:"extraSpecialField2,omitempty"`
 }
 // This is a Person2 struct with UPPERCASE rename
 type Person2 struct {
