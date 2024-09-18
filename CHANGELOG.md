@@ -1,3 +1,24 @@
+# Version 1.11.0
+
+This release promotes 1.10.0-beta.x to stable, and several new features.
+
+## Since 1.10.0-beta.7
+
+- Multiple `--target-os` is now allowed, and `#[cfg(not(target_os...))]` is now parsed: [#187](https://github.com/1Password/typeshare/pull/187)
+- Console output is now handled by flexi_logger: #[187](https://github.com/1Password/typeshare/pull/187)
+- Variant types are now explicitly formatted in Go: [#189](https://github.com/1Password/typeshare/pull/189)
+
+## Summary of 1.10.0-beta.x
+
+See the full changelog for more details: https://github.com/1Password/typeshare/blob/main/CHANGELOG.md
+
+- Output can now be split into multiple generated files
+- Source is now walked in parallel, increasing speed
+- Generic type constraints can now be defined for Swift
+- Kotlin's Inline value classes are now supported
+- You can now specify that a struct should be "redacted"
+  - The effects are language specific. For Kotlin, `toString` is overridden.
+
 # Version 1.10.0-beta
 
 ## 1.10.0-beta.7

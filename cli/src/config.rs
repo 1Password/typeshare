@@ -31,11 +31,11 @@ pub struct ScalaParams {
 #[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
-    pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
     /// The contraints to apply to `CodableVoid`.
     pub codablevoid_constraints: Vec<String>,
+    pub type_mappings: HashMap<String, String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -49,9 +49,9 @@ pub struct TypeScriptParams {
 #[cfg(feature = "go")]
 pub struct GoParams {
     pub package: String,
-    pub type_mappings: HashMap<String, String>,
     pub uppercase_acronyms: Vec<String>,
     pub no_pointer_slice: bool,
+    pub type_mappings: HashMap<String, String>,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare
@@ -128,6 +128,14 @@ mod test {
     }
 
     #[test]
+    fn to_string_and_back() {
+        let path = config_file_path("mappings_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        toml::from_str::<Config>(&toml::to_string_pretty(&config).unwrap()).unwrap();
+    }
+
+    #[test]
     fn default_test() {
         let path = config_file_path("default_config.toml");
         let config = load_config(Some(path)).unwrap();
@@ -180,5 +188,13 @@ mod test {
         let config = load_config(Some(path)).unwrap();
 
         assert_eq!(config.swift.prefix, "test");
+    }
+    #[test]
+    #[cfg(feature = "go")]
+    fn go_package_test() {
+        let path = config_file_path("go_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.go.package, "testPackage");
     }
 }
