@@ -25,6 +25,24 @@ pub struct Go {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not slices should be translated with a pointer redirection.
+    ///
+    /// It is rather unusual in Go to have pointers to slices. This is because, in Go, slices are already reference types.
+    /// However, an edge case can occur:
+    ///
+    /// type A struct {
+    ///     Slice []string `json:",omitempty"`
+    /// }
+    ///
+    /// type B struct {
+    ///     Slice *[]string `json:",omitempty"`
+    /// }
+    /// For type A, both Slice: nil and Slice: []string{} have the same JSON serialisation (Slice is omitted).
+    /// For type B Slice: nil and Slice: []string{} both have a different JSON serialisation.
+    /// In the first case, Slice is omitted. In the second case the field has the value [].
+    ///
+    /// This, however, is rarely applicable in practice, and having this feature does not justify exposing an unintuitive user interface.
+    pub no_pointer_slice: bool,
 }
 
 impl Language for Go {
@@ -102,7 +120,15 @@ impl Language for Go {
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }
             SpecialRustType::Option(rtype) => {
-                format!("*{}", self.format_type(rtype, generic_types)?)
+                format!(
+                    "{}{}",
+                    if rtype.is_vec() && self.no_pointer_slice {
+                        ""
+                    } else {
+                        "*"
+                    },
+                    self.format_type(rtype, generic_types)?
+                )
             }
             SpecialRustType::HashMap(rtype1, rtype2) => format!(
                 "map[{}]{}",
@@ -504,4 +530,28 @@ fn convert_acronyms_to_uppercase(uppercase_acronyms: Vec<String>, name: &str) ->
         }
     }
     res
+}
+
+mod test {
+    #[test]
+    fn no_pointer_slice() {
+        let mut go = super::Go {
+            ..Default::default()
+        };
+
+        let optional_slice = super::SpecialRustType::Option(Box::new(
+            crate::rust_types::RustType::Special(super::SpecialRustType::Vec(Box::new(
+                crate::rust_types::RustType::Special(super::SpecialRustType::I32),
+            ))),
+        ));
+
+        // by default, optional slices should be translated with a pointer redirection
+        let go_slice = super::Language::format_special_type(&mut go, &optional_slice, &[]).unwrap();
+        assert_eq!(go_slice, "*[]int");
+
+        // when specifically opting out of this via the config, the pointer redirection should be omitted
+        go.no_pointer_slice = true;
+        let go_slice = super::Language::format_special_type(&mut go, &optional_slice, &[]).unwrap();
+        assert_eq!(go_slice, "[]int");
+    }
 }

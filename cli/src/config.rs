@@ -50,6 +50,7 @@ pub struct TypeScriptParams {
 pub struct GoParams {
     pub package: String,
     pub uppercase_acronyms: Vec<String>,
+    pub no_pointer_slice: bool,
     pub type_mappings: HashMap<String, String>,
 }
 
