@@ -11,6 +11,8 @@ use crate::{
 };
 use std::collections::{HashMap, HashSet};
 
+use super::CrateTypes;
+
 /// All information needed to generate Go type-code
 #[derive(Default)]
 pub struct Go {
@@ -23,41 +25,73 @@ pub struct Go {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not slices should be translated with a pointer redirection.
+    ///
+    /// It is rather unusual in Go to have pointers to slices. This is because, in Go, slices are already reference types.
+    /// However, an edge case can occur:
+    ///
+    /// type A struct {
+    ///     Slice []string `json:",omitempty"`
+    /// }
+    ///
+    /// type B struct {
+    ///     Slice *[]string `json:",omitempty"`
+    /// }
+    /// For type A, both Slice: nil and Slice: []string{} have the same JSON serialisation (Slice is omitted).
+    /// For type B Slice: nil and Slice: []string{} both have a different JSON serialisation.
+    /// In the first case, Slice is omitted. In the second case the field has the value [].
+    ///
+    /// This, however, is rarely applicable in practice, and having this feature does not justify exposing an unintuitive user interface.
+    pub no_pointer_slice: bool,
 }
 
 impl Language for Go {
-    fn generate_types(&mut self, w: &mut dyn Write, data: &ParsedData) -> std::io::Result<()> {
+    fn generate_types(
+        &mut self,
+        w: &mut dyn Write,
+        _imports: &CrateTypes,
+        data: ParsedData,
+    ) -> std::io::Result<()> {
+        self.begin_file(w, &data)?;
+
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            ..
+        } = data;
+
+        let mut items = aliases
+            .into_iter()
+            .map(RustItem::Alias)
+            .chain(structs.into_iter().map(RustItem::Struct))
+            .chain(enums.into_iter().map(RustItem::Enum))
+            .collect::<Vec<_>>();
+
+        topsort(&mut items);
+
         // Generate a list of all types that either are a struct or are aliased to a struct.
         // This is used to determine whether a type should be defined as a pointer or not.
-        let mut types_mapping_to_struct = HashSet::new();
-        for s in &data.structs {
-            types_mapping_to_struct.insert(s.id.original.as_str());
-        }
-        for alias in &data.aliases {
-            if types_mapping_to_struct.contains(&alias.r#type.id()) {
+        let mut types_mapping_to_struct = items
+            .iter()
+            .flat_map(|item| match item {
+                RustItem::Struct(s) => Some(s.id.original.as_str()),
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+
+        let alias_iter = items.iter().flat_map(|item| match item {
+            RustItem::Alias(a) => Some(a),
+            _ => None,
+        });
+
+        for alias in alias_iter {
+            if types_mapping_to_struct.contains(alias.r#type.id()) {
                 types_mapping_to_struct.insert(alias.id.original.as_str());
             }
         }
 
-        self.begin_file(w)?;
-
-        let mut items: Vec<RustItem> = vec![];
-
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
-        }
-
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
-
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
-
-        let sorted = topsort(items.iter().collect());
-
-        for &thing in &sorted {
+        for thing in &items {
             match thing {
                 RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
                 RustItem::Struct(s) => self.write_struct(w, s)?,
@@ -65,9 +99,7 @@ impl Language for Go {
             }
         }
 
-        self.end_file(w)?;
-
-        Ok(())
+        self.end_file(w)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
@@ -88,7 +120,15 @@ impl Language for Go {
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }
             SpecialRustType::Option(rtype) => {
-                format!("*{}", self.format_type(rtype, generic_types)?)
+                format!(
+                    "{}{}",
+                    if rtype.is_vec() && self.no_pointer_slice {
+                        ""
+                    } else {
+                        "*"
+                    },
+                    self.format_type(rtype, generic_types)?
+                )
             }
             SpecialRustType::HashMap(rtype1, rtype2) => format!(
                 "map[{}]{}",
@@ -114,7 +154,7 @@ impl Language for Go {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.no_version_header {
             // This comment is specifically formatted to satisfy gosec's template for a generated file,
             // so the generated Go file can be ignored with `gosec -exclude-generated`.
@@ -158,6 +198,14 @@ impl Language for Go {
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
         writeln!(w, "}}")
+    }
+
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: super::ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -264,17 +312,19 @@ impl Go {
                                 _ => ("", "*", "&"),
                             };
 
+                        let formatted_variant_type = self.acronyms_to_uppercase(&variant_type);
+
                         decoding_cases.push(format!(
-                            "\t\tvar res {variant_type}
+                            "\t\tvar res {formatted_variant_type}
 \t\t{short_name}.{content_field} = &res
 ",
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             short_name = struct_short_name,
                             content_field = content_field,
                         ));
                         variant_accessors.push(format!(
-                            r#"func ({short_name} {full_name}) {variant_name}() {variant_pointer}{variant_type} {{
-	res, _ := {short_name}.{content_field}.(*{variant_type})
+                            r#"func ({short_name} {full_name}) {variant_name}() {variant_pointer}{formatted_variant_type} {{
+	res, _ := {short_name}.{content_field}.(*{formatted_variant_type})
 	return {variant_deref}res
 }}
 "#,
@@ -283,11 +333,11 @@ impl Go {
                             variant_name = variant_name,
                             variant_pointer = variant_pointer,
                             variant_deref = variant_deref,
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             content_field = content_field,
                         ));
                         variant_constructors.push(format!(
-                            r#"func New{variant_type_const}(content {variant_pointer}{variant_type}) {struct_name} {{
+                            r#"func New{variant_type_const}(content {variant_pointer}{formatted_variant_type}) {struct_name} {{
     return {struct_name}{{
         {tag_field}: {variant_type_const},
         {content_field}: {variant_ref}content,
@@ -298,7 +348,7 @@ impl Go {
                             tag_field = tag_field,
                             variant_type_const = variant_type_const,
                             variant_pointer = variant_pointer,
-                            variant_type = variant_type,
+                            formatted_variant_type = formatted_variant_type,
                             variant_ref = variant_ref,
                             content_field = content_field,
                         ));
@@ -423,7 +473,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             "\t{} {}{} `json:\"{}{}\"`",
             self.format_field_name(field.id.original.to_string(), true),
             (field.has_default && !field.ty.is_optional())
-                .then(|| "*")
+                .then_some("*")
                 .unwrap_or_default(),
             go_type,
             renamed_id,
@@ -480,4 +530,28 @@ fn convert_acronyms_to_uppercase(uppercase_acronyms: Vec<String>, name: &str) ->
         }
     }
     res
+}
+
+mod test {
+    #[test]
+    fn no_pointer_slice() {
+        let mut go = super::Go {
+            ..Default::default()
+        };
+
+        let optional_slice = super::SpecialRustType::Option(Box::new(
+            crate::rust_types::RustType::Special(super::SpecialRustType::Vec(Box::new(
+                crate::rust_types::RustType::Special(super::SpecialRustType::I32),
+            ))),
+        ));
+
+        // by default, optional slices should be translated with a pointer redirection
+        let go_slice = super::Language::format_special_type(&mut go, &optional_slice, &[]).unwrap();
+        assert_eq!(go_slice, "*[]int");
+
+        // when specifically opting out of this via the config, the pointer redirection should be omitted
+        go.no_pointer_slice = true;
+        let go_slice = super::Language::format_special_type(&mut go, &optional_slice, &[]).unwrap();
+        assert_eq!(go_slice, "[]int");
+    }
 }

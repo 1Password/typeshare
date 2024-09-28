@@ -1,15 +1,17 @@
-use super::Language;
+use super::{Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
+use crate::parser::{remove_dash_from_identifier, DecoratorKind, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
-    parser::remove_dash_from_identifier,
     rename::RenameExt,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
-use std::{collections::HashMap, io::Write};
+use std::{collections::BTreeSet, collections::HashMap, io::Write};
+
+const INLINE: &str = "JvmInline";
 
 /// All information needed for Kotlin type-code
 #[derive(Default)]
@@ -18,6 +20,8 @@ pub struct Kotlin {
     pub package: String,
     /// Name of the Kotlin module
     pub module_name: String,
+    /// The prefix to append to user-defined types
+    pub prefix: String,
     /// Conversions from Rust type names to Kotlin type names.
     pub type_mappings: HashMap<String, String>,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
@@ -28,6 +32,20 @@ pub struct Kotlin {
 impl Language for Kotlin {
     fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
+    }
+
+    fn format_simple_type(
+        &mut self,
+        base: &String,
+        generic_types: &[String],
+    ) -> Result<String, RustTypeFormatError> {
+        Ok(if let Some(mapped) = self.type_map().get(base) {
+            mapped.into()
+        } else if generic_types.contains(base) {
+            base.into()
+        } else {
+            format!("{}{}", self.prefix, base)
+        })
     }
 
     fn format_special_type(
@@ -75,7 +93,7 @@ impl Language for Kotlin {
         })
     }
 
-    fn begin_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, w: &mut dyn Write, parsed_data: &ParsedData) -> std::io::Result<()> {
         if !self.package.is_empty() {
             if !self.no_version_header {
                 writeln!(w, "/**")?;
@@ -83,12 +101,14 @@ impl Language for Kotlin {
                 writeln!(w, " */")?;
                 writeln!(w)?;
             }
-            writeln!(w, "@file:NoLiveLiterals")?;
+            if parsed_data.multi_file {
+                writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
+            } else {
+                writeln!(w, "package {}", self.package)?;
+            }
             writeln!(w)?;
-            writeln!(w, "package {}", self.package)?;
-            writeln!(w)?;
-            writeln!(w, "import androidx.compose.runtime.NoLiveLiterals")?;
-            writeln!(w, "import kotlinx.serialization.*")?;
+            writeln!(w, "import kotlinx.serialization.Serializable")?;
+            writeln!(w, "import kotlinx.serialization.SerialName")?;
             writeln!(w)?;
         }
 
@@ -97,17 +117,58 @@ impl Language for Kotlin {
 
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
         self.write_comments(w, 0, &ty.comments)?;
+        let type_name = format!("{}{}", &self.prefix, ty.id.original);
 
-        writeln!(
-            w,
-            "typealias {}{} = {}\n",
-            ty.id.original,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
-            self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
-        )?;
+        if self.is_inline(&ty.decorators) {
+            writeln!(w, "@Serializable")?;
+            writeln!(w, "@JvmInline")?;
+            writeln!(w, "value class {}{}(", self.prefix, ty.id.renamed)?;
+
+            self.write_element(
+                w,
+                &RustField {
+                    id: Id {
+                        original: String::from("value"),
+                        renamed: String::from("value"),
+                    },
+                    ty: ty.r#type.clone(),
+                    comments: vec![],
+                    has_default: false,
+                    decorators: HashMap::new(),
+                },
+                &[],
+                false,
+                match ty.is_redacted {
+                    true => Visibility::Private,
+                    false => Visibility::Public,
+                },
+            )?;
+
+            writeln!(w)?;
+
+            if ty.is_redacted {
+                writeln!(w, ") {{")?;
+                writeln!(w, "\tfun unwrap() = value")?;
+                writeln!(w)?;
+                writeln!(w, "\toverride fun toString(): String = \"***\"")?;
+                writeln!(w, "}}")?;
+            } else {
+                writeln!(w, ")")?;
+            }
+
+            writeln!(w)?;
+        } else {
+            writeln!(
+                w,
+                "typealias {}{} = {}\n",
+                type_name,
+                (!ty.generic_types.is_empty())
+                    .then(|| format!("<{}>", ty.generic_types.join(", ")))
+                    .unwrap_or_default(),
+                self.format_type(&ty.r#type, ty.generic_types.as_slice())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+            )?;
+        }
 
         Ok(())
     }
@@ -118,11 +179,12 @@ impl Language for Kotlin {
 
         if rs.fields.is_empty() {
             // If the struct has no fields, we can define it as an static object.
-            writeln!(w, "object {}\n", rs.id.renamed)?;
+            writeln!(w, "object {}{}\n", self.prefix, rs.id.renamed)?;
         } else {
             writeln!(
                 w,
-                "data class {}{} (",
+                "data class {}{}{} (",
+                self.prefix,
                 rs.id.renamed,
                 (!rs.generic_types.is_empty())
                     .then(|| format!("<{}>", rs.generic_types.join(", ")))
@@ -140,13 +202,34 @@ impl Language for Kotlin {
 
             if let Some((last, elements)) = rs.fields.split_last() {
                 for f in elements.iter() {
-                    self.write_element(w, f, rs.generic_types.as_slice(), requires_serial_name)?;
+                    self.write_element(
+                        w,
+                        f,
+                        rs.generic_types.as_slice(),
+                        requires_serial_name,
+                        Visibility::Public,
+                    )?;
                     writeln!(w, ",")?;
                 }
-                self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
+                self.write_element(
+                    w,
+                    last,
+                    rs.generic_types.as_slice(),
+                    requires_serial_name,
+                    Visibility::Public,
+                )?;
                 writeln!(w)?;
             }
-            writeln!(w, ")\n")?;
+
+            if rs.is_redacted {
+                writeln!(w, ") {{")?;
+                writeln!(w, "\toverride fun toString(): String = {:?}", rs.id.renamed)?;
+                writeln!(w, "}}")?;
+            } else {
+                writeln!(w, ")")?;
+            }
+
+            writeln!(w)?;
         }
         Ok(())
     }
@@ -165,18 +248,22 @@ impl Language for Kotlin {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit(..) => {
                 write!(
                     w,
-                    "enum class {}{}(val string: String) ",
-                    shared.id.renamed, generic_parameters
+                    "enum class {}{}{}(val string: String) ",
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
                 )?;
             }
-            RustEnum::Algebraic { shared, .. } => {
+            RustEnum::Algebraic { .. } => {
                 write!(
                     w,
-                    "sealed class {}{} ",
-                    shared.id.renamed, generic_parameters
+                    "sealed class {}{}{} ",
+                    self.prefix,
+                    &e.shared().id.renamed,
+                    generic_parameters
                 )?;
             }
         }
@@ -187,6 +274,28 @@ impl Language for Kotlin {
 
         writeln!(w, "}}\n")
     }
+
+    fn write_imports(
+        &mut self,
+        w: &mut dyn Write,
+        imports: ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()> {
+        for (path, ty) in imports {
+            for t in ty {
+                writeln!(w, "import {}.{path}.{t}", self.package)?;
+            }
+        }
+        writeln!(w)
+    }
+
+    fn ignored_reference_types(&self) -> Vec<&str> {
+        self.type_mappings.keys().map(|s| s.as_str()).collect()
+    }
+}
+
+enum Visibility {
+    Public,
+    Private,
 }
 
 impl Kotlin {
@@ -283,8 +392,9 @@ impl Kotlin {
 
                             write!(
                                 w,
-                                "val {}: {}{}Inner{}",
+                                "val {}: {}{}{}Inner{}",
                                 content_key,
+                                self.prefix,
                                 e.shared().id.original,
                                 shared.id.original,
                                 generics,
@@ -295,7 +405,8 @@ impl Kotlin {
 
                     writeln!(
                         w,
-                        ": {}{}()",
+                        ": {}{}{}()",
+                        self.prefix,
                         e.shared().id.original,
                         (!e.shared().generic_types.is_empty())
                             .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
@@ -314,6 +425,7 @@ impl Kotlin {
         f: &RustField,
         generic_types: &[String],
         requires_serial_name: bool,
+        visibility: Visibility,
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
         if requires_serial_name {
@@ -326,16 +438,28 @@ impl Kotlin {
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
         };
 
-        write!(
-            w,
-            "\tval {}: {}{}",
-            remove_dash_from_identifier(&f.id.renamed),
-            ty,
-            (f.has_default && !f.ty.is_optional())
-                .then(|| "? = null")
-                .or_else(|| f.ty.is_optional().then(|| " = null"))
-                .unwrap_or_default()
-        )
+        match visibility {
+            Visibility::Public => write!(
+                w,
+                "\tval {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            ),
+            Visibility::Private => write!(
+                w,
+                "\tprivate val {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            ),
+        }
     }
 
     fn write_comment(
@@ -357,5 +481,12 @@ impl Kotlin {
         comments
             .iter()
             .try_for_each(|comment| self.write_comment(w, indent, comment))
+    }
+
+    fn is_inline(&self, decorators: &HashMap<DecoratorKind, BTreeSet<String>>) -> bool {
+        match decorators.get(&DecoratorKind::Kotlin) {
+            Some(kotlin_decorators) => kotlin_decorators.iter().contains(&String::from(INLINE)),
+            _ => false,
+        }
     }
 }

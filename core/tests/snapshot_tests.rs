@@ -1,16 +1,47 @@
 use anyhow::Context;
+use flexi_logger::DeferredNow;
+use log::Record;
 use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
     env,
     fs::{self, OpenOptions},
-    io::Read,
+    io::{Read, Write},
     path::{Path, PathBuf},
+    sync::Once,
 };
 use typeshare_core::language::Language;
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
+
+static INIT: Once = Once::new();
+
+fn init_log() {
+    INIT.call_once(|| {
+        flexi_logger::Logger::try_with_env()
+            .unwrap()
+            .format(
+                |write: &mut dyn Write, _now: &mut DeferredNow, record: &Record<'_>| {
+                    let file_name = record.file().unwrap_or_default();
+                    let file_name = if file_name.len() > 15 {
+                        let split = file_name.len() - 15;
+                        &file_name[split..]
+                    } else {
+                        file_name
+                    };
+                    write!(
+                        write,
+                        "{file_name:>15}{:>5} - {}",
+                        record.line().unwrap_or_default(),
+                        record.args()
+                    )
+                },
+            )
+            .start()
+            .unwrap();
+    })
+}
 
 /// Reads the contents of the file at `path` into a string and returns it
 ///
@@ -27,8 +58,6 @@ fn load_file(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
 
     let mut file = OpenOptions::new()
         .read(true)
-        .write(true)
-        .create(true)
         .open(path)
         .with_context(|| format!("failed to open file at path {}", path.to_string_lossy()))?;
     let mut contents = String::new();
@@ -53,6 +82,7 @@ fn check(
     test_name: &str,
     file_name: impl AsRef<Path>,
     mut lang: Box<dyn Language>,
+    target_os: &[&str],
 ) -> Result<(), anyhow::Error> {
     let _extension = file_name
         .as_ref()
@@ -67,8 +97,20 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
-    let parsed_data = typeshare_core::parser::parse(&rust_input)?;
-    lang.generate_types(&mut typeshare_output, &parsed_data)?;
+    let parsed_data = typeshare_core::parser::parse(
+        &rust_input,
+        "default_crate".into(),
+        "file_name".into(),
+        "file_path".into(),
+        &[],
+        false,
+        &target_os
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+    )?
+    .unwrap();
+    lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
     let expected = expect_test::expect_file![&expected_file_path];
@@ -215,6 +257,18 @@ macro_rules! language_instance {
     };
 }
 
+macro_rules! target_os {
+    (
+        [$($target_os:literal),*]
+    ) => {
+        &[$($target_os),*]
+    };
+
+    () => {
+        &[]
+    };
+}
+
 /// This macro removes the boilerplate involved in creating typeshare snapshot
 /// tests. Usage looks like:
 ///
@@ -293,20 +347,23 @@ macro_rules! tests {
                 })?
             ),+
             $(,)?
-        ];
+        ] $(target_os: $target_os:tt)?;
     )*) => {$(
         mod $test {
             use super::check;
 
             const TEST_NAME: &str = stringify!($test);
+            const TARGET_OS: &[&str] = target_os!($($target_os)?);
 
             $(
                 #[test]
                 fn $language() -> Result<(), anyhow::Error> {
+                    crate::init_log();
                     check(
                         TEST_NAME,
                         output_file_for_ident!($language),
                         language_instance!($language $({ $($lang_config)* })?),
+                        TARGET_OS
                     )
                 }
             )+
@@ -377,6 +434,7 @@ tests! {
     can_generate_generic_struct: [
         swift {
             prefix: "Core".into(),
+            codablevoid_constraints: vec!["Equatable".into()]
         },
         kotlin,
         scala,
@@ -426,8 +484,8 @@ tests! {
         typescript,
         go
     ];
-    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
-    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
+    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
+    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
     can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go];
     can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go];
     enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];
@@ -537,16 +595,16 @@ tests! {
     generate_types_with_keywords: [swift];
     // TODO: how is this different from generates_empty_structs_and_initializers?
     use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go];
-    can_handle_unit_type: [swift, kotlin, scala,  typescript, go];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
-    struct_decorator: [ swift{ prefix: "OP".to_string(), } ];
+    struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
     serialize_field_as: [kotlin, swift, typescript, scala,  go];
     serialize_type_alias: [kotlin, swift, typescript, scala,  go];
     serialize_anonymous_field_as: [kotlin, swift, typescript, scala,  go];
-    boxed_value: [kotlin, swift, typescript, scala,  go];
+    smart_pointers: [kotlin, swift, typescript, scala, go];
     recursive_enum_decorator: [kotlin, swift, typescript, scala,  go];
 
     uppercase_go_acronyms: [
@@ -563,4 +621,8 @@ tests! {
         scala,
         go
     ];
+    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
+    generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: ["android", "macos"];
+    // excluded_by_target_os_full_module: [swift] target_os: "ios";
 }

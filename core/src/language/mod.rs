@@ -1,11 +1,23 @@
 use crate::{
     parser::{ParseError, ParsedData},
-    rust_types::{Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustTypeAlias},
+    rust_types::{
+        Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
+        RustTypeFormatError, SpecialRustType,
+    },
     topsort::topsort,
+    visitors::ImportedType,
+    GenerationError,
 };
 use itertools::Itertools;
+use log::warn;
 use proc_macro2::Ident;
-use std::{collections::HashMap, fmt::Debug, io::Write, str::FromStr};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    fmt::Display,
+    io::Write,
+    path::Path,
+    str::FromStr,
+};
 
 mod go;
 mod kotlin;
@@ -13,13 +25,71 @@ mod scala;
 mod swift;
 mod typescript;
 
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
 pub use typescript::TypeScript;
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+/// A crate name.
+pub struct CrateName(String);
+
+impl Display for CrateName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for CrateName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+/// When using single file output we put all types into a single virtual name space.
+pub const SINGLE_FILE_CRATE_NAME: CrateName = CrateName(String::new());
+
+impl CrateName {
+    /// View this crate name as a string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Extract the crate name from a give path.
+    pub fn find_crate_name(path: &Path) -> Option<Self> {
+        let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
+
+        path.iter()
+            .rev()
+            .skip_while(|p| *p != "src")
+            .nth(1)
+            .and_then(|s| s.to_str())
+            .map(file_name_to_crate_name)
+            .map(CrateName::from)
+    }
+}
+
+impl From<&str> for CrateName {
+    fn from(value: &str) -> Self {
+        CrateName(value.to_string())
+    }
+}
+
+/// A type name.
+pub type TypeName = String;
+
+/// Mapping of crate names to typeshare type names.
+pub type CrateTypes = HashMap<CrateName, HashSet<TypeName>>;
+
+/// A sorted crate name ref.
+pub type SortedCrateNames<'a> = &'a CrateName;
+/// A sorted type name ref.
+pub type SortedTypeNames<'a> = BTreeSet<&'a str>;
+
+/// Refence types by crate that are scoped for a given output module.
+pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'a>>;
 
 /// All supported programming languages.
 #[allow(missing_docs)]
@@ -37,6 +107,17 @@ impl SupportedLanguage {
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
         [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+    }
+
+    /// Get the file name extension for the supported language.
+    pub fn language_extension(&self) -> &'static str {
+        match self {
+            SupportedLanguage::Go => "go",
+            SupportedLanguage::Kotlin => "kt",
+            SupportedLanguage::Scala => "scala",
+            SupportedLanguage::Swift => "swift",
+            SupportedLanguage::TypeScript => "ts",
+        }
     }
 }
 
@@ -74,27 +155,33 @@ pub trait Language {
     fn generate_types(
         &mut self,
         writable: &mut dyn Write,
-        data: &ParsedData,
+        all_types: &CrateTypes,
+        data: ParsedData,
     ) -> std::io::Result<()> {
-        self.begin_file(writable)?;
+        self.begin_file(writable, &data)?;
 
-        let mut items: Vec<RustItem> = vec![];
-
-        for a in &data.aliases {
-            items.push(RustItem::Alias(a.clone()))
+        if data.multi_file {
+            self.write_imports(writable, used_imports(&data, all_types))?;
         }
 
-        for s in &data.structs {
-            items.push(RustItem::Struct(s.clone()))
-        }
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            ..
+        } = data;
 
-        for e in &data.enums {
-            items.push(RustItem::Enum(e.clone()))
-        }
+        let mut items = Vec::from_iter(
+            aliases
+                .into_iter()
+                .map(RustItem::Alias)
+                .chain(structs.into_iter().map(RustItem::Struct))
+                .chain(enums.into_iter().map(RustItem::Enum)),
+        );
 
-        let sorted = topsort(items.iter().collect());
+        topsort(&mut items);
 
-        for &thing in &sorted {
+        for thing in &items {
             match thing {
                 RustItem::Enum(e) => self.write_enum(writable, e)?,
                 RustItem::Struct(s) => self.write_struct(writable, s)?,
@@ -102,9 +189,7 @@ pub trait Language {
             }
         }
 
-        self.end_file(writable)?;
-
-        Ok(())
+        self.end_file(writable)
     }
 
     /// Get the type mapping for this language `(Rust type name -> lang type name)`
@@ -184,9 +269,16 @@ pub trait Language {
     ) -> Result<String, RustTypeFormatError>;
 
     /// Implementors can use this function to write a header for typeshared code
-    fn begin_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
+    fn begin_file(&mut self, _w: &mut dyn Write, _parsed_data: &ParsedData) -> std::io::Result<()> {
         Ok(())
     }
+
+    /// For generating import statements.
+    fn write_imports(
+        &mut self,
+        _writer: &mut dyn Write,
+        _imports: ScopedCrateTypes<'_>,
+    ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code
     fn end_file(&mut self, _w: &mut dyn Write) -> std::io::Result<()> {
@@ -295,11 +387,102 @@ pub trait Language {
                         &shared.id.original,
                         &e.shared().id.original,
                     )],
-                    decorators: HashMap::new(),
+                    decorators: e.shared().decorators.clone(),
+                    is_redacted: e.shared().is_redacted,
                 },
             )?;
         }
 
         Ok(())
+    }
+
+    /// Types that are remapped will be excluded from import references.
+    fn ignored_reference_types(&self) -> Vec<&str> {
+        Vec::new()
+    }
+
+    /// Any other final steps after modules have been generated. For example creating a new
+    /// module with special types.
+    fn post_generation(&self, _output_folder: &str) -> Result<(), GenerationError> {
+        Ok(())
+    }
+}
+
+/// Lookup any refeferences to other typeshared types in order to build
+/// a list of imports for the generated module.
+fn used_imports<'a, 'b: 'a>(
+    data: &'b ParsedData,
+    all_types: &'a CrateTypes,
+) -> ScopedCrateTypes<'a> {
+    let mut used_imports = BTreeMap::new();
+
+    // If we have reference that is a re-export we can attempt to find it with the
+    // following heuristic.
+    let fallback = |referenced_import: &'a ImportedType, used: &mut ScopedCrateTypes<'a>| {
+        // Find the first type that does not belong to the current crate.
+        if let Some((crate_name, ty)) = all_types
+            .iter()
+            .flat_map(|(k, v)| {
+                v.iter()
+                    .find(|&t| t == &referenced_import.type_name && k != &data.crate_name)
+                    .map(|t| (k, t))
+            })
+            .next()
+        {
+            warn!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
+            used.entry(crate_name)
+                .and_modify(|v| {
+                    v.insert(ty.as_str());
+                })
+                .or_insert(BTreeSet::from([ty.as_str()]));
+        } else {
+            // println!("Could not lookup reference {referenced_import:?}");
+        }
+    };
+
+    for referenced_import in data
+        .import_types
+        .iter()
+        // Skip over imports that reference the current crate. They
+        // are all collapsed into one module per crate.
+        .filter(|imp| imp.base_crate != data.crate_name)
+    {
+        // Look up the types for the referenced imported crate.
+        if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
+            if referenced_import.type_name == "*" {
+                // We can have "*" wildcard here. We need to add all.
+                used_imports
+                    .entry(&referenced_import.base_crate)
+                    .and_modify(|names: &mut BTreeSet<&str>| {
+                        names.extend(type_names.iter().map(|s| s.as_str()))
+                    });
+            } else if let Some(ty_name) = type_names.get(&referenced_import.type_name) {
+                // Add referenced import for each matching type.
+                used_imports
+                    .entry(&referenced_import.base_crate)
+                    .and_modify(|v| {
+                        v.insert(ty_name.as_str());
+                    })
+                    .or_insert(BTreeSet::from([ty_name.as_str()]));
+            } else {
+                fallback(referenced_import, &mut used_imports);
+            }
+        } else {
+            // We might have a re-export from another crate.
+            fallback(referenced_import, &mut used_imports);
+        }
+    }
+    used_imports
+}
+
+#[cfg(test)]
+mod test {
+    use crate::language::CrateName;
+    use std::path::Path;
+
+    #[test]
+    fn test_crate_name() {
+        let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
+        assert_eq!(Some("op_proxy".into()), CrateName::find_crate_name(path));
     }
 }

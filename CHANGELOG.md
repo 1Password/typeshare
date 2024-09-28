@@ -1,3 +1,93 @@
+# Version 1.11.0
+
+This release promotes 1.10.0-beta.x to stable, and several new features.
+
+## Since 1.10.0-beta.7
+
+- Multiple `--target-os` is now allowed, and `#[cfg(not(target_os...))]` is now parsed: [#187](https://github.com/1Password/typeshare/pull/187)
+- Console output is now handled by flexi_logger: #[187](https://github.com/1Password/typeshare/pull/187)
+- Variant types are now explicitly formatted in Go: [#189](https://github.com/1Password/typeshare/pull/189)
+
+## Summary of 1.10.0-beta.x
+
+See the full changelog for more details: https://github.com/1Password/typeshare/blob/main/CHANGELOG.md
+
+- Output can now be split into multiple generated files
+- Source is now walked in parallel, increasing speed
+- Generic type constraints can now be defined for Swift
+- Kotlin's Inline value classes are now supported
+- You can now specify that a struct should be "redacted"
+  - The effects are language specific. For Kotlin, `toString` is overridden.
+
+# Version 1.10.0-beta
+
+## 1.10.0-beta.7
+
+- Added support for [inline value classes](https://kotlinlang.org/docs/inline-classes.html) in Kotlin - [#182](https://github.com/1Password/typeshare/pull/182)
+- Added the ability to specify that a struct should have information redacted - [#170](https://github.com/1Password/typeshare/pull/170)
+  - What this means is language-specific. In Kotlin, the toString method is overridden
+  - This was actually added in 1.10.0-beta.4 but went unannounced.
+- Made the output deterministic (this broke in 1.10.0-beta.6) - [#185](https://github.com/1Password/typeshare/pull/185)
+- Algebraic Enum Variant names are now capitalized appropriately - [#183](https://github.com/1Password/typeshare/pull/183)
+
+## 1.10.0-beta.6
+
+- Added support for skipping fields/variants via the `target_os` argument [#176](https://github.com/1Password/typeshare/pull/176)
+
+## 1.10.0-beta.5
+
+- Added support for Swift generic constraints via `#[typeshare(swiftGenericConstraints)]` [#174](https://github.com/1Password/typeshare/pull/174)
+- Added Swift config option for defining constraints on `CodableVoid` generated type [#174](https://github.com/1Password/typeshare/pull/174)
+
+## 1.10.0-beta.4
+
+Fixed a bug involving `#[typeshare(skip)]` on fields in struct variants of enums.
+
+## 1.10.0-beta.2
+
+Fixed a bug involving type aliases.
+
+## 1.10.0-beta.0
+
+This release brings support for multiple file generation, allowing splitting generated
+files when used in large projects. This can dramatically increase compilation speed of
+the generated files and increase maintainability.
+
+This is a _pre-release_ version which may have bugs or break compatibility.
+
+- Multiple file output [#166](https://github.com/1Password/typeshare/pull/166)
+
+# Version 1.9.2
+
+This release fixes a Cargo.lock error introduced in 1.9.1.
+
+# Version 1.9.1
+
+This release fixes a bug with Kotlin prefixes introduced in 1.9.0.
+
+- Fix inner class referencing incorrect superclass referencing in Kotlin. [#165](https://github.com/1Password/typeshare/pull/165)
+
+# Version 1.9.0
+
+This release adds support for prefixing Kotlin type names (similarly to Swift) and some minor fixes.
+
+- Added support for prefixing type names in Kotlin. [#159](https://github.com/1Password/typeshare/pull/159)
+
+# Version 1.8.0
+
+This release brings support for various Rust std smart pointers, as well as a CLI flag to opt-into following symbolic links. In addition, typeshare has been updated to use syn 2.0
+
+- Added support for various Rust std smart pointers. [#134](https://github.com/1Password/typeshare/pull/134)
+- Added CLI flag to opt-into following symbolic links. [#156](https://github.com/1Password/typeshare/pull/156)
+- Migrate to syn version 2.0. [#130](https://github.com/1Password/typeshare/pull/130)
+
+### Community contributors
+
+Thank you to the following community contributors for your work on this release:
+
+- [czocher](https://github.com/czocher)
+- [ipetkov](https://github.com/ipetkov)
+
 # Version 1.7.0
 
 This release brings support for more rust primitive types (slices and chars), as well as support for manually overriding the output type in the `#[typeshare]` annotations

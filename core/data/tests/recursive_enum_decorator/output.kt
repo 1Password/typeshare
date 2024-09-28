@@ -1,22 +1,7 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
-
-@Serializable
-sealed class Options {
-	@Serializable
-	@SerialName("red")
-	data class Red(val content: Boolean): Options()
-	@Serializable
-	@SerialName("banana")
-	data class Banana(val content: String): Options()
-	@Serializable
-	@SerialName("vermont")
-	data class Vermont(val content: Options): Options()
-}
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /// Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 @Serializable
@@ -41,5 +26,18 @@ sealed class MoreOptions {
 	@Serializable
 	@SerialName("built")
 	data class Built(val content: MoreOptionsBuiltInner): MoreOptions()
+}
+
+@Serializable
+sealed class Options {
+	@Serializable
+	@SerialName("red")
+	data class Red(val content: Boolean): Options()
+	@Serializable
+	@SerialName("banana")
+	data class Banana(val content: String): Options()
+	@Serializable
+	@SerialName("vermont")
+	data class Vermont(val content: Options): Options()
 }
 

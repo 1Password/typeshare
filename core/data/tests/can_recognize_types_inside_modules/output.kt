@@ -1,9 +1,7 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 @Serializable
 data class A (
@@ -11,12 +9,12 @@ data class A (
 )
 
 @Serializable
-data class ABC (
+data class AB (
 	val field: UInt
 )
 
 @Serializable
-data class AB (
+data class ABC (
 	val field: UInt
 )
 

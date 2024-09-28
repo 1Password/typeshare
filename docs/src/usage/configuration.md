@@ -7,16 +7,22 @@ The behaviour of Typeshare can be customized by either passing options on the co
 - `-l`, `--lang`
     (Required) The language you want your definitions to be generated in. Currently, this option can be set to either `kotlin`, `swift`, `go`, or `typescript`.
 - `-o`, `--output-file`
-    (Required) The file path to which the generated definitions will be written.
+    (Required or -d) The file path to which the generated definitions will be written.
+- `-d`, `--directory`
+    (Required or -o) The folder path to write the multiple module files to.
 
 - `-s`, `--swift-prefix`
-    Specify a prefix that will be prepended to type names when generating types in Swift. 
+    Specify a prefix that will be prepended to type names when generating types in Swift.
 
 - `-M`, `--module-name`
-    Specify the name of the Kotlin module for generated Kotlin source code. 
+    Specify the name of the Kotlin module for generated Kotlin source code.
+
+- `-t`, `--target-os`
+    Optional comma separated list of target os targets. Types that are restricted via `#[cfg(target_os = <target>]`
+    that do not match the argument list will be filtered out.
 
 - `-j`, `--java-package`
-    Specify the name of the Java package for generated Kotlin types. 
+    Specify the name of the Java package for generated Kotlin types.
 
 - `-c`, `--config-file`
     Instead of searching for a `typeshare.toml` file, this option can be set to specify the path to the configuration file that Typeshare will use.

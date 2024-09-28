@@ -1,13 +1,11 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
-
-typealias OptionalU32 = UInt?
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 typealias OptionalU16 = UShort?
+
+typealias OptionalU32 = UInt?
 
 @Serializable
 data class FooBar (

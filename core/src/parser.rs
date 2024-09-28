@@ -1,52 +1,50 @@
-use crate::rust_types::FieldDecorator;
 use crate::{
-    language::SupportedLanguage,
+    language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
-        Id, RustEnum, RustEnumShared, RustEnumVariant, RustEnumVariantShared, RustField, RustItem,
-        RustStruct, RustType, RustTypeAlias, RustTypeParseError,
+        DecoratorMap, FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant,
+        RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
+        RustTypeParseError,
     },
+    target_os_check::accept_target_os,
+    visitors::{ImportedType, TypeShareVisitor},
 };
-use proc_macro2::{Ident, Span};
-use std::collections::BTreeSet;
+use itertools::Either;
+use log::debug;
+use proc_macro2::Ident;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
+    path::PathBuf,
 };
-use syn::{Attribute, Fields, ItemEnum, ItemStruct, ItemType};
-use syn::{GenericParam, Meta, NestedMeta};
+use syn::{
+    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
+    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
+    MetaNameValue, Token,
+};
 use thiserror::Error;
 
-// TODO: parsing is very opinionated and makes some decisions that should be
-// getting made at code generation time. Fix this.
-
-const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
+const SERDE: &str = "serde";
 
-/// The results of parsing Rust source input.
-#[derive(Default, Debug)]
-pub struct ParsedData {
-    /// Structs defined in the source
-    pub structs: Vec<RustStruct>,
-    /// Enums defined in the source
-    pub enums: Vec<RustEnum>,
-    /// Type aliases defined in the source
-    pub aliases: Vec<RustTypeAlias>,
+/// Supported typeshare type level decorator attributes.
+#[derive(PartialEq, Eq, Debug, Hash, Copy, Clone)]
+pub enum DecoratorKind {
+    /// The typeshare attribute for swift type constraints "swift"
+    Swift,
+    /// The typeshare attribute for swift generic constraints "swiftGenericConstraints"
+    SwiftGenericConstraints,
+    /// The typeshare attribute for kotlin "kotlin"
+    Kotlin,
 }
 
-impl ParsedData {
-    /// Add the parsed data from `other` to `self`.
-    pub fn add(&mut self, mut other: Self) {
-        self.structs.append(&mut other.structs);
-        self.enums.append(&mut other.enums);
-        self.aliases.append(&mut other.aliases);
-    }
-
-    fn push_rust_thing(&mut self, rust_thing: RustItem) {
-        match rust_thing {
-            RustItem::Struct(s) => self.structs.push(s),
-            RustItem::Enum(e) => self.enums.push(e),
-            RustItem::Alias(a) => self.aliases.push(a),
+impl DecoratorKind {
+    /// This decorator as a str.
+    fn as_str(&self) -> &str {
+        match self {
+            DecoratorKind::Swift => "swift",
+            DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
+            DecoratorKind::Kotlin => "kotlin",
         }
     }
 }
@@ -79,53 +77,121 @@ pub enum ParseError {
     SerdeFlattenNotAllowed,
 }
 
-/// Parse the given Rust source string into `ParsedData`.
-pub fn parse(input: &str) -> Result<ParsedData, ParseError> {
-    let mut parsed_data = ParsedData::default();
-
-    // We will only produce output for files that contain the `#[typeshare]`
-    // attribute, so this is a quick and easy performance win
-    if !input.contains("typeshare") {
-        return Ok(parsed_data);
-    }
-
-    // Parse and process the input, ensuring we parse only items marked with
-    // `#[typeshare]
-    let source = syn::parse_file(input)?;
-
-    for item in flatten_items(source.items.iter()) {
-        match item {
-            syn::Item::Struct(s) if has_typeshare_annotation(&s.attrs) => {
-                parsed_data.push_rust_thing(parse_struct(s)?);
-            }
-            syn::Item::Enum(e) if has_typeshare_annotation(&e.attrs) => {
-                parsed_data.push_rust_thing(parse_enum(e)?);
-            }
-            syn::Item::Type(t) if has_typeshare_annotation(&t.attrs) => {
-                parsed_data.aliases.push(parse_type_alias(t)?);
-            }
-            _ => {}
-        }
-    }
-
-    Ok(parsed_data)
+/// Error with it's related data.
+#[derive(Debug)]
+pub struct ErrorInfo {
+    /// The crate where this error occured.
+    pub crate_name: CrateName,
+    /// The file name being parsed.
+    pub file_name: String,
+    /// The parse error.
+    pub error: ParseError,
 }
 
-/// Given an iterator over items, will return an iterator that flattens the contents of embedded
-/// module items into the iterator.
-fn flatten_items<'a>(
-    items: impl Iterator<Item = &'a syn::Item>,
-) -> impl Iterator<Item = &'a syn::Item> {
-    items.flat_map(|item| {
-        match item {
-            syn::Item::Mod(syn::ItemMod {
-                content: Some((_, items)),
-                ..
-            }) => flatten_items(items.iter()).collect(),
-            item => vec![item],
+/// The results of parsing Rust source input.
+#[derive(Default, Debug)]
+pub struct ParsedData {
+    /// Structs defined in the source
+    pub structs: BTreeSet<RustStruct>,
+    /// Enums defined in the source
+    pub enums: BTreeSet<RustEnum>,
+    /// Type aliases defined in the source
+    pub aliases: BTreeSet<RustTypeAlias>,
+    /// Imports used by this file
+    pub import_types: HashSet<ImportedType>,
+    /// Crate this belongs to.
+    pub crate_name: CrateName,
+    /// File name to write to for generated type.
+    pub file_name: String,
+    /// All type names
+    pub type_names: HashSet<String>,
+    /// Failures during parsing.
+    pub errors: Vec<ErrorInfo>,
+    /// Using multi file support.
+    pub multi_file: bool,
+}
+
+impl ParsedData {
+    /// Create a new parsed data.
+    pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {
+        Self {
+            crate_name,
+            file_name,
+            multi_file,
+            ..Default::default()
         }
-        .into_iter()
-    })
+    }
+
+    /// Add the parsed data from `other` to `self`.
+    pub fn add(&mut self, mut other: Self) {
+        self.structs.append(&mut other.structs);
+        self.enums.append(&mut other.enums);
+        self.aliases.append(&mut other.aliases);
+        self.import_types.extend(other.import_types);
+        self.type_names.extend(other.type_names);
+        self.errors.append(&mut other.errors);
+
+        self.file_name = other.file_name;
+        self.crate_name = other.crate_name;
+        self.multi_file = other.multi_file;
+    }
+
+    pub(crate) fn push(&mut self, rust_thing: RustItem) {
+        match rust_thing {
+            RustItem::Struct(s) => {
+                self.type_names.insert(s.id.renamed.clone());
+                self.structs.insert(s);
+            }
+            RustItem::Enum(e) => {
+                self.type_names.insert(e.shared().id.renamed.clone());
+                self.enums.insert(e);
+            }
+            RustItem::Alias(a) => {
+                self.type_names.insert(a.id.renamed.clone());
+                self.aliases.insert(a);
+            }
+        }
+    }
+
+    /// If this file was skipped by the visitor.
+    pub fn is_empty(&self) -> bool {
+        self.structs.is_empty()
+            && self.enums.is_empty()
+            && self.aliases.is_empty()
+            && self.errors.is_empty()
+    }
+}
+
+/// Parse the given Rust source string into `ParsedData`.
+pub fn parse(
+    source_code: &str,
+    crate_name: CrateName,
+    file_name: String,
+    file_path: PathBuf,
+    ignored_types: &[&str],
+    mult_file: bool,
+    target_os: &[String],
+) -> Result<Option<ParsedData>, ParseError> {
+    // We will only produce output for files that contain the `#[typeshare]`
+    // attribute, so this is a quick and easy performance win
+    if !source_code.contains("#[typeshare") {
+        return Ok(None);
+    }
+
+    debug!("parsing {file_name}");
+    // Parse and process the input, ensuring we parse only items marked with
+    // `#[typeshare]`
+    let mut import_visitor = TypeShareVisitor::new(
+        crate_name,
+        file_name,
+        file_path,
+        ignored_types,
+        mult_file,
+        target_os,
+    );
+    import_visitor.visit_file(&syn::parse_file(source_code)?);
+
+    Ok(import_visitor.parsed_data())
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -133,7 +199,7 @@ fn flatten_items<'a>(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -155,6 +221,8 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
+            decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }));
     }
 
@@ -164,7 +232,9 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             let fields = f
                 .named
                 .iter()
-                .filter(|field| !is_skipped(&field.attrs))
+                .inspect(|field| debug!("\t\tChecking field {:?}", field.ident))
+                .filter(|field| !is_skipped(&field.attrs, target_os))
+                .inspect(|field| debug!("\t\tAccepted field {:?}", field.ident))
                 .map(|f| {
                     let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -195,6 +265,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Tuple structs
@@ -215,6 +286,8 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 r#type: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
+                decorators: get_decorators(&s.attrs),
+                is_redacted: is_redacted(&s.attrs),
             })
         }
         // Unit structs or `None`
@@ -224,6 +297,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
             decorators: get_decorators(&s.attrs),
+            is_redacted: is_redacted(&s.attrs),
         }),
     })
 }
@@ -233,7 +307,7 @@ fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum, target_os: &[String]) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -254,6 +328,8 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
             r#type: ty.parse()?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
+            decorators: get_decorators(&e.attrs),
+            is_redacted: is_redacted(&e.attrs),
         }));
     }
 
@@ -267,9 +343,11 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     let variants = e
         .variants
         .iter()
+        .inspect(|v| debug!("\t\tChecking variant {}", v.ident))
         // Filter out variants we've been told to skip
-        .filter(|v| !is_skipped(&v.attrs))
-        .map(|v| parse_enum_variant(v, &serde_rename_all))
+        .filter(|v| !is_skipped(&v.attrs, target_os))
+        .inspect(|v| debug!("\t\taccepted variant {}", v.ident))
+        .map(|v| parse_enum_variant(v, &serde_rename_all, target_os))
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
@@ -288,6 +366,7 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         decorators: get_decorators(&e.attrs),
         generic_types,
         is_recursive,
+        is_redacted: is_redacted(&e.attrs),
     };
 
     // Figure out if we're dealing with a unit enum or an algebraic enum
@@ -297,7 +376,6 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .all(|v| matches!(v, RustEnumVariant::Unit(_)))
     {
         // All enum variants are unit-type
-
         if maybe_tag_key.is_some() {
             return Err(ParseError::SerdeTagNotAllowed {
                 enum_ident: original_enum_ident,
@@ -332,6 +410,7 @@ fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
 fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<String>,
+    target_os: &[String],
 ) -> Result<RustEnumVariant, ParseError> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
@@ -366,6 +445,7 @@ fn parse_enum_variant(
             fields: fields_named
                 .named
                 .iter()
+                .filter(|f| !is_skipped(&f.attrs, target_os))
                 .map(|f| {
                     let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
                         ty.parse()?
@@ -392,7 +472,7 @@ fn parse_enum_variant(
 
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
+pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
         ty.parse()?
     } else {
@@ -409,54 +489,67 @@ fn parse_type_alias(t: &ItemType) -> Result<RustTypeAlias, ParseError> {
         })
         .collect();
 
-    Ok(RustTypeAlias {
+    Ok(RustItem::Alias(RustTypeAlias {
         id: get_ident(Some(&t.ident), &t.attrs, &None),
         r#type: ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
-    })
+        decorators: get_decorators(&t.attrs),
+        is_redacted: is_redacted(&t.attrs),
+    }))
 }
 
 // Helpers
 
-/// Parses any comment out of the given slice of attributes
-fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
-    const DOC_ATTR: &str = "doc";
+/// Checks the given attrs for `#[typeshare]`
+pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
     attrs
         .iter()
-        .map(Attribute::parse_meta)
-        .filter_map(Result::ok)
-        .filter_map(|attr| match attr {
-            Meta::NameValue(name_value) => {
-                if let Some(ident) = name_value.path.get_ident() {
-                    if *ident == DOC_ATTR {
-                        Some(name_value.lit)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        })
-        .filter_map(literal_as_string)
-        .map(|string| string.trim().into())
-        .collect()
+        .flat_map(|attr| attr.path().segments.clone())
+        .any(|segment| segment.ident == TYPESHARE)
 }
 
-/// Checks the given attrs for `#[typeshare]`
-fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
-    let typeshare_ident = Ident::new("typeshare", Span::call_site());
-    for a in attrs {
-        if let Some(segment) = a.path.segments.iter().next() {
-            if segment.ident == typeshare_ident {
-                return true;
-            }
-        }
-    }
+pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
+    get_name_value_meta_items(attrs, "rename_all", SERDE).next()
+}
 
-    false
+pub(crate) fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
+    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
+}
+
+pub(crate) fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
+    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
+}
+
+pub(crate) fn get_name_value_meta_items<'a>(
+    attrs: &'a [syn::Attribute],
+    name: &'a str,
+    ident: &'static str,
+) -> impl Iterator<Item = String> + 'a {
+    attrs.iter().flat_map(move |attr| {
+        get_meta_items(attr, ident)
+            .filter_map(|arg| match arg {
+                Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
+                    expr_to_string(&name_value.value)
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    })
+}
+
+/// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
+#[inline(always)]
+pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
+    if attr.path().is_ident(ident) {
+        Either::Left(
+            attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .into_iter()
+                .flat_map(|punctuated| punctuated.into_iter()),
+        )
+    } else {
+        Either::Right(std::iter::empty())
+    }
 }
 
 fn get_ident(
@@ -492,73 +585,56 @@ fn rename_all_to_case(original: String, case: &Option<String>) -> String {
     }
 }
 
-fn literal_as_string(lit: syn::Lit) -> Option<String> {
-    match lit {
-        syn::Lit::Str(str) => Some(str.value()),
-        _ => None,
-    }
+fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
+    get_name_value_meta_items(attrs, "rename", SERDE).next()
 }
 
-fn get_typeshare_name_value_meta_items<'a>(
-    attrs: &'a [syn::Attribute],
-    name: &'a str,
-) -> impl Iterator<Item = syn::Lit> + 'a {
-    attrs.iter().flat_map(move |attr| {
-        get_typeshare_meta_items(attr)
-            .iter()
-            .filter_map(|arg| match arg {
-                NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                    if let Some(ident) = name_value.path.get_ident() {
-                        if *ident == name {
-                            Some(name_value.lit.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>()
+/// Parses any comment out of the given slice of attributes
+fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
+    attrs
+        .iter()
+        .map(|attr| attr.meta.clone())
+        .filter_map(|meta| match meta {
+            Meta::NameValue(name_value) if name_value.path.is_ident("doc") => {
+                expr_to_string(&name_value.value)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+// `#[typeshare(skip)]` or `#[serde(skip)]`
+fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
+    let typeshare_skip = attrs.iter().any(|attr| {
+        get_meta_items(attr, SERDE)
+            .chain(get_meta_items(attr, TYPESHARE))
+            .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
+    });
+
+    typeshare_skip || !accept_target_os(attrs, target_os)
+}
+
+// `#[typeshare(redacted)]`
+fn is_redacted(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attr| {
+        get_meta_items(attr, TYPESHARE)
+            .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
     })
 }
 
-fn get_serde_name_value_meta_items<'a>(
-    attrs: &'a [syn::Attribute],
-    name: &'a str,
-) -> impl Iterator<Item = syn::Lit> + 'a {
-    attrs.iter().flat_map(move |attr| {
-        get_serde_meta_items(attr)
-            .iter()
-            .filter_map(|arg| match arg {
-                NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                    if let Some(ident) = name_value.path.get_ident() {
-                        if *ident == name {
-                            Some(name_value.lit.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>()
+fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
+    attrs.iter().any(|attr| {
+        get_meta_items(attr, SERDE)
+            .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
 }
 
-fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as")
-        .next()
-        .and_then(literal_as_string)
+fn serde_default(attrs: &[syn::Attribute]) -> bool {
+    serde_attr(attrs, "default")
 }
 
-fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    get_typeshare_name_value_meta_items(attrs, "serialized_as")
-        .next()
-        .and_then(literal_as_string)
+fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
+    serde_attr(attrs, "flatten")
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
@@ -571,37 +647,81 @@ fn get_field_decorators(
 
     attrs
         .iter()
-        .flat_map(get_typeshare_meta_items)
-        .flat_map(|meta| {
-            if let NestedMeta::Meta(Meta::List(list)) = meta {
+        .flat_map(|attr| get_meta_items(attr, TYPESHARE))
+        .filter_map(|meta| {
+            if let Meta::List(list) = meta {
                 Some(list)
             } else {
                 None
             }
         })
-        .flat_map(|list| match list.path.get_ident() {
+        .filter_map(|list: MetaList| match list.path.get_ident() {
             Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
-                Some((ident.try_into().unwrap(), list.nested))
+                Some((ident.try_into().unwrap(), list))
             }
             _ => None,
         })
-        .map(|(language, list)| {
+        .map(|(language, list): (SupportedLanguage, MetaList)| {
             (
                 language,
-                list.into_iter().filter_map(|nested| match nested {
-                    NestedMeta::Meta(Meta::Path(path)) if path.segments.len() == 1 => {
+                list.parse_args_with(|input: &ParseBuffer| {
+                    let mut res: Vec<Meta> = vec![];
+
+                    loop {
+                        if input.is_empty() {
+                            break;
+                        }
+
+                        let ident = input.call(Ident::parse_any)?;
+
+                        // Parse `readonly` or any other single ident optionally followed by a comma
+                        if input.peek(Token![,]) || input.is_empty() {
+                            input.parse::<Token![,]>().unwrap_or_default();
+                            res.push(Meta::Path(ident.into()));
+                            continue;
+                        }
+
+                        if input.is_empty() {
+                            break;
+                        }
+
+                        // Parse `= "any | undefined"` or any other eq sign followed by a string literal
+
+                        let eq_token = input.parse::<Token![=]>()?;
+
+                        let value: LitStr = input.parse()?;
+                        res.push(Meta::NameValue(MetaNameValue {
+                            path: ident.into(),
+                            eq_token,
+                            value: Expr::Lit(ExprLit {
+                                attrs: Vec::new(),
+                                lit: value.into(),
+                            }),
+                        }));
+
+                        if input.is_empty() {
+                            break;
+                        }
+
+                        input.parse::<Token![,]>()?;
+                    }
+                    Ok(res)
+                })
+                .iter()
+                .flatten()
+                .filter_map(|nested| match nested {
+                    Meta::Path(path) if path.segments.len() == 1 => {
                         Some(FieldDecorator::Word(path.get_ident()?.to_string()))
                     }
-                    NestedMeta::Meta(Meta::NameValue(name_value)) => {
-                        Some(FieldDecorator::NameValue(
-                            name_value.path.get_ident()?.to_string(),
-                            literal_as_string(name_value.lit)?,
-                        ))
-                    }
+                    Meta::NameValue(name_value) => Some(FieldDecorator::NameValue(
+                        name_value.path.get_ident()?.to_string(),
+                        expr_to_string(&name_value.value)?,
+                    )),
                     // TODO: this should throw a visible error since it suggests a malformed
                     //       attribute.
                     _ => None,
-                }),
+                })
+                .collect::<Vec<FieldDecorator>>(),
             )
         })
         .fold(HashMap::new(), |mut acc, (language, decorators)| {
@@ -610,118 +730,53 @@ fn get_field_decorators(
         })
 }
 
+fn expr_to_string(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Lit(expr_lit) => literal_to_string(&expr_lit.lit),
+        _ => None,
+    }
+}
+
+fn literal_to_string(lit: &syn::Lit) -> Option<String> {
+    match lit {
+        syn::Lit::Str(str) => Some(str.value().trim().to_string()),
+        _ => None,
+    }
+}
+
 /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decoration_words>>`, where `language` is `SupportedLanguage` and `decoration_words` is `String`
-fn get_decorators(attrs: &[syn::Attribute]) -> HashMap<SupportedLanguage, Vec<String>> {
-    // The resulting HashMap, Key is the language, and the value is a vector of decorators words that will be put onto structures
-    let mut out: HashMap<SupportedLanguage, Vec<String>> = HashMap::new();
+/// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
+fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
+    let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
-    for value in get_typeshare_name_value_meta_items(attrs, "swift").filter_map(literal_as_string) {
-        let decorators: Vec<String> = value.split(',').map(|s| s.trim().to_string()).collect();
-
-        // lastly, get the entry in the hashmap output and extend the value, or insert what we have already found
-        let decs = out.entry(SupportedLanguage::Swift).or_insert_with(Vec::new);
-        decs.extend(decorators);
-        // Sorting so all the added decorators will be after the normal ([`String`], `Codable`) in alphabetical order
-        decs.sort_unstable();
-        decs.dedup(); //removing any duplicates just in case
+    for decorator_kind in [
+        DecoratorKind::Swift,
+        DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Kotlin,
+    ] {
+        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
+            decorator_map
+                .entry(decorator_kind)
+                .or_default()
+                .extend(value.split(',').map(|s| s.trim().to_string()));
+        }
     }
 
-    //return our hashmap mapping of language -> Vec<decorators>
-    out
+    decorator_map
 }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "tag")
-        .next()
-        .and_then(literal_as_string)
+    get_name_value_meta_items(attrs, "tag", SERDE).next()
 }
 
 fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "content")
-        .next()
-        .and_then(literal_as_string)
+    get_name_value_meta_items(attrs, "content", SERDE).next()
 }
 
-fn serde_rename(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename")
-        .next()
-        .and_then(literal_as_string)
-}
-
-fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
-    get_serde_name_value_meta_items(attrs, "rename_all")
-        .next()
-        .and_then(literal_as_string)
-}
-
-fn serde_attr(attrs: &[syn::Attribute], ident: &Ident) -> bool {
-    attrs.iter().any(|attr| {
-        get_serde_meta_items(attr).iter().any(|arg| match arg {
-            NestedMeta::Meta(Meta::Path(path)) => {
-                if let Some(this_ident) = path.get_ident() {
-                    *this_ident == *ident
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        })
-    })
-}
-
-fn serde_default(attrs: &[syn::Attribute]) -> bool {
-    serde_attr(attrs, &Ident::new("default", Span::call_site()))
-}
-
-fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
-    serde_attr(attrs, &Ident::new("flatten", Span::call_site()))
-}
-
-// TODO: for now, this is a workaround until we can integrate serde_derive_internal
-// into our parser.
-/// Returns all arguments passed into `#[serde(...)]` attributes
-pub fn get_serde_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
-    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != SERDE {
-        return Vec::default();
-    }
-
-    match attr.parse_meta() {
-        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
-        _ => Vec::new(),
-    }
-}
-
-/// Returns all arguments passed into `#[typeshare(...)]` attributes
-pub fn get_typeshare_meta_items(attr: &syn::Attribute) -> Vec<NestedMeta> {
-    if attr.path.get_ident().is_none() || *attr.path.get_ident().unwrap() != TYPESHARE {
-        return Vec::default();
-    }
-
-    match attr.parse_meta() {
-        Ok(Meta::List(meta)) => meta.nested.into_iter().collect(),
-        _ => Vec::new(),
-    }
-}
-
-// `#[typeshare(skip)]` or `#[serde(skip)]`
-fn is_skipped(attrs: &[syn::Attribute]) -> bool {
-    let skip = Ident::new("skip", Span::call_site());
-    attrs.iter().any(|attr| {
-        get_serde_meta_items(attr)
-            .into_iter()
-            .chain(get_typeshare_meta_items(attr).into_iter())
-            .any(|arg| match arg {
-                NestedMeta::Meta(Meta::Path(path)) => {
-                    if let Some(ident) = path.get_ident() {
-                        *ident == skip
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            })
-    })
+/// Removes `-` characters from identifiers
+pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
+    // Dashes are not valid in identifiers, so we map them to underscores
+    name.replace('-', "_")
 }
 
 #[test]
@@ -746,10 +801,4 @@ fn test_rename_all_to_case() {
             test.1
         );
     }
-}
-
-/// Removes `-` characters from identifiers
-pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
-    // Dashes are not valid in identifiers, so we map them to underscores
-    name.replace('-', "_")
 }

@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -14,6 +15,7 @@ const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 pub struct KotlinParams {
     pub package: String,
     pub module_name: String,
+    pub prefix: String,
     pub type_mappings: HashMap<String, String>,
 }
 
@@ -29,9 +31,11 @@ pub struct ScalaParams {
 #[serde(default)]
 pub struct SwiftParams {
     pub prefix: String,
-    pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
+    /// The contraints to apply to `CodableVoid`.
+    pub codablevoid_constraints: Vec<String>,
+    pub type_mappings: HashMap<String, String>,
 }
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -45,8 +49,9 @@ pub struct TypeScriptParams {
 #[cfg(feature = "go")]
 pub struct GoParams {
     pub package: String,
-    pub type_mappings: HashMap<String, String>,
     pub uppercase_acronyms: Vec<String>,
+    pub no_pointer_slice: bool,
+    pub type_mappings: HashMap<String, String>,
 }
 
 /// The paramters that are used to configure the behaviour of typeshare
@@ -60,19 +65,19 @@ pub(crate) struct Config {
     pub scala: ScalaParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
+    #[serde(skip)]
+    pub target_os: Vec<String>,
 }
 
-pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> Result<(), io::Error> {
+pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {
     let file_path = file_path.unwrap_or(DEFAULT_CONFIG_FILE_NAME);
+    let config_output = toml::to_string_pretty(config).context("Failed to serialize to toml")?;
 
     // Fail if trying to overwrite an existing config file
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(file_path)?;
-
-    let config_output =
-        toml::to_string_pretty(config).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
     file.write_all(config_output.as_bytes())?;
 
@@ -120,6 +125,14 @@ mod test {
 
     fn config_file_path(filename: &str) -> PathBuf {
         [CURRENT_DIR, TEST_DIR, filename].iter().collect()
+    }
+
+    #[test]
+    fn to_string_and_back() {
+        let path = config_file_path("mappings_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        toml::from_str::<Config>(&toml::to_string_pretty(&config).unwrap()).unwrap();
     }
 
     #[test]
@@ -175,5 +188,13 @@ mod test {
         let config = load_config(Some(path)).unwrap();
 
         assert_eq!(config.swift.prefix, "test");
+    }
+    #[test]
+    #[cfg(feature = "go")]
+    fn go_package_test() {
+        let path = config_file_path("go_config.toml");
+        let config = load_config(Some(path)).unwrap();
+
+        assert_eq!(config.go.package, "testPackage");
     }
 }

@@ -1,9 +1,7 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 /// This struct has a unit field
 @Serializable

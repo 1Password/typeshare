@@ -1,9 +1,7 @@
-@file:NoLiveLiterals
-
 package com.agilebits.onepassword
 
-import androidx.compose.runtime.NoLiveLiterals
-import kotlinx.serialization.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 @Serializable
 data class A (
@@ -21,13 +19,13 @@ data class C (
 )
 
 @Serializable
-data class D (
-	val dependsOn: C,
-	val alsoDependsOn: E? = null
+data class E (
+	val dependsOn: D
 )
 
 @Serializable
-data class E (
-	val dependsOn: D
+data class D (
+	val dependsOn: C,
+	val alsoDependsOn: E? = null
 )
 

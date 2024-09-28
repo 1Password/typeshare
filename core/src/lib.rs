@@ -1,8 +1,6 @@
 //! The core library for typeshare.
 //! Contains the parser and language converters.
 
-use language::Language;
-use std::io::Write;
 use thiserror::Error;
 
 mod rename;
@@ -13,7 +11,11 @@ pub mod language;
 pub mod parser;
 /// Codifying Rust types and how they convert to various languages.
 pub mod rust_types;
+mod target_os_check;
 mod topsort;
+mod visitors;
+
+pub use rename::RenameExt;
 
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
@@ -24,13 +26,10 @@ pub enum ProcessInputError {
     IoError(#[from] std::io::Error),
 }
 
-/// Parse and generate types for a single Rust input file.
-pub fn process_input(
-    input: &str,
-    language: &mut dyn Language,
-    out: &mut dyn Write,
-) -> Result<(), ProcessInputError> {
-    let parsed_data = parser::parse(input)?;
-    language.generate_types(out, &parsed_data)?;
-    Ok(())
+#[derive(Debug, Error)]
+/// Errors during file generation.
+pub enum GenerationError {
+    /// The post generation step failed.
+    #[error("Post generation failed: {0}")]
+    PostGeneration(String),
 }

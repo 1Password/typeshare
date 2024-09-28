@@ -1,7 +1,6 @@
 [package]
 name = "typeshare"
-version = "1.0.1"
-rust-version = "1.57"
+version = "1.0.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 readme = "../README.md"
@@ -9,7 +8,11 @@ description = "Seamlessly share type definitions across multiple languages for F
 repository = "https://github.com/1Password/typeshare"
 
 [dependencies]
-chrono = { version = "0.4", default-features = false, features = ["clock", "std", "wasmbind"] }
+chrono = { version = "0.4", default-features = false, features = [
+    "clock",
+    "std",
+    "wasmbind",
+] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-typeshare-annotation = { path = "../annotation", version = "1.0.0" }
+typeshare-annotation = { path = "../annotation", version = "1.0.4" }

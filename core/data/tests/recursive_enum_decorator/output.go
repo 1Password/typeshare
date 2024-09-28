@@ -2,88 +2,6 @@ package proto
 
 import "encoding/json"
 
-type OptionsTypes string
-const (
-	OptionsTypeVariantRed OptionsTypes = "Red"
-	OptionsTypeVariantBanana OptionsTypes = "Banana"
-	OptionsTypeVariantVermont OptionsTypes = "Vermont"
-)
-type Options struct{ 
-	Type OptionsTypes `json:"type"`
-	content interface{}
-}
-
-func (o *Options) UnmarshalJSON(data []byte) error {
-	var enum struct {
-		Tag    OptionsTypes   `json:"type"`
-		Content json.RawMessage `json:"content"`
-	}
-	if err := json.Unmarshal(data, &enum); err != nil {
-		return err
-	}
-
-	o.Type = enum.Tag
-	switch o.Type {
-	case OptionsTypeVariantRed:
-		var res bool
-		o.content = &res
-	case OptionsTypeVariantBanana:
-		var res string
-		o.content = &res
-	case OptionsTypeVariantVermont:
-		var res Options
-		o.content = &res
-
-	}
-	if err := json.Unmarshal(enum.Content, &o.content); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (o Options) MarshalJSON() ([]byte, error) {
-    var enum struct {
-		Tag    OptionsTypes   `json:"type"`
-		Content interface{} `json:"content,omitempty"`
-    }
-    enum.Tag = o.Type
-    enum.Content = o.content
-    return json.Marshal(enum)
-}
-
-func (o Options) Red() bool {
-	res, _ := o.content.(*bool)
-	return *res
-}
-func (o Options) Banana() string {
-	res, _ := o.content.(*string)
-	return *res
-}
-func (o Options) Vermont() Options {
-	res, _ := o.content.(*Options)
-	return *res
-}
-
-func NewOptionsTypeVariantRed(content bool) Options {
-    return Options{
-        Type: OptionsTypeVariantRed,
-        content: &content,
-    }
-}
-func NewOptionsTypeVariantBanana(content string) Options {
-    return Options{
-        Type: OptionsTypeVariantBanana,
-        content: &content,
-    }
-}
-func NewOptionsTypeVariantVermont(content Options) Options {
-    return Options{
-        Type: OptionsTypeVariantVermont,
-        content: &content,
-    }
-}
-
 // Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 type MoreOptionsExactlyInner struct {
 	Config string `json:"config"`
@@ -171,6 +89,88 @@ func NewMoreOptionsTypeVariantBuilt(content *MoreOptionsBuiltInner) MoreOptions 
     return MoreOptions{
         Type: MoreOptionsTypeVariantBuilt,
         content: content,
+    }
+}
+
+type OptionsTypes string
+const (
+	OptionsTypeVariantRed OptionsTypes = "Red"
+	OptionsTypeVariantBanana OptionsTypes = "Banana"
+	OptionsTypeVariantVermont OptionsTypes = "Vermont"
+)
+type Options struct{ 
+	Type OptionsTypes `json:"type"`
+	content interface{}
+}
+
+func (o *Options) UnmarshalJSON(data []byte) error {
+	var enum struct {
+		Tag    OptionsTypes   `json:"type"`
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(data, &enum); err != nil {
+		return err
+	}
+
+	o.Type = enum.Tag
+	switch o.Type {
+	case OptionsTypeVariantRed:
+		var res bool
+		o.content = &res
+	case OptionsTypeVariantBanana:
+		var res string
+		o.content = &res
+	case OptionsTypeVariantVermont:
+		var res Options
+		o.content = &res
+
+	}
+	if err := json.Unmarshal(enum.Content, &o.content); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o Options) MarshalJSON() ([]byte, error) {
+    var enum struct {
+		Tag    OptionsTypes   `json:"type"`
+		Content interface{} `json:"content,omitempty"`
+    }
+    enum.Tag = o.Type
+    enum.Content = o.content
+    return json.Marshal(enum)
+}
+
+func (o Options) Red() bool {
+	res, _ := o.content.(*bool)
+	return *res
+}
+func (o Options) Banana() string {
+	res, _ := o.content.(*string)
+	return *res
+}
+func (o Options) Vermont() Options {
+	res, _ := o.content.(*Options)
+	return *res
+}
+
+func NewOptionsTypeVariantRed(content bool) Options {
+    return Options{
+        Type: OptionsTypeVariantRed,
+        content: &content,
+    }
+}
+func NewOptionsTypeVariantBanana(content string) Options {
+    return Options{
+        Type: OptionsTypeVariantBanana,
+        content: &content,
+    }
+}
+func NewOptionsTypeVariantVermont(content Options) Options {
+    return Options{
+        Type: OptionsTypeVariantVermont,
+        content: &content,
     }
 }
 
