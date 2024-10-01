@@ -92,7 +92,7 @@ pub fn parse_input(
     inputs: impl ParallelIterator<Item = ParserInput>,
     ignored_types: &[&str],
     multi_file: bool,
-    target_os: Option<String>,
+    target_os: &[String],
 ) -> anyhow::Result<BTreeMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
@@ -112,7 +112,7 @@ pub fn parse_input(
                     file_path,
                     ignored_types,
                     multi_file,
-                    target_os.clone(),
+                    target_os,
                 )
                 .with_context(|| format!("Failed to parse: {file_name}"))?;
 

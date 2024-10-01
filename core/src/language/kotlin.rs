@@ -138,12 +138,18 @@ impl Language for Kotlin {
                 },
                 &[],
                 false,
+                match ty.is_redacted {
+                    true => Visibility::Private,
+                    false => Visibility::Public,
+                },
             )?;
 
             writeln!(w)?;
 
             if ty.is_redacted {
                 writeln!(w, ") {{")?;
+                writeln!(w, "\tfun unwrap() = value")?;
+                writeln!(w)?;
                 writeln!(w, "\toverride fun toString(): String = \"***\"")?;
                 writeln!(w, "}}")?;
             } else {
@@ -196,10 +202,22 @@ impl Language for Kotlin {
 
             if let Some((last, elements)) = rs.fields.split_last() {
                 for f in elements.iter() {
-                    self.write_element(w, f, rs.generic_types.as_slice(), requires_serial_name)?;
+                    self.write_element(
+                        w,
+                        f,
+                        rs.generic_types.as_slice(),
+                        requires_serial_name,
+                        Visibility::Public,
+                    )?;
                     writeln!(w, ",")?;
                 }
-                self.write_element(w, last, rs.generic_types.as_slice(), requires_serial_name)?;
+                self.write_element(
+                    w,
+                    last,
+                    rs.generic_types.as_slice(),
+                    requires_serial_name,
+                    Visibility::Public,
+                )?;
                 writeln!(w)?;
             }
 
@@ -273,6 +291,11 @@ impl Language for Kotlin {
     fn ignored_reference_types(&self) -> Vec<&str> {
         self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
+}
+
+enum Visibility {
+    Public,
+    Private,
 }
 
 impl Kotlin {
@@ -402,6 +425,7 @@ impl Kotlin {
         f: &RustField,
         generic_types: &[String],
         requires_serial_name: bool,
+        visibility: Visibility,
     ) -> std::io::Result<()> {
         self.write_comments(w, 1, &f.comments)?;
         if requires_serial_name {
@@ -414,16 +438,28 @@ impl Kotlin {
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
         };
 
-        write!(
-            w,
-            "\tval {}: {}{}",
-            remove_dash_from_identifier(&f.id.renamed),
-            ty,
-            (f.has_default && !f.ty.is_optional())
-                .then_some("? = null")
-                .or_else(|| f.ty.is_optional().then_some(" = null"))
-                .unwrap_or_default()
-        )
+        match visibility {
+            Visibility::Public => write!(
+                w,
+                "\tval {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            ),
+            Visibility::Private => write!(
+                w,
+                "\tprivate val {}: {}{}",
+                remove_dash_from_identifier(&f.id.renamed),
+                ty,
+                (f.has_default && !f.ty.is_optional())
+                    .then_some("? = null")
+                    .or_else(|| f.ty.is_optional().then_some(" = null"))
+                    .unwrap_or_default()
+            ),
+        }
     }
 
     fn write_comment(

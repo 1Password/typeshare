@@ -9,6 +9,7 @@ use crate::{
     GenerationError,
 };
 use itertools::Itertools;
+use log::warn;
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -433,7 +434,7 @@ fn used_imports<'a, 'b: 'a>(
             })
             .next()
         {
-            println!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
+            warn!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
             used.entry(crate_name)
                 .and_modify(|v| {
                     v.insert(ty.as_str());
