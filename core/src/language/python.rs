@@ -661,16 +661,11 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
-        let mut add_none_default: bool = false;
-        if field.ty.is_optional() || field.has_default {
-            add_none_default = true;
+        let add_none_default: bool = field.ty.is_optional() || field.has_default;
+        if add_none_default {
             python_type = format!("Optional[{}]", python_type);
             self.module
                 .add_import("typing".to_string(), "Optional".to_string());
-        }
-        let mut default = None;
-        if field.has_default {
-            default = Some("None".to_string())
         }
         python_type = match python_field_name == field.id.renamed {
             true => python_type,
@@ -688,13 +683,9 @@ impl Python {
         if add_none_default {
             python_type = format!("{python_type} = None");
         }
-        match default {
-            Some(default) => writeln!(
-                w,
-                "    {}: {} = {}",
-                python_field_name, python_type, default,
-            )?,
-            None => writeln!(w, "    {}: {}", python_field_name, python_type)?,
+        match field.has_default {
+            true => writeln!(w, "    {}: {} = None", python_field_name, python_type)?,
+            false => writeln!(w, "    {}: {}", python_field_name, python_type)?,
         }
 
         self.write_comments(w, true, &field.comments, 1)?;
