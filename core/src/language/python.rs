@@ -661,8 +661,7 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
-        let add_none_default: bool = field.ty.is_optional() || field.has_default;
-        if add_none_default {
+        if field.ty.is_optional() {
             python_type = format!("Optional[{}]", python_type);
             self.module
                 .add_import("typing".to_string(), "Optional".to_string());
@@ -680,7 +679,8 @@ impl Python {
                 )
             }
         };
-        match field.has_default {
+        // TODO: Add support for default values other than None
+        match field.has_default && field.ty.is_optional() {
             true => writeln!(w, "    {}: {} = None", python_field_name, python_type)?,
             false => writeln!(w, "    {}: {}", python_field_name, python_type)?,
         }
@@ -755,4 +755,102 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Module, rs: &RustS
         python_module.add_import("pydantic".to_string(), "ConfigDict".to_string());
         let _ = writeln!(w, "    model_config = ConfigDict(populate_by_name=True)\n");
     };
+}
+
+#[cfg(test)]
+mod test {
+    use crate::rust_types::Id;
+
+    use super::*;
+    #[test]
+    fn test_python_property_aware_rename() {
+        assert_eq!(python_property_aware_rename("class"), "class_");
+        assert_eq!(python_property_aware_rename("snake_case"), "snake_case");
+    }
+
+    #[test]
+    fn test_optional_value_with_serde_default() {
+        let mut python = Python::default();
+        let mock_writer = &mut Vec::new();
+        let rust_field = RustField {
+            id: Id {
+                original: "field".to_string(),
+                renamed: "field".to_string(),
+            },
+            ty: RustType::Special(SpecialRustType::Option(Box::new(RustType::Simple {
+                id: "str".to_string(),
+            }))),
+            has_default: true,
+            comments: Default::default(),
+            decorators: Default::default(),
+        };
+        python.write_field(mock_writer, &rust_field, &[]).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(mock_writer),
+            "    field: Optional[str] = None\n"
+        );
+    }
+
+    #[test]
+    fn test_optional_value_no_serde_default() {
+        let mut python = Python::default();
+        let mock_writer = &mut Vec::new();
+        let rust_field = RustField {
+            id: Id {
+                original: "field".to_string(),
+                renamed: "field".to_string(),
+            },
+            ty: RustType::Special(SpecialRustType::Option(Box::new(RustType::Simple {
+                id: "str".to_string(),
+            }))),
+            has_default: false,
+            comments: Default::default(),
+            decorators: Default::default(),
+        };
+        python.write_field(mock_writer, &rust_field, &[]).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(mock_writer),
+            "    field: Optional[str]\n"
+        );
+    }
+
+    #[test]
+    fn test_non_optional_value_with_serde_default() {
+        let mut python = Python::default();
+        let mock_writer = &mut Vec::new();
+        let rust_field = RustField {
+            id: Id {
+                original: "field".to_string(),
+                renamed: "field".to_string(),
+            },
+            ty: RustType::Simple {
+                id: "str".to_string(),
+            },
+            has_default: true,
+            comments: Default::default(),
+            decorators: Default::default(),
+        };
+        python.write_field(mock_writer, &rust_field, &[]).unwrap();
+        assert_eq!(String::from_utf8_lossy(mock_writer), "    field: str\n");
+    }
+
+    #[test]
+    fn test_non_optional_value_with_no_serde_default() {
+        let mut python = Python::default();
+        let mock_writer = &mut Vec::new();
+        let rust_field = RustField {
+            id: Id {
+                original: "field".to_string(),
+                renamed: "field".to_string(),
+            },
+            ty: RustType::Simple {
+                id: "str".to_string(),
+            },
+            has_default: false,
+            comments: Default::default(),
+            decorators: Default::default(),
+        };
+        python.write_field(mock_writer, &rust_field, &[]).unwrap();
+        assert_eq!(String::from_utf8_lossy(mock_writer), "    field: str\n");
+    }
 }
