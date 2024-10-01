@@ -680,9 +680,6 @@ impl Python {
                 )
             }
         };
-        if add_none_default {
-            python_type = format!("{python_type} = None");
-        }
         match field.has_default {
             true => writeln!(w, "    {}: {} = None", python_field_name, python_type)?,
             false => writeln!(w, "    {}: {}", python_field_name, python_type)?,
