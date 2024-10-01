@@ -681,8 +681,16 @@ impl Python {
         };
         // TODO: Add support for default values other than None
         match field.has_default && field.ty.is_optional() {
-            true => writeln!(w, "    {}: {} = None", python_field_name, python_type)?,
-            false => writeln!(w, "    {}: {}", python_field_name, python_type)?,
+            true => {
+                // in the future we will want to get the default value properly, something like:
+                // let default_value = get_default_value(...)
+                let default_value = "None";
+                writeln!(
+                    w,
+                    "    {python_field_name}: {python_type} = {default_value}"
+                )?
+            }
+            false => writeln!(w, "    {python_field_name}: {python_type}")?,
         }
 
         self.write_comments(w, true, &field.comments, 1)?;
