@@ -816,6 +816,8 @@ mod test {
 
     #[test]
     fn test_non_optional_value_with_serde_default() {
+        // technically an invalid case at the moment, as we don't support serde default values other than None
+        // TODO: change this test if we do
         let mut python = Python::default();
         let mock_writer = &mut Vec::new();
         let rust_field = RustField {
