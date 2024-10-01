@@ -672,7 +672,7 @@ impl Python {
         if field.has_default {
             default = Some("None".to_string())
         }
-        python_type = match python_field_name == field.id.renamed{
+        python_type = match python_field_name == field.id.renamed {
             true => python_type,
             false => {
                 self.module
