@@ -357,7 +357,7 @@ impl Language for Python {
             r#type,
         )?;
 
-        self.write_comments(w, true, &ty.comments, 1)?;
+        self.write_comments(w, true, &ty.comments, 0)?;
 
         Ok(())
     }
