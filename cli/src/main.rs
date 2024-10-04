@@ -46,12 +46,8 @@ fn main() -> anyhow::Result<()> {
                 shell.generate(&mut Args::command(), &mut io::stdout().lock())
             }
         }
-        // let shell = options
-        //     .value_of_t::<clap_complete_command::Shell>("shell")
-        //     .context("Missing shell argument")?;
 
-        // let mut command = build_command();
-        // shell.generate(&mut command, &mut std::io::stdout());
+        return Ok(());
     }
 
     let config_file = options.config_file.as_deref();
