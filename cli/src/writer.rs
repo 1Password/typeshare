@@ -1,7 +1,6 @@
 //! Generated source file output.
-use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
+use crate::args::Args;
 use anyhow::Context;
-use clap::ArgMatches;
 use log::info;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -15,13 +14,13 @@ use typeshare_core::{
 
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
-    options: ArgMatches,
+    options: &Args,
     lang: Box<dyn Language>,
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
-    let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
-    let output_file = options.value_of(ARG_OUTPUT_FILE);
+    let output_folder = options.output_folder.as_ref();
+    let output_file = options.output_file.as_ref();
 
     if let Some(folder) = output_folder {
         write_multiple_files(lang, folder, crate_parsed_data, import_candidates)
@@ -35,7 +34,7 @@ pub fn write_generated(
 /// Write multiple module files.
 fn write_multiple_files(
     mut lang: Box<dyn Language>,
-    output_folder: &str,
+    output_folder: &Path,
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
@@ -46,7 +45,7 @@ fn write_multiple_files(
         check_write_file(&outfile, generated_contents)?;
     }
 
-    lang.post_generation(output_folder)
+    lang.post_generation(&output_folder.as_os_str().to_string_lossy())
         .context("Post generation failed")?;
 
     Ok(())
@@ -83,7 +82,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 /// Write all types to a single file.
 fn write_single_file(
     mut lang: Box<dyn Language>,
-    file_name: &str,
+    file_name: &Path,
     mut crate_parsed_data: BTreeMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
     let parsed_data = crate_parsed_data
