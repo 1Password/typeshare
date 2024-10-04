@@ -23,7 +23,7 @@ use typeshare_core::{
     },
     parser::ParsedData,
 };
-use writer::write_generated;
+use writer::{write_generated, Output};
 
 use crate::args::{Args, Command};
 
@@ -50,24 +50,31 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // Note that this can be `None`; the relevant functions handle this case
+    // on their own.
     let config_file = options.config_file.as_deref();
-    let config = config::load_config(config_file).context("Unable to read configuration file")?;
-    let config = override_configuration(config, &options)?;
 
-    if options.generate_config {
+    if options.output.generate_config {
         let config = override_configuration(Config::default(), &options)?;
         config::store_config(&config, config_file).context("Failed to create new config file")?;
+        return Ok(());
     }
+
+    let config = config::load_config(config_file).context("Unable to read configuration file")?;
+    let config = override_configuration(config, &options)?;
 
     let directories = options.directories.as_slice();
 
     let language_type = match options.language {
-        args::AvailableLanguage::Kotlin => SupportedLanguage::Kotlin,
-        args::AvailableLanguage::Scala => SupportedLanguage::Scala,
-        args::AvailableLanguage::Swift => SupportedLanguage::Swift,
-        args::AvailableLanguage::Typescript => SupportedLanguage::TypeScript,
-        #[cfg(feature = "go")]
-        args::AvailableLanguage::Go => SupportedLanguage::Go,
+        None => panic!("no language specified; `clap` should have guaranteed its presence"),
+        Some(language) => match language {
+            args::AvailableLanguage::Kotlin => SupportedLanguage::Kotlin,
+            args::AvailableLanguage::Scala => SupportedLanguage::Scala,
+            args::AvailableLanguage::Swift => SupportedLanguage::Swift,
+            args::AvailableLanguage::Typescript => SupportedLanguage::TypeScript,
+            #[cfg(feature = "go")]
+            args::AvailableLanguage::Go => SupportedLanguage::Go,
+        },
     };
 
     let mut types = TypesBuilder::new();
@@ -90,16 +97,28 @@ fn main() -> anyhow::Result<()> {
 
     let mut walker_builder = WalkBuilder::new(first_root);
     // Sort walker output for deterministic output across platforms
-    walker_builder.sort_by_file_path(Path::cmp);
-    walker_builder.types(types.build().context("Failed to build types")?);
-    walker_builder.overrides(overrides);
-    walker_builder.follow_links(options.follow_links);
+    walker_builder
+        .sort_by_file_path(Path::cmp)
+        .types(types.build().context("Failed to build types")?)
+        .overrides(overrides)
+        .follow_links(options.follow_links);
 
     for root in directories {
         walker_builder.add(root);
     }
 
-    let multi_file = options.output_folder.is_some();
+    let destination = if let Some(ref file) = options.output.file {
+        Output::File(file)
+    } else if let Some(ref folder) = options.output.folder {
+        Output::Folder(folder)
+    } else {
+        panic!(
+            "Got neither a file nor a folder to output to; this indicates a
+            bug in typeshare, since`clap` is supposed to prevent this"
+        )
+    };
+
+    let multi_file = matches!(destination, Output::Folder(_));
     let target_os = config.target_os.clone();
 
     let lang = language(language_type, config, multi_file);
@@ -130,7 +149,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
-    write_generated(&options, lang, crate_parsed_data, import_candidates)?;
+    write_generated(destination, lang, crate_parsed_data, import_candidates)?;
 
     Ok(())
 }

@@ -1,5 +1,4 @@
 //! Generated source file output.
-use crate::args::Args;
 use anyhow::Context;
 use log::info;
 use std::{
@@ -12,22 +11,24 @@ use typeshare_core::{
     parser::ParsedData,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum Output<'a> {
+    File(&'a Path),
+    Folder(&'a Path),
+}
+
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
-    options: &Args,
+    destination: Output<'_>,
     lang: Box<dyn Language>,
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
-    let output_folder = options.output_folder.as_ref();
-    let output_file = options.output_file.as_ref();
-
-    if let Some(folder) = output_folder {
-        write_multiple_files(lang, folder, crate_parsed_data, import_candidates)
-    } else if let Some(file) = output_file {
-        write_single_file(lang, file, crate_parsed_data)
-    } else {
-        Ok(())
+    match destination {
+        Output::File(path) => write_single_file(lang, path, crate_parsed_data),
+        Output::Folder(path) => {
+            write_multiple_files(lang, path, crate_parsed_data, import_candidates)
+        }
     }
 }
 

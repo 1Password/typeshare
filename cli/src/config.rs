@@ -103,6 +103,8 @@ fn find_configuration_file() -> Option<PathBuf> {
     let mut path = env::current_dir().ok()?;
     let file = Path::new(DEFAULT_CONFIG_FILE_NAME);
 
+    // TODO: I want to use `path.ancestors` here but it would requiring
+    // allocating on every loop iteration and that makes me sad.
     loop {
         path.push(file);
 

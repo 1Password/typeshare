@@ -1,8 +1,6 @@
 //! Command line argument parsing.
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand, ValueEnum};
-
 // pub const ARG_TYPE: &str = "TYPE";
 // pub const ARG_SWIFT_PREFIX: &str = "SWIFTPREFIX";
 // pub const ARG_KOTLIN_PREFIX: &str = "KOTLINPREFIX";
@@ -25,7 +23,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 // #[cfg(not(feature = "go"))]
 // const AVAILABLE_LANGUAGES: [&str; 4] = ["kotlin", "scala", "swift", "typescript"];
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[non_exhaustive]
 pub enum AvailableLanguage {
     Kotlin,
@@ -36,15 +34,15 @@ pub enum AvailableLanguage {
     Go,
 }
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 #[command(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
 pub struct Args {
     #[command(subcommand)]
     pub subcommand: Option<Command>,
 
     /// Language of generated types
-    #[arg(short, long = "lang")]
-    pub language: AvailableLanguage,
+    #[arg(short, long = "lang", required_unless_present = "generate_config")]
+    pub language: Option<AvailableLanguage>,
 
     /// Prefix for generated Swift types
     #[arg(short, long)]
@@ -79,19 +77,8 @@ pub struct Args {
     #[arg(short, long)]
     pub config_file: Option<PathBuf>,
 
-    /// Generates a configuration file based on the other options specified.
-    /// The file will be written to typeshare.toml by default or to the file
-    /// path specified by the --config-file option.
-    #[arg(short, long)]
-    pub generate_config: bool,
-
-    /// File to write output to. mtime will be preserved if the file contents don't change
-    #[arg(short, long)]
-    pub output_file: Option<PathBuf>,
-
-    /// Folder to write output to. mtime will be preserved if the file contents don't change
-    #[arg(short = 'd', long)]
-    pub output_folder: Option<PathBuf>,
+    #[command(flatten)]
+    pub output: Output,
 
     /// Follow symbolic links to directories instead of ignoring them.
     #[arg(short = 'L', long)]
@@ -106,13 +93,36 @@ pub struct Args {
     pub target_os: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Copy, Subcommand)]
+#[derive(Debug, Clone, Copy, clap::Subcommand)]
 pub enum Command {
     /// Generate shell completions
     Completions {
         /// The shell to generate the completions for
         shell: clap_complete::Shell,
     },
+}
+
+#[derive(clap::Args, Debug)]
+#[group(multiple = false)]
+pub struct Output {
+    /// File to write output to. mtime will be preserved if the file contents
+    /// don't change
+    #[arg(short = 'o', long = "output-file")]
+    pub file: Option<PathBuf>,
+
+    /// Folder to write output to. mtime will be preserved if the file contents
+    /// don't change
+    #[arg(short = 'd', long = "output-folder")]
+    pub folder: Option<PathBuf>,
+
+    // If given, we're going to output a new template configuration file
+    // instead of running typeshare normally, so we make it mutually exclusive
+    // with running normally
+    /// Generates a configuration file based on the other options specified.
+    /// The file will be written to typeshare.toml by default or to the file
+    /// path specified by the --config-file option.
+    #[arg(short, long)]
+    pub generate_config: bool,
 }
 
 // /// Parse command line arguments.
