@@ -12,7 +12,6 @@ name = "typeshare"
 path = "src/main.rs"
 
 [features]
-default = ["go"]
 go = []
 
 [dependencies]
