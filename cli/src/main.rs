@@ -1,19 +1,24 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
+//!
 
-use anyhow::{anyhow, Context};
-use clap::{CommandFactory, Parser};
-use clap_complete::Generator;
-use config::Config;
-use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
-use log::error;
-use parse::{all_types, parse_input, parser_inputs};
-use rayon::iter::ParallelBridge;
+mod args;
+mod config;
+mod parse;
+mod writer;
+
 use std::{
     collections::{BTreeMap, HashMap},
     io,
     path::Path,
 };
+
+use anyhow::{anyhow, Context};
+use clap::{CommandFactory, Parser};
+use clap_complete::Generator;
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use log::error;
+use rayon::iter::ParallelBridge;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -23,14 +28,13 @@ use typeshare_core::{
     },
     parser::ParsedData,
 };
-use writer::{write_generated, Output};
 
-use crate::args::{Args, Command};
-
-mod args;
-mod config;
-mod parse;
-mod writer;
+use crate::{
+    args::{Args, Command},
+    config::Config,
+    parse::{all_types, parse_input, parser_inputs},
+    writer::{write_generated, Output},
+};
 
 fn main() -> anyhow::Result<()> {
     flexi_logger::Logger::try_with_env()
@@ -86,7 +90,7 @@ fn main() -> anyhow::Result<()> {
     // This is guaranteed to always have at least one value by the clap configuration
     let first_root = directories
         .first()
-        .context("directories is empty; this shouldn't be possible")?;
+        .expect("directories is empty; this shouldn't be possible");
 
     let overrides = OverrideBuilder::new(first_root)
         // Don't process files inside of tools/typeshare/
@@ -114,7 +118,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         panic!(
             "Got neither a file nor a folder to output to; this indicates a
-            bug in typeshare, since`clap` is supposed to prevent this"
+            bug in typeshare, since `clap` is supposed to prevent this"
         )
     };
 

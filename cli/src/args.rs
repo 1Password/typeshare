@@ -35,7 +35,11 @@ pub enum AvailableLanguage {
 }
 
 #[derive(clap::Parser)]
-#[command(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
+#[command(
+    version,
+    args_conflicts_with_subcommands = true,
+    subcommand_negates_reqs = true
+)]
 pub struct Args {
     #[command(subcommand)]
     pub subcommand: Option<Command>,
@@ -85,7 +89,7 @@ pub struct Args {
     pub follow_links: bool,
 
     /// Directories within which to recursively find and process rust files
-    #[arg(num_args = 1..)]
+    #[arg(required=true, num_args = 1..)]
     pub directories: Vec<PathBuf>,
 
     /// Optional restrict to target_os
@@ -103,7 +107,7 @@ pub enum Command {
 }
 
 #[derive(clap::Args, Debug)]
-#[group(multiple = false)]
+#[group(multiple = false, required = true)]
 pub struct Output {
     /// File to write output to. mtime will be preserved if the file contents
     /// don't change
