@@ -4,7 +4,7 @@ use log::info;
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 use typeshare_core::{
     language::{CrateName, CrateTypes, Language, SINGLE_FILE_CRATE_NAME},
@@ -20,7 +20,7 @@ pub enum Output<'a> {
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
     destination: Output<'_>,
-    lang: Box<dyn Language>,
+    lang: &mut (impl Language + ?Sized),
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
@@ -34,7 +34,7 @@ pub fn write_generated(
 
 /// Write multiple module files.
 fn write_multiple_files(
-    mut lang: Box<dyn Language>,
+    lang: &mut (impl Language + ?Sized),
     output_folder: &Path,
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
@@ -53,7 +53,7 @@ fn write_multiple_files(
 }
 
 /// Write the file if the contents have changed.
-fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
+fn check_write_file(outfile: &Path, output: Vec<u8>) -> anyhow::Result<()> {
     match fs::read(outfile) {
         Ok(buf) if buf == output => {
             // avoid writing the file to leave the mtime intact
@@ -82,7 +82,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 
 /// Write all types to a single file.
 fn write_single_file(
-    mut lang: Box<dyn Language>,
+    lang: &mut (impl Language + ?Sized),
     file_name: &Path,
     mut crate_parsed_data: BTreeMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {

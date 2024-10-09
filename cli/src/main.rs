@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
     let multi_file = matches!(destination, Output::Folder(_));
     let target_os = config.target_os.clone();
 
-    let lang = language(language_type, config, multi_file);
+    let mut lang = language(language_type, config, multi_file);
     let ignored_types = lang.ignored_reference_types();
 
     // The walker ignores directories that are git-ignored. If you need
@@ -153,7 +153,12 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
-    write_generated(destination, lang, crate_parsed_data, import_candidates)?;
+    write_generated(
+        destination,
+        lang.as_mut(),
+        crate_parsed_data,
+        import_candidates,
+    )?;
 
     Ok(())
 }
