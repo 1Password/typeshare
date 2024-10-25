@@ -679,7 +679,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "chrono",
  "serde",
@@ -697,7 +697,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -714,7 +714,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-core"
-version = "1.11.0"
+version = "1.12.0"
 dependencies = [
  "anyhow",
  "cool_asserts",

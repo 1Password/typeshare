@@ -1,3 +1,9 @@
+# Version 1.12.0
+
+- Optional slices in Go no longer trigger a pointer redirection.
+- Upgrade to clap 4. This let us remove the dependency on the now unmaintained atty crate.
+- wasmbind is now an optional feature
+
 # Version 1.11.0
 
 This release promotes 1.10.0-beta.x to stable, and several new features.

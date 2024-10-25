@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
     if let Some(options) = options.subcommand {
         match options {
             Command::Completions { shell } => {
-                shell.generate(&mut Args::command(), &mut io::stdout().lock())
+                shell.generate(&Args::command(), &mut io::stdout().lock())
             }
         }
 
