@@ -12,6 +12,7 @@ const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
 #[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 #[serde(default)]
+#[cfg(feature = "python")]
 pub struct PythonParams {
     pub type_mappings: HashMap<String, String>,
 }
@@ -69,6 +70,7 @@ pub(crate) struct Config {
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
     pub scala: ScalaParams,
+    #[cfg(feature = "python")]
     pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
