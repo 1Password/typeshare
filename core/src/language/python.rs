@@ -1,5 +1,7 @@
 use crate::parser::ParsedData;
-use crate::rust_types::{RustItem, RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{
+    RustEnumShared, RustEnumVariantShared, RustItem, RustType, RustTypeFormatError, SpecialRustType,
+};
 use crate::topsort::topsort;
 use crate::{
     language::Language,
@@ -238,9 +240,8 @@ impl Language for Python {
         let bases = match rs.generic_types.is_empty() {
             true => "BaseModel".to_string(),
             false => {
-                self.add_import("pydantic.generics".to_string(), "GenericModel".to_string());
                 self.add_import("typing".to_string(), "Generic".to_string());
-                format!("GenericModel, Generic[{}]", rs.generic_types.join(", "))
+                format!("BaseModel, Generic[{}]", rs.generic_types.join(", "))
             }
         };
         writeln!(w, "class {}({}):", rs.id.renamed, bases,)?;
@@ -264,36 +265,39 @@ impl Language for Python {
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name =
-            |variant_name: &str| format!("{}{}Inner", &e.shared().id.original, variant_name);
+            |variant_name: &str| format!("{}{}", &e.shared().id.original, variant_name);
 
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &make_anonymous_struct_name)?;
-
+        self.add_import("enum".to_string(), "Enum".to_string());
         match e {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
             RustEnum::Unit(shared) => {
-                self.add_import("typing".to_string(), "Literal".to_string());
-                write!(
-                    w,
-                    "{} = Literal[{}]",
-                    shared.id.renamed,
+                writeln!(w, "class {}(Enum):", shared.id.renamed)?;
+
+                let fields = if shared.variants.is_empty() {
+                    "    pass".to_string()
+                } else {
                     shared
                         .variants
                         .iter()
-                        .map(|v| format!(
-                            "\"{}\"",
-                            match v {
-                                RustEnumVariant::Unit(v) => {
-                                    v.id.renamed.clone()
+                        .map(|v| {
+                            format!(
+                                "    {} = \"{}\"",
+                                v.shared().id.original.to_uppercase(),
+                                match v {
+                                    RustEnumVariant::Unit(v) => {
+                                        v.id.renamed.replace("\"", "\\\"")
+                                    }
+                                    _ => panic!(),
                                 }
-                                _ => panic!(),
-                            }
-                        ))
+                            )
+                        })
                         .collect::<Vec<String>>()
-                        .join(", ")
-                )?;
-                write!(w, "\n\n")?;
+                        .join(",\n")
+                };
+                writeln!(w, "{fields}\n")?;
             }
             // Write all the algebraic variants out (all three variant types are possible
             // here)
@@ -303,168 +307,13 @@ impl Language for Python {
                 shared,
                 ..
             } => {
-                {
-                    shared
-                        .generic_types
-                        .iter()
-                        .cloned()
-                        .for_each(|v| self.add_type_var(v))
-                }
-                let mut variants: Vec<(String, Vec<String>)> = Vec::new();
-                shared.variants.iter().for_each(|variant| {
-                    match variant {
-                        RustEnumVariant::Unit(unit_variant) => {
-                            self.add_import("typing".to_string(), "Literal".to_string());
-                            let variant_name =
-                                format!("{}{}", shared.id.original, unit_variant.id.original);
-                            variants.push((variant_name.clone(), vec![]));
-                            writeln!(w, "class {}:", variant_name).unwrap();
-                            writeln!(
-                                w,
-                                "    {}: Literal[\"{}\"]",
-                                tag_key, unit_variant.id.renamed
-                            )
-                            .unwrap();
-                        }
-                        RustEnumVariant::Tuple {
-                            ty,
-                            shared: variant_shared,
-                        } => {
-                            self.add_import("typing".to_string(), "Literal".to_string());
-                            let variant_name =
-                                format!("{}{}", shared.id.original, variant_shared.id.original);
-                            match ty {
-                                RustType::Generic { id: _, parameters } => {
-                                    // This variant has generics, include them in the class def
-                                    let mut generic_parameters: Vec<String> = parameters
-                                        .iter()
-                                        .flat_map(|p| {
-                                            collect_generics_for_variant(p, &shared.generic_types)
-                                        })
-                                        .collect();
-                                    dedup(&mut generic_parameters);
-                                    let type_vars = self.get_type_vars(generic_parameters.len());
-                                    variants.push((variant_name.clone(), type_vars));
-                                    {
-                                        if generic_parameters.is_empty() {
-                                            self.add_import(
-                                                "pydantic".to_string(),
-                                                "BaseModel".to_string(),
-                                            );
-                                            writeln!(w, "class {}(BaseModel):", variant_name)
-                                                .unwrap();
-                                        } else {
-                                            self.add_import(
-                                                "typing".to_string(),
-                                                "Generic".to_string(),
-                                            );
-                                            self.add_import(
-                                                "pydantic.generics".to_string(),
-                                                "GenericModel".to_string(),
-                                            );
-                                            writeln!(
-                                                w,
-                                                "class {}(GenericModel, Generic[{}]):",
-                                                // note: generics is always unique (a single item)
-                                                variant_name,
-                                                generic_parameters.join(", ")
-                                            )
-                                            .unwrap();
-                                        }
-                                    }
-                                }
-                                other => {
-                                    let mut generics = vec![];
-                                    if let RustType::Simple { id } = other {
-                                        // This could be a bare generic
-                                        if shared.generic_types.contains(id) {
-                                            generics = vec![id.clone()];
-                                        }
-                                    }
-                                    variants.push((variant_name.clone(), generics.clone()));
-                                    {
-                                        if generics.is_empty() {
-                                            self.add_import(
-                                                "pydantic".to_string(),
-                                                "BaseModel".to_string(),
-                                            );
-                                            writeln!(w, "class {}(BaseModel):", variant_name)
-                                                .unwrap();
-                                        } else {
-                                            self.add_import(
-                                                "typing".to_string(),
-                                                "Generic".to_string(),
-                                            );
-                                            self.add_import(
-                                                "pydantic.generics".to_string(),
-                                                "GenericModel".to_string(),
-                                            );
-                                            writeln!(
-                                                w,
-                                                "class {}(GenericModel, Generic[{}]):",
-                                                // note: generics is always unique (a single item)
-                                                variant_name,
-                                                generics.join(", ")
-                                            )
-                                            .unwrap();
-                                        }
-                                    }
-                                }
-                            };
-                            writeln!(
-                                w,
-                                "    {}: Literal[\"{}\"]",
-                                tag_key, variant_shared.id.renamed
-                            )
-                            .unwrap();
-                            writeln!(
-                                w,
-                                "    {}: {}",
-                                content_key,
-                                match ty {
-                                    RustType::Simple { id } => id.to_owned(),
-                                    RustType::Special(special_ty) => self
-                                        .format_special_type(special_ty, &shared.generic_types)
-                                        .unwrap(),
-                                    RustType::Generic { id, parameters } => {
-                                        self.format_generic_type(id, parameters, &[]).unwrap()
-                                    }
-                                }
-                            )
-                            .unwrap();
-                            write!(w, "\n\n").unwrap();
-                        }
-                        RustEnumVariant::AnonymousStruct {
-                            shared: variant_shared,
-                            fields,
-                        } => {
-                            let num_generic_parameters = fields
-                                .iter()
-                                .flat_map(|f| {
-                                    collect_generics_for_variant(&f.ty, &shared.generic_types)
-                                })
-                                .count();
-                            let type_vars = self.get_type_vars(num_generic_parameters);
-                            let name = make_anonymous_struct_name(&variant_shared.id.original);
-                            variants.push((name, type_vars));
-                        }
-                    };
-                });
-                writeln!(
+                self.write_algebraic_enum(
+                    tag_key,
+                    content_key,
+                    shared,
                     w,
-                    "{} = {}",
-                    shared.id.original,
-                    variants
-                        .iter()
-                        .map(|(name, parameters)| match parameters.is_empty() {
-                            true => name.clone(),
-                            false => format!("{}[{}]", name, parameters.join(", ")),
-                        })
-                        .collect::<Vec<String>>()
-                        .join(" | ")
+                    &make_anonymous_struct_name,
                 )?;
-                self.write_comments(w, true, &e.shared().comments, 0)?;
-                writeln!(w)?;
             }
         };
         Ok(())
@@ -498,37 +347,40 @@ impl Python {
         field: &RustField,
         generic_types: &[String],
     ) -> std::io::Result<()> {
-        let mut python_type = self
+        let is_optional = field.ty.is_optional() || field.has_default;
+        let python_type = self
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
-        if field.ty.is_optional() {
-            python_type = format!("Optional[{}]", python_type);
-            self.add_import("typing".to_string(), "Optional".to_string());
-        }
-        python_type = match python_field_name == field.id.renamed {
-            true => python_type,
-            false => {
-                self.add_import("typing".to_string(), "Annotated".to_string());
+        let is_aliased = field.id.original != field.id.renamed;
+        match (is_optional, is_aliased) {
+            (true, true) => {
+                self.add_import("typing".to_string(), "Optional".to_string());
                 self.add_import("pydantic".to_string(), "Field".to_string());
-                format!(
-                    "Annotated[{}, Field(alias=\"{}\")]",
-                    python_type, field.id.renamed
-                )
+                writeln!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
-        };
-        // TODO: Add support for default values other than None
-        match field.has_default && field.ty.is_optional() {
-            true => {
-                // in the future we will want to get the default value properly, something like:
-                // let default_value = get_default_value(...)
-                let default_value = "None";
+            (true, false) => {
+                self.add_import("typing".to_string(), "Optional".to_string());
+                self.add_import("pydantic".to_string(), "Field".to_string());
                 writeln!(
                     w,
-                    "    {python_field_name}: {python_type} = {default_value}"
+                    "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
                 )?
             }
-            false => writeln!(w, "    {python_field_name}: {python_type}")?,
+            (false, true) => {
+                self.add_import("pydantic".to_string(), "Field".to_string());
+                writeln!(
+                    w,
+                    "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\")",
+                    renamed = field.id.renamed
+                )?
+            }
+            (false, false) => writeln!(
+                w,
+                "    {python_field_name}: {python_type}",
+                python_field_name = python_field_name,
+                python_type = python_type
+            )?,
         }
 
         self.write_comments(w, true, &field.comments, 1)?;
@@ -579,20 +431,6 @@ impl Python {
         self.type_variables.insert(name);
     }
 
-    fn get_type_vars(&mut self, n: usize) -> Vec<String> {
-        let vars: Vec<String> = (0..n)
-            .map(|i| {
-                if i == 0 {
-                    "T".to_string()
-                } else {
-                    format!("T{}", i)
-                }
-            })
-            .collect();
-        vars.iter().for_each(|tv| self.add_type_var(tv.clone()));
-        vars
-    }
-
     fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
         let mut type_var_names: Vec<String> = self.type_variables.iter().cloned().collect();
         type_var_names.sort();
@@ -619,6 +457,293 @@ impl Python {
             true => writeln!(w)?,
             false => writeln!(w, "{}\n\n", type_vars.join("\n"))?,
         };
+        Ok(())
+    }
+
+    fn get_constructor_method_name(enum_name: &str, variant_name: &str) -> String {
+        format!("new_{}_{}", enum_name, variant_name).to_case(Case::Snake)
+    }
+
+    fn gen_unit_variant_constructor(
+        variant_constructors: &mut Vec<String>,
+        variant_shared: &RustEnumVariantShared,
+        enum_shared: &RustEnumShared,
+        tag_key: &str,
+        content_key: &str,
+    ) {
+        let method_name =
+            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
+
+        variant_constructors.push(format!(
+            r#"
+    @classmethod
+    def {method_name}(cls) -> {class_name}:
+        return cls(
+            {tag_key}={enum_name}Types.{variant_tag},
+            {content_key}=None
+	    )"#,
+            tag_key = tag_key,
+            content_key = content_key,
+            enum_name = enum_shared.id.renamed,
+            variant_tag = variant_shared
+                .id
+                .renamed
+                .to_case(Case::Snake)
+                .to_uppercase(),
+            class_name = enum_shared.id.renamed,
+        ));
+    }
+
+    fn gen_tuple_variant_constructor(
+        variant_constructors: &mut Vec<String>,
+        variant_shared: &RustEnumVariantShared,
+        enum_shared: &RustEnumShared,
+        param_type: String,
+        tag_key: &str,
+        content_key: &str,
+    ) {
+        let method_name =
+            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
+
+        variant_constructors.push(format!(
+            r#"
+    @classmethod
+    def {method_name}(cls, {content_key} : {param_type}):
+        return cls(
+            {tag_key}={enum_name}Types.{variant_tag},
+            {content_key}={content_key}
+        )"#,
+            enum_name = enum_shared.id.renamed,
+            variant_tag = variant_shared
+                .id
+                .renamed
+                .to_case(Case::Snake)
+                .to_uppercase(),
+        ));
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn gen_anon_struct_variant_constructor(
+        &mut self,
+        variant_constructors: &mut Vec<String>,
+        variant_fields: &[RustField],
+        variant_shared: &RustEnumVariantShared,
+        enum_shared: &RustEnumShared,
+        class_name: &str,
+        tag_key: &str,
+        content_key: &str,
+    ) {
+        let method_name =
+            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
+
+        let ctor_param = variant_fields
+            .iter()
+            .map(|f| {
+                let python_field_name = python_property_aware_rename(&f.id.original);
+                let python_type = self
+                    .format_type(&f.ty, enum_shared.generic_types.as_slice())
+                    .unwrap();
+                (python_field_name, python_type)
+            })
+            .collect::<Vec<(String, String)>>();
+        variant_constructors.push(format!(
+            r#"
+    @classmethod
+    def {method_name}(cls, {ctor_params}):
+        return cls(
+            {tag_key}={enum_name}Types.{variant_tag},
+            {content_key}={class_name}({ctor_params_names})
+	    )"#,
+            ctor_params = ctor_param
+                .iter()
+                .map(|(name, ty)| format!("{}: {}", name, ty))
+                .collect::<Vec<String>>()
+                .join(", "),
+            content_key = content_key,
+            class_name = class_name,
+            ctor_params_names = ctor_param
+                .iter()
+                .map(|(name, _)| format!("{name} = {name}"))
+                .collect::<Vec<String>>()
+                .join(", "),
+            tag_key = tag_key,
+            enum_name = enum_shared.id.renamed,
+            variant_tag = variant_shared
+                .id
+                .renamed
+                .to_case(Case::Snake)
+                .to_uppercase(),
+        ));
+    }
+
+    fn write_algebraic_enum(
+        &mut self,
+        tag_key: &str,
+        content_key: &str,
+        shared: &RustEnumShared,
+        w: &mut dyn Write,
+        make_struct_name: &dyn Fn(&str) -> String,
+    ) -> std::io::Result<()> {
+        shared
+            .generic_types
+            .iter()
+            .cloned()
+            .for_each(|v| self.add_type_var(v));
+        let mut variants: Vec<(String, Vec<String>)> = Vec::new();
+        self.add_import("pydantic".to_string(), "ConfigDict".to_string());
+        self.add_import("pydantic".to_string(), "BaseModel".to_string());
+        // write "types" class: a union of all the enum variants
+        writeln!(w, "class {}Types(str, Enum):", shared.id.renamed)?;
+        let all_enum_variants_name = shared
+            .variants
+            .iter()
+            .map(|v| match v {
+                RustEnumVariant::Unit(v) => v.id.renamed.clone(),
+                RustEnumVariant::Tuple { shared, .. } => shared.id.renamed.clone(),
+                RustEnumVariant::AnonymousStruct { shared, .. } => shared.id.renamed.clone(),
+            })
+            .collect::<Vec<String>>();
+        writeln!(
+            w,
+            "{}",
+            all_enum_variants_name
+                .iter()
+                .map(|name| format!(
+                    "    {} = \"{}\"",
+                    name.to_case(Case::Snake).to_uppercase(),
+                    name
+                ))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )?;
+        writeln!(w)?;
+
+        let mut variant_class_names = vec![];
+        let mut variant_constructors = vec![];
+        let mut contains_unit_variant = false;
+        // write each of the enum variant as a class:
+        for variant in &shared.variants {
+            let variant_class_name = make_struct_name(&variant.shared().id.original);
+            match variant {
+                RustEnumVariant::Unit(unit_variant) => {
+                    contains_unit_variant = true;
+                    let variant_name = format!("{}{}", shared.id.renamed, unit_variant.id.renamed);
+                    variants.push((variant_name.clone(), vec![]));
+                    Self::gen_unit_variant_constructor(
+                        &mut variant_constructors,
+                        unit_variant,
+                        shared,
+                        tag_key,
+                        content_key,
+                    );
+                    writeln!(w)?;
+                }
+                RustEnumVariant::Tuple {
+                    ty,
+                    shared: variant_shared,
+                } => {
+                    variant_class_names.push(variant_class_name.clone());
+                    Self::gen_tuple_variant_constructor(
+                        &mut variant_constructors,
+                        variant_shared,
+                        shared,
+                        variant_class_name.clone(),
+                        tag_key,
+                        content_key,
+                    );
+                    match ty {
+                        RustType::Generic { parameters, .. } => {
+                            let mut generic_parameters: Vec<String> = parameters
+                                .iter()
+                                .flat_map(|p| {
+                                    collect_generics_for_variant(p, &shared.generic_types)
+                                })
+                                .collect();
+                            dedup(&mut generic_parameters);
+                            if generic_parameters.is_empty() {
+                                writeln!(w, "class {variant_class_name}(BaseModel):",).unwrap();
+                            } else {
+                                self.add_import("typing".to_string(), "Generic".to_string());
+                                writeln!(
+                                    w,
+                                    "class {variant_class_name}(BaseModel, Generic[{}]):",
+                                    // note: generics is always unique (a single item)
+                                    generic_parameters.join(", ")
+                                )
+                                .unwrap();
+                            }
+                        }
+                        other => {
+                            let mut generics = vec![];
+                            if let RustType::Simple { id } = other {
+                                // This could be a bare generic
+                                if shared.generic_types.contains(id) {
+                                    generics = vec![id.clone()];
+                                }
+                            }
+                            if generics.is_empty() {
+                                writeln!(w, "class {variant_class_name}(BaseModel):",).unwrap();
+                            } else {
+                                self.add_import("typing".to_string(), "Generic".to_string());
+                                writeln!(
+                                    w,
+                                    "class {variant_class_name}(BaseModel, Generic[{}]):",
+                                    generics.join(", ")
+                                )
+                                .unwrap();
+                            }
+                        }
+                    }
+                    let python_type = self
+                        .format_type(ty, shared.generic_types.as_slice())
+                        .unwrap();
+                    writeln!(w, "    {content_key}: {python_type}")?;
+                    writeln!(w)?;
+                }
+                RustEnumVariant::AnonymousStruct {
+                    fields,
+                    shared: variant_shared,
+                } => {
+                    variant_class_names.push(variant_class_name.clone());
+                    // writing is taken care of by write_types_for_anonymous_structs in write_enum
+                    // we just need to push to the variant_constructors
+                    self.gen_anon_struct_variant_constructor(
+                        &mut variant_constructors,
+                        fields,
+                        variant_shared,
+                        shared,
+                        &variant_class_name,
+                        tag_key,
+                        content_key,
+                    );
+                }
+            }
+        }
+        if contains_unit_variant {
+            variant_class_names.push("None".to_string());
+        }
+
+        // finally, write the enum class itself consists of a type and a union of all the enum variants
+
+        writeln!(w, "class {}(BaseModel):", shared.id.renamed)?;
+        writeln!(w, "    model_config = ConfigDict(use_enum_values=True)")?;
+        writeln!(w, "    {tag_key}: {}Types", shared.id.renamed)?;
+        // if there is only 1 variant, we can use that directly, no need for Union
+        let union_type = if variant_class_names.len() == 1 {
+            variant_class_names[0].clone()
+        } else {
+            self.add_import("typing".to_string(), "Union".to_string());
+            format!("Union[{}]", variant_class_names.join(", "))
+        };
+        writeln!(w, "    {content_key}: {union_type}",)?;
+        writeln!(w)?;
+        if !variant_constructors.is_empty() {
+            writeln!(
+                w,
+                "{variant_constructors}",
+                variant_constructors = variant_constructors.join("\n\n")
+            )?;
+        }
         Ok(())
     }
 }
@@ -658,7 +783,9 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, rs: &RustS
 
 #[cfg(test)]
 mod test {
-    use crate::rust_types::Id;
+    use syn::{parse_str, ItemEnum};
+
+    use crate::{parser::parse_enum, rust_types::Id};
 
     use super::*;
     #[test]
@@ -686,7 +813,7 @@ mod test {
         python.write_field(mock_writer, &rust_field, &[]).unwrap();
         assert_eq!(
             String::from_utf8_lossy(mock_writer),
-            "    field: Optional[str] = None\n"
+            "    field: Optional[str] = Field(default=None)\n"
         );
     }
 
@@ -709,7 +836,7 @@ mod test {
         python.write_field(mock_writer, &rust_field, &[]).unwrap();
         assert_eq!(
             String::from_utf8_lossy(mock_writer),
-            "    field: Optional[str]\n"
+            "    field: Optional[str] = Field(default=None)\n"
         );
     }
 
@@ -732,7 +859,10 @@ mod test {
             decorators: Default::default(),
         };
         python.write_field(mock_writer, &rust_field, &[]).unwrap();
-        assert_eq!(String::from_utf8_lossy(mock_writer), "    field: str\n");
+        assert_eq!(
+            String::from_utf8_lossy(mock_writer),
+            "    field: Optional[str] = Field(default=None)\n"
+        );
     }
 
     #[test]
