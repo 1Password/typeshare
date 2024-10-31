@@ -1,41 +1,41 @@
 //! Generated source file output.
-use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
 use anyhow::Context;
-use clap::ArgMatches;
 use log::info;
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 use typeshare_core::{
     language::{CrateName, CrateTypes, Language, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
 };
 
+#[derive(Debug, Clone, Copy)]
+pub enum Output<'a> {
+    File(&'a Path),
+    Folder(&'a Path),
+}
+
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
-    options: ArgMatches,
-    lang: Box<dyn Language>,
+    destination: Output<'_>,
+    lang: &mut (impl Language + ?Sized),
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
-    let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
-    let output_file = options.value_of(ARG_OUTPUT_FILE);
-
-    if let Some(folder) = output_folder {
-        write_multiple_files(lang, folder, crate_parsed_data, import_candidates)
-    } else if let Some(file) = output_file {
-        write_single_file(lang, file, crate_parsed_data)
-    } else {
-        Ok(())
+    match destination {
+        Output::File(path) => write_single_file(lang, path, crate_parsed_data),
+        Output::Folder(path) => {
+            write_multiple_files(lang, path, crate_parsed_data, import_candidates)
+        }
     }
 }
 
 /// Write multiple module files.
 fn write_multiple_files(
-    mut lang: Box<dyn Language>,
-    output_folder: &str,
+    lang: &mut (impl Language + ?Sized),
+    output_folder: &Path,
     crate_parsed_data: BTreeMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
@@ -46,14 +46,14 @@ fn write_multiple_files(
         check_write_file(&outfile, generated_contents)?;
     }
 
-    lang.post_generation(output_folder)
+    lang.post_generation(&output_folder.as_os_str().to_string_lossy())
         .context("Post generation failed")?;
 
     Ok(())
 }
 
 /// Write the file if the contents have changed.
-fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
+fn check_write_file(outfile: &Path, output: Vec<u8>) -> anyhow::Result<()> {
     match fs::read(outfile) {
         Ok(buf) if buf == output => {
             // avoid writing the file to leave the mtime intact
@@ -82,8 +82,8 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 
 /// Write all types to a single file.
 fn write_single_file(
-    mut lang: Box<dyn Language>,
-    file_name: &str,
+    lang: &mut (impl Language + ?Sized),
+    file_name: &Path,
     mut crate_parsed_data: BTreeMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
     let parsed_data = crate_parsed_data

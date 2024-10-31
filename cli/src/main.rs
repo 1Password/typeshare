@@ -1,19 +1,24 @@
 //! This is the command line tool for Typeshare. It is used to generate source files in other
 //! languages based on Rust code.
+//!
+
+mod args;
+mod config;
+mod parse;
+mod writer;
+
+use std::{
+    collections::{BTreeMap, HashMap},
+    io,
+    path::Path,
+};
 
 use anyhow::{anyhow, Context};
-use args::{
-    build_command, ARG_CONFIG_FILE_NAME, ARG_FOLLOW_LINKS, ARG_GENERATE_CONFIG, ARG_JAVA_PACKAGE,
-    ARG_KOTLIN_PREFIX, ARG_MODULE_NAME, ARG_OUTPUT_FOLDER, ARG_SCALA_MODULE_NAME,
-    ARG_SCALA_PACKAGE, ARG_SWIFT_PREFIX, ARG_TARGET_OS, ARG_TYPE,
-};
-use clap::ArgMatches;
-use config::Config;
+use clap::{CommandFactory, Parser};
+use clap_complete::Generator;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::error;
-use parse::{all_types, parse_input, parser_inputs};
 use rayon::iter::ParallelBridge;
-use std::collections::{BTreeMap, HashMap};
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 #[cfg(feature = "python")]
@@ -23,12 +28,13 @@ use typeshare_core::{
     language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
 };
-use writer::write_generated;
 
-mod args;
-mod config;
-mod parse;
-mod writer;
+use crate::{
+    args::{Args, Command},
+    config::Config,
+    parse::{all_types, parse_input, parser_inputs},
+    writer::{write_generated, Output},
+};
 
 fn main() -> anyhow::Result<()> {
     flexi_logger::Logger::try_with_env()
@@ -36,49 +42,44 @@ fn main() -> anyhow::Result<()> {
         .start()
         .unwrap();
 
-    #[allow(unused_mut)]
-    let mut command = build_command();
+    let options = Args::parse();
 
-    #[cfg(feature = "go")]
-    {
-        command = command.arg(
-            clap::Arg::new(args::ARG_GO_PACKAGE)
-                .long("go-package")
-                .help("Go package name")
-                .takes_value(true)
-                .required(false),
-        );
+    if let Some(options) = options.subcommand {
+        match options {
+            Command::Completions { shell } => {
+                shell.generate(&Args::command(), &mut io::stdout().lock())
+            }
+        }
+
+        return Ok(());
     }
 
-    let options = command.get_matches();
+    // Note that this can be `None`; the relevant functions handle this case
+    // on their own.
+    let config_file = options.config_file.as_deref();
 
-    if let Some(options) = options.subcommand_matches("completions") {
-        let shell = options
-            .value_of_t::<clap_complete_command::Shell>("shell")
-            .context("Missing shell argument")?;
-
-        let mut command = build_command();
-        shell.generate(&mut command, &mut std::io::stdout());
+    if options.output.generate_config {
+        let config = override_configuration(Config::default(), &options)?;
+        config::store_config(&config, config_file).context("Failed to create new config file")?;
+        return Ok(());
     }
 
-    let config_file = options.value_of(ARG_CONFIG_FILE_NAME);
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
     let config = override_configuration(config, &options)?;
 
-    if options.is_present(ARG_GENERATE_CONFIG) {
-        let config = override_configuration(Config::default(), &options)?;
-        let file_path = options.value_of(ARG_CONFIG_FILE_NAME);
-        config::store_config(&config, file_path).context("Failed to create new config file")?;
-    }
+    let directories = options.directories.as_slice();
 
-    let mut directories = options
-        .values_of("directories")
-        .ok_or_else(|| anyhow!("missing directories argument"))?;
-
-    let language_type = options
-        .value_of(ARG_TYPE)
-        .and_then(|lang| lang.parse::<SupportedLanguage>().ok())
-        .ok_or_else(|| anyhow!("argument parser didn't validate ARG_TYPE correctly"))?;
+    let language_type = match options.language {
+        None => panic!("no language specified; `clap` should have guaranteed its presence"),
+        Some(language) => match language {
+            args::AvailableLanguage::Kotlin => SupportedLanguage::Kotlin,
+            args::AvailableLanguage::Scala => SupportedLanguage::Scala,
+            args::AvailableLanguage::Swift => SupportedLanguage::Swift,
+            args::AvailableLanguage::Typescript => SupportedLanguage::TypeScript,
+            #[cfg(feature = "go")]
+            args::AvailableLanguage::Go => SupportedLanguage::Go,
+        },
+    };
 
     let mut types = TypesBuilder::new();
     types
@@ -88,8 +89,8 @@ fn main() -> anyhow::Result<()> {
 
     // This is guaranteed to always have at least one value by the clap configuration
     let first_root = directories
-        .next()
-        .ok_or_else(|| anyhow!("directories is empty"))?;
+        .first()
+        .expect("directories is empty; this shouldn't be possible");
 
     let overrides = OverrideBuilder::new(first_root)
         // Don't process files inside of tools/typeshare/
@@ -100,20 +101,31 @@ fn main() -> anyhow::Result<()> {
 
     let mut walker_builder = WalkBuilder::new(first_root);
     // Sort walker output for deterministic output across platforms
-    walker_builder.sort_by_file_path(|a, b| a.cmp(b));
-    walker_builder.types(types.build().context("Failed to build types")?);
-    walker_builder.overrides(overrides);
-    walker_builder.follow_links(options.is_present(ARG_FOLLOW_LINKS));
+    walker_builder
+        .sort_by_file_path(Path::cmp)
+        .types(types.build().context("Failed to build types")?)
+        .overrides(overrides)
+        .follow_links(options.follow_links);
 
     for root in directories {
         walker_builder.add(root);
     }
 
-    let multi_file = options.value_of(ARG_OUTPUT_FOLDER).is_some();
+    let destination = if let Some(ref file) = options.output.file {
+        Output::File(file)
+    } else if let Some(ref folder) = options.output.folder {
+        Output::Folder(folder)
+    } else {
+        panic!(
+            "Got neither a file nor a folder to output to; this indicates a
+            bug in typeshare, since `clap` is supposed to prevent this"
+        )
+    };
 
+    let multi_file = matches!(destination, Output::Folder(_));
     let target_os = config.target_os.clone();
 
-    let lang = language(language_type, config, multi_file);
+    let mut lang = language(language_type, config, multi_file);
     let ignored_types = lang.ignored_reference_types();
 
     // The walker ignores directories that are git-ignored. If you need
@@ -141,7 +153,12 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
-    write_generated(options, lang, crate_parsed_data, import_candidates)?;
+    write_generated(
+        destination,
+        lang.as_mut(),
+        crate_parsed_data,
+        import_candidates,
+    )?;
 
     Ok(())
 }
@@ -206,42 +223,41 @@ fn language(
 }
 
 /// Overrides any configuration values with provided arguments
-fn override_configuration(mut config: Config, options: &ArgMatches) -> anyhow::Result<Config> {
-    if let Some(swift_prefix) = options.value_of(ARG_SWIFT_PREFIX) {
-        config.swift.prefix = swift_prefix.to_string();
+fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<Config> {
+    if let Some(swift_prefix) = options.swift_prefix.as_ref() {
+        config.swift.prefix = swift_prefix.clone();
     }
 
-    if let Some(kotlin_prefix) = options.value_of(ARG_KOTLIN_PREFIX) {
-        config.kotlin.prefix = kotlin_prefix.to_string();
+    if let Some(kotlin_prefix) = options.kotlin_prefix.as_ref() {
+        config.kotlin.prefix = kotlin_prefix.clone();
     }
 
-    if let Some(java_package) = options.value_of(ARG_JAVA_PACKAGE) {
-        config.kotlin.package = java_package.to_string();
+    if let Some(java_package) = options.java_package.as_ref() {
+        config.kotlin.package = java_package.clone();
     }
 
-    if let Some(module_name) = options.value_of(ARG_MODULE_NAME) {
+    if let Some(module_name) = options.kotlin_module_name.as_ref() {
         config.kotlin.module_name = module_name.to_string();
     }
 
-    if let Some(scala_package) = options.value_of(ARG_SCALA_PACKAGE) {
-        config.scala.package = scala_package.to_string();
+    if let Some(scala_package) = options.scala_package.as_ref() {
+        config.scala.package = scala_package.clone();
     }
 
-    if let Some(scala_module_name) = options.value_of(ARG_SCALA_MODULE_NAME) {
+    if let Some(scala_module_name) = options.scala_module_name.as_ref() {
         config.scala.module_name = scala_module_name.to_string();
     }
 
     #[cfg(feature = "go")]
     {
-        if let Some(go_package) = options.value_of(args::ARG_GO_PACKAGE) {
+        if let Some(go_package) = options.go_package.as_ref() {
             config.go.package = go_package.to_string();
         }
         assert_go_package_present(&config)?;
     }
-    config.target_os = options
-        .get_many::<String>(ARG_TARGET_OS)
-        .map(|arg| arg.into_iter().map(ToString::to_string).collect::<Vec<_>>())
-        .unwrap_or_default();
+
+    config.target_os = options.target_os.as_deref().unwrap_or_default().to_vec();
+
     Ok(config)
 }
 
