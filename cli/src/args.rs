@@ -10,6 +10,8 @@ pub enum AvailableLanguage {
     Typescript,
     #[cfg(feature = "go")]
     Go,
+    #[cfg(feature = "python")]
+    Python
 }
 
 #[derive(clap::Parser)]
