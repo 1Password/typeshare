@@ -19,11 +19,11 @@ use clap_complete::Generator;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::error;
 use rayon::iter::ParallelBridge;
+use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 #[cfg(feature = "python")]
 use typeshare_core::language::Python;
-use typeshare_core::language::GenericConstraints;
 use typeshare_core::{
     language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,

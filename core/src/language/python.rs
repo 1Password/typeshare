@@ -68,12 +68,12 @@ fn dedup<T: Eq + Hash + Clone>(v: &mut Vec<T>) {
 pub struct Python {
     /// Mappings from Rust type names to Python type names
     pub type_mappings: HashMap<String, String>,
-    // HashMap<ModuleName, HashSet<Identifier>
+    /// HashMap<ModuleName, HashSet<Identifier>
     pub imports: HashMap<String, HashSet<String>>,
-    // HashMap<Identifier, Vec<DependencyIdentifiers>>
-    // Used to lay out runtime references in the module
-    // such that it can be read top to bottom
-    // globals: HashMap<String, Vec<String>>,
+    /// HashMap<Identifier, Vec<DependencyIdentifiers>>
+    /// Used to lay out runtime references in the module
+    /// such that it can be read top to bottom
+    /// globals: HashMap<String, Vec<String>>,
     pub type_variables: HashSet<String>,
 }
 

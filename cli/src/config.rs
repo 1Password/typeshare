@@ -171,8 +171,8 @@ mod test {
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
         #[cfg(feature = "python")]
         {
-        assert_eq!(config.python.type_mappings["Url"], "AnyUrl");
-        assert_eq!(config.python.type_mappings["DateTime"], "datetime");
+            assert_eq!(config.python.type_mappings["Url"], "AnyUrl");
+            assert_eq!(config.python.type_mappings["DateTime"], "datetime");
         }
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
