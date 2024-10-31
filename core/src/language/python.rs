@@ -783,9 +783,7 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, rs: &RustS
 
 #[cfg(test)]
 mod test {
-    use syn::{parse_str, ItemEnum};
-
-    use crate::{parser::parse_enum, rust_types::Id};
+    use crate::rust_types::Id;
 
     use super::*;
     #[test]

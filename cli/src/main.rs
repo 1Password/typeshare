@@ -78,6 +78,8 @@ fn main() -> anyhow::Result<()> {
             args::AvailableLanguage::Typescript => SupportedLanguage::TypeScript,
             #[cfg(feature = "go")]
             args::AvailableLanguage::Go => SupportedLanguage::Go,
+            #[cfg(feature = "python")]
+            args::AvailableLanguage::Python => SupportedLanguage::Python,
         },
     };
 
