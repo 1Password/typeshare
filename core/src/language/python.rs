@@ -276,25 +276,23 @@ impl Language for Python {
             // this case)
             RustEnum::Unit(shared) => {
                 writeln!(w, "class {}(Enum):", shared.id.renamed)?;
-                if shared.variants.is_empty(){
+                if shared.variants.is_empty() {
                     writeln!(w, "    pass")?;
                 } else {
                     writeln!(w, "    model_config = ConfigDict(use_enum_values=True)")?;
-                    shared
-                        .variants
-                        .iter()
-                        .try_for_each(|v| {
-                            writeln!(w,
-                                "    {} = \"{}\"",
-                                v.shared().id.original.to_uppercase(),
-                                match v {
-                                    RustEnumVariant::Unit(v) => {
-                                        v.id.renamed.replace("\"", "\\\"")
-                                    }
-                                    _ => panic!(),
+                    shared.variants.iter().try_for_each(|v| {
+                        writeln!(
+                            w,
+                            "    {} = \"{}\"",
+                            v.shared().id.original.to_uppercase(),
+                            match v {
+                                RustEnumVariant::Unit(v) => {
+                                    v.id.renamed.replace("\"", "\\\"")
                                 }
-                            )
-                        })?
+                                _ => panic!(),
+                            }
+                        )
+                    })?
                 };
             }
             // Write all the algebraic variants out (all three variant types are possible
