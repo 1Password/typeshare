@@ -295,7 +295,7 @@ impl Language for Python {
                             )
                         })
                         .collect::<Vec<String>>()
-                        .join(",\n")
+                        .join("\n")
                 };
                 writeln!(w, "{fields}\n")?;
             }

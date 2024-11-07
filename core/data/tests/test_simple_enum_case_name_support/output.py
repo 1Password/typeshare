@@ -7,7 +7,7 @@ from enum import Enum
 
 
 class Colors(Enum):
-    RED = "red",
-    BLUE = "blue-ish",
+    RED = "red"
+    BLUE = "blue-ish"
     GREEN = "Green"
 
