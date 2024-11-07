@@ -7,6 +7,5 @@ from enum import Enum
 from pydantic import ConfigDict
 
 
-class Colors(Enum):
-    model_config = ConfigDict(use_enum_values=True)
+class Colors(str, Enum):
     GREEN = "Green\""

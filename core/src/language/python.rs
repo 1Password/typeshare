@@ -248,7 +248,7 @@ impl Language for Python {
 
         self.write_comments(w, true, &rs.comments, 1)?;
 
-        handle_model_config(w, self, rs);
+        handle_model_config(w, self, &rs.fields);
 
         rs.fields
             .iter()
@@ -275,11 +275,10 @@ impl Language for Python {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
             RustEnum::Unit(shared) => {
-                writeln!(w, "class {}(Enum):", shared.id.renamed)?;
+                writeln!(w, "class {}(str, Enum):", shared.id.renamed)?;
                 if shared.variants.is_empty() {
                     writeln!(w, "    pass")?;
                 } else {
-                    writeln!(w, "    model_config = ConfigDict(use_enum_values=True)")?;
                     shared.variants.iter().try_for_each(|v| {
                         writeln!(
                             w,
@@ -765,8 +764,8 @@ fn python_property_aware_rename(name: &str) -> String {
 }
 
 // If at least one field from within a class is changed when the serde rename is used (a.k.a the field has 2 words) then we must use aliasing and we must also use a config dict at the top level of the class.
-fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, rs: &RustStruct) {
-    let visibly_renamed_field = rs.fields.iter().find(|f| {
+fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[RustField]) {
+    let visibly_renamed_field = fields.iter().find(|f| {
         let python_field_name = python_property_aware_rename(&f.id.original);
         python_field_name != f.id.renamed
     });

@@ -29,7 +29,7 @@ class NestedNotTarget1(BaseModel):
 class OtherExcluded(BaseModel):
     pass
 
-class SomeEnum(Enum):
+class SomeEnum(str, Enum):
     pass
 class TestEnumVariant7(BaseModel):
     """
