@@ -31,7 +31,6 @@ class OtherExcluded(BaseModel):
 
 class SomeEnum(Enum):
     pass
-
 class TestEnumVariant7(BaseModel):
     """
     Generated type representing the anonymous struct variant `Variant7` of the `TestEnum` Rust enum

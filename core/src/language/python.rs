@@ -270,20 +270,21 @@ impl Language for Python {
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &make_anonymous_struct_name)?;
         self.add_import("enum".to_string(), "Enum".to_string());
+        self.add_import("pydantic".to_string(), "ConfigDict".to_string());
         match e {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
             RustEnum::Unit(shared) => {
                 writeln!(w, "class {}(Enum):", shared.id.renamed)?;
-
-                let fields = if shared.variants.is_empty() {
-                    "    pass".to_string()
+                if shared.variants.is_empty(){
+                    writeln!(w, "    pass")?;
                 } else {
+                    writeln!(w, "    model_config = ConfigDict(use_enum_values=True)")?;
                     shared
                         .variants
                         .iter()
-                        .map(|v| {
-                            format!(
+                        .try_for_each(|v| {
+                            writeln!(w,
                                 "    {} = \"{}\"",
                                 v.shared().id.original.to_uppercase(),
                                 match v {
@@ -293,11 +294,8 @@ impl Language for Python {
                                     _ => panic!(),
                                 }
                             )
-                        })
-                        .collect::<Vec<String>>()
-                        .join("\n")
+                        })?
                 };
-                writeln!(w, "{fields}\n")?;
             }
             // Write all the algebraic variants out (all three variant types are possible
             // here)
@@ -590,7 +588,6 @@ impl Python {
             .cloned()
             .for_each(|v| self.add_type_var(v));
         let mut variants: Vec<(String, Vec<String>)> = Vec::new();
-        self.add_import("pydantic".to_string(), "ConfigDict".to_string());
         self.add_import("pydantic".to_string(), "BaseModel".to_string());
         // write "types" class: a union of all the enum variants
         writeln!(w, "class {}Types(str, Enum):", shared.id.renamed)?;

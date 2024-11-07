@@ -4,10 +4,11 @@
 from __future__ import annotations
 
 from enum import Enum
+from pydantic import ConfigDict
 
 
 class Colors(Enum):
+    model_config = ConfigDict(use_enum_values=True)
     RED = "Red"
     BLUE = "Blue"
     GREEN = "Green"
-
