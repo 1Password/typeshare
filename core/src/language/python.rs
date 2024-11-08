@@ -638,7 +638,7 @@ impl Python {
                 } => {
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
-                        .unwrap();
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                     variant_class_names.insert(tuple_name.clone());
                     Self::gen_tuple_variant_constructor(
                         &mut variant_constructors,
