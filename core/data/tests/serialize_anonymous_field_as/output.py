@@ -12,20 +12,14 @@ class SomeEnumTypes(str, Enum):
     CONTEXT = "Context"
     OTHER = "Other"
 
-class SomeEnumContext(BaseModel):
-    content: str
-
-class SomeEnumOther(BaseModel):
-    content: int
-
 class SomeEnum(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: SomeEnumTypes
-    content: Union[SomeEnumContext, SomeEnumOther]
+    content: Union[int, str]
 
 
     @classmethod
-    def new_some_enum_context(cls, content : SomeEnumContext):
+    def new_some_enum_context(cls, content : str):
         return cls(
             type=SomeEnumTypes.CONTEXT,
             content=content
@@ -33,7 +27,7 @@ class SomeEnum(BaseModel):
 
 
     @classmethod
-    def new_some_enum_other(cls, content : SomeEnumOther):
+    def new_some_enum_other(cls, content : int):
         return cls(
             type=SomeEnumTypes.OTHER,
             content=content

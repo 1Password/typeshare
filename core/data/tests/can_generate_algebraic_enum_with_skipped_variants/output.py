@@ -13,13 +13,10 @@ class SomeEnumTypes(str, Enum):
     C = "C"
 
 
-class SomeEnumC(BaseModel):
-    content: int
-
 class SomeEnum(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: SomeEnumTypes
-    content: Union[SomeEnumC, None]
+    content: Union[None, int]
 
 
     @classmethod
@@ -31,7 +28,7 @@ class SomeEnum(BaseModel):
 
 
     @classmethod
-    def new_some_enum_c(cls, content : SomeEnumC):
+    def new_some_enum_c(cls, content : int):
         return cls(
             type=SomeEnumTypes.C,
             content=content

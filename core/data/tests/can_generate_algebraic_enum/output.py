@@ -21,29 +21,14 @@ class AdvancedColorsTypes(str, Enum):
     NUMBER_ARRAY = "NumberArray"
     REALLY_COOL_TYPE = "ReallyCoolType"
 
-class AdvancedColorsString(BaseModel):
-    content: str
-
-class AdvancedColorsNumber(BaseModel):
-    content: int
-
-class AdvancedColorsUnsignedNumber(BaseModel):
-    content: int
-
-class AdvancedColorsNumberArray(BaseModel):
-    content: List[int]
-
-class AdvancedColorsReallyCoolType(BaseModel):
-    content: ItemDetailsFieldValue
-
 class AdvancedColors(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AdvancedColorsTypes
-    content: Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsUnsignedNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
+    content: Union[ItemDetailsFieldValue, List[int], int, str]
 
 
     @classmethod
-    def new_advanced_colors_string(cls, content : AdvancedColorsString):
+    def new_advanced_colors_string(cls, content : str):
         return cls(
             type=AdvancedColorsTypes.STRING,
             content=content
@@ -51,7 +36,7 @@ class AdvancedColors(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_number(cls, content : AdvancedColorsNumber):
+    def new_advanced_colors_number(cls, content : int):
         return cls(
             type=AdvancedColorsTypes.NUMBER,
             content=content
@@ -59,7 +44,7 @@ class AdvancedColors(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_unsigned_number(cls, content : AdvancedColorsUnsignedNumber):
+    def new_advanced_colors_unsigned_number(cls, content : int):
         return cls(
             type=AdvancedColorsTypes.UNSIGNED_NUMBER,
             content=content
@@ -67,7 +52,7 @@ class AdvancedColors(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_number_array(cls, content : AdvancedColorsNumberArray):
+    def new_advanced_colors_number_array(cls, content : List[int]):
         return cls(
             type=AdvancedColorsTypes.NUMBER_ARRAY,
             content=content
@@ -75,7 +60,7 @@ class AdvancedColors(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_really_cool_type(cls, content : AdvancedColorsReallyCoolType):
+    def new_advanced_colors_really_cool_type(cls, content : ItemDetailsFieldValue):
         return cls(
             type=AdvancedColorsTypes.REALLY_COOL_TYPE,
             content=content
@@ -86,26 +71,14 @@ class AdvancedColors2Types(str, Enum):
     NUMBER_ARRAY = "number-array"
     REALLY_COOL_TYPE = "really-cool-type"
 
-class AdvancedColors2String(BaseModel):
-    content: str
-
-class AdvancedColors2Number(BaseModel):
-    content: int
-
-class AdvancedColors2NumberArray(BaseModel):
-    content: List[int]
-
-class AdvancedColors2ReallyCoolType(BaseModel):
-    content: ItemDetailsFieldValue
-
 class AdvancedColors2(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AdvancedColors2Types
-    content: Union[AdvancedColors2String, AdvancedColors2Number, AdvancedColors2NumberArray, AdvancedColors2ReallyCoolType]
+    content: Union[ItemDetailsFieldValue, List[int], int, str]
 
 
     @classmethod
-    def new_advanced_colors_2_string(cls, content : AdvancedColors2String):
+    def new_advanced_colors_2_string(cls, content : str):
         return cls(
             type=AdvancedColors2Types.STRING,
             content=content
@@ -113,7 +86,7 @@ class AdvancedColors2(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_2_number(cls, content : AdvancedColors2Number):
+    def new_advanced_colors_2_number(cls, content : int):
         return cls(
             type=AdvancedColors2Types.NUMBER,
             content=content
@@ -121,7 +94,7 @@ class AdvancedColors2(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_2_number_array(cls, content : AdvancedColors2NumberArray):
+    def new_advanced_colors_2_number_array(cls, content : List[int]):
         return cls(
             type=AdvancedColors2Types.NUMBER_ARRAY,
             content=content
@@ -129,7 +102,7 @@ class AdvancedColors2(BaseModel):
 
 
     @classmethod
-    def new_advanced_colors_2_really_cool_type(cls, content : AdvancedColors2ReallyCoolType):
+    def new_advanced_colors_2_really_cool_type(cls, content : ItemDetailsFieldValue):
         return cls(
             type=AdvancedColors2Types.REALLY_COOL_TYPE,
             content=content

@@ -27,17 +27,14 @@ class MoreOptionsTypes(str, Enum):
     EXACTLY = "exactly"
     BUILT = "built"
 
-class MoreOptionsNews(BaseModel):
-    content: bool
-
 class MoreOptions(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: MoreOptionsTypes
-    content: Union[MoreOptionsNews, MoreOptionsExactly, MoreOptionsBuilt]
+    content: Union[MoreOptionsBuilt, MoreOptionsExactly, bool]
 
 
     @classmethod
-    def new_more_options_news(cls, content : MoreOptionsNews):
+    def new_more_options_news(cls, content : bool):
         return cls(
             type=MoreOptionsTypes.NEWS,
             content=content
@@ -63,23 +60,14 @@ class OptionsTypes(str, Enum):
     BANANA = "banana"
     VERMONT = "vermont"
 
-class OptionsRed(BaseModel):
-    content: bool
-
-class OptionsBanana(BaseModel):
-    content: str
-
-class OptionsVermont(BaseModel):
-    content: Options
-
 class Options(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: OptionsTypes
-    content: Union[OptionsRed, OptionsBanana, OptionsVermont]
+    content: Union[Options, bool, str]
 
 
     @classmethod
-    def new_options_red(cls, content : OptionsRed):
+    def new_options_red(cls, content : bool):
         return cls(
             type=OptionsTypes.RED,
             content=content
@@ -87,7 +75,7 @@ class Options(BaseModel):
 
 
     @classmethod
-    def new_options_banana(cls, content : OptionsBanana):
+    def new_options_banana(cls, content : str):
         return cls(
             type=OptionsTypes.BANANA,
             content=content
@@ -95,7 +83,7 @@ class Options(BaseModel):
 
 
     @classmethod
-    def new_options_vermont(cls, content : OptionsVermont):
+    def new_options_vermont(cls, content : Options):
         return cls(
             type=OptionsTypes.VERMONT,
             content=content
