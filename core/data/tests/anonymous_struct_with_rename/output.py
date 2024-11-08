@@ -45,7 +45,7 @@ class AnonymousStructWithRenameTypes(str, Enum):
 class AnonymousStructWithRename(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AnonymousStructWithRenameTypes
-    content: Union[AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames, AnonymousStructWithRenameKebabCase]
+    content: Union[AnonymousStructWithRenameKebabCase, AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames]
 
 
     @classmethod

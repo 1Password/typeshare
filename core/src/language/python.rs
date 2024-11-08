@@ -8,7 +8,7 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use once_cell::sync::Lazy;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::hash::Hash;
 use std::{collections::HashMap, io::Write};
 
@@ -612,7 +612,7 @@ impl Python {
         )?;
         writeln!(w)?;
 
-        let mut variant_class_names = vec![];
+        let mut variant_class_names = BTreeSet::new();
         let mut variant_constructors = vec![];
         let mut contains_unit_variant = false;
         // write each of the enum variant as a class:
@@ -639,7 +639,7 @@ impl Python {
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
                         .unwrap();
-                    variant_class_names.push(tuple_name.clone());
+                    variant_class_names.insert(tuple_name.clone());
                     Self::gen_tuple_variant_constructor(
                         &mut variant_constructors,
                         variant_shared,
@@ -653,7 +653,7 @@ impl Python {
                     fields,
                     shared: variant_shared,
                 } => {
-                    variant_class_names.push(variant_class_name.clone());
+                    variant_class_names.insert(variant_class_name.clone());
                     // writing is taken care of by write_types_for_anonymous_structs in write_enum
                     // we just need to push to the variant_constructors
                     self.gen_anon_struct_variant_constructor(
@@ -669,8 +669,10 @@ impl Python {
             }
         }
         if contains_unit_variant {
-            variant_class_names.push("None".to_string());
+            variant_class_names.insert("None".to_string());
         }
+
+        let variant_class_names = variant_class_names.into_iter().collect::<Vec<String>>();
 
         // finally, write the enum class itself consists of a type and a union of all the enum variants
 

@@ -15,7 +15,7 @@ class SomeEnumTypes(str, Enum):
 class SomeEnum(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: SomeEnumTypes
-    content: Union[str, int]
+    content: Union[int, str]
 
 
     @classmethod
