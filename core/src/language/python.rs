@@ -636,63 +636,18 @@ impl Python {
                     ty,
                     shared: variant_shared,
                 } => {
-                    variant_class_names.push(variant_class_name.clone());
+                    let tuple_name = self
+                        .format_type(ty, shared.generic_types.as_slice())
+                        .unwrap();
+                    variant_class_names.push(tuple_name.clone());
                     Self::gen_tuple_variant_constructor(
                         &mut variant_constructors,
                         variant_shared,
                         shared,
-                        variant_class_name.clone(),
+                        tuple_name,
                         tag_key,
                         content_key,
                     );
-                    match ty {
-                        RustType::Generic { parameters, .. } => {
-                            let mut generic_parameters: Vec<String> = parameters
-                                .iter()
-                                .flat_map(|p| {
-                                    collect_generics_for_variant(p, &shared.generic_types)
-                                })
-                                .collect();
-                            dedup(&mut generic_parameters);
-                            if generic_parameters.is_empty() {
-                                writeln!(w, "class {variant_class_name}(BaseModel):",).unwrap();
-                            } else {
-                                self.add_import("typing".to_string(), "Generic".to_string());
-                                writeln!(
-                                    w,
-                                    "class {variant_class_name}(BaseModel, Generic[{}]):",
-                                    // note: generics is always unique (a single item)
-                                    generic_parameters.join(", ")
-                                )
-                                .unwrap();
-                            }
-                        }
-                        other => {
-                            let mut generics = vec![];
-                            if let RustType::Simple { id } = other {
-                                // This could be a bare generic
-                                if shared.generic_types.contains(id) {
-                                    generics = vec![id.clone()];
-                                }
-                            }
-                            if generics.is_empty() {
-                                writeln!(w, "class {variant_class_name}(BaseModel):",).unwrap();
-                            } else {
-                                self.add_import("typing".to_string(), "Generic".to_string());
-                                writeln!(
-                                    w,
-                                    "class {variant_class_name}(BaseModel, Generic[{}]):",
-                                    generics.join(", ")
-                                )
-                                .unwrap();
-                            }
-                        }
-                    }
-                    let python_type = self
-                        .format_type(ty, shared.generic_types.as_slice())
-                        .unwrap();
-                    writeln!(w, "    {content_key}: {python_type}")?;
-                    writeln!(w)?;
                 }
                 RustEnumVariant::AnonymousStruct {
                     fields,

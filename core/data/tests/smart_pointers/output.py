@@ -63,13 +63,10 @@ class BoxyColorsTypes(str, Enum):
 
 
 
-class BoxyColorsGreen(BaseModel):
-    content: str
-
 class BoxyColors(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: BoxyColorsTypes
-    content: Union[BoxyColorsGreen, None]
+    content: Union[str, None]
 
 
     @classmethod
@@ -89,7 +86,7 @@ class BoxyColors(BaseModel):
 
 
     @classmethod
-    def new_boxy_colors_green(cls, content : BoxyColorsGreen):
+    def new_boxy_colors_green(cls, content : str):
         return cls(
             type=BoxyColorsTypes.GREEN,
             content=content

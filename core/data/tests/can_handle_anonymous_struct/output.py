@@ -80,17 +80,11 @@ class EnumWithManyVariantsTypes(str, Enum):
     ANOTHER_ANON_VARIANT = "AnotherAnonVariant"
 
 
-class EnumWithManyVariantsTupleVariantString(BaseModel):
-    content: str
-
-class EnumWithManyVariantsTupleVariantInt(BaseModel):
-    content: int
-
 
 class EnumWithManyVariants(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: EnumWithManyVariantsTypes
-    content: Union[EnumWithManyVariantsTupleVariantString, EnumWithManyVariantsAnonVariant, EnumWithManyVariantsTupleVariantInt, EnumWithManyVariantsAnotherAnonVariant, None]
+    content: Union[str, EnumWithManyVariantsAnonVariant, int, EnumWithManyVariantsAnotherAnonVariant, None]
 
 
     @classmethod
@@ -102,7 +96,7 @@ class EnumWithManyVariants(BaseModel):
 
 
     @classmethod
-    def new_enum_with_many_variants_tuple_variant_string(cls, content : EnumWithManyVariantsTupleVariantString):
+    def new_enum_with_many_variants_tuple_variant_string(cls, content : str):
         return cls(
             type=EnumWithManyVariantsTypes.TUPLE_VARIANT_STRING,
             content=content
@@ -118,7 +112,7 @@ class EnumWithManyVariants(BaseModel):
 
 
     @classmethod
-    def new_enum_with_many_variants_tuple_variant_int(cls, content : EnumWithManyVariantsTupleVariantInt):
+    def new_enum_with_many_variants_tuple_variant_int(cls, content : int):
         return cls(
             type=EnumWithManyVariantsTypes.TUPLE_VARIANT_INT,
             content=content
