@@ -2,6 +2,10 @@ package proto
 
 import "encoding/json"
 
+// A struct with no target_os. Should be generated when
+// we use --target-os.
+type AlwaysAccept struct {
+}
 type DefinedTwice struct {
 	Field1 string `json:"field1"`
 }
@@ -15,6 +19,11 @@ type NestedNotTarget1 struct {
 }
 type OtherExcluded struct {
 }
+type AlwaysAcceptEnum string
+const (
+	AlwaysAcceptEnumVariant1 AlwaysAcceptEnum = "Variant1"
+	AlwaysAcceptEnumVariant2 AlwaysAcceptEnum = "Variant2"
+)
 type SomeEnum string
 const (
 )

@@ -34,7 +34,7 @@ pub struct SwiftParams {
     pub prefix: String,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
-    /// The contraints to apply to `CodableVoid`.
+    /// The constraints to apply to `CodableVoid`.
     pub codablevoid_constraints: Vec<String>,
     pub type_mappings: HashMap<String, String>,
 }
@@ -55,7 +55,7 @@ pub struct GoParams {
     pub type_mappings: HashMap<String, String>,
 }
 
-/// The paramters that are used to configure the behaviour of typeshare
+/// The parameters that are used to configure the behaviour of typeshare
 /// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 #[serde(default)]

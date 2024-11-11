@@ -191,7 +191,7 @@ impl<'a> TypeShareVisitor<'a> {
         self.parsed_data.import_types = diff;
     }
 
-    /// Is this type annoted with at `#[cfg(target_os = "target")]` that does
+    /// Is this type annotated with at `#[cfg(target_os = "target")]` that does
     /// not match `--target-os` argument?
     #[inline(always)]
     fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
@@ -217,8 +217,8 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
             //     field: some_module::RefType
             // }
             //
-            // vist_path would be after vist_item_use so we could retain imported module references
-            // and reconcile aftewards. visit_item_use would have to retain non type import types
+            // visit_path would be after visit_item_use so we could retain imported module references
+            // and reconcile afterwards. visit_item_use would have to retain non type import types
             // which it discards right now.
             //
             let crate_candidate = p.segments.first()?.ident.to_string();

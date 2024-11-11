@@ -14,7 +14,7 @@ enum TargetScope {
 }
 
 #[derive(Default)]
-/// An iterator that yeilds all meta items and their contained scope.
+/// An iterator that yields all meta items and their contained scope.
 struct TargetOsIterator {
     meta: Vec<(TargetScope, Meta)>,
 }
