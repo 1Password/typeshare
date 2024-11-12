@@ -15,10 +15,10 @@ itertools = "0.12"
 lazy_format = "2"
 joinery = "2"
 topological-sort = { version = "0.2.2"}
-once_cell = { version = "1"}
 convert_case = { version = "0.6.0"}
 log.workspace = true
 flexi_logger.workspace = true
+indexmap = "2.6.0"
 
 [dev-dependencies]
 expect-test = "1.5"

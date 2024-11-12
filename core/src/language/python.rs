@@ -7,14 +7,15 @@ use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
-use once_cell::sync::Lazy;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 use std::hash::Hash;
+use std::sync::OnceLock;
 use std::{collections::HashMap, io::Write};
 
 use super::CrateTypes;
 
 use convert_case::{Case, Casing};
+use indexmap::IndexSet;
 // Collect unique type vars from an enum field
 // Since we explode enums into unions of types, we need to extract all of the generics
 // used by each individual field
@@ -612,7 +613,7 @@ impl Python {
         )?;
         writeln!(w)?;
 
-        let mut variant_class_names = BTreeSet::new();
+        let mut variant_class_names = IndexSet::new();
         let mut variant_constructors = vec![];
         let mut contains_unit_variant = false;
         // write each of the enum variant as a class:
@@ -699,22 +700,26 @@ impl Python {
     }
 }
 
-static PYTHON_KEYWORDS: Lazy<HashSet<String>> = Lazy::new(|| {
-    HashSet::from_iter(
-        vec![
-            "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class",
-            "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global",
-            "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise",
-            "return", "try", "while", "with", "yield",
-        ]
-        .iter()
-        .map(|v| v.to_string()),
-    )
-});
+static PYTHON_KEYWORDS: OnceLock<HashSet<String>> = OnceLock::new();
+
+fn get_python_keywords() -> &'static HashSet<String> {
+    PYTHON_KEYWORDS.get_or_init(|| {
+        HashSet::from_iter(
+            vec![
+                "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class",
+                "continue", "def", "del", "elif", "else", "except", "finally", "for", "from",
+                "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass",
+                "raise", "return", "try", "while", "with", "yield",
+            ]
+            .iter()
+            .map(|v| v.to_string()),
+        )
+    })
+}
 
 fn python_property_aware_rename(name: &str) -> String {
     let snake_name = name.to_case(Case::Snake);
-    match PYTHON_KEYWORDS.contains(&snake_name) {
+    match get_python_keywords().contains(&snake_name) {
         true => format!("{}_", name),
         false => snake_name,
     }
