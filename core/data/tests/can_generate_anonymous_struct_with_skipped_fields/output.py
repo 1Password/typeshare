@@ -35,7 +35,7 @@ class AutofilledByTypes(str, Enum):
 class AutofilledBy(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AutofilledByTypes
-    content: Union[AutofilledBySomethingElse, AutofilledByUs]
+    content: Union[AutofilledByUs, AutofilledBySomethingElse]
 
 
     @classmethod

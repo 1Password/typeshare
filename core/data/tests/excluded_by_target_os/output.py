@@ -62,7 +62,7 @@ class TestEnumTypes(str, Enum):
 class TestEnum(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: TestEnumTypes
-    content: Union[None, TestEnumVariant7, TestEnumVariant9]
+    content: Union[TestEnumVariant7, TestEnumVariant9, None]
 
 
     @classmethod

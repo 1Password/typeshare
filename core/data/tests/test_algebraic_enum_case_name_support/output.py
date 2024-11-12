@@ -20,7 +20,7 @@ class AdvancedColorsTypes(str, Enum):
 class AdvancedColors(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AdvancedColorsTypes
-    content: Union[ItemDetailsFieldValue, List[int], int, str]
+    content: Union[str, int, List[int], ItemDetailsFieldValue]
 
 
     @classmethod

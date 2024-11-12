@@ -39,7 +39,7 @@ class AutofilledByTypes(str, Enum):
 class AutofilledBy(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: AutofilledByTypes
-    content: Union[AutofilledBySomethingElse, AutofilledByUs]
+    content: Union[AutofilledByUs, AutofilledBySomethingElse]
 
 
     @classmethod
@@ -84,7 +84,7 @@ class EnumWithManyVariantsTypes(str, Enum):
 class EnumWithManyVariants(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: EnumWithManyVariantsTypes
-    content: Union[EnumWithManyVariantsAnonVariant, EnumWithManyVariantsAnotherAnonVariant, None, int, str]
+    content: Union[str, EnumWithManyVariantsAnonVariant, int, EnumWithManyVariantsAnotherAnonVariant, None]
 
 
     @classmethod

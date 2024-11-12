@@ -30,7 +30,7 @@ class MoreOptionsTypes(str, Enum):
 class MoreOptions(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: MoreOptionsTypes
-    content: Union[MoreOptionsBuilt, MoreOptionsExactly, bool]
+    content: Union[bool, MoreOptionsExactly, MoreOptionsBuilt]
 
 
     @classmethod
@@ -63,7 +63,7 @@ class OptionsTypes(str, Enum):
 class Options(BaseModel):
     model_config = ConfigDict(use_enum_values=True)
     type: OptionsTypes
-    content: Union[Options, bool, str]
+    content: Union[bool, str, Options]
 
 
     @classmethod
