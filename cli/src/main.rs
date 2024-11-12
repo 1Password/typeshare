@@ -267,8 +267,8 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
         errors_encountered = true;
         for error in &data.errors {
             error!(
-                "Parsing error: \"{}\" in crate \"{}\" for file \"{}\"",
-                error.error, error.crate_name, error.file_name
+                "Parsing error: \"{}\" in file \"{}\"",
+                error.error, error.file_name
             );
         }
     }

@@ -92,8 +92,7 @@ impl<'a> TypeShareVisitor<'a> {
         match result {
             Ok(data) => self.parsed_data.push(data),
             Err(error) => self.parsed_data.errors.push(ErrorInfo {
-                crate_name: self.parsed_data.crate_name.clone(),
-                file_name: self.parsed_data.file_name.clone(),
+                file_name: self.file_path.to_string_lossy().into_owned(),
                 error,
             }),
         }
