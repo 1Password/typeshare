@@ -758,12 +758,11 @@ impl Swift {
     fn write_codable_file(&self, output_folder: &str) -> std::io::Result<()> {
         let output_string = self.get_codable_contents();
         let output_path = Path::new(output_folder).join("Codable.swift");
-        match fs::read(output_path.clone()) {
-            Ok(buf) if buf == output_string.as_bytes() => {
-                // don't overwrite the same file, we can bail here
+
+        if let Ok(buf) = fs::read(&output_path) {
+            if buf == output_string.as_bytes() {
                 return Ok(());
             }
-            _ => {}
         }
 
         let mut w = fs::File::create(output_path)?;
@@ -781,7 +780,7 @@ impl Swift {
             decs.push(CODABLE);
         }
 
-        format!("\n/// () isn't codable, so we use this instead to represent Rust's unit type\npublic struct CodableVoid: {} {{}}\n", decs.join(", "))
+        format!("\n/// () isn't codable, so we use this instead to represent Rust's unit type\npublic struct CodableVoid: {} {{}}", decs.join(", "))
     }
 
     /// Write the `CodableVoid` type.
