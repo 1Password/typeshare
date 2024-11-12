@@ -16,11 +16,15 @@ use super::CrateTypes;
 
 use convert_case::{Case, Casing};
 use indexmap::IndexSet;
+
+// Utility function from the original author of supporting Python
+// Since we won't be supporting generics right now, this function is unused and is left here for future reference
 // Collect unique type vars from an enum field
 // Since we explode enums into unions of types, we need to extract all of the generics
 // used by each individual field
 // We do this by exploring each field's type and comparing against the generics used by the enum
 // itself
+#[allow(dead_code)]
 fn collect_generics_for_variant(variant_type: &RustType, generics: &[String]) -> Vec<String> {
     let mut all = vec![];
     match variant_type {
