@@ -3,6 +3,11 @@ package com.agilebits.onepassword
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
 
+/// A struct with no target_os. Should be generated when
+/// we use --target-os.
+@Serializable
+object AlwaysAccept
+
 @Serializable
 data class DefinedTwice (
 	val field1: String
@@ -22,6 +27,14 @@ object NestedNotTarget1
 
 @Serializable
 object OtherExcluded
+
+@Serializable
+enum class AlwaysAcceptEnum(val string: String) {
+	@SerialName("Variant1")
+	Variant1("Variant1"),
+	@SerialName("Variant2")
+	Variant2("Variant2"),
+}
 
 @Serializable
 enum class SomeEnum(val string: String) {

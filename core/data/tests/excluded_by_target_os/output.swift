@@ -1,5 +1,11 @@
 import Foundation
 
+/// A struct with no target_os. Should be generated when
+/// we use --target-os.
+public struct AlwaysAccept: Codable {
+	public init() {}
+}
+
 public struct DefinedTwice: Codable {
 	public let field1: String
 
@@ -26,6 +32,11 @@ public struct NestedNotTarget1: Codable {
 
 public struct OtherExcluded: Codable {
 	public init() {}
+}
+
+public enum AlwaysAcceptEnum: String, Codable {
+	case variant1 = "Variant1"
+	case variant2 = "Variant2"
 }
 
 public enum SomeEnum: String, Codable {

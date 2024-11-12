@@ -14,7 +14,7 @@ enum TargetScope {
 }
 
 #[derive(Default)]
-/// An iterator that yeilds all meta items and their contained scope.
+/// An iterator that yields all meta items and their contained scope.
 struct TargetOsIterator {
     meta: Vec<(TargetScope, Meta)>,
 }
@@ -82,6 +82,10 @@ impl Iterator for TargetOsIterator {
 }
 
 pub(crate) fn accept_target_os(attrs: &[Attribute], target_os: &[String]) -> bool {
+    if target_os.is_empty() {
+        return true;
+    }
+
     let (accepted, rejected): (Vec<_>, Vec<_>) = attrs
         .iter()
         .inspect(|attr| {
@@ -124,7 +128,7 @@ mod test {
     use flexi_logger::DeferredNow;
     use log::Record;
     use std::{io::Write, sync::Once};
-    use syn::{parse_quote, ItemStruct};
+    use syn::{parse_quote, ItemEnum, ItemStruct};
 
     static INIT: Once = Once::new();
 
@@ -325,5 +329,28 @@ mod test {
         };
 
         assert!(accept_target_os(&test_struct.attrs, &["android".into()]))
+    }
+
+    #[test]
+    fn test_enum_no_target_os_enabled() {
+        init_log();
+
+        let test_enum: ItemEnum = parse_quote! {
+            #[typeshare]
+            pub enum TestEnum {
+                #[cfg(target_os = "ios")]
+                Variant1,
+                #[cfg(target_os = "android")]
+                Variant2,
+            }
+        };
+
+        let variants = test_enum
+            .variants
+            .iter()
+            .map(|v| accept_target_os(&v.attrs, &[]))
+            .collect::<Vec<_>>();
+
+        assert_eq!(&variants, &[true, true]);
     }
 }

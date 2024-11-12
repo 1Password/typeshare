@@ -80,7 +80,7 @@ pub enum ParseError {
 /// Error with it's related data.
 #[derive(Debug)]
 pub struct ErrorInfo {
-    /// The crate where this error occured.
+    /// The crate where this error occurred.
     pub crate_name: CrateName,
     /// The file name being parsed.
     pub file_name: String,

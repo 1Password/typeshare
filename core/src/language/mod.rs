@@ -88,7 +88,7 @@ pub type SortedCrateNames<'a> = &'a CrateName;
 /// A sorted type name ref.
 pub type SortedTypeNames<'a> = BTreeSet<&'a str>;
 
-/// Refence types by crate that are scoped for a given output module.
+/// Reference types by crate that are scoped for a given output module.
 pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'a>>;
 
 /// All supported programming languages.
