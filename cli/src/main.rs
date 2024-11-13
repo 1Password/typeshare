@@ -16,7 +16,7 @@ use std::{
 use anyhow::{anyhow, Context};
 use clap::{CommandFactory, Parser};
 use clap_complete::Generator;
-use flexi_logger::detailed_format;
+use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
 use rayon::iter::ParallelBridge;
@@ -39,8 +39,8 @@ use crate::{
 
 fn main() -> anyhow::Result<()> {
     flexi_logger::Logger::try_with_env_or_str("info")?
-        .format_for_stdout(detailed_format)
-        .format_for_stderr(detailed_format)
+        .adaptive_format_for_stderr(AdaptiveFormat::Detailed)
+        .adaptive_format_for_stdout(AdaptiveFormat::Detailed)
         .start()?;
 
     let options = Args::parse();
