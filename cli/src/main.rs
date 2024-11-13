@@ -16,8 +16,9 @@ use std::{
 use anyhow::{anyhow, Context};
 use clap::{CommandFactory, Parser};
 use clap_complete::Generator;
+use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
-use log::error;
+use log::{error, info};
 use rayon::iter::ParallelBridge;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
@@ -37,12 +38,14 @@ use crate::{
 };
 
 fn main() -> anyhow::Result<()> {
-    flexi_logger::Logger::try_with_env()
-        .unwrap()
-        .start()
-        .unwrap();
+    flexi_logger::Logger::try_with_env_or_str("info")?
+        .adaptive_format_for_stderr(AdaptiveFormat::Detailed)
+        .adaptive_format_for_stdout(AdaptiveFormat::Detailed)
+        .start()?;
 
     let options = Args::parse();
+
+    info!("typeshare started generating types");
 
     if let Some(options) = options.subcommand {
         match options {
@@ -153,6 +156,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
+
     write_generated(
         destination,
         lang.as_mut(),
@@ -160,6 +164,7 @@ fn main() -> anyhow::Result<()> {
         import_candidates,
     )?;
 
+    info!("typeshare finished generating types");
     Ok(())
 }
 
@@ -262,13 +267,14 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
         errors_encountered = true;
         for error in &data.errors {
             error!(
-                "Parsing error: \"{}\" in crate \"{}\" for file \"{}\"",
-                error.error, error.crate_name, error.file_name
+                "Parsing error: \"{}\" in file \"{}\"",
+                error.error, error.file_name
             );
         }
     }
 
     if errors_encountered {
+        error!("Errors encountered during parsing.");
         Err(anyhow!("Errors encountered during parsing."))
     } else {
         Ok(())
