@@ -49,7 +49,6 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 #[derive(Default)]
 pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
-    #[allow(dead_code)]
     file_path: PathBuf,
     ignored_types: &'a [&'a str],
     target_os: &'a [String],
