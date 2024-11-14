@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Union
 
 
-class AutofilledByUs(BaseModel):
+class AutofilledByUsInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum
     """
@@ -18,7 +18,7 @@ class AutofilledByUs(BaseModel):
     """
 
 
-class AutofilledBySomethingElse(BaseModel):
+class AutofilledBySomethingElseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
     """
@@ -36,34 +36,23 @@ class AutofilledByTypes(str, Enum):
     US = "Us"
     SOMETHING_ELSE = "SomethingElse"
 
-class AutofilledBy(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AutofilledByTypes
-    content: Union[AutofilledByUs, AutofilledBySomethingElse]
+class AutofilledByUs(BaseModel):
+    type: AutofilledByTypes = AutofilledByTypes.US
+    content: AutofilledByUsInner
 
+class AutofilledBySomethingElse(BaseModel):
+    type: AutofilledByTypes = AutofilledByTypes.SOMETHING_ELSE
+    content: AutofilledBySomethingElseInner
 
-    @classmethod
-    def new_autofilled_by_us(cls, uuid: str):
-        return cls(
-            type=AutofilledByTypes.US,
-            content=AutofilledByUs(uuid = uuid)
-	    )
-
-
-    @classmethod
-    def new_autofilled_by_something_else(cls, uuid: str, thing: int):
-        return cls(
-            type=AutofilledByTypes.SOMETHING_ELSE,
-            content=AutofilledBySomethingElse(uuid = uuid, thing = thing)
-	    )
-class EnumWithManyVariantsAnonVariant(BaseModel):
+AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]
+class EnumWithManyVariantsAnonVariantInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `AnonVariant` of the `EnumWithManyVariants` Rust enum
     """
     uuid: str
 
 
-class EnumWithManyVariantsAnotherAnonVariant(BaseModel):
+class EnumWithManyVariantsAnotherAnonVariantInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `AnotherAnonVariant` of the `EnumWithManyVariants` Rust enum
     """
@@ -79,57 +68,26 @@ class EnumWithManyVariantsTypes(str, Enum):
     ANOTHER_UNIT_VARIANT = "AnotherUnitVariant"
     ANOTHER_ANON_VARIANT = "AnotherAnonVariant"
 
+class EnumWithManyVariantsUnitVariant(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.UNIT_VARIANT
 
+class EnumWithManyVariantsTupleVariantString(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.TUPLE_VARIANT_STRING
+    content: str
 
-class EnumWithManyVariants(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: EnumWithManyVariantsTypes
-    content: Union[str, EnumWithManyVariantsAnonVariant, int, EnumWithManyVariantsAnotherAnonVariant, None]
+class EnumWithManyVariantsAnonVariant(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANON_VARIANT
+    content: EnumWithManyVariantsAnonVariantInner
 
+class EnumWithManyVariantsTupleVariantInt(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.TUPLE_VARIANT_INT
+    content: int
 
-    @classmethod
-    def new_enum_with_many_variants_unit_variant(cls) -> EnumWithManyVariants:
-        return cls(
-            type=EnumWithManyVariantsTypes.UNIT_VARIANT,
-            content=None
-	    )
+class EnumWithManyVariantsAnotherUnitVariant(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANOTHER_UNIT_VARIANT
 
+class EnumWithManyVariantsAnotherAnonVariant(BaseModel):
+    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANOTHER_ANON_VARIANT
+    content: EnumWithManyVariantsAnotherAnonVariantInner
 
-    @classmethod
-    def new_enum_with_many_variants_tuple_variant_string(cls, content : str):
-        return cls(
-            type=EnumWithManyVariantsTypes.TUPLE_VARIANT_STRING,
-            content=content
-        )
-
-
-    @classmethod
-    def new_enum_with_many_variants_anon_variant(cls, uuid: str):
-        return cls(
-            type=EnumWithManyVariantsTypes.ANON_VARIANT,
-            content=EnumWithManyVariantsAnonVariant(uuid = uuid)
-	    )
-
-
-    @classmethod
-    def new_enum_with_many_variants_tuple_variant_int(cls, content : int):
-        return cls(
-            type=EnumWithManyVariantsTypes.TUPLE_VARIANT_INT,
-            content=content
-        )
-
-
-    @classmethod
-    def new_enum_with_many_variants_another_unit_variant(cls) -> EnumWithManyVariants:
-        return cls(
-            type=EnumWithManyVariantsTypes.ANOTHER_UNIT_VARIANT,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_enum_with_many_variants_another_anon_variant(cls, uuid: str, thing: int):
-        return cls(
-            type=EnumWithManyVariantsTypes.ANOTHER_ANON_VARIANT,
-            content=EnumWithManyVariantsAnotherAnonVariant(uuid = uuid, thing = thing)
-	    )
+EnumWithManyVariants = Union[EnumWithManyVariantsUnitVariant, EnumWithManyVariantsTupleVariantString, EnumWithManyVariantsAnonVariant, EnumWithManyVariantsTupleVariantInt, EnumWithManyVariantsAnotherUnitVariant, EnumWithManyVariantsAnotherAnonVariant]

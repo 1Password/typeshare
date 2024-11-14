@@ -1,7 +1,5 @@
 use crate::parser::ParsedData;
-use crate::rust_types::{
-    RustEnumShared, RustEnumVariantShared, RustItem, RustType, RustTypeFormatError, SpecialRustType,
-};
+use crate::rust_types::{RustEnumShared, RustItem, RustType, RustTypeFormatError, SpecialRustType};
 use crate::topsort::topsort;
 use crate::{
     language::Language,
@@ -15,7 +13,6 @@ use std::{collections::HashMap, io::Write};
 use super::CrateTypes;
 
 use convert_case::{Case, Casing};
-use indexmap::IndexSet;
 
 // Utility function from the original author of supporting Python
 // Since we won't be supporting generics right now, this function is unused and is left here for future reference
@@ -270,12 +267,11 @@ impl Language for Python {
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
         // Make a suitable name for an anonymous struct enum variant
         let make_anonymous_struct_name =
-            |variant_name: &str| format!("{}{}", &e.shared().id.original, variant_name);
+            |variant_name: &str| format!("{}{}Inner", &e.shared().id.renamed, variant_name);
 
         // Generate named types for any anonymous struct variants of this enum
         self.write_types_for_anonymous_structs(w, e, &make_anonymous_struct_name)?;
         self.add_import("enum".to_string(), "Enum".to_string());
-        self.add_import("pydantic".to_string(), "ConfigDict".to_string());
         match e {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
@@ -310,6 +306,7 @@ impl Language for Python {
                 self.write_algebraic_enum(
                     tag_key,
                     content_key,
+                    &e.shared().id.renamed,
                     shared,
                     w,
                     &make_anonymous_struct_name,
@@ -460,126 +457,43 @@ impl Python {
         Ok(())
     }
 
-    fn get_constructor_method_name(enum_name: &str, variant_name: &str) -> String {
-        format!("new_{}_{}", enum_name, variant_name).to_case(Case::Snake)
-    }
-
-    fn gen_unit_variant_constructor(
-        variant_constructors: &mut Vec<String>,
-        variant_shared: &RustEnumVariantShared,
-        enum_shared: &RustEnumShared,
-        tag_key: &str,
-        content_key: &str,
-    ) {
-        let method_name =
-            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
-
-        variant_constructors.push(format!(
-            r#"
-    @classmethod
-    def {method_name}(cls) -> {class_name}:
-        return cls(
-            {tag_key}={enum_name}Types.{variant_tag},
-            {content_key}=None
-	    )"#,
-            tag_key = tag_key,
-            content_key = content_key,
-            enum_name = enum_shared.id.renamed,
-            variant_tag = variant_shared
-                .id
-                .renamed
-                .to_case(Case::Snake)
-                .to_uppercase(),
-            class_name = enum_shared.id.renamed,
-        ));
-    }
-
-    fn gen_tuple_variant_constructor(
-        variant_constructors: &mut Vec<String>,
-        variant_shared: &RustEnumVariantShared,
-        enum_shared: &RustEnumShared,
-        param_type: String,
-        tag_key: &str,
-        content_key: &str,
-    ) {
-        let method_name =
-            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
-
-        variant_constructors.push(format!(
-            r#"
-    @classmethod
-    def {method_name}(cls, {content_key} : {param_type}):
-        return cls(
-            {tag_key}={enum_name}Types.{variant_tag},
-            {content_key}={content_key}
-        )"#,
-            enum_name = enum_shared.id.renamed,
-            variant_tag = variant_shared
-                .id
-                .renamed
-                .to_case(Case::Snake)
-                .to_uppercase(),
-        ));
-    }
-
     #[allow(clippy::too_many_arguments)]
-    fn gen_anon_struct_variant_constructor(
-        &mut self,
-        variant_constructors: &mut Vec<String>,
-        variant_fields: &[RustField],
-        variant_shared: &RustEnumVariantShared,
-        enum_shared: &RustEnumShared,
+    fn write_variant_class(
         class_name: &str,
         tag_key: &str,
+        tag_type: &str,
+        tag_value: &str,
         content_key: &str,
-    ) {
-        let method_name =
-            Self::get_constructor_method_name(&enum_shared.id.renamed, &variant_shared.id.renamed);
-
-        let ctor_param = variant_fields
-            .iter()
-            .map(|f| {
-                let python_field_name = python_property_aware_rename(&f.id.original);
-                let python_type = self
-                    .format_type(&f.ty, enum_shared.generic_types.as_slice())
-                    .unwrap();
-                (python_field_name, python_type)
-            })
-            .collect::<Vec<(String, String)>>();
-        variant_constructors.push(format!(
-            r#"
-    @classmethod
-    def {method_name}(cls, {ctor_params}):
-        return cls(
-            {tag_key}={enum_name}Types.{variant_tag},
-            {content_key}={class_name}({ctor_params_names})
-	    )"#,
-            ctor_params = ctor_param
-                .iter()
-                .map(|(name, ty)| format!("{}: {}", name, ty))
-                .collect::<Vec<String>>()
-                .join(", "),
-            content_key = content_key,
-            class_name = class_name,
-            ctor_params_names = ctor_param
-                .iter()
-                .map(|(name, _)| format!("{name} = {name}"))
-                .collect::<Vec<String>>()
-                .join(", "),
-            tag_key = tag_key,
-            enum_name = enum_shared.id.renamed,
-            variant_tag = variant_shared
-                .id
-                .renamed
-                .to_case(Case::Snake)
-                .to_uppercase(),
-        ));
+        content_type: Option<&str>,
+        content_value: Option<&str>,
+        w: &mut dyn Write,
+    ) -> std::io::Result<()> {
+        writeln!(w, "class {class_name}(BaseModel):")?;
+        writeln!(w, "    {tag_key}: {tag_type} = {tag_value}",)?;
+        if content_type.is_none() && content_value.is_none() {
+            return Ok(());
+        }
+        writeln!(
+            w,
+            "    {content_key}{}{}",
+            if let Some(content_type) = content_type {
+                format!(": {}", content_type)
+            } else {
+                "".to_string()
+            },
+            if let Some(content_value) = content_value {
+                format!(" = {}", content_value)
+            } else {
+                "".to_string()
+            }
+        )?;
+        Ok(())
     }
-
     fn write_algebraic_enum(
         &mut self,
         tag_key: &str,
         content_key: &str,
+        enum_name: &str,
         shared: &RustEnumShared,
         w: &mut dyn Write,
         make_struct_name: &dyn Fn(&str) -> String,
@@ -589,10 +503,10 @@ impl Python {
             .iter()
             .cloned()
             .for_each(|v| self.add_type_var(v));
-        let mut variants: Vec<(String, Vec<String>)> = Vec::new();
         self.add_import("pydantic".to_string(), "BaseModel".to_string());
-        // write "types" class: a union of all the enum variants
-        writeln!(w, "class {}Types(str, Enum):", shared.id.renamed)?;
+        // write "types" class: a union of all the enum variants4
+        let enum_type_class_name = format!("{}Types", shared.id.renamed);
+        writeln!(w, "class {enum_type_class_name}(str, Enum):")?;
         let all_enum_variants_name = shared
             .variants
             .iter()
@@ -601,104 +515,86 @@ impl Python {
                 RustEnumVariant::Tuple { shared, .. } => shared.id.renamed.clone(),
                 RustEnumVariant::AnonymousStruct { shared, .. } => shared.id.renamed.clone(),
             })
-            .collect::<Vec<String>>();
+            .map(|name| (name.to_case(Case::Snake).to_uppercase(), name))
+            .collect::<Vec<(String, String)>>();
         writeln!(
             w,
             "{}",
             all_enum_variants_name
                 .iter()
-                .map(|name| format!(
-                    "    {} = \"{}\"",
-                    name.to_case(Case::Snake).to_uppercase(),
-                    name
+                .map(|(type_key_name, type_string)| format!(
+                    "    {type_key_name} = \"{type_string}\""
                 ))
                 .collect::<Vec<String>>()
                 .join("\n")
         )?;
         writeln!(w)?;
 
-        let mut variant_class_names = IndexSet::new();
-        let mut variant_constructors = vec![];
-        let mut contains_unit_variant = false;
+        // all the types and class names for the enum variants in tuple
+        // (type_name, class_name)
+        let mut union_members = Vec::new();
         // write each of the enum variant as a class:
-        for variant in &shared.variants {
-            let variant_class_name = make_struct_name(&variant.shared().id.original);
+        for (variant, (type_key_name, _)) in
+            shared.variants.iter().zip(all_enum_variants_name.iter())
+        {
+            let variant_class_name = format!("{enum_name}{}", &variant.shared().id.original);
+            union_members.push(variant_class_name.clone());
             match variant {
-                RustEnumVariant::Unit(unit_variant) => {
-                    contains_unit_variant = true;
-                    let variant_name = format!("{}{}", shared.id.renamed, unit_variant.id.renamed);
-                    variants.push((variant_name.clone(), vec![]));
-                    Self::gen_unit_variant_constructor(
-                        &mut variant_constructors,
-                        unit_variant,
-                        shared,
+                RustEnumVariant::Unit(..) => {
+                    Self::write_variant_class(
+                        &variant_class_name,
                         tag_key,
+                        &enum_type_class_name,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
-                    );
+                        None,
+                        None,
+                        w,
+                    )?;
                     writeln!(w)?;
                 }
-                RustEnumVariant::Tuple {
-                    ty,
-                    shared: variant_shared,
-                } => {
+                RustEnumVariant::Tuple { ty, .. } => {
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                    variant_class_names.insert(tuple_name.clone());
-                    Self::gen_tuple_variant_constructor(
-                        &mut variant_constructors,
-                        variant_shared,
-                        shared,
-                        tuple_name,
-                        tag_key,
-                        content_key,
-                    );
-                }
-                RustEnumVariant::AnonymousStruct {
-                    fields,
-                    shared: variant_shared,
-                } => {
-                    variant_class_names.insert(variant_class_name.clone());
-                    // writing is taken care of by write_types_for_anonymous_structs in write_enum
-                    // we just need to push to the variant_constructors
-                    self.gen_anon_struct_variant_constructor(
-                        &mut variant_constructors,
-                        fields,
-                        variant_shared,
-                        shared,
+                    Self::write_variant_class(
                         &variant_class_name,
                         tag_key,
+                        &enum_type_class_name,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
-                    );
+                        Some(&tuple_name),
+                        None,
+                        w,
+                    )?;
+                    writeln!(w)?;
+                }
+                RustEnumVariant::AnonymousStruct {
+                    shared: variant_shared,
+                    ..
+                } => {
+                    // writing is taken care of by write_types_for_anonymous_structs in write_enum
+                    let variant_class_inner_name = make_struct_name(&variant_shared.id.original);
+
+                    Self::write_variant_class(
+                        &variant_class_name,
+                        tag_key,
+                        &enum_type_class_name,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
+                        content_key,
+                        Some(&variant_class_inner_name),
+                        None,
+                        w,
+                    )?;
+                    writeln!(w)?;
                 }
             }
         }
-        if contains_unit_variant {
-            variant_class_names.insert("None".to_string());
-        }
-
-        let variant_class_names = variant_class_names.into_iter().collect::<Vec<String>>();
-
-        // finally, write the enum class itself consists of a type and a union of all the enum variants
-
-        writeln!(w, "class {}(BaseModel):", shared.id.renamed)?;
-        writeln!(w, "    model_config = ConfigDict(use_enum_values=True)")?;
-        writeln!(w, "    {tag_key}: {}Types", shared.id.renamed)?;
-        // if there is only 1 variant, we can use that directly, no need for Union
-        let union_type = if variant_class_names.len() == 1 {
-            variant_class_names[0].clone()
+        if union_members.len() == 1 {
+            writeln!(w, "{enum_name} = {}", union_members[0])?;
         } else {
             self.add_import("typing".to_string(), "Union".to_string());
-            format!("Union[{}]", variant_class_names.join(", "))
-        };
-        writeln!(w, "    {content_key}: {union_type}",)?;
-        writeln!(w)?;
-        if !variant_constructors.is_empty() {
-            writeln!(
-                w,
-                "{variant_constructors}",
-                variant_constructors = variant_constructors.join("\n\n")
-            )?;
+            writeln!(w, "{enum_name} = Union[{}]", union_members.join(", "))?;
         }
         Ok(())
     }

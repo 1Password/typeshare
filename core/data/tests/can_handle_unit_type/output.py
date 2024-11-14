@@ -19,15 +19,8 @@ class StructHasVoidType(BaseModel):
 class EnumHasVoidTypeTypes(str, Enum):
     HAS_A_UNIT = "hasAUnit"
 
-class EnumHasVoidType(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: EnumHasVoidTypeTypes
+class EnumHasVoidTypeHasAUnit(BaseModel):
+    type: EnumHasVoidTypeTypes = EnumHasVoidTypeTypes.HAS_A_UNIT
     content: None
 
-
-    @classmethod
-    def new_enum_has_void_type_has_a_unit(cls, content : None):
-        return cls(
-            type=EnumHasVoidTypeTypes.HAS_A_UNIT,
-            content=content
-        )
+EnumHasVoidType = EnumHasVoidTypeHasAUnit

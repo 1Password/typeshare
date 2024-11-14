@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import List, Union
 
 
@@ -21,89 +21,47 @@ class AdvancedColorsTypes(str, Enum):
     NUMBER_ARRAY = "NumberArray"
     REALLY_COOL_TYPE = "ReallyCoolType"
 
-class AdvancedColors(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AdvancedColorsTypes
-    content: Union[str, int, List[int], ItemDetailsFieldValue]
+class AdvancedColorsString(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.STRING
+    content: str
 
+class AdvancedColorsNumber(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER
+    content: int
 
-    @classmethod
-    def new_advanced_colors_string(cls, content : str):
-        return cls(
-            type=AdvancedColorsTypes.STRING,
-            content=content
-        )
+class AdvancedColorsUnsignedNumber(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.UNSIGNED_NUMBER
+    content: int
 
+class AdvancedColorsNumberArray(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER_ARRAY
+    content: List[int]
 
-    @classmethod
-    def new_advanced_colors_number(cls, content : int):
-        return cls(
-            type=AdvancedColorsTypes.NUMBER,
-            content=content
-        )
+class AdvancedColorsReallyCoolType(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.REALLY_COOL_TYPE
+    content: ItemDetailsFieldValue
 
-
-    @classmethod
-    def new_advanced_colors_unsigned_number(cls, content : int):
-        return cls(
-            type=AdvancedColorsTypes.UNSIGNED_NUMBER,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_number_array(cls, content : List[int]):
-        return cls(
-            type=AdvancedColorsTypes.NUMBER_ARRAY,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_really_cool_type(cls, content : ItemDetailsFieldValue):
-        return cls(
-            type=AdvancedColorsTypes.REALLY_COOL_TYPE,
-            content=content
-        )
+AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsUnsignedNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
 class AdvancedColors2Types(str, Enum):
     STRING = "string"
     NUMBER = "number"
     NUMBER_ARRAY = "number-array"
     REALLY_COOL_TYPE = "really-cool-type"
 
-class AdvancedColors2(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AdvancedColors2Types
-    content: Union[str, int, List[int], ItemDetailsFieldValue]
+class AdvancedColors2String(BaseModel):
+    type: AdvancedColors2Types = AdvancedColors2Types.STRING
+    content: str
 
+class AdvancedColors2Number(BaseModel):
+    type: AdvancedColors2Types = AdvancedColors2Types.NUMBER
+    content: int
 
-    @classmethod
-    def new_advanced_colors_2_string(cls, content : str):
-        return cls(
-            type=AdvancedColors2Types.STRING,
-            content=content
-        )
+class AdvancedColors2NumberArray(BaseModel):
+    type: AdvancedColors2Types = AdvancedColors2Types.NUMBER_ARRAY
+    content: List[int]
 
+class AdvancedColors2ReallyCoolType(BaseModel):
+    type: AdvancedColors2Types = AdvancedColors2Types.REALLY_COOL_TYPE
+    content: ItemDetailsFieldValue
 
-    @classmethod
-    def new_advanced_colors_2_number(cls, content : int):
-        return cls(
-            type=AdvancedColors2Types.NUMBER,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_2_number_array(cls, content : List[int]):
-        return cls(
-            type=AdvancedColors2Types.NUMBER_ARRAY,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_2_really_cool_type(cls, content : ItemDetailsFieldValue):
-        return cls(
-            type=AdvancedColors2Types.REALLY_COOL_TYPE,
-            content=content
-        )
+AdvancedColors2 = Union[AdvancedColors2String, AdvancedColors2Number, AdvancedColors2NumberArray, AdvancedColors2ReallyCoolType]

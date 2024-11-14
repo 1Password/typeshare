@@ -746,7 +746,6 @@ dependencies = [
  "cool_asserts",
  "expect-test",
  "flexi_logger",
- "indexmap",
  "itertools",
  "joinery",
  "lazy_format",

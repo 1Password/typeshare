@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import List, Union
 
 
@@ -17,39 +17,20 @@ class AdvancedColorsTypes(str, Enum):
     NUMBER_ARRAY = "number-array"
     REALLY_COOL_TYPE = "reallyCoolType"
 
-class AdvancedColors(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AdvancedColorsTypes
-    content: Union[str, int, List[int], ItemDetailsFieldValue]
+class AdvancedColorsString(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.STRING
+    content: str
 
+class AdvancedColorsNumber(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER
+    content: int
 
-    @classmethod
-    def new_advanced_colors_string(cls, content : str):
-        return cls(
-            type=AdvancedColorsTypes.STRING,
-            content=content
-        )
+class AdvancedColorsNumberArray(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER_ARRAY
+    content: List[int]
 
+class AdvancedColorsReallyCoolType(BaseModel):
+    type: AdvancedColorsTypes = AdvancedColorsTypes.REALLY_COOL_TYPE
+    content: ItemDetailsFieldValue
 
-    @classmethod
-    def new_advanced_colors_number(cls, content : int):
-        return cls(
-            type=AdvancedColorsTypes.NUMBER,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_number_array(cls, content : List[int]):
-        return cls(
-            type=AdvancedColorsTypes.NUMBER_ARRAY,
-            content=content
-        )
-
-
-    @classmethod
-    def new_advanced_colors_really_cool_type(cls, content : ItemDetailsFieldValue):
-        return cls(
-            type=AdvancedColorsTypes.REALLY_COOL_TYPE,
-            content=content
-        )
+AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]

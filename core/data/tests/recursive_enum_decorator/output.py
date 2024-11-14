@@ -4,18 +4,18 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Union
 
 
-class MoreOptionsExactly(BaseModel):
+class MoreOptionsExactlyInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
     """
     config: str
 
 
-class MoreOptionsBuilt(BaseModel):
+class MoreOptionsBuiltInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Built` of the `MoreOptions` Rust enum
     """
@@ -27,64 +27,34 @@ class MoreOptionsTypes(str, Enum):
     EXACTLY = "exactly"
     BUILT = "built"
 
-class MoreOptions(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: MoreOptionsTypes
-    content: Union[bool, MoreOptionsExactly, MoreOptionsBuilt]
+class MoreOptionsNews(BaseModel):
+    type: MoreOptionsTypes = MoreOptionsTypes.NEWS
+    content: bool
 
+class MoreOptionsExactly(BaseModel):
+    type: MoreOptionsTypes = MoreOptionsTypes.EXACTLY
+    content: MoreOptionsExactlyInner
 
-    @classmethod
-    def new_more_options_news(cls, content : bool):
-        return cls(
-            type=MoreOptionsTypes.NEWS,
-            content=content
-        )
+class MoreOptionsBuilt(BaseModel):
+    type: MoreOptionsTypes = MoreOptionsTypes.BUILT
+    content: MoreOptionsBuiltInner
 
-
-    @classmethod
-    def new_more_options_exactly(cls, config: str):
-        return cls(
-            type=MoreOptionsTypes.EXACTLY,
-            content=MoreOptionsExactly(config = config)
-	    )
-
-
-    @classmethod
-    def new_more_options_built(cls, top: MoreOptions):
-        return cls(
-            type=MoreOptionsTypes.BUILT,
-            content=MoreOptionsBuilt(top = top)
-	    )
+MoreOptions = Union[MoreOptionsNews, MoreOptionsExactly, MoreOptionsBuilt]
 class OptionsTypes(str, Enum):
     RED = "red"
     BANANA = "banana"
     VERMONT = "vermont"
 
-class Options(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: OptionsTypes
-    content: Union[bool, str, Options]
+class OptionsRed(BaseModel):
+    type: OptionsTypes = OptionsTypes.RED
+    content: bool
 
+class OptionsBanana(BaseModel):
+    type: OptionsTypes = OptionsTypes.BANANA
+    content: str
 
-    @classmethod
-    def new_options_red(cls, content : bool):
-        return cls(
-            type=OptionsTypes.RED,
-            content=content
-        )
+class OptionsVermont(BaseModel):
+    type: OptionsTypes = OptionsTypes.VERMONT
+    content: Options
 
-
-    @classmethod
-    def new_options_banana(cls, content : str):
-        return cls(
-            type=OptionsTypes.BANANA,
-            content=content
-        )
-
-
-    @classmethod
-    def new_options_vermont(cls, content : Options):
-        return cls(
-            type=OptionsTypes.VERMONT,
-            content=content
-        )
+Options = Union[OptionsRed, OptionsBanana, OptionsVermont]

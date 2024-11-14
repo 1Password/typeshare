@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Union
 
 
@@ -12,23 +12,12 @@ class SomeEnumTypes(str, Enum):
     CONTEXT = "Context"
     OTHER = "Other"
 
-class SomeEnum(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: SomeEnumTypes
-    content: Union[str, int]
+class SomeEnumContext(BaseModel):
+    type: SomeEnumTypes = SomeEnumTypes.CONTEXT
+    content: str
 
+class SomeEnumOther(BaseModel):
+    type: SomeEnumTypes = SomeEnumTypes.OTHER
+    content: int
 
-    @classmethod
-    def new_some_enum_context(cls, content : str):
-        return cls(
-            type=SomeEnumTypes.CONTEXT,
-            content=content
-        )
-
-
-    @classmethod
-    def new_some_enum_other(cls, content : int):
-        return cls(
-            type=SomeEnumTypes.OTHER,
-            content=content
-        )
+SomeEnum = Union[SomeEnumContext, SomeEnumOther]

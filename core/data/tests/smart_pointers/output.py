@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import List, Union
 
 
@@ -61,33 +61,14 @@ class BoxyColorsTypes(str, Enum):
     BLUE = "Blue"
     GREEN = "Green"
 
+class BoxyColorsRed(BaseModel):
+    type: BoxyColorsTypes = BoxyColorsTypes.RED
 
+class BoxyColorsBlue(BaseModel):
+    type: BoxyColorsTypes = BoxyColorsTypes.BLUE
 
-class BoxyColors(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: BoxyColorsTypes
-    content: Union[str, None]
+class BoxyColorsGreen(BaseModel):
+    type: BoxyColorsTypes = BoxyColorsTypes.GREEN
+    content: str
 
-
-    @classmethod
-    def new_boxy_colors_red(cls) -> BoxyColors:
-        return cls(
-            type=BoxyColorsTypes.RED,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_boxy_colors_blue(cls) -> BoxyColors:
-        return cls(
-            type=BoxyColorsTypes.BLUE,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_boxy_colors_green(cls, content : str):
-        return cls(
-            type=BoxyColorsTypes.GREEN,
-            content=content
-        )
+BoxyColors = Union[BoxyColorsRed, BoxyColorsBlue, BoxyColorsGreen]

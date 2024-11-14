@@ -31,7 +31,7 @@ class OtherExcluded(BaseModel):
 
 class SomeEnum(str, Enum):
     pass
-class TestEnumVariant7(BaseModel):
+class TestEnumVariant7Inner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Variant7` of the `TestEnum` Rust enum
     """
@@ -40,7 +40,7 @@ class TestEnumVariant7(BaseModel):
     field_1: str
 
 
-class TestEnumVariant9(BaseModel):
+class TestEnumVariant9Inner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
     """
@@ -56,50 +56,21 @@ class TestEnumTypes(str, Enum):
     VARIANT_8 = "Variant8"
     VARIANT_9 = "Variant9"
 
+class TestEnumVariant1(BaseModel):
+    type: TestEnumTypes = TestEnumTypes.VARIANT_1
 
+class TestEnumVariant5(BaseModel):
+    type: TestEnumTypes = TestEnumTypes.VARIANT_5
 
+class TestEnumVariant7(BaseModel):
+    type: TestEnumTypes = TestEnumTypes.VARIANT_7
+    content: TestEnumVariant7Inner
 
-class TestEnum(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: TestEnumTypes
-    content: Union[TestEnumVariant7, TestEnumVariant9, None]
+class TestEnumVariant8(BaseModel):
+    type: TestEnumTypes = TestEnumTypes.VARIANT_8
 
+class TestEnumVariant9(BaseModel):
+    type: TestEnumTypes = TestEnumTypes.VARIANT_9
+    content: TestEnumVariant9Inner
 
-    @classmethod
-    def new_test_enum_variant_1(cls) -> TestEnum:
-        return cls(
-            type=TestEnumTypes.VARIANT_1,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_test_enum_variant_5(cls) -> TestEnum:
-        return cls(
-            type=TestEnumTypes.VARIANT_5,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_test_enum_variant_7(cls, field_1: str):
-        return cls(
-            type=TestEnumTypes.VARIANT_7,
-            content=TestEnumVariant7(field_1 = field_1)
-	    )
-
-
-    @classmethod
-    def new_test_enum_variant_8(cls) -> TestEnum:
-        return cls(
-            type=TestEnumTypes.VARIANT_8,
-            content=None
-	    )
-
-
-    @classmethod
-    def new_test_enum_variant_9(cls, field_2: str):
-        return cls(
-            type=TestEnumTypes.VARIANT_9,
-            content=TestEnumVariant9(field_2 = field_2)
-	    )
+TestEnum = Union[TestEnumVariant1, TestEnumVariant5, TestEnumVariant7, TestEnumVariant8, TestEnumVariant9]

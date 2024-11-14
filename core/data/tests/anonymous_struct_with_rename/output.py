@@ -8,14 +8,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Union
 
 
-class AnonymousStructWithRenameList(BaseModel):
+class AnonymousStructWithRenameListInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `List` of the `AnonymousStructWithRename` Rust enum
     """
     list: List[str]
 
 
-class AnonymousStructWithRenameLongFieldNames(BaseModel):
+class AnonymousStructWithRenameLongFieldNamesInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `LongFieldNames` of the `AnonymousStructWithRename` Rust enum
     """
@@ -26,7 +26,7 @@ class AnonymousStructWithRenameLongFieldNames(BaseModel):
     but_one_more: List[str]
 
 
-class AnonymousStructWithRenameKebabCase(BaseModel):
+class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `KebabCase` of the `AnonymousStructWithRename` Rust enum
     """
@@ -42,31 +42,16 @@ class AnonymousStructWithRenameTypes(str, Enum):
     LONG_FIELD_NAMES = "longFieldNames"
     KEBAB_CASE = "kebabCase"
 
-class AnonymousStructWithRename(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AnonymousStructWithRenameTypes
-    content: Union[AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames, AnonymousStructWithRenameKebabCase]
+class AnonymousStructWithRenameList(BaseModel):
+    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.LIST
+    content: AnonymousStructWithRenameListInner
 
+class AnonymousStructWithRenameLongFieldNames(BaseModel):
+    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.LONG_FIELD_NAMES
+    content: AnonymousStructWithRenameLongFieldNamesInner
 
-    @classmethod
-    def new_anonymous_struct_with_rename_list(cls, list: List[str]):
-        return cls(
-            type=AnonymousStructWithRenameTypes.LIST,
-            content=AnonymousStructWithRenameList(list = list)
-	    )
+class AnonymousStructWithRenameKebabCase(BaseModel):
+    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.KEBAB_CASE
+    content: AnonymousStructWithRenameKebabCaseInner
 
-
-    @classmethod
-    def new_anonymous_struct_with_rename_long_field_names(cls, some_long_field_name: str, and_: bool, but_one_more: List[str]):
-        return cls(
-            type=AnonymousStructWithRenameTypes.LONG_FIELD_NAMES,
-            content=AnonymousStructWithRenameLongFieldNames(some_long_field_name = some_long_field_name, and_ = and_, but_one_more = but_one_more)
-	    )
-
-
-    @classmethod
-    def new_anonymous_struct_with_rename_kebab_case(cls, another_list: List[str], camel_case_string_field: str, something_else: bool):
-        return cls(
-            type=AnonymousStructWithRenameTypes.KEBAB_CASE,
-            content=AnonymousStructWithRenameKebabCase(another_list = another_list, camel_case_string_field = camel_case_string_field, something_else = something_else)
-	    )
+AnonymousStructWithRename = Union[AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames, AnonymousStructWithRenameKebabCase]

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Union
 
 
@@ -15,24 +15,11 @@ class AddressTypes(str, Enum):
     FIXED_ADDRESS = "FixedAddress"
     NO_FIXED_ADDRESS = "NoFixedAddress"
 
+class AddressFixedAddress(BaseModel):
+    type: AddressTypes = AddressTypes.FIXED_ADDRESS
+    content: AddressDetails
 
-class Address(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AddressTypes
-    content: Union[AddressDetails, None]
+class AddressNoFixedAddress(BaseModel):
+    type: AddressTypes = AddressTypes.NO_FIXED_ADDRESS
 
-
-    @classmethod
-    def new_address_fixed_address(cls, content : AddressDetails):
-        return cls(
-            type=AddressTypes.FIXED_ADDRESS,
-            content=content
-        )
-
-
-    @classmethod
-    def new_address_no_fixed_address(cls) -> Address:
-        return cls(
-            type=AddressTypes.NO_FIXED_ADDRESS,
-            content=None
-	    )
+Address = Union[AddressFixedAddress, AddressNoFixedAddress]

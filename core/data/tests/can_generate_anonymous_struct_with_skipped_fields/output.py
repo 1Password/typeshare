@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from typing import Union
 
 
-class AutofilledByUs(BaseModel):
+class AutofilledByUsInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum
     """
@@ -18,7 +18,7 @@ class AutofilledByUs(BaseModel):
     """
 
 
-class AutofilledBySomethingElse(BaseModel):
+class AutofilledBySomethingElseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
     """
@@ -32,23 +32,12 @@ class AutofilledByTypes(str, Enum):
     US = "Us"
     SOMETHING_ELSE = "SomethingElse"
 
-class AutofilledBy(BaseModel):
-    model_config = ConfigDict(use_enum_values=True)
-    type: AutofilledByTypes
-    content: Union[AutofilledByUs, AutofilledBySomethingElse]
+class AutofilledByUs(BaseModel):
+    type: AutofilledByTypes = AutofilledByTypes.US
+    content: AutofilledByUsInner
 
+class AutofilledBySomethingElse(BaseModel):
+    type: AutofilledByTypes = AutofilledByTypes.SOMETHING_ELSE
+    content: AutofilledBySomethingElseInner
 
-    @classmethod
-    def new_autofilled_by_us(cls, uuid: str):
-        return cls(
-            type=AutofilledByTypes.US,
-            content=AutofilledByUs(uuid = uuid)
-	    )
-
-
-    @classmethod
-    def new_autofilled_by_something_else(cls, uuid: str):
-        return cls(
-            type=AutofilledByTypes.SOMETHING_ELSE,
-            content=AutofilledBySomethingElse(uuid = uuid)
-	    )
+AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]
