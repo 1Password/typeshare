@@ -4,14 +4,14 @@
 from __future__ import annotations
 
 from enum import Enum
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Union
 
 
 class DefinedTwice(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    field_1: str
+    field_1: str = Field(alias="field1")
 
 
 class Excluded(BaseModel):
@@ -37,7 +37,7 @@ class TestEnumVariant7Inner(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
-    field_1: str
+    field_1: str = Field(alias="field1")
 
 
 class TestEnumVariant9Inner(BaseModel):
@@ -46,7 +46,7 @@ class TestEnumVariant9Inner(BaseModel):
     """
     model_config = ConfigDict(populate_by_name=True)
 
-    field_2: str
+    field_2: str = Field(alias="field2")
 
 
 class TestEnumTypes(str, Enum):

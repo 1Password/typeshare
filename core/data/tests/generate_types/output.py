@@ -15,7 +15,7 @@ class Types(BaseModel):
 
     s: str
     static_s: str
-    int_8: int
+    int_8: int = Field(alias="int8")
     float: float
     double: float
     array: List[str]

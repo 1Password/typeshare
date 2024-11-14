@@ -22,7 +22,7 @@ class AnonymousStructWithRenameLongFieldNamesInner(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     some_long_field_name: str
-    and_: bool
+    and_: bool = Field(alias="and")
     but_one_more: List[str]
 
 
@@ -33,7 +33,7 @@ class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     another_list: List[str] = Field(alias="another-list")
-    camel_case_string_field: str
+    camel_case_string_field: str = Field(alias="camelCaseStringField")
     something_else: bool = Field(alias="something-else")
 
 

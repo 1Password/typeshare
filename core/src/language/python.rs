@@ -349,7 +349,7 @@ impl Python {
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
-        let is_aliased = field.id.original != field.id.renamed;
+        let is_aliased = python_field_name != field.id.renamed;
         match (is_optional, is_aliased) {
             (true, true) => {
                 self.add_import("typing".to_string(), "Optional".to_string());
