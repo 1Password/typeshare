@@ -225,7 +225,7 @@ impl Language for Python {
 
         writeln!(
             w,
-            "{}{} = {}\n\n",
+            "{}{} = {}\n",
             ty.id.renamed,
             (!ty.generic_types.is_empty())
                 .then(|| format!("[{}]", ty.generic_types.join(", ")))
@@ -265,7 +265,7 @@ impl Language for Python {
         if rs.fields.is_empty() {
             write!(w, "    pass")?
         }
-        write!(w, "\n\n")?;
+        writeln!(w)?;
         self.add_import("pydantic".to_string(), "BaseModel".to_string());
         Ok(())
     }

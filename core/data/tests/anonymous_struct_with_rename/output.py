@@ -13,7 +13,6 @@ class AnonymousStructWithRenameListInner(BaseModel):
     """
     list: List[str]
 
-
 class AnonymousStructWithRenameLongFieldNamesInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `LongFieldNames` of the `AnonymousStructWithRename` Rust enum
@@ -24,7 +23,6 @@ class AnonymousStructWithRenameLongFieldNamesInner(BaseModel):
     and_: bool = Field(alias="and")
     but_one_more: List[str]
 
-
 class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `KebabCase` of the `AnonymousStructWithRename` Rust enum
@@ -34,7 +32,6 @@ class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     another_list: List[str] = Field(alias="another-list")
     camel_case_string_field: str = Field(alias="camelCaseStringField")
     something_else: bool = Field(alias="something-else")
-
 
 class AnonymousStructWithRenameList(BaseModel):
     AnonymousStructWithRenameTypes: Literal["list"] = "list"

@@ -17,4 +17,3 @@ class Foo(BaseModel):
     f: int
     g: int
 
-

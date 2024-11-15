@@ -9,7 +9,6 @@ from typing import Literal, Union
 
 class AddressDetails(BaseModel):
     pass
-
 class AddressFixedAddress(BaseModel):
     AddressTypes: Literal["FixedAddress"] = "FixedAddress"
     content: AddressDetails

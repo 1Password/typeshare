@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 
 class CustomType(BaseModel):
     pass
-
 class Types(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -23,5 +22,4 @@ class Types(BaseModel):
     dictionary: Dict[str, int]
     optional_dictionary: Optional[Dict[str, int]] = Field(default=None)
     custom_type: CustomType
-
 

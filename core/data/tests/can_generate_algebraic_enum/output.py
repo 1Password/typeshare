@@ -12,7 +12,6 @@ class ItemDetailsFieldValue(BaseModel):
     Struct comment
     """
     pass
-
 """
 This is a case comment
 """

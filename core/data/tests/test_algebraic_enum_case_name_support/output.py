@@ -9,7 +9,6 @@ from typing import List, Literal, Union
 
 class ItemDetailsFieldValue(BaseModel):
     pass
-
 class AdvancedColorsString(BaseModel):
     AdvancedColorsTypes: Literal["string"] = "string"
     content: str

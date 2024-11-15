@@ -16,7 +16,6 @@ class AutofilledByUsInner(BaseModel):
     The UUID for the fill
     """
 
-
 class AutofilledBySomethingElseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
@@ -29,7 +28,6 @@ class AutofilledBySomethingElseInner(BaseModel):
     """
     Some other thing
     """
-
 
 """
 This field was autofilled by us
@@ -55,14 +53,12 @@ class EnumWithManyVariantsAnonVariantInner(BaseModel):
     """
     uuid: str
 
-
 class EnumWithManyVariantsAnotherAnonVariantInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `AnotherAnonVariant` of the `EnumWithManyVariants` Rust enum
     """
     uuid: str
     thing: int
-
 
 class EnumWithManyVariantsUnitVariant(BaseModel):
     EnumWithManyVariantsTypes: Literal["UnitVariant"] = "UnitVariant"

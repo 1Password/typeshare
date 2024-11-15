@@ -10,4 +10,3 @@ class Foo(BaseModel):
     a: int
     b: int
 
-

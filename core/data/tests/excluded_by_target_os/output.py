@@ -13,22 +13,16 @@ class DefinedTwice(BaseModel):
 
     field_1: str = Field(alias="field1")
 
-
 class Excluded(BaseModel):
     pass
-
 class ManyStruct(BaseModel):
     pass
-
 class MultipleTargets(BaseModel):
     pass
-
 class NestedNotTarget1(BaseModel):
     pass
-
 class OtherExcluded(BaseModel):
     pass
-
 class SomeEnum(str, Enum):
     pass
 class TestEnumVariant7Inner(BaseModel):
@@ -39,7 +33,6 @@ class TestEnumVariant7Inner(BaseModel):
 
     field_1: str = Field(alias="field1")
 
-
 class TestEnumVariant9Inner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Variant9` of the `TestEnum` Rust enum
@@ -47,7 +40,6 @@ class TestEnumVariant9Inner(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     field_2: str = Field(alias="field2")
-
 
 class TestEnumVariant1(BaseModel):
     TestEnumTypes: Literal["Variant1"] = "Variant1"

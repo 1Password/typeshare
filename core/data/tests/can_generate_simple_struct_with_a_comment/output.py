@@ -9,7 +9,6 @@ from typing import List, Optional
 
 class Location(BaseModel):
     pass
-
 class Person(BaseModel):
     """
     This is a comment.
@@ -22,5 +21,4 @@ class Person(BaseModel):
     info: Optional[str] = Field(default=None)
     emails: List[str]
     location: Location
-
 

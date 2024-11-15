@@ -9,4 +9,3 @@ from pydantic import BaseModel
 class MyType(BaseModel):
     field: str
 
-

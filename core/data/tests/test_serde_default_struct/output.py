@@ -10,4 +10,3 @@ from typing import Optional
 class Foo(BaseModel):
     bar: Optional[bool] = Field(default=None)
 
-

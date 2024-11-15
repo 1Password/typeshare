@@ -10,7 +10,6 @@ from typing import Dict, List, Literal, Union
 class ItemDetailsFieldValue(BaseModel):
     hello: str
 
-
 class AdvancedColorsString(BaseModel):
     AdvancedColorsTypes: Literal["String"] = "String"
     c: str

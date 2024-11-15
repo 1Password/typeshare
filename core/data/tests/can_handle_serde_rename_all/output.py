@@ -19,7 +19,6 @@ class Person(BaseModel):
     extra_special_field_1: int = Field(alias="extraSpecialField1")
     extra_special_field_2: Optional[List[str]] = Field(alias="extraSpecialField2", default=None)
 
-
 class Person2(BaseModel):
     """
     This is a Person2 struct with UPPERCASE rename
@@ -29,5 +28,4 @@ class Person2(BaseModel):
     first_name: str = Field(alias="FIRST_NAME")
     last_name: str = Field(alias="LAST_NAME")
     age: int = Field(alias="AGE")
-
 

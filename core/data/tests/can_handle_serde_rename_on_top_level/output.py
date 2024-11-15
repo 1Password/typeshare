@@ -9,7 +9,6 @@ from typing import List, Optional
 
 class OtherType(BaseModel):
     pass
-
 class PersonTwo(BaseModel):
     """
     This is a comment.
@@ -22,5 +21,4 @@ class PersonTwo(BaseModel):
     extra_special_field_2: Optional[List[str]] = Field(alias="extraSpecialFieldTwo", default=None)
     non_standard_data_type: OtherType = Field(alias="nonStandardDataType")
     non_standard_data_type_in_array: Optional[List[OtherType]] = Field(alias="nonStandardDataTypeInArray", default=None)
-
 

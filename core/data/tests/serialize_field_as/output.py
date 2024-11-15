@@ -12,4 +12,3 @@ class EditItemViewModelSaveRequest(BaseModel):
     values: List[EditItemSaveValue]
     fill_action: Optional[AutoFillItemActionRequest] = Field(default=None)
 
-

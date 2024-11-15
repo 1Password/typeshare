@@ -10,4 +10,3 @@ from typing import List
 class Video(BaseModel):
     tags: List[Tag]
 
-

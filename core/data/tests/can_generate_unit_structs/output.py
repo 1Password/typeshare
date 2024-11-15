@@ -8,4 +8,3 @@ from pydantic import BaseModel
 
 class UnitStruct(BaseModel):
     pass
-

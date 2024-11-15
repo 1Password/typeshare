@@ -15,7 +15,6 @@ class StructHasVoidType(BaseModel):
 
     this_is_a_unit: None = Field(alias="thisIsAUnit")
 
-
 class EnumHasVoidTypeHasAUnit(BaseModel):
     EnumHasVoidTypeTypes: Literal["hasAUnit"] = "hasAUnit"
     content: None

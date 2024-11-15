@@ -10,4 +10,3 @@ from pydantic.networks import AnyUrl
 class Foo(BaseModel):
     url: AnyUrl
 
-

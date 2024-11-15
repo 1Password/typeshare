@@ -16,7 +16,6 @@ class AutofilledByUsInner(BaseModel):
     The UUID for the fill
     """
 
-
 class AutofilledBySomethingElseInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `SomethingElse` of the `AutofilledBy` Rust enum
@@ -25,7 +24,6 @@ class AutofilledBySomethingElseInner(BaseModel):
     """
     The UUID for the fill
     """
-
 
 """
 This field was autofilled by us

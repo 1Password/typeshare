@@ -15,4 +15,3 @@ class QualifiedTypes(BaseModel):
     qualified_optional: Optional[str] = Field(default=None)
     qualfied_optional_hashmap_vec: Optional[Dict[str, List[str]]] = Field(default=None)
 
-

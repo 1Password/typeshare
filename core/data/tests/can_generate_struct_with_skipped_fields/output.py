@@ -10,4 +10,3 @@ class MyStruct(BaseModel):
     a: int
     c: int
 
-

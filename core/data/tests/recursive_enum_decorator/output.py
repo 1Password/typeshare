@@ -13,13 +13,11 @@ class MoreOptionsExactlyInner(BaseModel):
     """
     config: str
 
-
 class MoreOptionsBuiltInner(BaseModel):
     """
     Generated type representing the anonymous struct variant `Built` of the `MoreOptions` Rust enum
     """
     top: MoreOptions
-
 
 class MoreOptionsNews(BaseModel):
     MoreOptionsTypes: Literal["news"] = "news"

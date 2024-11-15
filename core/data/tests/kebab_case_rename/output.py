@@ -17,4 +17,3 @@ class Things(BaseModel):
     some_label: Optional[str] = Field(alias="label", default=None)
     label_left: Optional[str] = Field(alias="label-left", default=None)
 
-

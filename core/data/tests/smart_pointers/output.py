@@ -15,7 +15,6 @@ class ArcyColors(BaseModel):
     blue: str
     green: List[str]
 
-
 class CellyColors(BaseModel):
     """
     This is a comment.
@@ -23,20 +22,17 @@ class CellyColors(BaseModel):
     red: str
     blue: List[str]
 
-
 class CowyColors(BaseModel):
     """
     This is a comment.
     """
     lifetime: str
 
-
 class LockyColors(BaseModel):
     """
     This is a comment.
     """
     red: str
-
 
 class MutexyColors(BaseModel):
     """
@@ -45,7 +41,6 @@ class MutexyColors(BaseModel):
     blue: List[str]
     green: str
 
-
 class RcyColors(BaseModel):
     """
     This is a comment.
@@ -53,7 +48,6 @@ class RcyColors(BaseModel):
     red: str
     blue: List[str]
     green: str
-
 
 class BoxyColorsRed(BaseModel):
     BoxyColorsTypes: Literal["Red"] = "Red"
