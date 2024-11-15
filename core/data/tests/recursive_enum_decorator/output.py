@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, Union
 
@@ -22,11 +21,6 @@ class MoreOptionsBuiltInner(BaseModel):
     top: MoreOptions
 
 
-class MoreOptionsTypes(str, Enum):
-    NEWS = "news"
-    EXACTLY = "exactly"
-    BUILT = "built"
-
 class MoreOptionsNews(BaseModel):
     MoreOptionsTypes: Literal["news"] = "news"
     content: bool
@@ -40,11 +34,6 @@ class MoreOptionsBuilt(BaseModel):
     content: MoreOptionsBuiltInner
 
 MoreOptions = Union[MoreOptionsNews, MoreOptionsExactly, MoreOptionsBuilt]
-class OptionsTypes(str, Enum):
-    RED = "red"
-    BANANA = "banana"
-    VERMONT = "vermont"
-
 class OptionsRed(BaseModel):
     OptionsTypes: Literal["red"] = "red"
     content: bool

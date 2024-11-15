@@ -3,15 +3,13 @@
 """
 from __future__ import annotations
 
-from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, Union
 
 
-class SomeEnumTypes(str, Enum):
-    CONTEXT = "Context"
-    OTHER = "Other"
-
+"""
+The associated String contains some opaque context
+"""
 class SomeEnumContext(BaseModel):
     SomeEnumTypes: Literal["Context"] = "Context"
     content: str

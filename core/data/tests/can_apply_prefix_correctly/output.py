@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-from enum import Enum
 from pydantic import BaseModel
 from typing import Dict, List, Literal, Union
 
@@ -11,14 +10,6 @@ from typing import Dict, List, Literal, Union
 class ItemDetailsFieldValue(BaseModel):
     hello: str
 
-
-class AdvancedColorsTypes(str, Enum):
-    STRING = "String"
-    NUMBER = "Number"
-    NUMBER_ARRAY = "NumberArray"
-    REALLY_COOL_TYPE = "ReallyCoolType"
-    ARRAY_REALLY_COOL_TYPE = "ArrayReallyCoolType"
-    DICTIONARY_REALLY_COOL_TYPE = "DictionaryReallyCoolType"
 
 class AdvancedColorsString(BaseModel):
     AdvancedColorsTypes: Literal["String"] = "String"

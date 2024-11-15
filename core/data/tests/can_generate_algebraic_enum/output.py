@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-from enum import Enum
 from pydantic import BaseModel
 from typing import List, Literal, Union
 
@@ -14,13 +13,9 @@ class ItemDetailsFieldValue(BaseModel):
     """
     pass
 
-class AdvancedColorsTypes(str, Enum):
-    STRING = "String"
-    NUMBER = "Number"
-    UNSIGNED_NUMBER = "UnsignedNumber"
-    NUMBER_ARRAY = "NumberArray"
-    REALLY_COOL_TYPE = "ReallyCoolType"
-
+"""
+This is a case comment
+"""
 class AdvancedColorsString(BaseModel):
     AdvancedColorsTypes: Literal["String"] = "String"
     content: str
@@ -37,17 +32,20 @@ class AdvancedColorsNumberArray(BaseModel):
     AdvancedColorsTypes: Literal["NumberArray"] = "NumberArray"
     content: List[int]
 
+"""
+Comment on the last element
+"""
 class AdvancedColorsReallyCoolType(BaseModel):
     AdvancedColorsTypes: Literal["ReallyCoolType"] = "ReallyCoolType"
     content: ItemDetailsFieldValue
 
+"""
+Enum comment
+"""
 AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsUnsignedNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
-class AdvancedColors2Types(str, Enum):
-    STRING = "string"
-    NUMBER = "number"
-    NUMBER_ARRAY = "number-array"
-    REALLY_COOL_TYPE = "really-cool-type"
-
+"""
+This is a case comment
+"""
 class AdvancedColors2String(BaseModel):
     AdvancedColors2Types: Literal["string"] = "string"
     content: str
@@ -60,6 +58,9 @@ class AdvancedColors2NumberArray(BaseModel):
     AdvancedColors2Types: Literal["number-array"] = "number-array"
     content: List[int]
 
+"""
+Comment on the last element
+"""
 class AdvancedColors2ReallyCoolType(BaseModel):
     AdvancedColors2Types: Literal["really-cool-type"] = "really-cool-type"
     content: ItemDetailsFieldValue

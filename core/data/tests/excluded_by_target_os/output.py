@@ -49,13 +49,6 @@ class TestEnumVariant9Inner(BaseModel):
     field_2: str = Field(alias="field2")
 
 
-class TestEnumTypes(str, Enum):
-    VARIANT_1 = "Variant1"
-    VARIANT_5 = "Variant5"
-    VARIANT_7 = "Variant7"
-    VARIANT_8 = "Variant8"
-    VARIANT_9 = "Variant9"
-
 class TestEnumVariant1(BaseModel):
     TestEnumTypes: Literal["Variant1"] = "Variant1"
 

@@ -3,7 +3,6 @@
 """
 from __future__ import annotations
 
-from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, Union
 
@@ -32,18 +31,23 @@ class AutofilledBySomethingElseInner(BaseModel):
     """
 
 
-class AutofilledByTypes(str, Enum):
-    US = "Us"
-    SOMETHING_ELSE = "SomethingElse"
-
+"""
+This field was autofilled by us
+"""
 class AutofilledByUs(BaseModel):
     AutofilledByTypes: Literal["Us"] = "Us"
     content: AutofilledByUsInner
 
+"""
+Something else autofilled this field
+"""
 class AutofilledBySomethingElse(BaseModel):
     AutofilledByTypes: Literal["SomethingElse"] = "SomethingElse"
     content: AutofilledBySomethingElseInner
 
+"""
+Enum keeping track of who autofilled a field
+"""
 AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]
 class EnumWithManyVariantsAnonVariantInner(BaseModel):
     """
@@ -59,14 +63,6 @@ class EnumWithManyVariantsAnotherAnonVariantInner(BaseModel):
     uuid: str
     thing: int
 
-
-class EnumWithManyVariantsTypes(str, Enum):
-    UNIT_VARIANT = "UnitVariant"
-    TUPLE_VARIANT_STRING = "TupleVariantString"
-    ANON_VARIANT = "AnonVariant"
-    TUPLE_VARIANT_INT = "TupleVariantInt"
-    ANOTHER_UNIT_VARIANT = "AnotherUnitVariant"
-    ANOTHER_ANON_VARIANT = "AnotherAnonVariant"
 
 class EnumWithManyVariantsUnitVariant(BaseModel):
     EnumWithManyVariantsTypes: Literal["UnitVariant"] = "UnitVariant"
@@ -90,4 +86,7 @@ class EnumWithManyVariantsAnotherAnonVariant(BaseModel):
     EnumWithManyVariantsTypes: Literal["AnotherAnonVariant"] = "AnotherAnonVariant"
     content: EnumWithManyVariantsAnotherAnonVariantInner
 
+"""
+This is a comment (yareek sameek wuz here)
+"""
 EnumWithManyVariants = Union[EnumWithManyVariantsUnitVariant, EnumWithManyVariantsTupleVariantString, EnumWithManyVariantsAnonVariant, EnumWithManyVariantsTupleVariantInt, EnumWithManyVariantsAnotherUnitVariant, EnumWithManyVariantsAnotherAnonVariant]
