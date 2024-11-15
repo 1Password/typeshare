@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Union
+from typing import Literal, Union
 
 
 class SomeEnumTypes(str, Enum):
@@ -13,10 +13,10 @@ class SomeEnumTypes(str, Enum):
     C = "C"
 
 class SomeEnumA(BaseModel):
-    type: SomeEnumTypes = SomeEnumTypes.A
+    SomeEnumTypes: Literal["A"] = "A"
 
 class SomeEnumC(BaseModel):
-    type: SomeEnumTypes = SomeEnumTypes.C
+    SomeEnumTypes: Literal["C"] = "C"
     content: int
 
 SomeEnum = Union[SomeEnumA, SomeEnumC]

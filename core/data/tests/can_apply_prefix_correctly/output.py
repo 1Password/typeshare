@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Dict, List, Union
+from typing import Dict, List, Literal, Union
 
 
 class ItemDetailsFieldValue(BaseModel):
@@ -21,27 +21,27 @@ class AdvancedColorsTypes(str, Enum):
     DICTIONARY_REALLY_COOL_TYPE = "DictionaryReallyCoolType"
 
 class AdvancedColorsString(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.STRING
+    AdvancedColorsTypes: Literal["String"] = "String"
     c: str
 
 class AdvancedColorsNumber(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER
+    AdvancedColorsTypes: Literal["Number"] = "Number"
     c: int
 
 class AdvancedColorsNumberArray(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER_ARRAY
+    AdvancedColorsTypes: Literal["NumberArray"] = "NumberArray"
     c: List[int]
 
 class AdvancedColorsReallyCoolType(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.REALLY_COOL_TYPE
+    AdvancedColorsTypes: Literal["ReallyCoolType"] = "ReallyCoolType"
     c: ItemDetailsFieldValue
 
 class AdvancedColorsArrayReallyCoolType(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.ARRAY_REALLY_COOL_TYPE
+    AdvancedColorsTypes: Literal["ArrayReallyCoolType"] = "ArrayReallyCoolType"
     c: List[ItemDetailsFieldValue]
 
 class AdvancedColorsDictionaryReallyCoolType(BaseModel):
-    t: AdvancedColorsTypes = AdvancedColorsTypes.DICTIONARY_REALLY_COOL_TYPE
+    AdvancedColorsTypes: Literal["DictionaryReallyCoolType"] = "DictionaryReallyCoolType"
     c: Dict[str, ItemDetailsFieldValue]
 
 AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType, AdvancedColorsArrayReallyCoolType, AdvancedColorsDictionaryReallyCoolType]

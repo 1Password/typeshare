@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import List, Union
+from typing import List, Literal, Union
 
 
 class ItemDetailsFieldValue(BaseModel):
@@ -22,23 +22,23 @@ class AdvancedColorsTypes(str, Enum):
     REALLY_COOL_TYPE = "ReallyCoolType"
 
 class AdvancedColorsString(BaseModel):
-    type: AdvancedColorsTypes = AdvancedColorsTypes.STRING
+    AdvancedColorsTypes: Literal["String"] = "String"
     content: str
 
 class AdvancedColorsNumber(BaseModel):
-    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER
+    AdvancedColorsTypes: Literal["Number"] = "Number"
     content: int
 
 class AdvancedColorsUnsignedNumber(BaseModel):
-    type: AdvancedColorsTypes = AdvancedColorsTypes.UNSIGNED_NUMBER
+    AdvancedColorsTypes: Literal["UnsignedNumber"] = "UnsignedNumber"
     content: int
 
 class AdvancedColorsNumberArray(BaseModel):
-    type: AdvancedColorsTypes = AdvancedColorsTypes.NUMBER_ARRAY
+    AdvancedColorsTypes: Literal["NumberArray"] = "NumberArray"
     content: List[int]
 
 class AdvancedColorsReallyCoolType(BaseModel):
-    type: AdvancedColorsTypes = AdvancedColorsTypes.REALLY_COOL_TYPE
+    AdvancedColorsTypes: Literal["ReallyCoolType"] = "ReallyCoolType"
     content: ItemDetailsFieldValue
 
 AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsUnsignedNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
@@ -49,19 +49,19 @@ class AdvancedColors2Types(str, Enum):
     REALLY_COOL_TYPE = "really-cool-type"
 
 class AdvancedColors2String(BaseModel):
-    type: AdvancedColors2Types = AdvancedColors2Types.STRING
+    AdvancedColors2Types: Literal["string"] = "string"
     content: str
 
 class AdvancedColors2Number(BaseModel):
-    type: AdvancedColors2Types = AdvancedColors2Types.NUMBER
+    AdvancedColors2Types: Literal["number"] = "number"
     content: int
 
 class AdvancedColors2NumberArray(BaseModel):
-    type: AdvancedColors2Types = AdvancedColors2Types.NUMBER_ARRAY
+    AdvancedColors2Types: Literal["number-array"] = "number-array"
     content: List[int]
 
 class AdvancedColors2ReallyCoolType(BaseModel):
-    type: AdvancedColors2Types = AdvancedColors2Types.REALLY_COOL_TYPE
+    AdvancedColors2Types: Literal["really-cool-type"] = "really-cool-type"
     content: ItemDetailsFieldValue
 
 AdvancedColors2 = Union[AdvancedColors2String, AdvancedColors2Number, AdvancedColors2NumberArray, AdvancedColors2ReallyCoolType]

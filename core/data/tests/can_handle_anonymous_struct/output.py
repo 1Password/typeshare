@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Union
+from typing import Literal, Union
 
 
 class AutofilledByUsInner(BaseModel):
@@ -37,11 +37,11 @@ class AutofilledByTypes(str, Enum):
     SOMETHING_ELSE = "SomethingElse"
 
 class AutofilledByUs(BaseModel):
-    type: AutofilledByTypes = AutofilledByTypes.US
+    AutofilledByTypes: Literal["Us"] = "Us"
     content: AutofilledByUsInner
 
 class AutofilledBySomethingElse(BaseModel):
-    type: AutofilledByTypes = AutofilledByTypes.SOMETHING_ELSE
+    AutofilledByTypes: Literal["SomethingElse"] = "SomethingElse"
     content: AutofilledBySomethingElseInner
 
 AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]
@@ -69,25 +69,25 @@ class EnumWithManyVariantsTypes(str, Enum):
     ANOTHER_ANON_VARIANT = "AnotherAnonVariant"
 
 class EnumWithManyVariantsUnitVariant(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.UNIT_VARIANT
+    EnumWithManyVariantsTypes: Literal["UnitVariant"] = "UnitVariant"
 
 class EnumWithManyVariantsTupleVariantString(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.TUPLE_VARIANT_STRING
+    EnumWithManyVariantsTypes: Literal["TupleVariantString"] = "TupleVariantString"
     content: str
 
 class EnumWithManyVariantsAnonVariant(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANON_VARIANT
+    EnumWithManyVariantsTypes: Literal["AnonVariant"] = "AnonVariant"
     content: EnumWithManyVariantsAnonVariantInner
 
 class EnumWithManyVariantsTupleVariantInt(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.TUPLE_VARIANT_INT
+    EnumWithManyVariantsTypes: Literal["TupleVariantInt"] = "TupleVariantInt"
     content: int
 
 class EnumWithManyVariantsAnotherUnitVariant(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANOTHER_UNIT_VARIANT
+    EnumWithManyVariantsTypes: Literal["AnotherUnitVariant"] = "AnotherUnitVariant"
 
 class EnumWithManyVariantsAnotherAnonVariant(BaseModel):
-    type: EnumWithManyVariantsTypes = EnumWithManyVariantsTypes.ANOTHER_ANON_VARIANT
+    EnumWithManyVariantsTypes: Literal["AnotherAnonVariant"] = "AnotherAnonVariant"
     content: EnumWithManyVariantsAnotherAnonVariantInner
 
 EnumWithManyVariants = Union[EnumWithManyVariantsUnitVariant, EnumWithManyVariantsTupleVariantString, EnumWithManyVariantsAnonVariant, EnumWithManyVariantsTupleVariantInt, EnumWithManyVariantsAnotherUnitVariant, EnumWithManyVariantsAnotherAnonVariant]

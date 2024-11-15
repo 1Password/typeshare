@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Union
+from typing import List, Literal, Union
 
 
 class AnonymousStructWithRenameListInner(BaseModel):
@@ -43,15 +43,15 @@ class AnonymousStructWithRenameTypes(str, Enum):
     KEBAB_CASE = "kebabCase"
 
 class AnonymousStructWithRenameList(BaseModel):
-    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.LIST
+    AnonymousStructWithRenameTypes: Literal["list"] = "list"
     content: AnonymousStructWithRenameListInner
 
 class AnonymousStructWithRenameLongFieldNames(BaseModel):
-    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.LONG_FIELD_NAMES
+    AnonymousStructWithRenameTypes: Literal["longFieldNames"] = "longFieldNames"
     content: AnonymousStructWithRenameLongFieldNamesInner
 
 class AnonymousStructWithRenameKebabCase(BaseModel):
-    type: AnonymousStructWithRenameTypes = AnonymousStructWithRenameTypes.KEBAB_CASE
+    AnonymousStructWithRenameTypes: Literal["kebabCase"] = "kebabCase"
     content: AnonymousStructWithRenameKebabCaseInner
 
 AnonymousStructWithRename = Union[AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames, AnonymousStructWithRenameKebabCase]

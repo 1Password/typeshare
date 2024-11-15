@@ -459,17 +459,18 @@ impl Python {
 
     #[allow(clippy::too_many_arguments)]
     fn write_variant_class(
+        &mut self,
         class_name: &str,
         tag_key: &str,
-        tag_type: &str,
         tag_value: &str,
         content_key: &str,
         content_type: Option<&str>,
         content_value: Option<&str>,
         w: &mut dyn Write,
     ) -> std::io::Result<()> {
+        self.add_import("typing".to_string(), "Literal".to_string());
         writeln!(w, "class {class_name}(BaseModel):")?;
-        writeln!(w, "    {tag_key}: {tag_type} = {tag_value}",)?;
+        writeln!(w, "    {tag_key}: Literal[{tag_value}] = {tag_value}",)?;
         if content_type.is_none() && content_value.is_none() {
             return Ok(());
         }
@@ -534,18 +535,16 @@ impl Python {
         // (type_name, class_name)
         let mut union_members = Vec::new();
         // write each of the enum variant as a class:
-        for (variant, (type_key_name, _)) in
-            shared.variants.iter().zip(all_enum_variants_name.iter())
+        for (variant, (.., type_value)) in shared.variants.iter().zip(all_enum_variants_name.iter())
         {
             let variant_class_name = format!("{enum_name}{}", &variant.shared().id.original);
             union_members.push(variant_class_name.clone());
             match variant {
                 RustEnumVariant::Unit(..) => {
-                    Self::write_variant_class(
+                    self.write_variant_class(
                         &variant_class_name,
-                        tag_key,
                         &enum_type_class_name,
-                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
+                        format!("\"{type_value}\"",).as_str(),
                         content_key,
                         None,
                         None,
@@ -557,11 +556,10 @@ impl Python {
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                    Self::write_variant_class(
+                    self.write_variant_class(
                         &variant_class_name,
-                        tag_key,
                         &enum_type_class_name,
-                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
+                        format!("\"{type_value}\"",).as_str(),
                         content_key,
                         Some(&tuple_name),
                         None,
@@ -576,11 +574,10 @@ impl Python {
                     // writing is taken care of by write_types_for_anonymous_structs in write_enum
                     let variant_class_inner_name = make_struct_name(&variant_shared.id.original);
 
-                    Self::write_variant_class(
+                    self.write_variant_class(
                         &variant_class_name,
-                        tag_key,
                         &enum_type_class_name,
-                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
+                        format!("\"{type_value}\"",).as_str(),
                         content_key,
                         Some(&variant_class_inner_name),
                         None,

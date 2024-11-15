@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
 
 class StructHasVoidType(BaseModel):
@@ -20,7 +21,7 @@ class EnumHasVoidTypeTypes(str, Enum):
     HAS_A_UNIT = "hasAUnit"
 
 class EnumHasVoidTypeHasAUnit(BaseModel):
-    type: EnumHasVoidTypeTypes = EnumHasVoidTypeTypes.HAS_A_UNIT
+    EnumHasVoidTypeTypes: Literal["hasAUnit"] = "hasAUnit"
     content: None
 
 EnumHasVoidType = EnumHasVoidTypeHasAUnit

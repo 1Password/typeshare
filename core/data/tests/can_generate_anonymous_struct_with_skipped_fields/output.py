@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pydantic import BaseModel
-from typing import Union
+from typing import Literal, Union
 
 
 class AutofilledByUsInner(BaseModel):
@@ -33,11 +33,11 @@ class AutofilledByTypes(str, Enum):
     SOMETHING_ELSE = "SomethingElse"
 
 class AutofilledByUs(BaseModel):
-    type: AutofilledByTypes = AutofilledByTypes.US
+    AutofilledByTypes: Literal["Us"] = "Us"
     content: AutofilledByUsInner
 
 class AutofilledBySomethingElse(BaseModel):
-    type: AutofilledByTypes = AutofilledByTypes.SOMETHING_ELSE
+    AutofilledByTypes: Literal["SomethingElse"] = "SomethingElse"
     content: AutofilledBySomethingElseInner
 
 AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]
