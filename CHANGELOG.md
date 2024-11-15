@@ -1,3 +1,8 @@
+# Version 1.13.0
+- Update how logging is initialized: [#206](https://github.com/1Password/typeshare/pull/206)
+- Don't recreate `Codable.swift` when the contents have not changed [#205](https://github.com/1Password/typeshare/pull/205)
+- Fix target_os parsing when no --target-os is provided [#204](https://github.com/1Password/typeshare/pull/204)
+
 # Version 1.12.0
 
 - Optional slices in Go no longer trigger a pointer redirection.
