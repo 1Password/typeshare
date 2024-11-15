@@ -41,21 +41,28 @@ class TestEnumVariant9Inner(BaseModel):
 
     field_2: str = Field(alias="field2")
 
+class TestEnumTypes(str, Enum):
+    VARIANT_1 = "Variant1"
+    VARIANT_5 = "Variant5"
+    VARIANT_7 = "Variant7"
+    VARIANT_8 = "Variant8"
+    VARIANT_9 = "Variant9"
+
 class TestEnumVariant1(BaseModel):
-    TestEnumTypes: Literal["Variant1"] = "Variant1"
+    type: Literal[TestEnumTypes.VARIANT_1] = TestEnumTypes.VARIANT_1
 
 class TestEnumVariant5(BaseModel):
-    TestEnumTypes: Literal["Variant5"] = "Variant5"
+    type: Literal[TestEnumTypes.VARIANT_5] = TestEnumTypes.VARIANT_5
 
 class TestEnumVariant7(BaseModel):
-    TestEnumTypes: Literal["Variant7"] = "Variant7"
+    type: Literal[TestEnumTypes.VARIANT_7] = TestEnumTypes.VARIANT_7
     content: TestEnumVariant7Inner
 
 class TestEnumVariant8(BaseModel):
-    TestEnumTypes: Literal["Variant8"] = "Variant8"
+    type: Literal[TestEnumTypes.VARIANT_8] = TestEnumTypes.VARIANT_8
 
 class TestEnumVariant9(BaseModel):
-    TestEnumTypes: Literal["Variant9"] = "Variant9"
+    type: Literal[TestEnumTypes.VARIANT_9] = TestEnumTypes.VARIANT_9
     content: TestEnumVariant9Inner
 
 TestEnum = Union[TestEnumVariant1, TestEnumVariant5, TestEnumVariant7, TestEnumVariant8, TestEnumVariant9]

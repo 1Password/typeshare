@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, Union
 
@@ -19,29 +20,39 @@ class MoreOptionsBuiltInner(BaseModel):
     """
     top: MoreOptions
 
+class MoreOptionsTypes(str, Enum):
+    NEWS = "news"
+    EXACTLY = "exactly"
+    BUILT = "built"
+
 class MoreOptionsNews(BaseModel):
-    MoreOptionsTypes: Literal["news"] = "news"
+    type: Literal[MoreOptionsTypes.NEWS] = MoreOptionsTypes.NEWS
     content: bool
 
 class MoreOptionsExactly(BaseModel):
-    MoreOptionsTypes: Literal["exactly"] = "exactly"
+    type: Literal[MoreOptionsTypes.EXACTLY] = MoreOptionsTypes.EXACTLY
     content: MoreOptionsExactlyInner
 
 class MoreOptionsBuilt(BaseModel):
-    MoreOptionsTypes: Literal["built"] = "built"
+    type: Literal[MoreOptionsTypes.BUILT] = MoreOptionsTypes.BUILT
     content: MoreOptionsBuiltInner
 
 MoreOptions = Union[MoreOptionsNews, MoreOptionsExactly, MoreOptionsBuilt]
+class OptionsTypes(str, Enum):
+    RED = "red"
+    BANANA = "banana"
+    VERMONT = "vermont"
+
 class OptionsRed(BaseModel):
-    OptionsTypes: Literal["red"] = "red"
+    type: Literal[OptionsTypes.RED] = OptionsTypes.RED
     content: bool
 
 class OptionsBanana(BaseModel):
-    OptionsTypes: Literal["banana"] = "banana"
+    type: Literal[OptionsTypes.BANANA] = OptionsTypes.BANANA
     content: str
 
 class OptionsVermont(BaseModel):
-    OptionsTypes: Literal["vermont"] = "vermont"
+    type: Literal[OptionsTypes.VERMONT] = OptionsTypes.VERMONT
     content: Options
 
 Options = Union[OptionsRed, OptionsBanana, OptionsVermont]

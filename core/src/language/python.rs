@@ -529,7 +529,8 @@ impl Python {
             .cloned()
             .for_each(|v| self.add_type_var(v));
         self.add_import("pydantic".to_string(), "BaseModel".to_string());
-        let enum_type_class_name = format!("{}Types", shared.id.renamed);
+        // all the types and class names for the enum variants in tuple
+        // (type_name, class_name)
         let all_enum_variants_name = shared
             .variants
             .iter()
@@ -540,11 +541,27 @@ impl Python {
             })
             .map(|name| (name.to_case(Case::Snake).to_uppercase(), name))
             .collect::<Vec<(String, String)>>();
-        // all the types and class names for the enum variants in tuple
-        // (type_name, class_name)
+        let enum_type_class_name = format!("{}Types", shared.id.renamed);
+        self.add_import("enum".to_string(), "Enum".to_string());
+        // write "types" class: a union of all the enum variants
+        writeln!(w, "class {}(str, Enum):", enum_type_class_name)?;
+        writeln!(
+            w,
+            "{}",
+            all_enum_variants_name
+                .iter()
+                .map(|(type_key_name, type_string)| format!(
+                    "    {type_key_name} = \"{type_string}\""
+                ))
+                .collect::<Vec<String>>()
+                .join("\n")
+        )?;
+        writeln!(w)?;
+
         let mut union_members = Vec::new();
         // write each of the enum variant as a class:
-        for (variant, (.., type_value)) in shared.variants.iter().zip(all_enum_variants_name.iter())
+        for (variant, (type_key_name, ..)) in
+            shared.variants.iter().zip(all_enum_variants_name.iter())
         {
             let variant_class_name = format!("{enum_name}{}", &variant.shared().id.original);
             union_members.push(variant_class_name.clone());
@@ -552,8 +569,8 @@ impl Python {
                 RustEnumVariant::Unit(variant_shared) => {
                     self.write_variant_class(
                         &variant_class_name,
-                        &enum_type_class_name,
-                        format!("\"{type_value}\"",).as_str(),
+                        &tag_key,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         None,
                         None,
@@ -571,8 +588,8 @@ impl Python {
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                     self.write_variant_class(
                         &variant_class_name,
-                        &enum_type_class_name,
-                        format!("\"{type_value}\"",).as_str(),
+                        &tag_key,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         Some(&tuple_name),
                         None,
@@ -590,8 +607,8 @@ impl Python {
 
                     self.write_variant_class(
                         &variant_class_name,
-                        &enum_type_class_name,
-                        format!("\"{type_value}\"",).as_str(),
+                        &tag_key,
+                        format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         Some(&variant_class_inner_name),
                         None,

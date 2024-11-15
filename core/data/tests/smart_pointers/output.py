@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel
 from typing import List, Literal, Union
 
@@ -49,14 +50,19 @@ class RcyColors(BaseModel):
     blue: List[str]
     green: str
 
+class BoxyColorsTypes(str, Enum):
+    RED = "Red"
+    BLUE = "Blue"
+    GREEN = "Green"
+
 class BoxyColorsRed(BaseModel):
-    BoxyColorsTypes: Literal["Red"] = "Red"
+    type: Literal[BoxyColorsTypes.RED] = BoxyColorsTypes.RED
 
 class BoxyColorsBlue(BaseModel):
-    BoxyColorsTypes: Literal["Blue"] = "Blue"
+    type: Literal[BoxyColorsTypes.BLUE] = BoxyColorsTypes.BLUE
 
 class BoxyColorsGreen(BaseModel):
-    BoxyColorsTypes: Literal["Green"] = "Green"
+    type: Literal[BoxyColorsTypes.GREEN] = BoxyColorsTypes.GREEN
     content: str
 
 # This is a comment.

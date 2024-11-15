@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
@@ -15,8 +16,11 @@ class StructHasVoidType(BaseModel):
 
     this_is_a_unit: None = Field(alias="thisIsAUnit")
 
+class EnumHasVoidTypeTypes(str, Enum):
+    HAS_A_UNIT = "hasAUnit"
+
 class EnumHasVoidTypeHasAUnit(BaseModel):
-    EnumHasVoidTypeTypes: Literal["hasAUnit"] = "hasAUnit"
+    type: Literal[EnumHasVoidTypeTypes.HAS_A_UNIT] = EnumHasVoidTypeTypes.HAS_A_UNIT
     content: None
 
 # This enum has a variant associated with unit data

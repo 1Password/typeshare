@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel
 from typing import Literal, Union
 
@@ -25,18 +26,22 @@ class AutofilledBySomethingElseInner(BaseModel):
     The UUID for the fill
     """
 
+class AutofilledByTypes(str, Enum):
+    US = "Us"
+    SOMETHING_ELSE = "SomethingElse"
+
 class AutofilledByUs(BaseModel):
     """
     This field was autofilled by us
     """
-    AutofilledByTypes: Literal["Us"] = "Us"
+    type: Literal[AutofilledByTypes.US] = AutofilledByTypes.US
     content: AutofilledByUsInner
 
 class AutofilledBySomethingElse(BaseModel):
     """
     Something else autofilled this field
     """
-    AutofilledByTypes: Literal["SomethingElse"] = "SomethingElse"
+    type: Literal[AutofilledByTypes.SOMETHING_ELSE] = AutofilledByTypes.SOMETHING_ELSE
     content: AutofilledBySomethingElseInner
 
 # Enum keeping track of who autofilled a field

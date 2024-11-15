@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Literal, Union
 
@@ -33,16 +34,21 @@ class AnonymousStructWithRenameKebabCaseInner(BaseModel):
     camel_case_string_field: str = Field(alias="camelCaseStringField")
     something_else: bool = Field(alias="something-else")
 
+class AnonymousStructWithRenameTypes(str, Enum):
+    LIST = "list"
+    LONG_FIELD_NAMES = "longFieldNames"
+    KEBAB_CASE = "kebabCase"
+
 class AnonymousStructWithRenameList(BaseModel):
-    AnonymousStructWithRenameTypes: Literal["list"] = "list"
+    type: Literal[AnonymousStructWithRenameTypes.LIST] = AnonymousStructWithRenameTypes.LIST
     content: AnonymousStructWithRenameListInner
 
 class AnonymousStructWithRenameLongFieldNames(BaseModel):
-    AnonymousStructWithRenameTypes: Literal["longFieldNames"] = "longFieldNames"
+    type: Literal[AnonymousStructWithRenameTypes.LONG_FIELD_NAMES] = AnonymousStructWithRenameTypes.LONG_FIELD_NAMES
     content: AnonymousStructWithRenameLongFieldNamesInner
 
 class AnonymousStructWithRenameKebabCase(BaseModel):
-    AnonymousStructWithRenameTypes: Literal["kebabCase"] = "kebabCase"
+    type: Literal[AnonymousStructWithRenameTypes.KEBAB_CASE] = AnonymousStructWithRenameTypes.KEBAB_CASE
     content: AnonymousStructWithRenameKebabCaseInner
 
 AnonymousStructWithRename = Union[AnonymousStructWithRenameList, AnonymousStructWithRenameLongFieldNames, AnonymousStructWithRenameKebabCase]

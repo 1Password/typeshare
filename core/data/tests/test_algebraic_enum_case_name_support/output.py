@@ -3,26 +3,33 @@
 """
 from __future__ import annotations
 
+from enum import Enum
 from pydantic import BaseModel
 from typing import List, Literal, Union
 
 
 class ItemDetailsFieldValue(BaseModel):
     pass
+class AdvancedColorsTypes(str, Enum):
+    STRING = "string"
+    NUMBER = "number"
+    NUMBER_ARRAY = "number-array"
+    REALLY_COOL_TYPE = "reallyCoolType"
+
 class AdvancedColorsString(BaseModel):
-    AdvancedColorsTypes: Literal["string"] = "string"
+    type: Literal[AdvancedColorsTypes.STRING] = AdvancedColorsTypes.STRING
     content: str
 
 class AdvancedColorsNumber(BaseModel):
-    AdvancedColorsTypes: Literal["number"] = "number"
+    type: Literal[AdvancedColorsTypes.NUMBER] = AdvancedColorsTypes.NUMBER
     content: int
 
 class AdvancedColorsNumberArray(BaseModel):
-    AdvancedColorsTypes: Literal["number-array"] = "number-array"
+    type: Literal[AdvancedColorsTypes.NUMBER_ARRAY] = AdvancedColorsTypes.NUMBER_ARRAY
     content: List[int]
 
 class AdvancedColorsReallyCoolType(BaseModel):
-    AdvancedColorsTypes: Literal["reallyCoolType"] = "reallyCoolType"
+    type: Literal[AdvancedColorsTypes.REALLY_COOL_TYPE] = AdvancedColorsTypes.REALLY_COOL_TYPE
     content: ItemDetailsFieldValue
 
 AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
