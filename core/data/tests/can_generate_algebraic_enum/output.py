@@ -12,10 +12,10 @@ class ItemDetailsFieldValue(BaseModel):
     Struct comment
     """
     pass
-"""
-This is a case comment
-"""
 class AdvancedColorsString(BaseModel):
+    """
+    This is a case comment
+    """
     AdvancedColorsTypes: Literal["String"] = "String"
     content: str
 
@@ -31,21 +31,19 @@ class AdvancedColorsNumberArray(BaseModel):
     AdvancedColorsTypes: Literal["NumberArray"] = "NumberArray"
     content: List[int]
 
-"""
-Comment on the last element
-"""
 class AdvancedColorsReallyCoolType(BaseModel):
+    """
+    Comment on the last element
+    """
     AdvancedColorsTypes: Literal["ReallyCoolType"] = "ReallyCoolType"
     content: ItemDetailsFieldValue
 
-"""
-Enum comment
-"""
+# Enum comment
 AdvancedColors = Union[AdvancedColorsString, AdvancedColorsNumber, AdvancedColorsUnsignedNumber, AdvancedColorsNumberArray, AdvancedColorsReallyCoolType]
-"""
-This is a case comment
-"""
 class AdvancedColors2String(BaseModel):
+    """
+    This is a case comment
+    """
     AdvancedColors2Types: Literal["string"] = "string"
     content: str
 
@@ -57,10 +55,10 @@ class AdvancedColors2NumberArray(BaseModel):
     AdvancedColors2Types: Literal["number-array"] = "number-array"
     content: List[int]
 
-"""
-Comment on the last element
-"""
 class AdvancedColors2ReallyCoolType(BaseModel):
+    """
+    Comment on the last element
+    """
     AdvancedColors2Types: Literal["really-cool-type"] = "really-cool-type"
     content: ItemDetailsFieldValue
 

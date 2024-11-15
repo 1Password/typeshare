@@ -19,7 +19,5 @@ class EnumHasVoidTypeHasAUnit(BaseModel):
     EnumHasVoidTypeTypes: Literal["hasAUnit"] = "hasAUnit"
     content: None
 
-"""
-This enum has a variant associated with unit data
-"""
+# This enum has a variant associated with unit data
 EnumHasVoidType = EnumHasVoidTypeHasAUnit

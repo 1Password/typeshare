@@ -487,10 +487,13 @@ impl Python {
         content_key: &str,
         content_type: Option<&str>,
         content_value: Option<&str>,
+        comments: &[String],
         w: &mut dyn Write,
     ) -> std::io::Result<()> {
         self.add_import("typing".to_string(), "Literal".to_string());
         writeln!(w, "class {class_name}(BaseModel):")?;
+        self.write_comments(w, true, comments, 1)?;
+
         writeln!(w, "    {tag_key}: Literal[{tag_value}] = {tag_value}",)?;
         if content_type.is_none() && content_value.is_none() {
             return Ok(());
@@ -547,7 +550,6 @@ impl Python {
             union_members.push(variant_class_name.clone());
             match variant {
                 RustEnumVariant::Unit(variant_shared) => {
-                    self.write_comments(w, true, &variant_shared.comments, 0)?;
                     self.write_variant_class(
                         &variant_class_name,
                         &enum_type_class_name,
@@ -555,6 +557,7 @@ impl Python {
                         content_key,
                         None,
                         None,
+                        &variant_shared.comments,
                         w,
                     )?;
                     writeln!(w)?;
@@ -563,8 +566,6 @@ impl Python {
                     ty,
                     shared: variant_shared,
                 } => {
-                    self.write_comments(w, true, &variant_shared.comments, 0)?;
-
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -575,6 +576,7 @@ impl Python {
                         content_key,
                         Some(&tuple_name),
                         None,
+                        &variant_shared.comments,
                         w,
                     )?;
                     writeln!(w)?;
@@ -583,8 +585,6 @@ impl Python {
                     shared: variant_shared,
                     ..
                 } => {
-                    self.write_comments(w, true, &variant_shared.comments, 0)?;
-
                     // writing is taken care of by write_types_for_anonymous_structs in write_enum
                     let variant_class_inner_name = make_struct_name(&variant_shared.id.original);
 
@@ -595,13 +595,14 @@ impl Python {
                         content_key,
                         Some(&variant_class_inner_name),
                         None,
+                        &variant_shared.comments,
                         w,
                     )?;
                     writeln!(w)?;
                 }
             }
         }
-        self.write_comments(w, true, &shared.comments, 0)?;
+        self.write_comments(w, false, &shared.comments, 0)?;
         if union_members.len() == 1 {
             writeln!(w, "{enum_name} = {}", union_members[0])?;
         } else {

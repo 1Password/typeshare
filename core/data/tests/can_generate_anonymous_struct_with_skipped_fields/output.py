@@ -25,21 +25,19 @@ class AutofilledBySomethingElseInner(BaseModel):
     The UUID for the fill
     """
 
-"""
-This field was autofilled by us
-"""
 class AutofilledByUs(BaseModel):
+    """
+    This field was autofilled by us
+    """
     AutofilledByTypes: Literal["Us"] = "Us"
     content: AutofilledByUsInner
 
-"""
-Something else autofilled this field
-"""
 class AutofilledBySomethingElse(BaseModel):
+    """
+    Something else autofilled this field
+    """
     AutofilledByTypes: Literal["SomethingElse"] = "SomethingElse"
     content: AutofilledBySomethingElseInner
 
-"""
-Enum keeping track of who autofilled a field
-"""
+# Enum keeping track of who autofilled a field
 AutofilledBy = Union[AutofilledByUs, AutofilledBySomethingElse]

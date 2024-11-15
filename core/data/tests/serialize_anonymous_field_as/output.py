@@ -7,10 +7,10 @@ from pydantic import BaseModel
 from typing import Literal, Union
 
 
-"""
-The associated String contains some opaque context
-"""
 class SomeEnumContext(BaseModel):
+    """
+    The associated String contains some opaque context
+    """
     SomeEnumTypes: Literal["Context"] = "Context"
     content: str
 

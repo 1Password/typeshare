@@ -59,7 +59,5 @@ class BoxyColorsGreen(BaseModel):
     BoxyColorsTypes: Literal["Green"] = "Green"
     content: str
 
-"""
-This is a comment.
-"""
+# This is a comment.
 BoxyColors = Union[BoxyColorsRed, BoxyColorsBlue, BoxyColorsGreen]
