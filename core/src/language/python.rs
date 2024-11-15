@@ -172,7 +172,13 @@ impl Language for Python {
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
             // We add optionality above the type formatting level
-            SpecialRustType::Option(rtype) => self.format_type(rtype, generic_types),
+            SpecialRustType::Option(rtype) => {
+                self.add_import("typing".to_string(), "Optional".to_string());
+                Ok(format!(
+                    "Optional[{}]",
+                    self.format_type(rtype, generic_types)?
+                ))
+            }
             SpecialRustType::HashMap(rtype1, rtype2) => {
                 self.add_import("typing".to_string(), "Dict".to_string());
                 Ok(format!(
@@ -345,16 +351,18 @@ impl Python {
         generic_types: &[String],
     ) -> std::io::Result<()> {
         let is_optional = field.ty.is_optional() || field.has_default;
+        // currently, if a field has a serde default value, it must be an Option
+        let not_optional_but_default = !field.ty.is_optional() && field.has_default;
         let python_type = self
             .format_type(&field.ty, generic_types)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        match (is_optional, is_aliased) {
+        match (not_optional_but_default, is_aliased) {
             (true, true) => {
                 self.add_import("typing".to_string(), "Optional".to_string());
                 self.add_import("pydantic".to_string(), "Field".to_string());
-                writeln!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
+                write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
             (true, false) => {
                 self.add_import("typing".to_string(), "Optional".to_string());
@@ -366,18 +374,31 @@ impl Python {
             }
             (false, true) => {
                 self.add_import("pydantic".to_string(), "Field".to_string());
-                writeln!(
+                write!(
                     w,
-                    "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\")",
+                    "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\"",
                     renamed = field.id.renamed
-                )?
+                )?;
+                if is_optional {
+                    writeln!(w, ", default=None)")?;
+                } else {
+                    writeln!(w, ")")?;
+                }
             }
-            (false, false) => writeln!(
-                w,
-                "    {python_field_name}: {python_type}",
-                python_field_name = python_field_name,
-                python_type = python_type
-            )?,
+            (false, false) => {
+                write!(
+                    w,
+                    "    {python_field_name}: {python_type}",
+                    python_field_name = python_field_name,
+                    python_type = python_type
+                )?;
+                if is_optional {
+                    self.add_import("pydantic".to_string(), "Field".to_string());
+                    writeln!(w, " = Field(default=None)")?;
+                } else {
+                    writeln!(w)?;
+                }
+            }
         }
 
         self.write_comments(w, true, &field.comments, 1)?;
