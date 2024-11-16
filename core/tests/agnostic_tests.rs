@@ -1,6 +1,6 @@
 use std::io::Write;
 use typeshare_core::{
-    context::ParseContext,
+    context::{ParseContext, ParseFileContext},
     language::{CrateTypes, Language, TypeScript},
     parser::{self, ParseError},
     rust_types::RustTypeParseError,
@@ -16,11 +16,13 @@ pub fn process_input(
     let parse_context = ParseContext::default();
 
     let mut parsed_data = parser::parse(
-        input,
-        "default_name".into(),
-        "file_name".into(),
-        "file_path".into(),
         &parse_context,
+        ParseFileContext {
+            source_code: input.to_string(),
+            crate_name: "default_name".into(),
+            file_name: "file_name".into(),
+            file_path: "file_path".into(),
+        },
     )?
     .unwrap();
 

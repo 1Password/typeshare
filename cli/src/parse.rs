@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 use typeshare_core::{
-    context::ParseContext,
+    context::{ParseContext, ParseFileContext},
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
     RenameExt,
@@ -102,15 +102,17 @@ pub fn parse_input(
                  file_name,
                  crate_name,
              }| {
-                let parsed_result = typeshare_core::parser::parse(
-                    &std::fs::read_to_string(&file_path)
+                let parse_file_context = ParseFileContext {
+                    source_code: std::fs::read_to_string(&file_path)
                         .with_context(|| format!("Failed to read input: {file_name}"))?,
-                    crate_name.clone(),
-                    file_name.clone(),
+                    crate_name: crate_name.clone(),
+                    file_name: file_name.clone(),
                     file_path,
-                    parse_context,
-                )
-                .with_context(|| format!("Failed to parse: {file_name}"))?;
+                };
+
+                let parsed_result =
+                    typeshare_core::parser::parse(parse_context, parse_file_context)
+                        .with_context(|| format!("Failed to parse: {file_name}"))?;
 
                 if let Some(parsed_data) = parsed_result {
                     parsed_crates

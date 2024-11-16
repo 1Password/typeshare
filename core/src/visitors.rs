@@ -57,10 +57,10 @@ pub struct TypeShareVisitor<'a> {
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
     pub fn new(
+        parse_context: &'a ParseContext<'a>,
         crate_name: CrateName,
         file_name: String,
         file_path: PathBuf,
-        parse_context: &'a ParseContext<'a>,
     ) -> Self {
         Self {
             parsed_data: ParsedData::new(crate_name, file_name, parse_context.multi_file),
@@ -615,10 +615,10 @@ mod test {
 
         let file: File = syn::parse_str(rust_code).unwrap();
         let mut visitor = TypeShareVisitor::new(
+            &parse_context,
             "my_crate".into(),
             "my_file".into(),
             "file_path".into(),
-            &parse_context,
         );
         visitor.visit_file(&file);
 

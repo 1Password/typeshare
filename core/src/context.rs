@@ -14,8 +14,8 @@ pub struct ParseContext<'a> {
 }
 
 /// Parsing context for a single rust source file.
-pub struct ParseFileContext<'a> {
-    pub source_code: &'a str,
+pub struct ParseFileContext {
+    pub source_code: String,
     pub crate_name: CrateName,
     pub file_name: String,
     pub file_path: PathBuf,

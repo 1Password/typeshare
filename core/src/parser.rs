@@ -1,5 +1,5 @@
 use crate::{
-    context::ParseContext,
+    context::{ParseContext, ParseFileContext},
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
@@ -16,7 +16,6 @@ use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
-    path::PathBuf,
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
@@ -163,23 +162,27 @@ impl ParsedData {
 
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(
-    source_code: &str,
-    crate_name: CrateName,
-    file_name: String,
-    file_path: PathBuf,
     parse_context: &ParseContext,
+    parse_file_context: ParseFileContext,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !source_code.contains("#[typeshare") {
+    if !parse_file_context.source_code.contains("#[typeshare") {
         return Ok(None);
     }
+
+    let ParseFileContext {
+        source_code,
+        crate_name,
+        file_name,
+        file_path,
+    } = parse_file_context;
 
     debug!("parsing {file_name}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path, parse_context);
-    import_visitor.visit_file(&syn::parse_file(source_code)?);
+    let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);
+    import_visitor.visit_file(&syn::parse_file(&source_code)?);
 
     Ok(import_visitor.parsed_data())
 }
