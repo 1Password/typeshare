@@ -1,4 +1,5 @@
 use crate::{
+    context::ParseContext,
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
@@ -166,9 +167,7 @@ pub fn parse(
     crate_name: CrateName,
     file_name: String,
     file_path: PathBuf,
-    ignored_types: &[&str],
-    mult_file: bool,
-    target_os: &[String],
+    parse_context: &ParseContext,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -179,14 +178,7 @@ pub fn parse(
     debug!("parsing {file_name}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(
-        crate_name,
-        file_name,
-        file_path,
-        ignored_types,
-        mult_file,
-        target_os,
-    );
+    let mut import_visitor = TypeShareVisitor::new(crate_name, file_name, file_path, parse_context);
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
     Ok(import_visitor.parsed_data())

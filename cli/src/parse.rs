@@ -7,6 +7,7 @@ use std::{
     path::PathBuf,
 };
 use typeshare_core::{
+    context::ParseContext,
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
     RenameExt,
@@ -89,9 +90,7 @@ pub fn all_types(file_mappings: &BTreeMap<CrateName, ParsedData>) -> CrateTypes 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
     inputs: impl ParallelIterator<Item = ParserInput>,
-    ignored_types: &[&str],
-    multi_file: bool,
-    target_os: &[String],
+    parse_context: &ParseContext,
 ) -> anyhow::Result<BTreeMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
@@ -109,9 +108,7 @@ pub fn parse_input(
                     crate_name.clone(),
                     file_name.clone(),
                     file_path,
-                    ignored_types,
-                    multi_file,
-                    target_os,
+                    parse_context,
                 )
                 .with_context(|| format!("Failed to parse: {file_name}"))?;
 
