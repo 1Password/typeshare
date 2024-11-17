@@ -19,7 +19,7 @@ use clap_complete::Generator;
 use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
-use rayon::iter::ParallelBridge;
+use parse::reconcile_aliases;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -72,6 +72,8 @@ fn main() -> anyhow::Result<()> {
     let config = override_configuration(config, &options)?;
 
     let directories = options.directories.as_slice();
+
+    info!("using input directories: {directories:?}");
 
     let language_type = match options.language {
         None => panic!("no language specified; `clap` should have guaranteed its presence"),
@@ -144,10 +146,13 @@ fn main() -> anyhow::Result<()> {
     // and implement a `ParallelVisitor` that builds up the mapping of parsed
     // data. That way both walking and parsing are in parallel.
     // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
-    let crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
+    let mut crate_parsed_data = parse_input(
+        // parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
+        parser_inputs(walker_builder, language_type, multi_file),
         &parse_context,
     )?;
+
+    reconcile_aliases(&mut crate_parsed_data);
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
