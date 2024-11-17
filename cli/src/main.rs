@@ -113,7 +113,7 @@ fn main() -> anyhow::Result<()> {
         .overrides(overrides)
         .follow_links(options.follow_links);
 
-    for root in directories.into_iter().skip(1) {
+    for root in directories.iter().skip(1) {
         walker_builder.add(root);
     }
 
