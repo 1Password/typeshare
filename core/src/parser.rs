@@ -11,7 +11,7 @@ use crate::{
     visitors::{ImportedType, TypeShareVisitor},
 };
 use itertools::Either;
-use log::{debug, info};
+use log::debug;
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
@@ -178,7 +178,7 @@ pub fn parse(
         file_path,
     } = parse_file_context;
 
-    info!("parsing {file_path:?}");
+    debug!("parsing {file_path:?}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);

@@ -7,20 +7,29 @@ use crate::{
     language::CrateName,
     parser::ParsedData,
     rust_types::{RustEnum, RustEnumVariant, RustType, SpecialRustType},
+    visitors::ImportedType,
 };
 use log::{debug, info};
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    mem,
+};
+
+/// A mapping of original type names to a mapping of crate name to new name.
+type RenamedTypes = HashMap<String, HashMap<CrateName, String>>;
 
 /// Update any type references that have the refenced type renamed via `serde(rename)`.
 pub fn reconcile_aliases(crate_parsed_data: &mut BTreeMap<CrateName, ParsedData>) {
     let serde_renamed = collect_serde_renames(crate_parsed_data);
 
-    for (_crate_name, parsed_data) in crate_parsed_data {
+    for (crate_name, parsed_data) in crate_parsed_data {
+        let import_types = mem::take(&mut parsed_data.import_types);
+
         // update references to renamed ids in product types.
         for s in &mut parsed_data.structs {
             debug!("struct: {}", s.id.original);
             for f in &mut s.fields {
-                check_type(&serde_renamed, &mut f.ty);
+                check_type(crate_name, &serde_renamed, &import_types, &mut f.ty);
             }
         }
 
@@ -28,36 +37,42 @@ pub fn reconcile_aliases(crate_parsed_data: &mut BTreeMap<CrateName, ParsedData>
         for e in &mut parsed_data.enums {
             debug!("enum: {}", e.shared().id.original);
             match e {
-                RustEnum::Unit(shared) => check_variant(&serde_renamed, &mut shared.variants),
-                RustEnum::Algebraic { shared, .. } => {
-                    check_variant(&serde_renamed, &mut shared.variants)
-                }
+                RustEnum::Unit(shared) => check_variant(
+                    crate_name,
+                    &serde_renamed,
+                    &import_types,
+                    &mut shared.variants,
+                ),
+                RustEnum::Algebraic { shared, .. } => check_variant(
+                    crate_name,
+                    &serde_renamed,
+                    &import_types,
+                    &mut shared.variants,
+                ),
             }
         }
 
         // update references to renamed ids in aliases.
         for a in &mut parsed_data.aliases {
-            check_type(&serde_renamed, &mut a.r#type);
+            check_type(crate_name, &serde_renamed, &import_types, &mut a.r#type);
         }
 
         // Apply sorting to types for deterministic output.
         parsed_data.structs.sort();
         parsed_data.enums.sort();
         parsed_data.aliases.sort();
+
+        // put back our import types for file generation.
+        parsed_data.import_types = import_types;
     }
 }
 
 /// Traverse all the parsed typeshare data and collect all types that have been renamed
 /// via `serde(rename)` into a mapping of original name to renamed name.
-fn collect_serde_renames(
-    crate_parsed_data: &BTreeMap<CrateName, ParsedData>,
-) -> HashMap<String, String> {
-    // TODO: This assumes that within a multi file output, a renamed type will be
-    // in the global namespace and not per crate. Need to support having multiple renamed
-    // types of the same name across crate scopes.
+fn collect_serde_renames(crate_parsed_data: &BTreeMap<CrateName, ParsedData>) -> RenamedTypes {
     crate_parsed_data
         .iter()
-        .flat_map(|(_crate_name, parsed_data)| {
+        .flat_map(|(crate_name, parsed_data)| {
             parsed_data
                 .structs
                 .iter()
@@ -75,57 +90,88 @@ fn collect_serde_renames(
                     e.id.serde_rename
                         .then(|| (e.id.original.to_string(), e.id.renamed.to_string()))
                 }))
+                .map(|(original, renamed)| (crate_name.to_owned(), (original, renamed)))
         })
-        .collect()
+        .fold(
+            HashMap::new(),
+            |mut mapping, (crate_name, (original, renamed))| {
+                let name_map = mapping.entry(original).or_default();
+                name_map.insert(crate_name.to_owned(), renamed);
+                mapping
+            },
+        )
 }
 
-fn check_variant(serde_renamed: &HashMap<String, String>, variants: &mut Vec<RustEnumVariant>) {
+fn check_variant(
+    crate_name: &CrateName,
+    serde_renamed: &RenamedTypes,
+    imported_types: &HashSet<ImportedType>,
+    variants: &mut Vec<RustEnumVariant>,
+) {
     for v in variants {
         match v {
             RustEnumVariant::Unit(_) => (),
             RustEnumVariant::Tuple { ty, .. } => {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, imported_types, ty);
             }
             RustEnumVariant::AnonymousStruct { fields, .. } => {
                 for f in fields {
-                    check_type(serde_renamed, &mut f.ty);
+                    check_type(crate_name, serde_renamed, imported_types, &mut f.ty);
                 }
             }
         }
     }
 }
 
-fn check_type(serde_renamed: &HashMap<String, String>, ty: &mut RustType) {
+fn check_type(
+    crate_name: &CrateName,
+    serde_renamed: &RenamedTypes,
+    import_types: &HashSet<ImportedType>,
+    ty: &mut RustType,
+) {
     debug!("checking type: {ty:?}");
     match ty {
         RustType::Generic { parameters, .. } => {
             for ty in parameters {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, import_types, ty);
             }
         }
         RustType::Special(s) => match s {
             SpecialRustType::Vec(ty) => {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, import_types, ty);
             }
             SpecialRustType::Array(ty, _) => {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, import_types, ty);
             }
             SpecialRustType::Slice(ty) => {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, import_types, ty);
             }
             SpecialRustType::HashMap(ty1, ty2) => {
-                check_type(serde_renamed, ty1);
-                check_type(serde_renamed, ty2);
+                check_type(crate_name, serde_renamed, import_types, ty1);
+                check_type(crate_name, serde_renamed, import_types, ty2);
             }
             SpecialRustType::Option(ty) => {
-                check_type(serde_renamed, ty);
+                check_type(crate_name, serde_renamed, import_types, ty);
             }
             _ => (),
         },
         RustType::Simple { id } => {
-            if let Some(alias) = serde_renamed.get(id) {
-                info!("renaming type from {id} to {alias}");
-                *id = alias.to_string()
+            debug!("{crate_name} looking up original name {id}");
+            if let Some(name_map) = serde_renamed.get(id) {
+                debug!("Found rename map {name_map:?}");
+
+                // Look for the original name in the imports.
+                let resolved_crate = import_types
+                    .iter()
+                    .find(|i| &i.type_name == id)
+                    .and_then(|import_ref| name_map.get(&import_ref.base_crate))
+                    // Fallback to looking up in our current namespace.
+                    .or_else(|| name_map.get(crate_name));
+
+                if let Some(renamed) = resolved_crate {
+                    info!("renaming type from {id} to {renamed}");
+                    *id = renamed.to_owned();
+                }
             }
         }
     }
