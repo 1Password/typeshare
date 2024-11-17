@@ -1,8 +1,7 @@
 //! Context types for parsing.
 //!
-use std::path::PathBuf;
-
 use crate::language::CrateName;
+use std::path::PathBuf;
 
 /// Context for parsing rust source files.
 #[derive(Default)]
