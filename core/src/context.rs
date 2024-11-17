@@ -1,3 +1,5 @@
+//! Context types for parsing.
+//!
 use std::path::PathBuf;
 
 use crate::language::CrateName;
@@ -15,8 +17,12 @@ pub struct ParseContext<'a> {
 
 /// Parsing context for a single rust source file.
 pub struct ParseFileContext {
+    /// Source code content
     pub source_code: String,
+    /// Name of the crate this file belongs to.
     pub crate_name: CrateName,
+    /// File name.
     pub file_name: String,
+    /// Full path to the source file.
     pub file_path: PathBuf,
 }
