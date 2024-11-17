@@ -1,7 +1,6 @@
 //! Source file parsing.
 use anyhow::Context;
 use ignore::WalkBuilder;
-use log::{debug, info};
 use std::{
     collections::{hash_map::Entry, BTreeMap, HashMap},
     path::PathBuf,
@@ -10,7 +9,6 @@ use typeshare_core::{
     context::{ParseContext, ParseFileContext},
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
     parser::ParsedData,
-    rust_types::{RustEnum, RustEnumVariant, RustType, SpecialRustType},
     RenameExt,
 };
 
@@ -124,94 +122,4 @@ pub fn parse_input(
             Ok(parsed_crates)
         },
     )
-}
-
-/// Update any type references that have the refenced type renamed via `serde(rename)`.
-pub fn reconcile_aliases(crate_parsed_data: &mut BTreeMap<CrateName, ParsedData>) {
-    for (_crate_name, parsed_data) in crate_parsed_data {
-        let serde_renamed = parsed_data
-            .structs
-            .iter()
-            .flat_map(|s| {
-                s.id.serde_rename
-                    .then_some((s.id.original.to_string(), s.id.renamed.to_string()))
-            })
-            .chain(parsed_data.enums.iter().flat_map(|e| {
-                e.shared().id.serde_rename.then_some((
-                    e.shared().id.original.to_string(),
-                    e.shared().id.renamed.to_string(),
-                ))
-            }))
-            .collect::<HashMap<_, _>>();
-
-        // find references to original ids and update accordingly
-        for s in &mut parsed_data.structs {
-            debug!("struct: {}", s.id.original);
-            for f in &mut s.fields {
-                check_type(&serde_renamed, &mut f.ty);
-            }
-        }
-
-        for e in &mut parsed_data.enums {
-            debug!("enum: {}", e.shared().id.original);
-            match e {
-                RustEnum::Unit(shared) => check_variant(&serde_renamed, &mut shared.variants),
-                RustEnum::Algebraic { shared, .. } => {
-                    check_variant(&serde_renamed, &mut shared.variants)
-                }
-            }
-        }
-    }
-}
-
-fn check_variant(serde_renamed: &HashMap<String, String>, variants: &mut Vec<RustEnumVariant>) {
-    for v in variants {
-        match v {
-            RustEnumVariant::Unit(_) => (),
-            RustEnumVariant::Tuple { ty, .. } => {
-                check_type(serde_renamed, ty);
-            }
-            RustEnumVariant::AnonymousStruct { fields, .. } => {
-                for f in fields {
-                    check_type(serde_renamed, &mut f.ty);
-                }
-            }
-        }
-    }
-}
-
-fn check_type(serde_renamed: &HashMap<String, String>, ty: &mut RustType) {
-    debug!("checking type: {ty:?}");
-    match ty {
-        RustType::Generic { parameters, .. } => {
-            for ty in parameters {
-                check_type(serde_renamed, ty);
-            }
-        }
-        RustType::Special(s) => match s {
-            SpecialRustType::Vec(ty) => {
-                check_type(serde_renamed, ty);
-            }
-            SpecialRustType::Array(ty, _) => {
-                check_type(serde_renamed, ty);
-            }
-            SpecialRustType::Slice(ty) => {
-                check_type(serde_renamed, ty);
-            }
-            SpecialRustType::HashMap(ty1, ty2) => {
-                check_type(serde_renamed, ty1);
-                check_type(serde_renamed, ty2);
-            }
-            SpecialRustType::Option(ty) => {
-                check_type(serde_renamed, ty);
-            }
-            _ => (),
-        },
-        RustType::Simple { id } => {
-            if let Some(alias) = serde_renamed.get(id) {
-                info!("renaming type from {id} to {alias}");
-                *id = alias.to_string()
-            }
-        }
-    }
 }

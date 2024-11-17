@@ -19,7 +19,6 @@ use clap_complete::Generator;
 use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
-use parse::reconcile_aliases;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -29,6 +28,7 @@ use typeshare_core::{
         TypeScript,
     },
     parser::ParsedData,
+    reconcile::reconcile_aliases,
 };
 
 use crate::{
@@ -147,7 +147,6 @@ fn main() -> anyhow::Result<()> {
     // data. That way both walking and parsing are in parallel.
     // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
     let mut crate_parsed_data = parse_input(
-        // parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         parser_inputs(walker_builder, language_type, multi_file),
         &parse_context,
     )?;
