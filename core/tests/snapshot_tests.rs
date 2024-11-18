@@ -10,7 +10,10 @@ use std::{
     path::{Path, PathBuf},
     sync::Once,
 };
-use typeshare_core::language::Language;
+use typeshare_core::{
+    context::{ParseContext, ParseFileContext},
+    language::Language,
+};
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
@@ -97,17 +100,19 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
+    let parse_context = ParseContext {
+        target_os: target_os.iter().map(ToString::to_string).collect(),
+        ..Default::default()
+    };
+
     let parsed_data = typeshare_core::parser::parse(
-        &rust_input,
-        "default_crate".into(),
-        "file_name".into(),
-        "file_path".into(),
-        &[],
-        false,
-        &target_os
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
+        &parse_context,
+        ParseFileContext {
+            source_code: rust_input,
+            crate_name: "default_crate".into(),
+            file_name: "file_name".into(),
+            file_path: "file_path".into(),
+        },
     )?
     .unwrap();
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;

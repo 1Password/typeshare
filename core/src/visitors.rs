@@ -1,5 +1,6 @@
 //! Visitors to collect various items from the AST.
 use crate::{
+    context::ParseContext,
     language::CrateName,
     parser::{
         has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
@@ -46,29 +47,24 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 
 /// An import visitor that collects all use or
 /// qualified referenced items.
-#[derive(Default)]
 pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
     file_path: PathBuf,
-    ignored_types: &'a [&'a str],
-    target_os: &'a [String],
+    parse_context: &'a ParseContext<'a>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
     pub fn new(
+        parse_context: &'a ParseContext<'a>,
         crate_name: CrateName,
         file_name: String,
         file_path: PathBuf,
-        ignored_types: &'a [&'a str],
-        multi_file: bool,
-        target_os: &'a [String],
     ) -> Self {
         Self {
-            parsed_data: ParsedData::new(crate_name, file_name, multi_file),
+            parsed_data: ParsedData::new(crate_name, file_name, parse_context.multi_file),
             file_path,
-            ignored_types,
-            target_os,
+            parse_context,
         }
     }
 
@@ -193,7 +189,7 @@ impl<'a> TypeShareVisitor<'a> {
     /// not match `--target-os` argument?
     #[inline(always)]
     fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
-        accept_target_os(attrs, self.target_os)
+        accept_target_os(attrs, &self.parse_context.target_os)
     }
 }
 
@@ -224,7 +220,10 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
             (accept_crate(&crate_candidate)
                 && accept_type(&type_candidate)
-                && !self.ignored_types.contains(&type_candidate.as_str())
+                && !self
+                    .parse_context
+                    .ignored_types
+                    .contains(&type_candidate.as_str())
                 && crate_candidate != type_candidate)
                 .then(|| {
                     // resolve crate and super aliases into the crate name.
@@ -254,10 +253,14 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         if !self.parsed_data.multi_file {
             return;
         }
-        self.parsed_data.import_types.extend(
-            parse_import(i, &self.parsed_data.crate_name)
-                .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
-        );
+        self.parsed_data
+            .import_types
+            .extend(parse_import(i, &self.parsed_data.crate_name).filter(|imp| {
+                !self
+                    .parse_context
+                    .ignored_types
+                    .contains(&imp.type_name.as_str())
+            }));
         syn::visit::visit_item_use(self, i);
     }
 
@@ -266,7 +269,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
-            self.collect_result(parse_struct(i, self.target_os));
+            self.collect_result(parse_struct(i, &self.parse_context.target_os));
         }
 
         syn::visit::visit_item_struct(self, i);
@@ -277,7 +280,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
-            self.collect_result(parse_enum(i, self.target_os));
+            self.collect_result(parse_enum(i, &self.parse_context.target_os));
         }
 
         syn::visit::visit_item_enum(self, i);
@@ -432,7 +435,7 @@ fn parse_import<'a>(
 #[cfg(test)]
 mod test {
     use super::{parse_import, TypeShareVisitor};
-    use crate::visitors::ImportedType;
+    use crate::{context::ParseContext, visitors::ImportedType};
     use cool_asserts::assert_matches;
     use itertools::Itertools;
     use syn::{visit::Visit, File};
@@ -603,14 +606,18 @@ mod test {
             }
             ";
 
+        let parse_context = ParseContext {
+            ignored_types: Vec::new(),
+            multi_file: true,
+            target_os: Vec::new(),
+        };
+
         let file: File = syn::parse_str(rust_code).unwrap();
         let mut visitor = TypeShareVisitor::new(
+            &parse_context,
             "my_crate".into(),
             "my_file".into(),
             "file_path".into(),
-            &[],
-            true,
-            &[],
         );
         visitor.visit_file(&file);
 

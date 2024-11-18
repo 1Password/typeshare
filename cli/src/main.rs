@@ -23,6 +23,7 @@ use rayon::iter::ParallelBridge;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
+    context::ParseContext,
     language::{
         CrateName, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift,
         TypeScript,
@@ -72,6 +73,8 @@ fn main() -> anyhow::Result<()> {
 
     let directories = options.directories.as_slice();
 
+    info!("Using directories: {directories:?}");
+
     let language_type = match options.language {
         None => panic!("no language specified; `clap` should have guaranteed its presence"),
         Some(language) => match language {
@@ -110,7 +113,7 @@ fn main() -> anyhow::Result<()> {
         .overrides(overrides)
         .follow_links(options.follow_links);
 
-    for root in directories {
+    for root in directories.iter().skip(1) {
         walker_builder.add(root);
     }
 
@@ -127,9 +130,13 @@ fn main() -> anyhow::Result<()> {
 
     let multi_file = matches!(destination, Output::Folder(_));
     let target_os = config.target_os.clone();
-
     let mut lang = language(language_type, config, multi_file);
-    let ignored_types = lang.ignored_reference_types();
+
+    let parse_context = ParseContext {
+        ignored_types: lang.ignored_reference_types(),
+        multi_file,
+        target_os,
+    };
 
     // The walker ignores directories that are git-ignored. If you need
     // a git-ignored directory to be processed, add the specific directory to
@@ -141,9 +148,7 @@ fn main() -> anyhow::Result<()> {
     // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
     let crate_parsed_data = parse_input(
         parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
-        &ignored_types,
-        multi_file,
-        &target_os,
+        &parse_context,
     )?;
 
     // Collect all the types into a map of the file name they
@@ -156,6 +161,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
+
+    info!("typeshare started writing generated types");
 
     write_generated(
         destination,
