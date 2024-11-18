@@ -256,7 +256,7 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
         if let Some(go_package) = options.go_package.as_ref() {
             config.go.package = go_package.to_string();
         }
-        
+
         if let Some(go_lang) = options.language {
             assert_go_package_present(&config)?;
         }
