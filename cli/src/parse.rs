@@ -1,6 +1,7 @@
 //! Source file parsing.
 use anyhow::Context;
 use ignore::WalkBuilder;
+use rayon::iter::ParallelIterator;
 use std::{
     collections::{hash_map::Entry, BTreeMap, HashMap},
     path::PathBuf,
@@ -88,38 +89,46 @@ pub fn all_types(file_mappings: &BTreeMap<CrateName, ParsedData>) -> CrateTypes 
 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
-    mut inputs: impl Iterator<Item = ParserInput>,
+    inputs: impl ParallelIterator<Item = ParserInput>,
     parse_context: &ParseContext,
 ) -> anyhow::Result<BTreeMap<CrateName, ParsedData>> {
-    inputs.try_fold(
-        BTreeMap::new(),
-        |mut parsed_crates: BTreeMap<CrateName, ParsedData>,
-         ParserInput {
-             file_path,
-             file_name,
-             crate_name,
-         }| {
-            let fp = file_path.as_os_str().to_str().unwrap_or("").to_string();
+    inputs
+        .try_fold(
+            BTreeMap::new,
+            |mut parsed_crates: BTreeMap<CrateName, ParsedData>,
+             ParserInput {
+                 file_path,
+                 file_name,
+                 crate_name,
+             }| {
+                let fp = file_path.as_os_str().to_str().unwrap_or("").to_string();
 
-            let parse_file_context = ParseFileContext {
-                source_code: std::fs::read_to_string(&file_path)
-                    .with_context(|| format!("Failed to read input: {file_path:?}"))?,
-                crate_name: crate_name.clone(),
-                file_name: file_name.clone(),
-                file_path,
-            };
+                let parse_file_context = ParseFileContext {
+                    source_code: std::fs::read_to_string(&file_path)
+                        .with_context(|| format!("Failed to read input: {file_path:?}"))?,
+                    crate_name: crate_name.clone(),
+                    file_name: file_name.clone(),
+                    file_path,
+                };
 
-            let parsed_result = typeshare_core::parser::parse(parse_context, parse_file_context)
-                .with_context(|| format!("Failed to parse: {fp}"))?;
+                let parsed_result =
+                    typeshare_core::parser::parse(parse_context, parse_file_context)
+                        .with_context(|| format!("Failed to parse: {fp}"))?;
 
-            if let Some(parsed_data) = parsed_result {
-                parsed_crates
-                    .entry(crate_name)
-                    .or_default()
-                    .add(parsed_data);
+                if let Some(parsed_data) = parsed_result {
+                    parsed_crates
+                        .entry(crate_name)
+                        .or_default()
+                        .add(parsed_data);
+                }
+
+                Ok(parsed_crates)
+            },
+        )
+        .try_reduce(BTreeMap::new, |mut file_maps, parsed_crates| {
+            for (crate_name, parsed_data) in parsed_crates {
+                file_maps.entry(crate_name).or_default().add(parsed_data);
             }
-
-            Ok(parsed_crates)
-        },
-    )
+            Ok(file_maps)
+        })
 }

@@ -19,6 +19,7 @@ use clap_complete::Generator;
 use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
+use rayon::iter::ParallelBridge;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -147,7 +148,7 @@ fn main() -> anyhow::Result<()> {
     // data. That way both walking and parsing are in parallel.
     // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
     let mut crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type, multi_file),
+        parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
         &parse_context,
     )?;
 

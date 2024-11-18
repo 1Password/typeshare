@@ -177,7 +177,7 @@ fn resolve_renamed(
     // Find in imports.
     import_types
         .iter()
-        .filter(|i| &i.type_name == id)
+        .filter(|i| i.type_name == id)
         .find_map(|import_ref| name_map.get(&import_ref.base_crate))
         // Fallback to looking up in our current namespace.
         .or_else(|| name_map.get(crate_name))
