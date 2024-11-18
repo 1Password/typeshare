@@ -257,8 +257,11 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
             config.go.package = go_package.to_string();
         }
 
-        if let Some(args::AvailableLanguage::Go) = options.language {
-            assert_go_package_present(&config)?;
+        if matches!(options.language, Some(args::AvailableLanguage::Go)) {
+            anyhow::ensure!(
+                    !config.go.package.is_empty(),
+                   "Please provide a package name in the typeshare.toml or using --go-package <package name>"
+                );
         }
     }
 
@@ -289,14 +292,4 @@ fn check_parse_errors(parsed_crates: &BTreeMap<CrateName, ParsedData>) -> anyhow
     } else {
         Ok(())
     }
-}
-
-#[cfg(feature = "go")]
-fn assert_go_package_present(config: &Config) -> anyhow::Result<()> {
-    if config.go.package.is_empty() {
-        return Err(anyhow!(
-            "Please provide a package name in the typeshare.toml or using --go-package <package name>"
-        ));
-    }
-    Ok(())
 }
