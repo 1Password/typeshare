@@ -257,7 +257,7 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
             config.go.package = go_package.to_string();
         }
 
-        if let Some(crates::args::AvailableLanguage::Go) = options.language {
+        if let Some(args::AvailableLanguage::Go) = options.language {
             assert_go_package_present(&config)?;
         }
     }
