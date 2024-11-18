@@ -157,22 +157,29 @@ fn check_type(
         },
         RustType::Simple { id } => {
             debug!("{crate_name} looking up original name {id}");
-            if let Some(name_map) = serde_renamed.get(id) {
-                debug!("Found rename map {name_map:?}");
 
-                // Look for the original name in the imports.
-                let resolved_crate = import_types
-                    .iter()
-                    .find(|i| &i.type_name == id)
-                    .and_then(|import_ref| name_map.get(&import_ref.base_crate))
-                    // Fallback to looking up in our current namespace.
-                    .or_else(|| name_map.get(crate_name));
-
-                if let Some(renamed) = resolved_crate {
-                    info!("renaming type from {id} to {renamed}");
-                    *id = renamed.to_owned();
-                }
+            if let Some(renamed) = resolve_renamed(crate_name, serde_renamed, import_types, id) {
+                info!("renaming type from {id} to {renamed}");
+                *id = renamed.to_owned();
             }
         }
     }
+}
+
+fn resolve_renamed(
+    crate_name: &CrateName,
+    serde_renamed: &RenamedTypes,
+    import_types: &HashSet<ImportedType>,
+    id: &str,
+) -> Option<String> {
+    let name_map = serde_renamed.get(id)?;
+
+    // Find in imports.
+    import_types
+        .iter()
+        .filter(|i| &i.type_name == id)
+        .find_map(|import_ref| name_map.get(&import_ref.base_crate))
+        // Fallback to looking up in our current namespace.
+        .or_else(|| name_map.get(crate_name))
+        .map(ToOwned::to_owned)
 }
