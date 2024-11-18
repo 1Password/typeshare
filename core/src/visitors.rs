@@ -47,7 +47,6 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 
 /// An import visitor that collects all use or
 /// qualified referenced items.
-// #[derive(Default)]
 pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
     file_path: PathBuf,
