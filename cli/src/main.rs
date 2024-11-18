@@ -73,6 +73,8 @@ fn main() -> anyhow::Result<()> {
 
     let directories = options.directories.as_slice();
 
+    info!("Using directories: {directories:?}");
+
     let language_type = match options.language {
         None => panic!("no language specified; `clap` should have guaranteed its presence"),
         Some(language) => match language {
@@ -159,6 +161,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     check_parse_errors(&crate_parsed_data)?;
+
+    info!("typeshare started writing generated types");
 
     write_generated(
         destination,
