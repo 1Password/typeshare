@@ -47,8 +47,6 @@ fn main() -> anyhow::Result<()> {
 
     let options = Args::parse();
 
-    info!("typeshare started generating types");
-
     if let Some(options) = options.subcommand {
         match options {
             Command::Completions { shell } => {
@@ -68,6 +66,8 @@ fn main() -> anyhow::Result<()> {
         config::store_config(&config, config_file).context("Failed to create new config file")?;
         return Ok(());
     }
+
+    info!("typeshare started generating types");
 
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
     let config = override_configuration(config, &options)?;
