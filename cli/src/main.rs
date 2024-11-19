@@ -15,7 +15,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use clap::{CommandFactory, Parser};
-use clap_complete::Generator;
+use clap_complete::aot::generate;
 use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
@@ -51,7 +51,9 @@ fn main() -> anyhow::Result<()> {
     if let Some(options) = options.subcommand {
         match options {
             Command::Completions { shell } => {
-                shell.generate(&Args::command(), &mut io::stdout().lock())
+                let mut cmd = Args::command();
+                let bin_name = cmd.get_name().to_string();
+                generate(shell, &mut cmd, bin_name, &mut io::stdout());
             }
         }
 
