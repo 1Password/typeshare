@@ -1,3 +1,8 @@
+# Version 1.13.1
+- Fix duplicate root added to walker: [#209](https://github.com/1Password/typeshare/pull/209)
+- Only assert if go package is present if generating go types: [#211](https://github.com/1Password/typeshare/pull/211)
+- Update shell completions for new generate function: [#212](https://github.com/1Password/typeshare/pull/212)
+
 # Version 1.13.0
 - Update how logging is initialized: [#206](https://github.com/1Password/typeshare/pull/206)
 - Don't recreate `Codable.swift` when the contents have not changed [#205](https://github.com/1Password/typeshare/pull/205)
