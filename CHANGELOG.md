@@ -1,3 +1,6 @@
+# Version 1.13.2
+- Fix binary name in --help --version so typeshare is the name and not typeshare-cli: [#214](https://github.com/1Password/typeshare/pull/214)
+
 # Version 1.13.1
 - Fix duplicate root added to walker: [#209](https://github.com/1Password/typeshare/pull/209)
 - Only assert if go package is present if generating go types: [#211](https://github.com/1Password/typeshare/pull/211)
