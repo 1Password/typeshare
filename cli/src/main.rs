@@ -19,7 +19,7 @@ use clap_complete::aot::generate;
 use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
-use rayon::iter::ParallelBridge;
+use parse::parallel_parse;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
 use typeshare_core::{
@@ -34,7 +34,7 @@ use typeshare_core::{
 use crate::{
     args::{Args, Command},
     config::Config,
-    parse::{all_types, parse_input, parser_inputs},
+    parse::all_types,
     writer::{write_generated, Output},
 };
 
@@ -45,8 +45,6 @@ fn main() -> anyhow::Result<()> {
         .start()?;
 
     let options = Args::parse();
-
-    info!("typeshare started generating types");
 
     if let Some(options) = options.subcommand {
         match options {
@@ -69,6 +67,8 @@ fn main() -> anyhow::Result<()> {
         config::store_config(&config, config_file).context("Failed to create new config file")?;
         return Ok(());
     }
+
+    info!("typeshare started generating types");
 
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
     let config = override_configuration(config, &options)?;
@@ -140,18 +140,7 @@ fn main() -> anyhow::Result<()> {
         target_os,
     };
 
-    // The walker ignores directories that are git-ignored. If you need
-    // a git-ignored directory to be processed, add the specific directory to
-    // the list of directories given to typeshare when it's invoked in the
-    // makefiles
-    // TODO: The `ignore` walker supports parallel walking. We should use this
-    // and implement a `ParallelVisitor` that builds up the mapping of parsed
-    // data. That way both walking and parsing are in parallel.
-    // https://docs.rs/ignore/latest/ignore/struct.WalkParallel.html
-    let crate_parsed_data = parse_input(
-        parser_inputs(walker_builder, language_type, multi_file).par_bridge(),
-        &parse_context,
-    )?;
+    let crate_parsed_data = parallel_parse(&parse_context, walker_builder, language_type);
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating

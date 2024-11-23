@@ -16,6 +16,7 @@ use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
+    ops::AddAssign,
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
@@ -109,6 +110,23 @@ pub struct ParsedData {
     pub multi_file: bool,
 }
 
+// The better abstraction here is Semigroup Monoid but such
+// traits don't exist in Rust. I'd rather have infix <>.
+impl AddAssign<ParsedData> for ParsedData {
+    fn add_assign(&mut self, mut rhs: ParsedData) {
+        self.structs.append(&mut rhs.structs);
+        self.enums.append(&mut rhs.enums);
+        self.aliases.append(&mut rhs.aliases);
+        self.import_types.extend(rhs.import_types);
+        self.type_names.extend(rhs.type_names);
+        self.errors.append(&mut rhs.errors);
+
+        self.file_name = rhs.file_name;
+        self.crate_name = rhs.crate_name;
+        self.multi_file = rhs.multi_file;
+    }
+}
+
 impl ParsedData {
     /// Create a new parsed data.
     pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {
@@ -118,20 +136,6 @@ impl ParsedData {
             multi_file,
             ..Default::default()
         }
-    }
-
-    /// Add the parsed data from `other` to `self`.
-    pub fn add(&mut self, mut other: Self) {
-        self.structs.append(&mut other.structs);
-        self.enums.append(&mut other.enums);
-        self.aliases.append(&mut other.aliases);
-        self.import_types.extend(other.import_types);
-        self.type_names.extend(other.type_names);
-        self.errors.append(&mut other.errors);
-
-        self.file_name = other.file_name;
-        self.crate_name = other.crate_name;
-        self.multi_file = other.multi_file;
     }
 
     pub(crate) fn push(&mut self, rust_thing: RustItem) {
