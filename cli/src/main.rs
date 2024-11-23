@@ -140,27 +140,22 @@ fn main() -> anyhow::Result<()> {
         target_os,
     };
 
-    let crate_parsed_data = parallel_parse(&parse_context, walker_builder, language_type);
+    let parsed_data = parallel_parse(&parse_context, walker_builder, language_type);
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
     // imports in generated files.
     let import_candidates = if multi_file {
-        all_types(&crate_parsed_data)
+        all_types(&parsed_data)
     } else {
         HashMap::new()
     };
 
-    check_parse_errors(&crate_parsed_data)?;
+    check_parse_errors(&parsed_data)?;
 
     info!("typeshare started writing generated types");
 
-    write_generated(
-        destination,
-        lang.as_mut(),
-        crate_parsed_data,
-        import_candidates,
-    )?;
+    write_generated(destination, lang.as_mut(), parsed_data, import_candidates)?;
 
     info!("typeshare finished generating types");
     Ok(())

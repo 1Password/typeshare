@@ -129,8 +129,7 @@ fn parse_dir_entry(
         .flatten()
 }
 
-/// Use parallel builder to walk all source directories
-/// in parallel.
+/// Use parallel builder to walk all source directories concurrently.
 pub fn parallel_parse(
     parse_context: &ParseContext,
     walker_builder: WalkBuilder,
@@ -143,6 +142,7 @@ pub fn parallel_parse(
 
         for parsed_data in rx {
             let crate_name = parsed_data.crate_name.clone();
+            // Append each yielded parsed data by its respective crate.
             *crate_parsed_data.entry(crate_name).or_default() += parsed_data;
         }
 
@@ -151,7 +151,6 @@ pub fn parallel_parse(
 
     walker_builder.build_parallel().run(|| {
         let tx = tx.clone();
-        let parse_context = &parse_context;
 
         Box::new(move |direntry_result| match direntry_result {
             Ok(dir_entry) => {
