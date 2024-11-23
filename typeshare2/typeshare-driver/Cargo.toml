@@ -1,5 +1,5 @@
 [package]
-name = "typeshare-main"
+name = "typeshare-driver"
 version = "0.1.0"
 edition = "2021"
 
