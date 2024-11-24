@@ -18,7 +18,7 @@ use typeshare_core::{
 };
 
 /// Input data for parsing each source file.
-pub struct ParserInput {
+struct ParserInput {
     /// Rust source file path.
     file_path: PathBuf,
     /// File name source from crate for output.
@@ -80,7 +80,7 @@ pub fn all_types(file_mappings: &mut BTreeMap<CrateName, ParsedData>) -> CrateTy
         )
 }
 
-pub fn parse_input(
+fn parse_input(
     parse_context: &ParseContext,
     parse_input: ParserInput,
 ) -> anyhow::Result<Option<ParsedData>> {
