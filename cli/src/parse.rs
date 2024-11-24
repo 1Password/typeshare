@@ -2,48 +2,47 @@
 use anyhow::Context;
 use crossbeam::channel::bounded;
 use ignore::{DirEntry, WalkBuilder, WalkState};
-use log::error;
 use std::{
     collections::{BTreeMap, HashMap},
-    mem,
-    ops::Not,
-    path::PathBuf,
-    thread,
+    mem, thread,
 };
 use typeshare_core::{
     context::{ParseContext, ParseFileContext},
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
-    parser::ParsedData,
+    parser::{ParseError, ParsedData},
     RenameExt,
 };
 
-/// Input data for parsing each source file.
-struct ParserInput {
-    /// Rust source file path.
-    file_path: PathBuf,
-    /// File name source from crate for output.
-    out_file_name: String,
-    /// The crate name the source file belongs to.
-    crate_name: CrateName,
-}
-
-fn mk_parse_input(
+fn parse_file_context(
     multi_file: bool,
     language_type: SupportedLanguage,
-    dir_entry: DirEntry,
-) -> Option<ParserInput> {
+    dir_entry: &DirEntry,
+) -> anyhow::Result<Option<ParseFileContext>> {
     let crate_name = if multi_file {
-        CrateName::find_crate_name(dir_entry.path())?
+        let Some(crate_name) = CrateName::find_crate_name(dir_entry.path()) else {
+            return Ok(None);
+        };
+        crate_name
     } else {
         SINGLE_FILE_CRATE_NAME
     };
     let file_path = dir_entry.path().to_path_buf();
     let out_file_name = output_file_name(language_type, &crate_name);
-    Some(ParserInput {
-        file_path,
-        out_file_name,
+
+    let input_file = file_path
+        .to_str()
+        .map(ToOwned::to_owned)
+        .unwrap_or_default();
+
+    let parse_file_context = ParseFileContext {
+        source_code: std::fs::read_to_string(&file_path)
+            .with_context(|| format!("Failed to read input: {input_file}"))?,
         crate_name,
-    })
+        file_name: out_file_name,
+        file_path,
+    };
+
+    Ok(Some(parse_file_context))
 }
 
 /// The output file name to write to.
@@ -80,44 +79,23 @@ pub fn all_types(file_mappings: &mut BTreeMap<CrateName, ParsedData>) -> CrateTy
         )
 }
 
-fn parse_input(
-    parse_context: &ParseContext,
-    parse_input: ParserInput,
-) -> anyhow::Result<Option<ParsedData>> {
-    let input_file = parse_input
-        .file_path
-        .to_str()
-        .map(ToOwned::to_owned)
-        .unwrap_or_default();
-
-    let parse_file_context = ParseFileContext {
-        source_code: std::fs::read_to_string(&parse_input.file_path)
-            .with_context(|| format!("Failed to read input: {input_file}"))?,
-        crate_name: parse_input.crate_name.clone(),
-        file_name: parse_input.out_file_name,
-        file_path: parse_input.file_path,
-    };
-
-    let parsed_result = typeshare_core::parser::parse(parse_context, parse_file_context)
-        .with_context(|| format!("Failed to parse: {input_file}"))?;
-
-    Ok(parsed_result)
-}
-
 fn parse_dir_entry(
     parse_context: &ParseContext,
     language_type: SupportedLanguage,
-    dir_entry: DirEntry,
-) -> Option<ParsedData> {
-    dir_entry.path().is_dir().not().then_some(())?;
-    let input = mk_parse_input(parse_context.multi_file, language_type, dir_entry)?;
-    match parse_input(parse_context, input) {
-        Ok(parsed_data) => parsed_data,
-        Err(err) => {
-            error!("Failed to parse {err}");
-            None
-        }
+    dir_entry: &DirEntry,
+) -> Result<Option<ParsedData>, ParseError> {
+    if dir_entry.path().is_dir() {
+        return Ok(None);
     }
+
+    let Some(parse_file_context) =
+        parse_file_context(parse_context.multi_file, language_type, &dir_entry)
+            .map_err(|err| ParseError::IOError(err.to_string()))?
+    else {
+        return Ok(None);
+    };
+
+    typeshare_core::parser::parse(parse_context, parse_file_context)
 }
 
 /// Use parallel builder to walk all source directories concurrently.
@@ -125,35 +103,41 @@ pub fn parallel_parse(
     parse_context: &ParseContext,
     walker_builder: WalkBuilder,
     language_type: SupportedLanguage,
-) -> BTreeMap<CrateName, ParsedData> {
-    let (tx, rx) = bounded::<ParsedData>(100);
+) -> anyhow::Result<BTreeMap<CrateName, ParsedData>> {
+    let (tx, rx) = bounded::<anyhow::Result<ParsedData>>(100);
 
     let collector_thread = thread::spawn(move || {
         let mut crate_parsed_data: BTreeMap<CrateName, ParsedData> = BTreeMap::new();
 
-        for parsed_data in rx {
+        for result in rx {
+            let parsed_data = result?;
             let crate_name = parsed_data.crate_name.clone();
             // Append each yielded parsed data by its respective crate.
             *crate_parsed_data.entry(crate_name).or_default() += parsed_data;
         }
 
-        crate_parsed_data
+        Ok(crate_parsed_data)
     });
 
     walker_builder.build_parallel().run(|| {
         let tx = tx.clone();
 
-        Box::new(move |result| match result {
-            Ok(dir_entry) => {
-                if let Some(parsed_data) = parse_dir_entry(parse_context, language_type, dir_entry)
-                {
-                    tx.send(parsed_data).unwrap();
+        Box::new(move |result| {
+            let result = result.context("Failed traversing").and_then(|dir_entry| {
+                parse_dir_entry(parse_context, language_type, &dir_entry)
+                    .with_context(|| format!("Parsing failed: {:?}", dir_entry.path()))
+            });
+            match result {
+                Ok(parsed_data) => {
+                    if let Some(parsed_data) = parsed_data {
+                        tx.send(Ok(parsed_data)).unwrap();
+                    }
+                    WalkState::Continue
                 }
-                WalkState::Continue
-            }
-            Err(e) => {
-                error!("Traversing directories failed: {e}");
-                WalkState::Quit
+                Err(err) => {
+                    tx.send(Err(err)).unwrap();
+                    WalkState::Quit
+                }
             }
         })
     });

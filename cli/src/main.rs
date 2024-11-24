@@ -68,6 +68,12 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    generate_types(config_file, &options).inspect_err(|err| {
+        error!("Typeshare failed to generate types: {err}");
+    })
+}
+
+fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<()> {
     info!("typeshare started generating types");
 
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
@@ -114,7 +120,7 @@ fn main() -> anyhow::Result<()> {
         &parse_context,
         walker_builder(directories, &options)?,
         language_type,
-    );
+    )?;
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating

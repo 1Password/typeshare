@@ -76,6 +76,8 @@ pub enum ParseError {
     SerdeContentRequired { enum_ident: String },
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
+    #[error("IO error: {0}")]
+    IOError(String),
 }
 
 /// Error with it's related data.
