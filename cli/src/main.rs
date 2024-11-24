@@ -63,14 +63,14 @@ fn main() -> anyhow::Result<()> {
     let config_file = options.config_file.as_deref();
 
     if options.output.generate_config {
-        let config = override_configuration(Config::default(), &options)?;
-        config::store_config(&config, config_file).context("Failed to create new config file")?;
-        return Ok(());
+        override_configuration(Config::default(), &options)
+            .and_then(|config| config::store_config(&config, config_file))
+            .inspect_err(|err| error!("typeshare failed to create new config file: {err}"))
+    } else {
+        generate_types(config_file, &options).inspect_err(|err| {
+            error!("typeshare failed to generate types: {err}");
+        })
     }
-
-    generate_types(config_file, &options).inspect_err(|err| {
-        error!("Typeshare failed to generate types: {err}");
-    })
 }
 
 fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<()> {
