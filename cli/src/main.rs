@@ -40,8 +40,8 @@ use crate::{
 
 fn main() -> anyhow::Result<()> {
     flexi_logger::Logger::try_with_env_or_str("info")?
-        .adaptive_format_for_stderr(AdaptiveFormat::Detailed)
-        .adaptive_format_for_stdout(AdaptiveFormat::Detailed)
+        .adaptive_format_for_stderr(AdaptiveFormat::Opt)
+        .adaptive_format_for_stdout(AdaptiveFormat::Opt)
         .start()?;
 
     let options = Args::parse();
