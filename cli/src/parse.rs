@@ -89,7 +89,7 @@ fn parse_dir_entry(
     }
 
     let Some(parse_file_context) =
-        parse_file_context(parse_context.multi_file, language_type, &dir_entry)
+        parse_file_context(parse_context.multi_file, language_type, dir_entry)
             .map_err(|err| ParseError::IOError(err.to_string()))?
     else {
         return Ok(None);
@@ -128,12 +128,11 @@ pub fn parallel_parse(
                     .with_context(|| format!("Parsing failed: {:?}", dir_entry.path()))
             });
             match result {
-                Ok(parsed_data) => {
-                    if let Some(parsed_data) = parsed_data {
-                        tx.send(Ok(parsed_data)).unwrap();
-                    }
+                Ok(Some(parsed_data)) => {
+                    tx.send(Ok(parsed_data)).unwrap();
                     WalkState::Continue
                 }
+                Ok(None) => WalkState::Continue,
                 Err(err) => {
                     tx.send(Err(err)).unwrap();
                     WalkState::Quit

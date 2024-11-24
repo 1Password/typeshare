@@ -77,7 +77,7 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
     info!("typeshare started generating types");
 
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
-    let config = override_configuration(config, &options)?;
+    let config = override_configuration(config, options)?;
 
     let directories = options.directories.as_slice();
 
@@ -118,7 +118,7 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
 
     let mut parsed_data = parallel_parse(
         &parse_context,
-        walker_builder(directories, &options)?,
+        walker_builder(directories, options)?,
         language_type,
     )?;
 
