@@ -112,21 +112,15 @@ fn parse_dir_entry(
     language_type: SupportedLanguage,
     dir_entry: DirEntry,
 ) -> Option<ParsedData> {
-    dir_entry
-        .path()
-        .is_dir()
-        .not()
-        .then(|| {
-            let input = mk_parse_input(parse_context.multi_file, language_type, dir_entry)?;
-            match parse_input(parse_context, input) {
-                Ok(parsed_data) => parsed_data,
-                Err(err) => {
-                    error!("Failed to parse {err}");
-                    None
-                }
-            }
-        })
-        .flatten()
+    dir_entry.path().is_dir().not().then_some(())?;
+    let input = mk_parse_input(parse_context.multi_file, language_type, dir_entry)?;
+    match parse_input(parse_context, input) {
+        Ok(parsed_data) => parsed_data,
+        Err(err) => {
+            error!("Failed to parse {err}");
+            None
+        }
+    }
 }
 
 /// Use parallel builder to walk all source directories concurrently.
@@ -152,7 +146,7 @@ pub fn parallel_parse(
     walker_builder.build_parallel().run(|| {
         let tx = tx.clone();
 
-        Box::new(move |direntry_result| match direntry_result {
+        Box::new(move |result| match result {
             Ok(dir_entry) => {
                 if let Some(result) = parse_dir_entry(parse_context, language_type, dir_entry) {
                     tx.send(result).unwrap();
@@ -160,7 +154,7 @@ pub fn parallel_parse(
                 WalkState::Continue
             }
             Err(e) => {
-                error!("Failed to walk {e}");
+                error!("Traversing directories failed: {e}");
                 WalkState::Quit
             }
         })
