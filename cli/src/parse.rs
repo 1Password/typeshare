@@ -4,7 +4,8 @@ use crossbeam::channel::bounded;
 use ignore::{DirEntry, WalkBuilder, WalkState};
 use log::error;
 use std::{
-    collections::{hash_map::Entry, BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap},
+    mem,
     ops::Not,
     path::PathBuf,
     thread,
@@ -63,21 +64,17 @@ fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) ->
 
 /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 /// mapping is used to lookup and generated import statements for generated files.
-pub fn all_types(file_mappings: &BTreeMap<CrateName, ParsedData>) -> CrateTypes {
+pub fn all_types(file_mappings: &mut BTreeMap<CrateName, ParsedData>) -> CrateTypes {
     file_mappings
-        .iter()
-        .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
+        .iter_mut()
+        .map(|(crate_name, parsed_data)| (crate_name, mem::take(&mut parsed_data.type_names)))
         .fold(
             HashMap::new(),
             |mut import_map: CrateTypes, (crate_name, type_names)| {
-                match import_map.entry(crate_name.clone()) {
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().extend(type_names);
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(type_names);
-                    }
-                }
+                import_map
+                    .entry(crate_name.clone())
+                    .or_default()
+                    .extend(type_names);
                 import_map
             },
         )
@@ -148,8 +145,9 @@ pub fn parallel_parse(
 
         Box::new(move |result| match result {
             Ok(dir_entry) => {
-                if let Some(result) = parse_dir_entry(parse_context, language_type, dir_entry) {
-                    tx.send(result).unwrap();
+                if let Some(parsed_data) = parse_dir_entry(parse_context, language_type, dir_entry)
+                {
+                    tx.send(parsed_data).unwrap();
                 }
                 WalkState::Continue
             }

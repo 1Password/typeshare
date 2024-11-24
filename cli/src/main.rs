@@ -89,36 +89,6 @@ fn main() -> anyhow::Result<()> {
         },
     };
 
-    let mut types = TypesBuilder::new();
-    types
-        .add("rust", "*.rs")
-        .context("Failed to add rust type extensions")?;
-    types.select("rust");
-
-    // This is guaranteed to always have at least one value by the clap configuration
-    let first_root = directories
-        .first()
-        .expect("directories is empty; this shouldn't be possible");
-
-    let overrides = OverrideBuilder::new(first_root)
-        // Don't process files inside of tools/typeshare/
-        .add("!**/tools/typeshare/**")
-        .context("Failed to parse override")?
-        .build()
-        .context("Failed to build override")?;
-
-    let mut walker_builder = WalkBuilder::new(first_root);
-    // Sort walker output for deterministic output across platforms
-    walker_builder
-        .sort_by_file_path(Path::cmp)
-        .types(types.build().context("Failed to build types")?)
-        .overrides(overrides)
-        .follow_links(options.follow_links);
-
-    for root in directories.iter().skip(1) {
-        walker_builder.add(root);
-    }
-
     let destination = if let Some(ref file) = options.output.file {
         Output::File(file)
     } else if let Some(ref folder) = options.output.folder {
@@ -140,13 +110,17 @@ fn main() -> anyhow::Result<()> {
         target_os,
     };
 
-    let parsed_data = parallel_parse(&parse_context, walker_builder, language_type);
+    let mut parsed_data = parallel_parse(
+        &parse_context,
+        walker_builder(directories, &options)?,
+        language_type,
+    );
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
     // imports in generated files.
     let import_candidates = if multi_file {
-        all_types(&parsed_data)
+        all_types(&mut parsed_data)
     } else {
         HashMap::new()
     };
@@ -159,6 +133,37 @@ fn main() -> anyhow::Result<()> {
 
     info!("typeshare finished generating types");
     Ok(())
+}
+
+fn walker_builder(
+    directories: &[std::path::PathBuf],
+    options: &Args,
+) -> anyhow::Result<WalkBuilder> {
+    let mut types = TypesBuilder::new();
+    types
+        .add("rust", "*.rs")
+        .context("Failed to add rust type extensions")?;
+    types.select("rust");
+
+    let first_root = directories
+        .first()
+        .expect("directories is empty; this shouldn't be possible");
+    let overrides = OverrideBuilder::new(first_root)
+        // Don't process files inside of tools/typeshare/
+        .add("!**/tools/typeshare/**")
+        .context("Failed to parse override")?
+        .build()
+        .context("Failed to build override")?;
+    let mut walker_builder = WalkBuilder::new(first_root);
+    walker_builder
+        .sort_by_file_path(Path::cmp)
+        .types(types.build().context("Failed to build types")?)
+        .overrides(overrides)
+        .follow_links(options.follow_links);
+    for root in directories.iter().skip(1) {
+        walker_builder.add(root);
+    }
+    Ok(walker_builder)
 }
 
 /// Get the language trait impl for the given supported language and configuration.
