@@ -81,7 +81,10 @@ impl Language for TypeScript {
             | SpecialRustType::I64
             | SpecialRustType::ISize
             | SpecialRustType::USize => {
-                panic!("64 bit types not allowed in Typeshare")
+                panic!(
+                    "64 bit integer types require an explicit output type. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-64-bit-integer-types for more information."
+                )
             }
         }
     }
