@@ -379,6 +379,7 @@ pub trait Language {
                     id: Id {
                         original: struct_name.clone(),
                         renamed: struct_name.clone(),
+                        serde_rename: false
                     },
                     fields: fields.clone(),
                     generic_types,

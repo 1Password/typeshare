@@ -21,6 +21,8 @@ pub struct Id {
     /// If there is no re-naming going on, this will be identical to
     /// `original`.
     pub renamed: String,
+    /// Was this renamed with `serde(rename = "newname")
+    pub serde_rename: bool,
 }
 
 impl std::fmt::Display for Id {

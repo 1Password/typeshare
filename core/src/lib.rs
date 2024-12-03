@@ -7,6 +7,7 @@ pub mod context;
 pub mod language;
 /// Parsing Rust code into a format the `language` modules can understand
 pub mod parser;
+pub mod reconcile;
 mod rename;
 /// Codifying Rust types and how they convert to various languages.
 pub mod rust_types;

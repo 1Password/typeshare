@@ -130,6 +130,7 @@ impl Language for Kotlin {
                     id: Id {
                         original: String::from("value"),
                         renamed: String::from("value"),
+                        serde_rename: false,
                     },
                     ty: ty.r#type.clone(),
                     comments: vec![],

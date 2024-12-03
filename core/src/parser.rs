@@ -93,11 +93,11 @@ pub struct ErrorInfo {
 #[derive(Default, Debug)]
 pub struct ParsedData {
     /// Structs defined in the source
-    pub structs: BTreeSet<RustStruct>,
+    pub structs: Vec<RustStruct>,
     /// Enums defined in the source
-    pub enums: BTreeSet<RustEnum>,
+    pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
-    pub aliases: BTreeSet<RustTypeAlias>,
+    pub aliases: Vec<RustTypeAlias>,
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
@@ -144,15 +144,15 @@ impl ParsedData {
         match rust_thing {
             RustItem::Struct(s) => {
                 self.type_names.insert(s.id.renamed.clone());
-                self.structs.insert(s);
+                self.structs.push(s);
             }
             RustItem::Enum(e) => {
                 self.type_names.insert(e.shared().id.renamed.clone());
-                self.enums.insert(e);
+                self.enums.push(e);
             }
             RustItem::Alias(a) => {
                 self.type_names.insert(a.id.renamed.clone());
-                self.aliases.insert(a);
+                self.aliases.push(a);
             }
         }
     }
@@ -184,7 +184,7 @@ pub fn parse(
         file_path,
     } = parse_file_context;
 
-    debug!("parsing {file_name}");
+    debug!("parsing {file_path:?}");
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);
@@ -560,11 +560,17 @@ fn get_ident(
 
     let mut renamed = rename_all_to_case(original.clone(), rename_all);
 
+    let mut renamed_via_serde_rename = false;
     if let Some(s) = serde_rename(attrs) {
         renamed = s;
+        renamed_via_serde_rename = true;
     }
 
-    Id { original, renamed }
+    Id {
+        original,
+        renamed,
+        serde_rename: renamed_via_serde_rename,
+    }
 }
 
 fn rename_all_to_case(original: String, case: &Option<String>) -> String {

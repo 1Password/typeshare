@@ -3,8 +3,7 @@ use flexi_logger::DeferredNow;
 use log::Record;
 use once_cell::sync::Lazy;
 use std::{
-    collections::HashMap,
-    env,
+    collections::{BTreeMap, HashMap},
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -12,7 +11,8 @@ use std::{
 };
 use typeshare_core::{
     context::{ParseContext, ParseFileContext},
-    language::Language,
+    language::{CrateName, Language},
+    reconcile::reconcile_aliases,
 };
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
@@ -115,6 +115,14 @@ fn check(
         },
     )?
     .unwrap();
+
+    let all_crates: CrateName = String::new().into();
+
+    let mut map = BTreeMap::from_iter([(all_crates.clone(), parsed_data)]);
+    reconcile_aliases(&mut map);
+
+    let parsed_data = map.remove(&all_crates).unwrap();
+
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
@@ -629,4 +637,5 @@ tests! {
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
     excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
+    serde_rename_references: [ swift, kotlin, scala, typescript, go ];
 }

@@ -29,6 +29,7 @@ use typeshare_core::{
         TypeScript,
     },
     parser::ParsedData,
+    reconcile::reconcile_aliases,
 };
 
 use crate::{
@@ -121,6 +122,8 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
         walker_builder(directories, options)?,
         language_type,
     )?;
+
+    reconcile_aliases(&mut parsed_data);
 
     // Collect all the types into a map of the file name they
     // belong too and the list of type names. Used for generating
