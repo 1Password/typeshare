@@ -77,8 +77,6 @@ fn main() -> anyhow::Result<()> {
 fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<()> {
     info!("typeshare started generating types");
 
-    info!("typeshare started generating types");
-
     let config = config::load_config(config_file).context("Unable to read configuration file")?;
     let config = override_configuration(config, options)?;
 
