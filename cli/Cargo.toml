@@ -23,7 +23,6 @@ clap = { version = "4.5", features = [
 ] }
 ignore = "0.4"
 once_cell = "1"
-rayon = "1.10"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 typeshare-core = { path = "../core", version = "=1.13.2" }
@@ -31,3 +30,4 @@ log.workspace = true
 flexi_logger.workspace = true
 anyhow = "1"
 clap_complete = "4.5.32"
+crossbeam = "0.8"
