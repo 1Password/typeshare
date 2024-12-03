@@ -193,7 +193,7 @@ impl<'a> TypeShareVisitor<'a> {
     }
 }
 
-impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
+impl<'ast> Visit<'ast> for TypeShareVisitor<'_> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
@@ -297,7 +297,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         syn::visit::visit_item_type(self, i);
     }
 
-    /// Track potentially skipped modules.
+    // Track potentially skipped modules.
     // fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
     //     if let Some(target_os) = self.target_os.as_ref() {
     //         if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
@@ -383,7 +383,7 @@ impl<'a> ItemUseIter<'a> {
     }
 }
 
-impl<'a> Iterator for ItemUseIter<'a> {
+impl Iterator for ItemUseIter<'_> {
     type Item = ImportedType;
 
     fn next(&mut self) -> Option<Self::Item> {
