@@ -283,6 +283,8 @@ impl Language for Python {
             RustEnum::Unit(shared) => {
                 self.add_import("enum".to_string(), "Enum".to_string());
                 writeln!(w, "class {}(str, Enum):", shared.id.renamed)?;
+                // let comment = shared.comments.join("\n");
+                self.write_comments(w, true, &shared.comments, 1)?;
                 if shared.variants.is_empty() {
                     writeln!(w, "    pass")?;
                 } else {
@@ -295,9 +297,10 @@ impl Language for Python {
                                 RustEnumVariant::Unit(v) => {
                                     v.id.renamed.replace("\"", "\\\"")
                                 }
-                                _ => panic!(),
+                                _ => unreachable!("Only unit variants are allowed here"),
                             }
-                        )
+                        )?;
+                        self.write_comments(w, true, &v.shared().comments, 1)
                     })?
                 };
             }
