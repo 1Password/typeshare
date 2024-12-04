@@ -627,6 +627,7 @@ impl Python {
                 }
             }
         }
+        
         self.write_comments(w, false, &shared.comments, 0)?;
         if union_members.len() == 1 {
             writeln!(w, "{enum_name} = {}", union_members[0])?;
