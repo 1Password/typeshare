@@ -216,6 +216,7 @@ macro_rules! language_instance {
     (python {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Python {
+            no_version_header: true,
             $($field: $val,)*
             ..Default::default()
         })
