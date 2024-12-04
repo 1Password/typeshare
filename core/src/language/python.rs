@@ -577,7 +577,7 @@ impl Python {
                 RustEnumVariant::Unit(variant_shared) => {
                     self.write_variant_class(
                         &variant_class_name,
-                        &tag_key,
+                        tag_key,
                         format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         None,
@@ -596,7 +596,7 @@ impl Python {
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                     self.write_variant_class(
                         &variant_class_name,
-                        &tag_key,
+                        tag_key,
                         format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         Some(&tuple_name),
@@ -615,7 +615,7 @@ impl Python {
 
                     self.write_variant_class(
                         &variant_class_name,
-                        &tag_key,
+                        tag_key,
                         format!("{enum_type_class_name}.{type_key_name}",).as_str(),
                         content_key,
                         Some(&variant_class_inner_name),
@@ -694,7 +694,7 @@ mod test {
             id: Id {
                 original: "field".to_string(),
                 renamed: "field".to_string(),
-                serde_rename: true,
+                serde_rename: false,
             },
             ty: RustType::Special(SpecialRustType::Option(Box::new(RustType::Simple {
                 id: "str".to_string(),
@@ -718,7 +718,7 @@ mod test {
             id: Id {
                 original: "field".to_string(),
                 renamed: "field".to_string(),
-                serde_rename: true,
+                serde_rename: false,
             },
             ty: RustType::Special(SpecialRustType::Option(Box::new(RustType::Simple {
                 id: "str".to_string(),
@@ -744,7 +744,7 @@ mod test {
             id: Id {
                 original: "field".to_string(),
                 renamed: "field".to_string(),
-                serde_rename: true,
+                serde_rename: false,
             },
             ty: RustType::Simple {
                 id: "str".to_string(),
@@ -768,7 +768,7 @@ mod test {
             id: Id {
                 original: "field".to_string(),
                 renamed: "field".to_string(),
-                serde_rename: true,
+                serde_rename: false,
             },
             ty: RustType::Simple {
                 id: "str".to_string(),
