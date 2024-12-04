@@ -1,3 +1,10 @@
+/**
+ * A struct with no target_os. Should be generated when
+ * we use --target-os.
+ */
+export interface AlwaysAccept {
+}
+
 export interface DefinedTwice {
 	field1: string;
 }
@@ -15,6 +22,11 @@ export interface NestedNotTarget1 {
 }
 
 export interface OtherExcluded {
+}
+
+export enum AlwaysAcceptEnum {
+	Variant1 = "Variant1",
+	Variant2 = "Variant2",
 }
 
 export enum SomeEnum {

@@ -2,6 +2,10 @@ package com.agilebits
 
 package onepassword {
 
+// A struct with no target_os. Should be generated when
+// we use --target-os.
+class AlwaysAccept extends Serializable
+
 case class DefinedTwice (
 	field1: String
 )
@@ -15,6 +19,18 @@ class MultipleTargets extends Serializable
 class NestedNotTarget1 extends Serializable
 
 class OtherExcluded extends Serializable
+
+sealed trait AlwaysAcceptEnum {
+	def serialName: String
+}
+object AlwaysAcceptEnum {
+	case object Variant1 extends AlwaysAcceptEnum {
+		val serialName: String = "Variant1"
+	}
+	case object Variant2 extends AlwaysAcceptEnum {
+		val serialName: String = "Variant2"
+	}
+}
 
 sealed trait SomeEnum {
 	def serialName: String

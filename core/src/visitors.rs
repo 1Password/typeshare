@@ -1,5 +1,6 @@
 //! Visitors to collect various items from the AST.
 use crate::{
+    context::ParseContext,
     language::CrateName,
     parser::{
         has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
@@ -46,30 +47,24 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 
 /// An import visitor that collects all use or
 /// qualified referenced items.
-#[derive(Default)]
 pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
-    #[allow(dead_code)]
     file_path: PathBuf,
-    ignored_types: &'a [&'a str],
-    target_os: &'a [String],
+    parse_context: &'a ParseContext<'a>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
     pub fn new(
+        parse_context: &'a ParseContext<'a>,
         crate_name: CrateName,
         file_name: String,
         file_path: PathBuf,
-        ignored_types: &'a [&'a str],
-        multi_file: bool,
-        target_os: &'a [String],
     ) -> Self {
         Self {
-            parsed_data: ParsedData::new(crate_name, file_name, multi_file),
+            parsed_data: ParsedData::new(crate_name, file_name, parse_context.multi_file),
             file_path,
-            ignored_types,
-            target_os,
+            parse_context,
         }
     }
 
@@ -92,8 +87,7 @@ impl<'a> TypeShareVisitor<'a> {
         match result {
             Ok(data) => self.parsed_data.push(data),
             Err(error) => self.parsed_data.errors.push(ErrorInfo {
-                crate_name: self.parsed_data.crate_name.clone(),
-                file_name: self.parsed_data.file_name.clone(),
+                file_name: self.file_path.to_string_lossy().into_owned(),
                 error,
             }),
         }
@@ -191,15 +185,15 @@ impl<'a> TypeShareVisitor<'a> {
         self.parsed_data.import_types = diff;
     }
 
-    /// Is this type annoted with at `#[cfg(target_os = "target")]` that does
+    /// Is this type annotated with at `#[cfg(target_os = "target")]` that does
     /// not match `--target-os` argument?
     #[inline(always)]
     fn target_os_accepted(&self, attrs: &[Attribute]) -> bool {
-        accept_target_os(attrs, self.target_os)
+        accept_target_os(attrs, &self.parse_context.target_os)
     }
 }
 
-impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
+impl<'ast> Visit<'ast> for TypeShareVisitor<'_> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
@@ -217,8 +211,8 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
             //     field: some_module::RefType
             // }
             //
-            // vist_path would be after vist_item_use so we could retain imported module references
-            // and reconcile aftewards. visit_item_use would have to retain non type import types
+            // visit_path would be after visit_item_use so we could retain imported module references
+            // and reconcile afterwards. visit_item_use would have to retain non type import types
             // which it discards right now.
             //
             let crate_candidate = p.segments.first()?.ident.to_string();
@@ -226,7 +220,10 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
             (accept_crate(&crate_candidate)
                 && accept_type(&type_candidate)
-                && !self.ignored_types.contains(&type_candidate.as_str())
+                && !self
+                    .parse_context
+                    .ignored_types
+                    .contains(&type_candidate.as_str())
                 && crate_candidate != type_candidate)
                 .then(|| {
                     // resolve crate and super aliases into the crate name.
@@ -256,10 +253,14 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         if !self.parsed_data.multi_file {
             return;
         }
-        self.parsed_data.import_types.extend(
-            parse_import(i, &self.parsed_data.crate_name)
-                .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
-        );
+        self.parsed_data
+            .import_types
+            .extend(parse_import(i, &self.parsed_data.crate_name).filter(|imp| {
+                !self
+                    .parse_context
+                    .ignored_types
+                    .contains(&imp.type_name.as_str())
+            }));
         syn::visit::visit_item_use(self, i);
     }
 
@@ -268,7 +269,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
-            self.collect_result(parse_struct(i, self.target_os));
+            self.collect_result(parse_struct(i, &self.parse_context.target_os));
         }
 
         syn::visit::visit_item_struct(self, i);
@@ -279,7 +280,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         debug!("Visiting {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
-            self.collect_result(parse_enum(i, self.target_os));
+            self.collect_result(parse_enum(i, &self.parse_context.target_os));
         }
 
         syn::visit::visit_item_enum(self, i);
@@ -296,7 +297,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         syn::visit::visit_item_type(self, i);
     }
 
-    /// Track potentially skipped modules.
+    // Track potentially skipped modules.
     // fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
     //     if let Some(target_os) = self.target_os.as_ref() {
     //         if i.attrs.iter().any(|attr| target_os_skip(attr, target_os)) {
@@ -382,7 +383,7 @@ impl<'a> ItemUseIter<'a> {
     }
 }
 
-impl<'a> Iterator for ItemUseIter<'a> {
+impl Iterator for ItemUseIter<'_> {
     type Item = ImportedType;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -434,7 +435,7 @@ fn parse_import<'a>(
 #[cfg(test)]
 mod test {
     use super::{parse_import, TypeShareVisitor};
-    use crate::visitors::ImportedType;
+    use crate::{context::ParseContext, visitors::ImportedType};
     use cool_asserts::assert_matches;
     use itertools::Itertools;
     use syn::{visit::Visit, File};
@@ -605,14 +606,18 @@ mod test {
             }
             ";
 
+        let parse_context = ParseContext {
+            ignored_types: Vec::new(),
+            multi_file: true,
+            target_os: Vec::new(),
+        };
+
         let file: File = syn::parse_str(rust_code).unwrap();
         let mut visitor = TypeShareVisitor::new(
+            &parse_context,
             "my_crate".into(),
             "my_file".into(),
             "file_path".into(),
-            &[],
-            true,
-            &[],
         );
         visitor.visit_file(&file);
 

@@ -14,7 +14,7 @@ use lazy_format::lazy_format;
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
-    fs::File,
+    fs,
     io::{self, Write},
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
@@ -150,9 +150,9 @@ pub struct Swift {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Are we generating mutliple modules?
+    /// Are we generating multiple modules?
     pub multi_file: bool,
-    /// The contraints to apply to `CodableVoid`.
+    /// The constraints to apply to `CodableVoid`.
     pub codablevoid_constraints: Vec<String>,
 }
 
@@ -231,7 +231,7 @@ impl Language for Swift {
 
     fn end_file(&mut self, w: &mut dyn Write) -> io::Result<()> {
         if self.should_emit_codable_void.load(Ordering::SeqCst) && !self.multi_file {
-            self.write_codable(w)?;
+            self.write_codable(w, &self.get_codable_contents())?;
         }
 
         Ok(())
@@ -501,7 +501,7 @@ impl Language for Swift {
         writeln!(w, "}}")
     }
 
-    // TODO: This will be addded in the future.
+    // TODO: This will be added in the future.
     // fn write_imports(
     //     &mut self,
     //     w: &mut dyn Write,
@@ -753,21 +753,23 @@ impl Swift {
             .chain(self.default_decorators.iter().map(|s| s.as_str()))
     }
 
-    /// When using mulitple file generation we write this into a separate module vs at the
+    /// When using multiple file generation we write this into a separate module vs at the
     /// end of the generated file.
     fn write_codable_file(&self, output_folder: &str) -> std::io::Result<()> {
-        let mut w = File::create(Path::new(output_folder).join("Codable.swift"))?;
-        self.write_codable(&mut w)
+        let output_string = self.get_codable_contents();
+        let output_path = Path::new(output_folder).join("Codable.swift");
+
+        if let Ok(buf) = fs::read(&output_path) {
+            if buf == output_string.as_bytes() {
+                return Ok(());
+            }
+        }
+
+        let mut w = fs::File::create(output_path)?;
+        self.write_codable(&mut w, &output_string)
     }
 
-    /// Write the `CodableVoid` type.
-    fn write_codable(&self, w: &mut dyn Write) -> io::Result<()> {
-        writeln!(w)?;
-        writeln!(
-            w,
-            r"/// () isn't codable, so we use this instead to represent Rust's unit type"
-        )?;
-
+    fn get_codable_contents(&self) -> String {
         let mut decs = self
             .get_default_decorators()
             .chain(self.codablevoid_constraints.iter().map(|s| s.as_str()))
@@ -778,7 +780,12 @@ impl Swift {
             decs.push(CODABLE);
         }
 
-        writeln!(w, "public struct CodableVoid: {} {{}}", decs.join(", "))
+        format!("\n/// () isn't codable, so we use this instead to represent Rust's unit type\npublic struct CodableVoid: {} {{}}", decs.join(", "))
+    }
+
+    /// Write the `CodableVoid` type.
+    fn write_codable(&self, w: &mut dyn Write, output_string: &str) -> io::Result<()> {
+        writeln!(w, "{}", output_string)
     }
 
     /// Build the generic constraints output. This checks for the `swiftGenericConstraints` typeshare attribute and combines
@@ -789,7 +796,7 @@ impl Swift {
         decorator_map: &'a DecoratorMap,
         generic_types: &'a [String],
     ) -> String {
-        let swift_generic_contraints_annotated = decorator_map
+        let swift_generic_constraints_annotated = decorator_map
             .get(&DecoratorKind::SwiftGenericConstraints)
             .map(|generic_constraints| {
                 generic_constraints
@@ -814,7 +821,7 @@ impl Swift {
         generic_types
             .iter()
             .map(
-                |type_name| match swift_generic_contraints_annotated.get(type_name.as_str()) {
+                |type_name| match swift_generic_constraints_annotated.get(type_name.as_str()) {
                     // Use constraints from swiftGenericConstraints decorator.
                     Some(constraints) => (type_name, Either::Left(constraints.iter().copied())),
                     // Use the default generic constraints if it is not part of a swiftGenericConstraints decorator.

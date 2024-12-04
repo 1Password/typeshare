@@ -1,3 +1,16 @@
+# Version 1.13.2
+- Fix binary name in --help --version so typeshare is the name and not typeshare-cli: [#214](https://github.com/1Password/typeshare/pull/214)
+
+# Version 1.13.1
+- Fix duplicate root added to walker: [#209](https://github.com/1Password/typeshare/pull/209)
+- Only assert if go package is present if generating go types: [#211](https://github.com/1Password/typeshare/pull/211)
+- Update shell completions for new generate function: [#212](https://github.com/1Password/typeshare/pull/212)
+
+# Version 1.13.0
+- Update how logging is initialized: [#206](https://github.com/1Password/typeshare/pull/206)
+- Don't recreate `Codable.swift` when the contents have not changed [#205](https://github.com/1Password/typeshare/pull/205)
+- Fix target_os parsing when no --target-os is provided [#204](https://github.com/1Password/typeshare/pull/204)
+
 # Version 1.12.0
 
 - Optional slices in Go no longer trigger a pointer redirection.

@@ -80,3 +80,14 @@ pub struct AndroidExcluded;
 #[typeshare]
 #[cfg(all(feature = "my-feature", not(target_os = "ios")))]
 pub struct NestedNotTarget1;
+
+/// A struct with no target_os. Should be generated when
+/// we use --target-os.
+#[typeshare]
+pub struct AlwaysAccept;
+
+#[typeshare]
+pub enum AlwaysAcceptEnum {
+    Variant1,
+    Variant2,
+}

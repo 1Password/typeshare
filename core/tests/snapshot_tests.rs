@@ -3,14 +3,17 @@ use flexi_logger::DeferredNow;
 use log::Record;
 use once_cell::sync::Lazy;
 use std::{
-    collections::HashMap,
-    env,
+    collections::{BTreeMap, HashMap},
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Once,
 };
-use typeshare_core::language::Language;
+use typeshare_core::{
+    context::{ParseContext, ParseFileContext},
+    language::{CrateName, Language},
+    reconcile::reconcile_aliases,
+};
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
@@ -97,19 +100,29 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
+    let parse_context = ParseContext {
+        target_os: target_os.iter().map(ToString::to_string).collect(),
+        ..Default::default()
+    };
+
     let parsed_data = typeshare_core::parser::parse(
-        &rust_input,
-        "default_crate".into(),
-        "file_name".into(),
-        "file_path".into(),
-        &[],
-        false,
-        &target_os
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
+        &parse_context,
+        ParseFileContext {
+            source_code: rust_input,
+            crate_name: "default_crate".into(),
+            file_name: "file_name".into(),
+            file_path: "file_path".into(),
+        },
     )?
     .unwrap();
+
+    let all_crates: CrateName = String::new().into();
+
+    let mut map = BTreeMap::from_iter([(all_crates.clone(), parsed_data)]);
+    reconcile_aliases(&mut map);
+
+    let parsed_data = map.remove(&all_crates).unwrap();
+
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
@@ -658,4 +671,5 @@ tests! {
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
     excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
+    serde_rename_references: [ swift, kotlin, scala, typescript, go ];
 }
