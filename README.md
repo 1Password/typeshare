@@ -98,7 +98,8 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 - Swift
 - Typescript
 - Go**
-- Python**
+- Python** (see list of limitations [here](https://github.com/1Password/typeshare/issues/217))
+
 
 If there is a language that you want Typeshare to generate definitions for, you can either:
 1. Open an issue in this repository requesting your language of choice.

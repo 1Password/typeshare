@@ -335,7 +335,8 @@ impl Language for Python {
         _writer: &mut dyn Write,
         _imports: super::ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
-        todo!()
+        // TODO: to implement when adding suport for outputting to multiple files.
+        Ok(())
     }
 }
 
