@@ -58,6 +58,7 @@ fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) ->
         SupportedLanguage::Scala => snake_case(),
         SupportedLanguage::Swift => pascal_case(),
         SupportedLanguage::TypeScript => snake_case(),
+        SupportedLanguage::Python => snake_case(),
     }
 }
 

@@ -20,14 +20,14 @@ use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use log::{error, info};
 use parse::parallel_parse;
+use typeshare_core::language::GenericConstraints;
 #[cfg(feature = "go")]
 use typeshare_core::language::Go;
+#[cfg(feature = "python")]
+use typeshare_core::language::Python;
 use typeshare_core::{
     context::ParseContext,
-    language::{
-        CrateName, GenericConstraints, Kotlin, Language, Scala, SupportedLanguage, Swift,
-        TypeScript,
-    },
+    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
     reconcile::reconcile_aliases,
 };
@@ -93,6 +93,8 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
             args::AvailableLanguage::Typescript => SupportedLanguage::TypeScript,
             #[cfg(feature = "go")]
             args::AvailableLanguage::Go => SupportedLanguage::Go,
+            #[cfg(feature = "python")]
+            args::AvailableLanguage::Python => SupportedLanguage::Python,
         },
     };
 
@@ -221,6 +223,15 @@ fn language(
         #[cfg(not(feature = "go"))]
         SupportedLanguage::Go => {
             panic!("go support is currently experimental and must be enabled as a feature flag for typeshare-cli")
+        }
+        #[cfg(feature = "python")]
+        SupportedLanguage::Python => Box::new(Python {
+            type_mappings: config.python.type_mappings,
+            ..Default::default()
+        }),
+        #[cfg(not(feature = "python"))]
+        SupportedLanguage::Python => {
+            panic!("python support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
     }
 }
