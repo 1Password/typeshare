@@ -11,6 +11,13 @@ use std::{
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+#[cfg(feature = "python")]
+pub struct PythonParams {
+    pub type_mappings: HashMap<String, String>,
+}
+
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
 pub struct KotlinParams {
@@ -64,6 +71,8 @@ pub(crate) struct Config {
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
     pub scala: ScalaParams,
+    #[cfg(feature = "python")]
+    pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
     #[serde(skip)]
@@ -160,6 +169,11 @@ mod test {
         assert_eq!(config.kotlin.type_mappings["DateTime"], "String");
         assert_eq!(config.scala.type_mappings["DateTime"], "String");
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
+        #[cfg(feature = "python")]
+        {
+            assert_eq!(config.python.type_mappings["Url"], "AnyUrl");
+            assert_eq!(config.python.type_mappings["DateTime"], "datetime");
+        }
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
     }

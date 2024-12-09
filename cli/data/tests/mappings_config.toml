@@ -12,3 +12,7 @@
 
 [go.type_mappings]
 "DateTime" = "string"
+
+[python.type_mappings]
+"DateTime" = "datetime"
+"Url" = "AnyUrl"
