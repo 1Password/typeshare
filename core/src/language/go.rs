@@ -3,7 +3,7 @@ use std::io::Write;
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -58,6 +58,7 @@ impl Language for Go {
             structs,
             enums,
             aliases,
+            consts,
             ..
         } = data;
 
@@ -66,6 +67,7 @@ impl Language for Go {
             .map(RustItem::Alias)
             .chain(structs.into_iter().map(RustItem::Struct))
             .chain(enums.into_iter().map(RustItem::Enum))
+            .chain(consts.into_iter().map(RustItem::Const))
             .collect::<Vec<_>>();
 
         topsort(&mut items);
@@ -96,6 +98,7 @@ impl Language for Go {
                 RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
                 RustItem::Struct(s) => self.write_struct(w, s)?,
                 RustItem::Alias(a) => self.write_type_alias(w, a)?,
+                RustItem::Const(c) => self.write_const(w, c)?,
             }
         }
 
@@ -187,6 +190,10 @@ impl Language for Go {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {

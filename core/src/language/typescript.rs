@@ -2,8 +2,8 @@ use crate::{
     language::{Language, SupportedLanguage},
     parser::ParsedData,
     rust_types::{
-        RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
-        RustTypeFormatError, SpecialRustType,
+        RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
+        RustTypeAlias, RustTypeFormatError, SpecialRustType,
     },
 };
 use itertools::Itertools;
@@ -118,6 +118,10 @@ impl Language for TypeScript {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> io::Result<()> {
