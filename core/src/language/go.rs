@@ -192,8 +192,21 @@ impl Language for Go {
         Ok(())
     }
 
-    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
-        todo!()
+    fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                writeln!(
+                    w,
+                    "const {} {} = {};",
+                    c.id.renamed.to_pascal_case(),
+                    const_type,
+                    val
+                )
+            }
+        }
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
