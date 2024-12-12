@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::rust_types::{
-    RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias, SpecialRustType,
+    RustConst, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
+    SpecialRustType,
 };
 
 fn get_dependencies_from_type(
@@ -120,6 +121,18 @@ fn get_type_alias_dependencies(
     }
 }
 
+fn get_const_dependencies(
+    c: &RustConst,
+    types: &HashMap<String, &RustItem>,
+    res: &mut Vec<String>,
+    seen: &mut HashSet<String>,
+) {
+    if seen.insert(c.id.original.to_string()) {
+        get_dependencies_from_type(&c.r#type, types, res, seen);
+        seen.remove(&c.id.original.to_string());
+    }
+}
+
 fn get_dependencies(
     thing: &RustItem,
     types: &HashMap<String, &RustItem>,
@@ -130,6 +143,7 @@ fn get_dependencies(
         RustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),
         RustItem::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
         RustItem::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
+        RustItem::Const(c) => get_const_dependencies(c, types, res, seen),
     }
 }
 
@@ -194,6 +208,7 @@ pub(crate) fn topsort(things: &mut [RustItem]) {
             },
             RustItem::Struct(strct) => strct.id.original.clone(),
             RustItem::Alias(ta) => ta.id.original.clone(),
+            RustItem::Const(c) => c.id.original.clone(),
         };
         (id, thing)
     }));

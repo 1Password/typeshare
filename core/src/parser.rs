@@ -3,9 +3,9 @@ use crate::{
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
-        DecoratorMap, FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant,
-        RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
-        RustTypeParseError,
+        DecoratorMap, FieldDecorator, Id, RustConst, RustConstExpr, RustEnum, RustEnumShared,
+        RustEnumVariant, RustEnumVariantShared, RustField, RustItem, RustStruct, RustType,
+        RustTypeAlias, RustTypeParseError, SpecialRustType,
     },
     target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
@@ -20,8 +20,8 @@ use std::{
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
-    MetaNameValue, Token,
+    ExprLit, Fields, GenericParam, ItemConst, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta,
+    MetaList, MetaNameValue, Token,
 };
 use thiserror::Error;
 
@@ -74,6 +74,10 @@ pub enum ParseError {
     SerdeTagRequired { enum_ident: String },
     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
     SerdeContentRequired { enum_ident: String },
+    #[error("the expression assigned to this constant variable is not a numeric literal")]
+    RustConstExprInvalid,
+    #[error("you cannot use typeshare on a constant that is not a numeric literal")]
+    RustConstTypeInvalid,
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
     #[error("IO error: {0}")]
@@ -98,6 +102,8 @@ pub struct ParsedData {
     pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+    /// Constant variables defined in the source
+    pub consts: Vec<RustConst>,
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
@@ -119,6 +125,7 @@ impl AddAssign<ParsedData> for ParsedData {
         self.structs.append(&mut rhs.structs);
         self.enums.append(&mut rhs.enums);
         self.aliases.append(&mut rhs.aliases);
+        self.consts.append(&mut rhs.consts);
         self.import_types.extend(rhs.import_types);
         self.type_names.extend(rhs.type_names);
         self.errors.append(&mut rhs.errors);
@@ -153,6 +160,10 @@ impl ParsedData {
             RustItem::Alias(a) => {
                 self.type_names.insert(a.id.renamed.clone());
                 self.aliases.push(a);
+            }
+            RustItem::Const(c) => {
+                self.type_names.insert(c.id.renamed.clone());
+                self.consts.push(c);
             }
         }
     }
@@ -496,6 +507,66 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         decorators: get_decorators(&t.attrs),
         is_redacted: is_redacted(&t.attrs),
     }))
+}
+
+/// Parses a const variant.
+pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
+    let expr = parse_const_expr(&c.expr)?;
+
+    // serialized_as needs to be supported in case the user wants to use a different type
+    // for the constant variable in a different language
+    let ty = if let Some(ty) = get_serialized_as_type(&c.attrs) {
+        ty.parse()?
+    } else {
+        RustType::try_from(c.ty.as_ref())?
+    };
+
+    match &ty {
+        RustType::Special(SpecialRustType::HashMap(_, _))
+        | RustType::Special(SpecialRustType::Vec(_))
+        | RustType::Special(SpecialRustType::Option(_)) => {
+            return Err(ParseError::RustConstTypeInvalid);
+        }
+        RustType::Special(_s) => (),
+        _ => return Err(ParseError::RustConstTypeInvalid),
+    };
+
+    Ok(RustItem::Const(RustConst {
+        id: get_ident(Some(&c.ident), &c.attrs, &None),
+        r#type: ty,
+        expr,
+    }))
+}
+
+fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
+    struct ExprLitVisitor(pub Option<Result<RustConstExpr, ParseError>>);
+    impl Visit<'_> for ExprLitVisitor {
+        fn visit_expr_lit(&mut self, el: &ExprLit) {
+            if self.0.is_some() {
+                // should we throw an error instead of silently ignoring a second literal?
+                // or would this create false positives?
+                return;
+            }
+            let check_literal_type = || {
+                Ok(match &el.lit {
+                    Lit::Int(lit_int) => {
+                        let int: i128 = lit_int
+                            .base10_parse()
+                            .map_err(|_| ParseError::RustConstTypeInvalid)?;
+                        RustConstExpr::Int(int)
+                    }
+                    _ => return Err(ParseError::RustConstTypeInvalid),
+                })
+            };
+
+            self.0.replace(check_literal_type());
+        }
+    }
+    let mut expr_visitor = ExprLitVisitor(None);
+    syn::visit::visit_expr(&mut expr_visitor, e);
+    expr_visitor
+        .0
+        .map_or(Err(ParseError::RustConstTypeInvalid), |v| v)
 }
 
 // Helpers
