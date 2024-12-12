@@ -1,6 +1,7 @@
 use crate::parser::ParsedData;
 use crate::rust_types::{RustEnumShared, RustItem, RustType, RustTypeFormatError, SpecialRustType};
 use crate::topsort::topsort;
+use crate::RenameExt;
 use crate::{
     language::Language,
     rust_types::{
@@ -249,7 +250,20 @@ impl Language for Python {
     }
 
     fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
-        todo!()
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                writeln!(
+                    w,
+                    "{}: {} = {};",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
+                    val
+                )
+            }
+        }
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
