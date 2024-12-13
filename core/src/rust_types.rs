@@ -82,8 +82,11 @@ impl Ord for RustStruct {
 /// ```
 #[derive(Debug, Clone)]
 pub struct RustConst {
+    /// The identifier for the constant.
     pub id: Id,
+    /// The type identifier that this constant is referring to.
     pub r#type: RustType,
+    /// The expression that the constant contains.
     pub expr: RustConstExpr,
 }
 
@@ -97,6 +100,7 @@ impl PartialEq for RustConst {
 /// boundary.
 #[derive(Debug, Clone)]
 pub enum RustConstExpr {
+    /// Expression represents an integer.
     Int(i128),
 }
 
