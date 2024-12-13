@@ -1,9 +1,10 @@
+use crate::RenameExt;
 use crate::{
     language::{Language, SupportedLanguage},
     parser::ParsedData,
     rust_types::{
-        RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
-        RustTypeFormatError, SpecialRustType,
+        RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
+        RustTypeAlias, RustTypeFormatError, SpecialRustType,
     },
 };
 use itertools::Itertools;
@@ -118,6 +119,19 @@ impl Language for TypeScript {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> io::Result<()> {
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                writeln!(
+                    w,
+                    "export const {} = {};",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    val
+                )
+            }
+        }
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> io::Result<()> {
