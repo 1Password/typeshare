@@ -124,10 +124,14 @@ impl Language for TypeScript {
     fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> io::Result<()> {
         match c.expr {
             RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                 writeln!(
                     w,
-                    "export const {} = {};",
+                    "export const {}: {} = {};",
                     c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
                     val
                 )
             }
