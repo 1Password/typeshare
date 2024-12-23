@@ -173,6 +173,7 @@ impl ParsedData {
         self.structs.is_empty()
             && self.enums.is_empty()
             && self.aliases.is_empty()
+            && self.consts.is_empty()
             && self.errors.is_empty()
     }
 }
@@ -542,11 +543,11 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
     struct ExprLitVisitor(pub Option<Result<RustConstExpr, ParseError>>);
     impl Visit<'_> for ExprLitVisitor {
         fn visit_expr_lit(&mut self, el: &ExprLit) {
-            if self.0.is_some() {
-                // should we throw an error instead of silently ignoring a second literal?
-                // or would this create false positives?
-                return;
-            }
+            // if self.0.is_some() {
+            //     // should we throw an error instead of silently ignoring a second literal?
+            //     // or would this create false positives?
+            //     return;
+            // }
             let check_literal_type = || {
                 Ok(match &el.lit {
                     Lit::Int(lit_int) => {
