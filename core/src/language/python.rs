@@ -257,7 +257,7 @@ impl Language for Python {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                 writeln!(
                     w,
-                    "{}: {} = {};",
+                    "{}: {} = {}",
                     c.id.renamed.to_snake_case().to_uppercase(),
                     const_type,
                     val
