@@ -196,7 +196,14 @@ impl Language for Go {
             "type {}{} struct {{",
             self.acronyms_to_uppercase(&rs.id.renamed),
             (!rs.generic_types.is_empty())
-                .then(|| format!("[{}]", rs.generic_types.iter().map(|ty| format!("{} any", ty)).collect::<Vec<String>>().join(", ")))
+                .then(|| format!(
+                    "[{}]",
+                    rs.generic_types
+                        .iter()
+                        .map(|ty| format!("{} any", ty))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ))
                 .unwrap_or_default()
         )?;
 
