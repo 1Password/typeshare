@@ -191,6 +191,7 @@ impl Language for Go {
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
         write_comments(w, 0, &rs.comments)?;
+        // TODO: Support generic bounds: https://github.com/1Password/typeshare/issues/222
         writeln!(
             w,
             "type {}{} struct {{",
