@@ -106,6 +106,10 @@ impl Language for Go {
         &self.type_mappings
     }
 
+    fn format_generic_parameters(&mut self, parameters: Vec<String>) -> String {
+        format!("[{}]", parameters.join(", "))
+    }
+
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
@@ -189,8 +193,11 @@ impl Language for Go {
         write_comments(w, 0, &rs.comments)?;
         writeln!(
             w,
-            "type {} struct {{",
-            self.acronyms_to_uppercase(&rs.id.renamed)
+            "type {}{} struct {{",
+            self.acronyms_to_uppercase(&rs.id.renamed),
+            (!rs.generic_types.is_empty())
+                .then(|| format!("[{}]", rs.generic_types.iter().map(|ty| format!("{} any", ty)).collect::<Vec<String>>().join(", ")))
+                .unwrap_or_default()
         )?;
 
         rs.fields
