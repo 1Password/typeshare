@@ -1,9 +1,12 @@
 use crate::parser::ParsedData;
 use crate::rust_types::{RustEnumShared, RustItem, RustType, RustTypeFormatError, SpecialRustType};
 use crate::topsort::topsort;
+use crate::RenameExt;
 use crate::{
     language::Language,
-    rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    rust_types::{
+        RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias,
+    },
 };
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -98,6 +101,7 @@ impl Language for Python {
             structs,
             enums,
             aliases,
+            consts,
             ..
         } = data;
 
@@ -106,6 +110,7 @@ impl Language for Python {
             .map(RustItem::Alias)
             .chain(structs.into_iter().map(RustItem::Struct))
             .chain(enums.into_iter().map(RustItem::Enum))
+            .chain(consts.into_iter().map(RustItem::Const))
             .collect::<Vec<_>>();
 
         topsort(&mut items);
@@ -116,6 +121,7 @@ impl Language for Python {
                 RustItem::Enum(e) => self.write_enum(&mut body, &e)?,
                 RustItem::Struct(rs) => self.write_struct(&mut body, &rs)?,
                 RustItem::Alias(t) => self.write_type_alias(&mut body, &t)?,
+                RustItem::Const(c) => self.write_const(&mut body, &c)?,
             };
         }
 
@@ -241,6 +247,23 @@ impl Language for Python {
         self.write_comments(w, true, &ty.comments, 0)?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                writeln!(
+                    w,
+                    "{}: {} = {}",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
+                    val
+                )
+            }
+        }
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {

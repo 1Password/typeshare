@@ -3,8 +3,8 @@ use crate::{
     context::ParseContext,
     language::CrateName,
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ErrorInfo,
-        ParseError, ParsedData,
+        has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
+        ErrorInfo, ParseError, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
     target_os_check::accept_target_os,
@@ -134,6 +134,14 @@ impl<'a> TypeShareVisitor<'a> {
                 .aliases
                 .iter()
                 .flat_map(|alias| alias.r#type.all_reference_type_names()),
+        );
+
+        // Constants
+        all_references.extend(
+            self.parsed_data
+                .consts
+                .iter()
+                .flat_map(|c| c.r#type.all_reference_type_names()),
         );
 
         // Build a set of a all type names.
@@ -295,6 +303,17 @@ impl<'ast> Visit<'ast> for TypeShareVisitor<'_> {
         }
 
         syn::visit::visit_item_type(self, i);
+    }
+
+    // Collect rust consts.
+    fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
+        debug!("Visiting {}", i.ident);
+        if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
+            debug!("\tParsing {}", i.ident);
+            self.collect_result(parse_const(i));
+        }
+
+        syn::visit::visit_item_const(self, i);
     }
 
     // Track potentially skipped modules.

@@ -3,8 +3,8 @@ use crate::{
     parser::{remove_dash_from_identifier, DecoratorKind, ParsedData},
     rename::RenameExt,
     rust_types::{
-        DecoratorMap, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias, RustTypeFormatError,
-        SpecialRustType,
+        DecoratorMap, RustConst, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias,
+        RustTypeFormatError, SpecialRustType,
     },
     GenerationError,
 };
@@ -256,6 +256,10 @@ impl Language for Swift {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> io::Result<()> {
