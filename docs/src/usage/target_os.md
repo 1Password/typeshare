@@ -63,7 +63,7 @@ The following example will not allow `MyType` to be typeshared.
 
 ## Combined with features or other cfg attributes
 
-Typehsare will not take into consideration any other `cfg` attributes other than `target_os` when generating types.
+Typehshare will not take into consideration any other `cfg` attributes other than `target_os` when generating types.
 
 For example:
 
