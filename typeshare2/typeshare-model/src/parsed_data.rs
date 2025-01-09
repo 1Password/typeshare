@@ -1,15 +1,116 @@
 use std::{
-    collections::{BTreeSet, HashMap},
-    convert::TryFrom,
-    str::FromStr,
+    borrow::Borrow,
+    collections::{BTreeSet, HashMap, HashSet},
+    fmt::{self, Display},
+    path::Path,
 };
 
-use quote::ToTokens;
-use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
-use thiserror::Error;
+/// A crate name.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct CrateName(String);
+
+impl Display for CrateName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for CrateName {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl CrateName {
+    /// View this crate name as a string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Extract the crate name from a give path.
+    pub fn find_crate_name(path: &Path) -> Option<Self> {
+        let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
+
+        path.iter()
+            .rev()
+            .skip_while(|p| *p != "src")
+            .nth(1)
+            .and_then(|s| s.to_str())
+            .map(file_name_to_crate_name)
+            .map(CrateName::from)
+    }
+}
+
+// /// Errors that can occur while parsing Rust source input.
+// #[derive(Debug, Error)]
+// #[allow(missing_docs)]
+// pub enum ParseError {
+//     #[error("{0}")]
+//     SynError(#[from] syn::Error),
+//     #[error("failed to parse a rust type: {0}")]
+//     RustTypeParseError(#[from] RustTypeParseError),
+//     #[error("unsupported language encountered: {0}")]
+//     UnsupportedLanguage(String),
+//     #[error("unsupported type encountered: {0}")]
+//     UnsupportedType(String),
+//     #[error("tuple structs with more than one field are currently unsupported")]
+//     ComplexTupleStruct,
+//     #[error("multiple unnamed associated types are not currently supported")]
+//     MultipleUnnamedAssociatedTypes,
+//     #[error("the serde tag attribute is not supported for non-algebraic enums: {enum_ident}")]
+//     SerdeTagNotAllowed { enum_ident: String },
+//     #[error("the serde content attribute is not supported for non-algebraic enums: {enum_ident}")]
+//     SerdeContentNotAllowed { enum_ident: String },
+//     #[error("serde tag attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
+//     SerdeTagRequired { enum_ident: String },
+//     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
+//     SerdeContentRequired { enum_ident: String },
+//     #[error("the serde flatten attribute is not currently supported")]
+//     SerdeFlattenNotAllowed,
+// }
+
+// /// Error with it's related data.
+// #[derive(Debug)]
+// pub struct ErrorInfo {
+//     /// The crate where this error occured.
+//     pub crate_name: CrateName,
+//     /// The file name being parsed.
+//     pub file_name: String,
+//     /// The parse error.
+//     pub error: ParseError,
+// }
+
+/// The results of parsing Rust source input.
+#[derive(Default, Debug)]
+pub struct ParsedData {
+    /// Structs defined in the source
+    pub structs: Vec<RustStruct>,
+    /// Enums defined in the source
+    pub enums: Vec<RustEnum>,
+    /// Type aliases defined in the source
+    pub aliases: Vec<RustTypeAlias>,
+    /// Imports used by this file
+    pub import_types: HashSet<ImportedType>,
+    /// Crate this belongs to.
+    pub crate_name: CrateName,
+    /// File name to write to for generated type.
+    pub file_name: String,
+    /// All type names
+    pub type_names: HashSet<String>,
+    // /// Failures during parsing.
+    // pub errors: Vec<ErrorInfo>,
+    // /// Using multi file support.
+    // pub multi_file: bool,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct LangIdent(String);
+pub struct LangIdent(String);
+
+impl Borrow<str> for LangIdent {
+    fn borrow(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 /// Identifier used in Rust structs, enums, and fields. It includes the `original` name and the `renamed` value after the transformation based on `serde` attributes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,9 +200,16 @@ impl FieldDecorator {
             Self::Word(name) | Self::NameValue(name, _) => name,
         }
     }
+
+    pub fn is_word(&self, word: &str) -> bool {
+        match self {
+            Self::Word(this) => this == word,
+            _ => false,
+        }
+    }
 }
 
-/// A Rust type.
+/// A named Rust type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RustType {
     /// A type with generic parameters. Consists of a type ID + parameters that come
@@ -183,127 +291,127 @@ pub enum SpecialRustType {
     U53,
 }
 
-#[derive(Debug, Error)]
-#[allow(missing_docs)]
-pub enum RustTypeParseError {
-    #[error("{0:?}")]
-    UnsupportedType(Vec<String>),
-    #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
-    UnexpectedToken(String),
-    #[error("Tuples are not allowed in typeshare types")]
-    UnexpectedParameterizedTuple,
-    #[error("Could not parse numeric literal")]
-    NumericLiteral(syn::parse::Error),
-}
+// #[derive(Debug, Error)]
+// #[allow(missing_docs)]
+// pub enum RustTypeParseError {
+//     #[error("{0:?}")]
+//     UnsupportedType(Vec<String>),
+//     #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
+//     UnexpectedToken(String),
+//     #[error("Tuples are not allowed in typeshare types")]
+//     UnexpectedParameterizedTuple,
+//     #[error("Could not parse numeric literal")]
+//     NumericLiteral(syn::parse::Error),
+// }
 
-impl FromStr for RustType {
-    type Err = RustTypeParseError;
+// impl FromStr for RustType {
+//     type Err = RustTypeParseError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let syn_type =
-            syn::parse_str(s).map_err(|_| RustTypeParseError::UnsupportedType(vec![]))?;
-        Self::try_from(&syn_type)
-    }
-}
+//     fn from_str(s: &str) -> Result<Self, Self::Err> {
+//         let syn_type =
+//             syn::parse_str(s).map_err(|_| RustTypeParseError::UnsupportedType(vec![]))?;
+//         Self::try_from(&syn_type)
+//     }
+// }
 
-impl TryFrom<&syn::Type> for RustType {
-    type Error = RustTypeParseError;
+// impl TryFrom<&syn::Type> for RustType {
+//     type Error = RustTypeParseError;
 
-    fn try_from(ty: &syn::Type) -> Result<Self, Self::Error> {
-        Ok(match ty {
-            syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
-                Self::Special(SpecialRustType::Unit)
-            }
-            syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
-            syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
-            syn::Type::Path(path) => {
-                let segment = path.path.segments.iter().last().unwrap();
-                let id = segment.ident.to_string();
-                let parameters: Vec<Self> = match &segment.arguments {
-                    syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
-                        let parameters: Result<Vec<Self>, Self::Error> = angle_bracketed_arguments
-                            .args
-                            .iter()
-                            .filter_map(|arg| match arg {
-                                syn::GenericArgument::Type(r#type) => Some(Self::try_from(r#type)),
-                                _ => None,
-                            })
-                            .collect();
-                        parameters?
-                    }
-                    _ => Vec::default(),
-                };
-                match id.as_str() {
-                    "Vec" => Self::Special(SpecialRustType::Vec(
-                        parameters.into_iter().next().unwrap().into(),
-                    )),
-                    "Option" => Self::Special(SpecialRustType::Option(
-                        parameters.into_iter().next().unwrap().into(),
-                    )),
-                    "HashMap" => {
-                        let mut params = parameters.into_iter();
-                        Self::Special(SpecialRustType::HashMap(
-                            params.next().unwrap().into(),
-                            params.next().unwrap().into(),
-                        ))
-                    }
-                    "str" | "String" => Self::Special(SpecialRustType::String),
-                    // These smart pointers can be treated as their inner type since serde can handle it
-                    // See impls of serde::Deserialize
-                    "Box" | "Weak" | "Arc" | "Rc" | "Cow" | "ArcWeak" | "RcWeak" | "Cell"
-                    | "Mutex" | "RefCell" | "RwLock" => parameters.into_iter().next().unwrap(),
-                    "bool" => Self::Special(SpecialRustType::Bool),
-                    "char" => Self::Special(SpecialRustType::Char),
-                    "u8" => Self::Special(SpecialRustType::U8),
-                    "u16" => Self::Special(SpecialRustType::U16),
-                    "u32" => Self::Special(SpecialRustType::U32),
-                    "U53" => Self::Special(SpecialRustType::U53),
-                    "u64" | "i64" | "usize" | "isize" => {
-                        return Err(RustTypeParseError::UnsupportedType(vec![id]))
-                    }
-                    "i8" => Self::Special(SpecialRustType::I8),
-                    "i16" => Self::Special(SpecialRustType::I16),
-                    "i32" => Self::Special(SpecialRustType::I32),
-                    "I54" => Self::Special(SpecialRustType::I54),
-                    "f32" => Self::Special(SpecialRustType::F32),
-                    "f64" => Self::Special(SpecialRustType::F64),
-                    _ => {
-                        if parameters.is_empty() {
-                            Self::Simple { id }
-                        } else {
-                            Self::Generic { id, parameters }
-                        }
-                    }
-                }
-            }
-            syn::Type::Array(TypeArray {
-                elem,
-                len:
-                    Expr::Lit(ExprLit {
-                        lit: Lit::Int(count),
-                        ..
-                    }),
-                ..
-            }) => Self::Special(SpecialRustType::Array(
-                Self::try_from(elem.as_ref())?.into(),
-                count
-                    .base10_parse()
-                    .map_err(RustTypeParseError::NumericLiteral)?,
-            )),
-            syn::Type::Slice(TypeSlice {
-                bracket_token: _,
-                elem,
-            }) => Self::Special(SpecialRustType::Slice(
-                Self::try_from(elem.as_ref())?.into(),
-            )),
-            _ => {
-                return Err(RustTypeParseError::UnexpectedToken(
-                    ty.to_token_stream().to_string(),
-                ))
-            }
-        })
-    }
-}
+//     fn try_from(ty: &syn::Type) -> Result<Self, Self::Error> {
+//         Ok(match ty {
+//             syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
+//                 Self::Special(SpecialRustType::Unit)
+//             }
+//             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
+//             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
+//             syn::Type::Path(path) => {
+//                 let segment = path.path.segments.iter().last().unwrap();
+//                 let id = segment.ident.to_string();
+//                 let parameters: Vec<Self> = match &segment.arguments {
+//                     syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
+//                         let parameters: Result<Vec<Self>, Self::Error> = angle_bracketed_arguments
+//                             .args
+//                             .iter()
+//                             .filter_map(|arg| match arg {
+//                                 syn::GenericArgument::Type(r#type) => Some(Self::try_from(r#type)),
+//                                 _ => None,
+//                             })
+//                             .collect();
+//                         parameters?
+//                     }
+//                     _ => Vec::default(),
+//                 };
+//                 match id.as_str() {
+//                     "Vec" => Self::Special(SpecialRustType::Vec(
+//                         parameters.into_iter().next().unwrap().into(),
+//                     )),
+//                     "Option" => Self::Special(SpecialRustType::Option(
+//                         parameters.into_iter().next().unwrap().into(),
+//                     )),
+//                     "HashMap" => {
+//                         let mut params = parameters.into_iter();
+//                         Self::Special(SpecialRustType::HashMap(
+//                             params.next().unwrap().into(),
+//                             params.next().unwrap().into(),
+//                         ))
+//                     }
+//                     "str" | "String" => Self::Special(SpecialRustType::String),
+//                     // These smart pointers can be treated as their inner type since serde can handle it
+//                     // See impls of serde::Deserialize
+//                     "Box" | "Weak" | "Arc" | "Rc" | "Cow" | "ArcWeak" | "RcWeak" | "Cell"
+//                     | "Mutex" | "RefCell" | "RwLock" => parameters.into_iter().next().unwrap(),
+//                     "bool" => Self::Special(SpecialRustType::Bool),
+//                     "char" => Self::Special(SpecialRustType::Char),
+//                     "u8" => Self::Special(SpecialRustType::U8),
+//                     "u16" => Self::Special(SpecialRustType::U16),
+//                     "u32" => Self::Special(SpecialRustType::U32),
+//                     "U53" => Self::Special(SpecialRustType::U53),
+//                     "u64" | "i64" | "usize" | "isize" => {
+//                         return Err(RustTypeParseError::UnsupportedType(vec![id]))
+//                     }
+//                     "i8" => Self::Special(SpecialRustType::I8),
+//                     "i16" => Self::Special(SpecialRustType::I16),
+//                     "i32" => Self::Special(SpecialRustType::I32),
+//                     "I54" => Self::Special(SpecialRustType::I54),
+//                     "f32" => Self::Special(SpecialRustType::F32),
+//                     "f64" => Self::Special(SpecialRustType::F64),
+//                     _ => {
+//                         if parameters.is_empty() {
+//                             Self::Simple { id }
+//                         } else {
+//                             Self::Generic { id, parameters }
+//                         }
+//                     }
+//                 }
+//             }
+//             syn::Type::Array(TypeArray {
+//                 elem,
+//                 len:
+//                     Expr::Lit(ExprLit {
+//                         lit: Lit::Int(count),
+//                         ..
+//                     }),
+//                 ..
+//             }) => Self::Special(SpecialRustType::Array(
+//                 Self::try_from(elem.as_ref())?.into(),
+//                 count
+//                     .base10_parse()
+//                     .map_err(RustTypeParseError::NumericLiteral)?,
+//             )),
+//             syn::Type::Slice(TypeSlice {
+//                 bracket_token: _,
+//                 elem,
+//             }) => Self::Special(SpecialRustType::Slice(
+//                 Self::try_from(elem.as_ref())?.into(),
+//             )),
+//             _ => {
+//                 return Err(RustTypeParseError::UnexpectedToken(
+//                     ty.to_token_stream().to_string(),
+//                 ))
+//             }
+//         })
+//     }
+// }
 
 impl RustType {
     /// Check if a type contains a type with an ID that matches `ty`.
@@ -349,6 +457,7 @@ impl RustType {
     pub fn is_hash_map(&self) -> bool {
         matches!(self, Self::Special(SpecialRustType::HashMap(_, _)))
     }
+
     /// Get the generic parameters for this type. Returns an empty iterator if there are none.
     /// For example, `Vec<String>`'s generic parameters would be `[String]`.
     /// Meanwhile, `HashMap<i64, u32>`'s generic parameters would be `[i64, u32]`.
@@ -361,14 +470,14 @@ impl RustType {
         }
     }
 
-    /// Yield all the type names including nested generic types.
-    pub fn all_reference_type_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
-        RustRefTypeIter {
-            ty: Some(self),
-            parameters: Vec::new(),
-        }
-        .filter(|s| accept_type(s))
-    }
+    // /// Yield all the type names including nested generic types.
+    // pub fn all_reference_type_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
+    //     RustRefTypeIter {
+    //         ty: Some(self),
+    //         parameters: Vec::new(),
+    //     }
+    //     .filter(|s| accept_type(s))
+    // }
 }
 
 struct RustRefTypeIter<'a> {
@@ -396,24 +505,15 @@ impl<'a> Iterator for RustRefTypeIter<'a> {
 
 impl RustField {
     /// Returns an type override, if it exists, on this field for a given language.
-    pub fn type_override(&self, language: SupportedLanguage) -> Option<&str> {
+    pub fn type_override(&self, language: &str) -> Option<&str> {
         self.decorators
-            .get(&language)?
+            .get(language)?
             .iter()
             .find_map(|fd| match fd {
                 FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty.as_str()),
                 _ => None,
             })
     }
-}
-
-#[derive(Debug, Error)]
-#[allow(missing_docs)]
-pub enum RustTypeFormatError {
-    #[error("Generic parameter `{0}` is forbidden in Go")]
-    GenericsForbiddenInGo(String),
-    #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
-    GenericKeyForbiddenInTS(String),
 }
 
 impl SpecialRustType {
@@ -569,7 +669,7 @@ pub struct RustEnumShared {
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<SupportedLanguage, Vec<String>>,
+    pub decorators: HashMap<LangIdent, Vec<String>>,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,
@@ -627,4 +727,56 @@ pub enum RustItem {
     Enum(RustEnum),
     /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
+}
+
+/// An imported type reference.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ImportedType {
+    /// Crate this type belongs to.
+    pub base_crate: CrateName,
+    /// Type name.
+    pub type_name: TypeName,
+}
+
+/// A type name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TypeName(String);
+
+impl TypeName {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl Borrow<str> for TypeName {
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for TypeName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl PartialEq<&str> for TypeName {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::CrateName;
+    use std::path::Path;
+
+    #[test]
+    fn test_crate_name() {
+        let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
+        assert_eq!(
+            Some(CrateName("op_proxy".into())),
+            CrateName::find_crate_name(path)
+        );
+    }
 }

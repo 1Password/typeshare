@@ -2,8 +2,8 @@
 members = [
     "langs/swift",
     "langs/typescript",
-    "typeshare-core",
+    "typeshare-model",
     "typeshare-engine",
-    "typeshare-main",
+    "typeshare-driver",
 ]
 resolver = "2"
