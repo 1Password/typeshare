@@ -4,7 +4,7 @@ use crate::parser::{remove_dash_from_identifier, DecoratorKind, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
-    rust_types::{Id, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustConst, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
@@ -172,6 +172,10 @@ impl Language for Kotlin {
         }
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
