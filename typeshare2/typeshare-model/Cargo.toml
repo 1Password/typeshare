@@ -1,9 +1,12 @@
 [package]
-name = "typeshare-core"
+name = "typeshare-model"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+itertools = "0.13.0"
+joinery = "3.1.0"
+lazy_format = "2.0.3"
 quote = { version = "1.0.36", default-features = false }
 syn = { version = "2.0.64", default-features = false, features = [
     "full",
