@@ -38,6 +38,8 @@ pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'
 pub trait Language {
     /// Not all languages can format all types; the `format_` methods of this
     /// trait will return this error if an invalid type is encountered.
+    // TODO: type formatting errors should include context during stack
+    // unwinding
     type FormatTypeError;
 
     /// Given `data`, generate type-code for this language and write it out to `writable`.

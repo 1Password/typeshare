@@ -6,9 +6,9 @@ pub mod visitors;
 pub use language::Language;
 
 pub mod prelude {
-    pub use crate::language::{FilesMode, Language, ScopedCrateTypes};
+    pub use crate::language::{CrateTypes, FilesMode, Language, ScopedCrateTypes};
     pub use crate::parsed_data::{
         CrateName, ParsedData, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
-        RustTypeAlias, SpecialRustType,
+        RustTypeAlias, SpecialRustType, TypeName,
     };
 }

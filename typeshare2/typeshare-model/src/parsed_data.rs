@@ -103,6 +103,16 @@ pub struct ParsedData {
     // pub multi_file: bool,
 }
 
+impl ParsedData {
+    pub fn merge(&mut self, other: Self) {
+        self.structs.extend(other.structs);
+        self.enums.extend(other.enums);
+        self.aliases.extend(other.aliases);
+        self.import_types.extend(other.import_types);
+        self.type_names.extend(other.type_names);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LangIdent(String);
 
@@ -740,7 +750,7 @@ pub struct ImportedType {
 
 /// A type name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TypeName(String);
+pub struct TypeName(pub String);
 
 impl TypeName {
     pub fn as_str(&self) -> &str {
