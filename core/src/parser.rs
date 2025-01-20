@@ -528,7 +528,8 @@ pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
         | RustType::Special(SpecialRustType::Option(_)) => {
             return Err(ParseError::RustConstTypeInvalid);
         }
-        RustType::Special(_s) => (),
+        RustType::Special(_) => (),
+        RustType::Simple { .. } => (),
         _ => return Err(ParseError::RustConstTypeInvalid),
     };
 
@@ -567,7 +568,7 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
     syn::visit::visit_expr(&mut expr_visitor, e);
     expr_visitor
         .0
-        .map_or(Err(ParseError::RustConstTypeInvalid), |v| v)
+        .unwrap_or(Err(ParseError::RustConstTypeInvalid))
 }
 
 // Helpers

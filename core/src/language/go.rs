@@ -200,7 +200,7 @@ impl Language for Go {
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                 writeln!(
                     w,
-                    "const {} {} = {};",
+                    "const {} {} = {}",
                     c.id.renamed.to_pascal_case(),
                     const_type,
                     val
