@@ -74,6 +74,36 @@ impl Ord for RustStruct {
     }
 }
 
+/// Rust const variable.
+///
+/// Typeshare can only handle numeric and string constants.
+/// ```
+/// pub const MY_CONST: &str = "constant value";
+/// ```
+#[derive(Debug, Clone)]
+pub struct RustConst {
+    /// The identifier for the constant.
+    pub id: Id,
+    /// The type identifier that this constant is referring to.
+    pub r#type: RustType,
+    /// The expression that the constant contains.
+    pub expr: RustConstExpr,
+}
+
+impl PartialEq for RustConst {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+/// A constant expression that can be shared via a constant variable across the typeshare
+/// boundary.
+#[derive(Debug, Clone)]
+pub enum RustConstExpr {
+    /// Expression represents an integer.
+    Int(i128),
+}
+
 /// Rust type alias.
 /// ```
 /// pub struct MasterPassword(String);
@@ -698,4 +728,6 @@ pub enum RustItem {
     Enum(RustEnum),
     /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
+    /// A `const` definition
+    Const(RustConst),
 }

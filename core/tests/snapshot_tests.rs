@@ -487,6 +487,7 @@ tests! {
         scala,
         typescript
     ];
+    can_generate_const: [typescript, go, python];
     can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, python];
     can_generate_readonly_fields: [
         typescript

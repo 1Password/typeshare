@@ -1,7 +1,7 @@
 use crate::{
     parser::{ParseError, ParsedData},
     rust_types::{
-        Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
+        Id, RustConst, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
         RustTypeFormatError, SpecialRustType,
     },
     topsort::topsort,
@@ -173,6 +173,7 @@ pub trait Language {
             structs,
             enums,
             aliases,
+            consts,
             ..
         } = data;
 
@@ -181,7 +182,8 @@ pub trait Language {
                 .into_iter()
                 .map(RustItem::Alias)
                 .chain(structs.into_iter().map(RustItem::Struct))
-                .chain(enums.into_iter().map(RustItem::Enum)),
+                .chain(enums.into_iter().map(RustItem::Enum))
+                .chain(consts.into_iter().map(RustItem::Const)),
         );
 
         topsort(&mut items);
@@ -191,6 +193,7 @@ pub trait Language {
                 RustItem::Enum(e) => self.write_enum(writable, e)?,
                 RustItem::Struct(s) => self.write_struct(writable, s)?,
                 RustItem::Alias(a) => self.write_type_alias(writable, a)?,
+                RustItem::Const(c) => self.write_const(writable, c)?,
             }
         }
 
@@ -296,6 +299,15 @@ pub trait Language {
     /// type MyTypeAlias = String;
     /// ```
     fn write_type_alias(&mut self, _w: &mut dyn Write, _t: &RustTypeAlias) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    /// Write a constant variable.
+    /// Example of a constant variable:
+    /// ```
+    /// const ANSWER_TO_EVERYTHING: u32 = 42;
+    /// ```
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
         Ok(())
     }
 

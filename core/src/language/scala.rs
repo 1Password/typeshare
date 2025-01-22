@@ -1,8 +1,10 @@
 use super::{CrateTypes, Language};
 use crate::language::SupportedLanguage;
 use crate::parser::{remove_dash_from_identifier, ParsedData};
-use crate::rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias};
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{
+    RustConst, RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
+    RustTypeFormatError, SpecialRustType,
+};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
@@ -148,6 +150,10 @@ impl Language for Scala {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
