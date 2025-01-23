@@ -62,7 +62,15 @@ pub struct GoParams {
     pub type_mappings: HashMap<String, String>,
 }
 
-/// The parameters that are used to configure the behaviour of typeshare
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+pub struct CSharpParams {
+    pub type_mappings: HashMap<String, String>,
+    pub namespace: String,
+    pub without_csharp_naming_convention: bool,
+}
+
+/// The paramters that are used to configure the behaviour of typeshare
 /// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 #[serde(default)]
@@ -77,6 +85,7 @@ pub(crate) struct Config {
     pub go: GoParams,
     #[serde(skip)]
     pub target_os: Vec<String>,
+    pub csharp: CSharpParams,
 }
 
 pub(crate) fn store_config(config: &Config, file_path: Option<&Path>) -> anyhow::Result<()> {

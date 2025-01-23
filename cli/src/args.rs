@@ -12,6 +12,7 @@ pub enum AvailableLanguage {
     Go,
     #[cfg(feature = "python")]
     Python,
+    CSharp,
 }
 
 #[derive(clap::Parser)]
@@ -48,6 +49,10 @@ pub struct Args {
     /// Scala package name
     #[arg(long)]
     pub scala_package: Option<String>,
+
+    /// CSharp namespace
+    #[arg(long)]
+    pub csharp_namespace: Option<String>,
 
     /// Scala serializer module name
     #[arg(long)]
