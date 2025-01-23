@@ -10,12 +10,12 @@ public class A {
 	public uint Field { get; set; }
 }
 
-public class ABC {
+public class AB {
 	[JsonProperty(Required = Required.Always)]
 	public uint Field { get; set; }
 }
 
-public class AB {
+public class ABC {
 	[JsonProperty(Required = Required.Always)]
 	public uint Field { get; set; }
 }

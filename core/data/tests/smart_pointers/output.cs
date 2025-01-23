@@ -16,6 +16,26 @@ public class ArcyColors {
 }
 
 /** This is a comment. */
+public class CellyColors {
+	[JsonProperty(Required = Required.Always)]
+	public string Red { get; set; }
+	[JsonProperty(Required = Required.Always)]
+	public IEnumerable<string> Blue { get; set; }
+}
+
+/** This is a comment. */
+public class CowyColors {
+	[JsonProperty(Required = Required.Always)]
+	public string Lifetime { get; set; }
+}
+
+/** This is a comment. */
+public class LockyColors {
+	[JsonProperty(Required = Required.Always)]
+	public string Red { get; set; }
+}
+
+/** This is a comment. */
 public class MutexyColors {
 	[JsonProperty(Required = Required.Always)]
 	public IEnumerable<string> Blue { get; set; }
@@ -31,26 +51,6 @@ public class RcyColors {
 	public IEnumerable<string> Blue { get; set; }
 	[JsonProperty(Required = Required.Always)]
 	public string Green { get; set; }
-}
-
-/** This is a comment. */
-public class CellyColors {
-	[JsonProperty(Required = Required.Always)]
-	public string Red { get; set; }
-	[JsonProperty(Required = Required.Always)]
-	public IEnumerable<string> Blue { get; set; }
-}
-
-/** This is a comment. */
-public class LockyColors {
-	[JsonProperty(Required = Required.Always)]
-	public string Red { get; set; }
-}
-
-/** This is a comment. */
-public class CowyColors {
-	[JsonProperty(Required = Required.Always)]
-	public string Lifetime { get; set; }
 }
 
 /** This is a comment. */
