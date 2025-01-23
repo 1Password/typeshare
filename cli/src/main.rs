@@ -27,7 +27,7 @@ use typeshare_core::language::Go;
 use typeshare_core::language::Python;
 use typeshare_core::{
     context::ParseContext,
-    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{CSharp, CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
     reconcile::reconcile_aliases,
 };
@@ -95,6 +95,7 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
             args::AvailableLanguage::Go => SupportedLanguage::Go,
             #[cfg(feature = "python")]
             args::AvailableLanguage::Python => SupportedLanguage::Python,
+            args::AvailableLanguage::CSharp => SupportedLanguage::CSharp,
         },
     };
 
@@ -268,7 +269,7 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
         config.scala.module_name = scala_module_name.to_string();
     }
 
-    if let Some(csharp_namespace) = options.value_of(ARG_CSHARP_NAMESPACE) {
+    if let Some(csharp_namespace) = options.csharp_namespace.as_ref() {
         config.csharp.namespace = csharp_namespace.to_string();
     }
 
