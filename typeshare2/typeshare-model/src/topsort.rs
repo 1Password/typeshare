@@ -1,14 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::parsed_data::{
-    RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias, SpecialRustType,
+use crate::{
+    parsed_data::{
+        RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias, SpecialRustType,
+    },
+    prelude::TypeName,
 };
 
 fn get_dependencies_from_type(
     tp: &RustType,
-    types: &HashMap<String, &RustItem>,
-    res: &mut Vec<String>,
-    seen: &mut HashSet<String>,
+    types: &HashMap<TypeName, &RustItem>,
+    res: &mut Vec<TypeName>,
+    seen: &mut HashSet<TypeName>,
 ) {
     match tp {
         RustType::Generic { id, parameters } => {
@@ -17,8 +20,8 @@ fn get_dependencies_from_type(
                     res.push(id.clone());
                     get_dependencies(tp, types, res, seen);
                     for parameter in parameters {
-                        let id = parameter.id().to_string();
-                        if let Some(tp) = types.get(&id) {
+                        let id = parameter.id();
+                        if let Some(tp) = types.get(id) {
                             if seen.insert(id.clone()) {
                                 res.push(id.clone());
                                 get_dependencies(tp, types, res, seen);
@@ -53,14 +56,14 @@ fn get_dependencies_from_type(
             _ => {}
         },
     };
-    seen.remove(&tp.id().to_string());
+    seen.remove(tp.id());
 }
 
 fn get_enum_dependencies(
     enm: &RustEnum,
-    types: &HashMap<String, &RustItem>,
-    res: &mut Vec<String>,
-    seen: &mut HashSet<String>,
+    types: &HashMap<TypeName, &RustItem>,
+    res: &mut Vec<TypeName>,
+    seen: &mut HashSet<TypeName>,
 ) {
     match enm {
         RustEnum::Unit(_) => {}
@@ -69,8 +72,8 @@ fn get_enum_dependencies(
             content_key: _,
             shared,
         } => {
-            if seen.insert(shared.id.original.to_string()) {
-                res.push(shared.id.original.to_string());
+            if seen.insert(shared.id.original.clone()) {
+                res.push(shared.id.original.clone());
                 for variant in &shared.variants {
                     match variant {
                         RustEnumVariant::Unit(_) => {}
@@ -83,7 +86,7 @@ fn get_enum_dependencies(
                         }
                     }
                 }
-                seen.remove(&shared.id.original.to_string());
+                seen.remove(&shared.id.original);
             }
         }
     }
@@ -91,40 +94,40 @@ fn get_enum_dependencies(
 
 fn get_struct_dependencies(
     strct: &RustStruct,
-    types: &HashMap<String, &RustItem>,
-    res: &mut Vec<String>,
-    seen: &mut HashSet<String>,
+    types: &HashMap<TypeName, &RustItem>,
+    res: &mut Vec<TypeName>,
+    seen: &mut HashSet<TypeName>,
 ) {
-    if seen.insert(strct.id.original.to_string()) {
+    if seen.insert(strct.id.original.clone()) {
         for field in &strct.fields {
             get_dependencies_from_type(&field.ty, types, res, seen)
         }
-        seen.remove(&strct.id.original.to_string());
+        seen.remove(&strct.id.original);
     }
 }
 
 fn get_type_alias_dependencies(
     ta: &RustTypeAlias,
-    types: &HashMap<String, &RustItem>,
-    res: &mut Vec<String>,
-    seen: &mut HashSet<String>,
+    types: &HashMap<TypeName, &RustItem>,
+    res: &mut Vec<TypeName>,
+    seen: &mut HashSet<TypeName>,
 ) {
-    if seen.insert(ta.id.original.to_string()) {
+    if seen.insert(ta.id.original.clone()) {
         get_dependencies_from_type(&ta.r#type, types, res, seen);
         for generic in &ta.generic_types {
             if let Some(thing) = types.get(generic) {
                 get_dependencies(thing, types, res, seen)
             }
         }
-        seen.remove(&ta.id.original.to_string());
+        seen.remove(&ta.id.original);
     }
 }
 
 fn get_dependencies(
     thing: &RustItem,
-    types: &HashMap<String, &RustItem>,
-    res: &mut Vec<String>,
-    seen: &mut HashSet<String>,
+    types: &HashMap<TypeName, &RustItem>,
+    res: &mut Vec<TypeName>,
+    seen: &mut HashSet<TypeName>,
 ) {
     match thing {
         RustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),

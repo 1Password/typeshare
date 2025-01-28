@@ -13,7 +13,7 @@ use typeshare_model::prelude::*;
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
     options: ArgMatches,
-    lang: Box<dyn Language>,
+    lang: &mut impl Language,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
@@ -31,15 +31,20 @@ pub fn write_generated(
 
 /// Write multiple module files.
 fn write_multiple_files(
-    mut lang: Box<dyn Language>,
-    output_folder: &str,
+    lang: &mut impl Language,
+    output_folder: &Path,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
     import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
     for (_crate_name, parsed_data) in crate_parsed_data {
         let outfile = Path::new(output_folder).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
-        lang.generate_types(&mut generated_contents, &import_candidates, parsed_data)?;
+        lang.generate_types(
+            &mut generated_contents,
+            &import_candidates,
+            parsed_data,
+            FilesMode::Multi,
+        )?;
         check_write_file(&outfile, generated_contents)?;
     }
 
@@ -78,7 +83,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 
 /// Write all types to a single file.
 fn write_single_file(
-    mut lang: Box<dyn Language>,
+    lang: &mut impl Language,
     file_name: &str,
     mut crate_parsed_data: HashMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
@@ -87,7 +92,7 @@ fn write_single_file(
         .context("Could not get parsed data for single file output")?;
 
     let mut output = Vec::new();
-    lang.generate_types(&mut output, &HashMap::new(), parsed_data)?;
+    lang.generate_types(&mut output, &HashMap::new(), parsed_data, FilesMode::Single)?;
 
     let outfile = Path::new(file_name).to_path_buf();
     check_write_file(&outfile, output)?;

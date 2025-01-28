@@ -5,8 +5,18 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
-heck = "0.5.0"
 ignore = "0.4.23"
+quote = { version = "1.0.38", default-features = false }
 rayon = "1.10.0"
-syn = { version = "2.0.96", features = ["full"] }
+syn = { version = "2.0.96", features = [
+    "full",
+    "visit",
+    "printing",
+    "parsing",
+] }
+thiserror = "2.0.11"
 typeshare-model = { path = "../typeshare-model" }
+
+[dev-dependencies]
+cool_asserts = "2.0.3"
+itertools = "0.14.0"
