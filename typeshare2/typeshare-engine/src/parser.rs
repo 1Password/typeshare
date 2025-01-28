@@ -1,19 +1,34 @@
 //! Source file parsing.
 use anyhow::Context;
-use heck::ToPascalCase;
 use ignore::WalkBuilder;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BTreeSet, HashMap, HashSet},
     ops::Not,
     path::PathBuf,
 };
-use syn::{punctuated::Punctuated, Fields, GenericParam, ItemEnum, ItemStruct};
+use syn::{
+    parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprLit, Fields,
+    GenericParam, Ident, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList, MetaNameValue,
+    Token,
+};
 
 use typeshare_model::{
-    parsed_data::{RustEnumShared, RustItem},
+    parsed_data::{FieldDecorator, Id, LangIdent, RustEnumShared, RustEnumVariantShared, RustItem},
     prelude::*,
 };
+
+use crate::{
+    rename::RenameExt,
+    type_parser::{parse_rust_type, parse_rust_type_from_string},
+    visitors::TypeShareVisitor,
+    ParseError,
+};
+
+const SERDE: &str = "serde";
+const TYPESHARE: &str = "typeshare";
+
+const SINGLE_FILE_CRATE_NAME: CrateName = CrateName::new(String::new());
 
 /// Input data for parsing each source file.
 pub struct ParserInput {
@@ -77,18 +92,16 @@ fn output_file_name(language_type: &LangConfig, crate_name: &CrateName) -> Strin
 pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
     file_mappings
         .iter()
-        .map(|(crate_name, parsed_data)| (crate_name, parsed_data.type_names.clone()))
+        .map(|(crate_name, parsed_data)| (crate_name, &parsed_data.type_names))
         .fold(
             HashMap::new(),
             |mut import_map: CrateTypes, (crate_name, type_names)| {
-                let type_names = type_names.into_iter().map(TypeName);
-
                 match import_map.entry(crate_name.clone()) {
                     Entry::Occupied(mut e) => {
-                        e.get_mut().extend(type_names);
+                        e.get_mut().extend(type_names.iter().cloned());
                     }
                     Entry::Vacant(e) => {
-                        e.insert(type_names.collect());
+                        e.insert(type_names.clone());
                     }
                 }
                 import_map
@@ -100,7 +113,7 @@ pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
 pub fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[&str],
-    multi_file: bool,
+    mode: FilesMode,
 ) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
     inputs
         .into_par_iter()
@@ -121,7 +134,7 @@ pub fn parse_input(
                             file_name.clone(),
                             file_path,
                             ignored_types,
-                            multi_file,
+                            mode,
                         )
                         .context("Failed to parse")
                     })
@@ -174,7 +187,7 @@ pub fn parse(
     file_name: String,
     file_path: PathBuf,
     ignored_types: &[&str],
-    mult_file: bool,
+    file_mode: FilesMode,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -185,7 +198,7 @@ pub fn parse(
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor =
-        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, mult_file);
+        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, file_mode);
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
     Ok(Some(import_visitor.parsed_data()))
@@ -204,7 +217,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(type_param.ident.to_string()),
+            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
             _ => None,
         })
         .collect();
@@ -215,7 +228,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
     if let Some(ty) = get_serialized_as_type(&s.attrs) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&s.ident), &s.attrs, &None),
-            r#type: ty.parse()?,
+            r#type: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
         }));
@@ -229,10 +242,9 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 .iter()
                 .filter(|field| !is_skipped(&field.attrs))
                 .map(|f| {
-                    let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
-                        ty.parse()?
-                    } else {
-                        RustType::try_from(&f.ty)?
+                    let ty = match get_field_type_override(&f.attrs) {
+                        Some(ty) => parse_rust_type_from_string(&ty)?,
+                        None => parse_rust_type(&f.ty)?,
                     };
 
                     if serde_flatten(&f.attrs) {
@@ -267,10 +279,9 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             }
             let f = &f.unnamed[0];
 
-            let ty = if let Some(ty) = get_field_type_override(&f.attrs) {
-                ty.parse()?
-            } else {
-                RustType::try_from(&f.ty)?
+            let ty = match get_field_type_override(&f.attrs) {
+                Some(ty) => parse_rust_type_from_string(&ty)?,
+                None => parse_rust_type(&f.ty)?,
             };
 
             RustItem::Alias(RustTypeAlias {
@@ -302,7 +313,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(type_param.ident.to_string()),
+            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
             _ => None,
         })
         .collect();
@@ -314,13 +325,13 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     if let Some(ty) = get_serialized_as_type(&e.attrs) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&e.ident), &e.attrs, &None),
-            r#type: ty.parse()?,
+            r#type: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
         }));
     }
 
-    let original_enum_ident = e.ident.to_string();
+    let original_enum_ident = TypeName::new(&e.ident);
 
     // Grab the `#[serde(tag = "...", content = "...")]` values if they exist
     let maybe_tag_key = get_tag_key(&e.attrs);
@@ -533,11 +544,7 @@ fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
     }
 }
 
-fn get_ident(
-    ident: Option<&proc_macro2::Ident>,
-    attrs: &[syn::Attribute],
-    rename_all: &Option<String>,
-) -> Id {
+fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: &Option<String>) -> Id {
     let original = ident.map_or("???".to_string(), |id| id.to_string().replace("r#", ""));
 
     let mut renamed = rename_all_to_case(original.clone(), rename_all);
@@ -546,10 +553,15 @@ fn get_ident(
         renamed = s;
     }
 
-    Id { original, renamed }
+    Id {
+        original: TypeName::new_string(original),
+        renamed: TypeName::new_string(renamed),
+    }
 }
 
 fn rename_all_to_case(original: String, case: &Option<String>) -> String {
+    // TODO: we'd like to replace this with `heck`, but it's not clear that
+    // we'd preserve backwards compatibility
     match case {
         None => original,
         Some(value) => match value.as_str() {
@@ -610,98 +622,96 @@ fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
     serde_attr(attrs, "flatten")
 }
 
-/// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
-/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, BTreeSet<decorator>>`, where `language` is `SupportedLanguage`
-/// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
-fn get_field_decorators(
-    attrs: &[Attribute],
-) -> HashMap<SupportedLanguage, BTreeSet<FieldDecorator>> {
-    let languages: HashSet<SupportedLanguage> = SupportedLanguage::all_languages().collect();
+// /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
+// /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, BTreeSet<decorator>>`, where `language` is `SupportedLanguage`
+// /// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
+// fn get_field_decorators(attrs: &[Attribute]) -> HashMap<LangIdent, BTreeSet<FieldDecorator>> {
+//     let languages: HashSet<SupportedLanguage> = SupportedLanguage::all_languages().collect();
 
-    attrs
-        .iter()
-        .flat_map(|attr| get_meta_items(attr, TYPESHARE))
-        .flat_map(|meta| {
-            if let Meta::List(list) = meta {
-                Some(list)
-            } else {
-                None
-            }
-        })
-        .flat_map(|list: MetaList| match list.path.get_ident() {
-            Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
-                Some((ident.try_into().unwrap(), list))
-            }
-            _ => None,
-        })
-        .map(|(language, list): (SupportedLanguage, MetaList)| {
-            (
-                language,
-                list.parse_args_with(|input: &ParseBuffer| {
-                    let mut res: Vec<Meta> = vec![];
+//     attrs
+//         .iter()
+//         .flat_map(|attr| get_meta_items(attr, TYPESHARE))
+//         .flat_map(|meta| {
+//             if let Meta::List(list) = meta {
+//                 Some(list)
+//             } else {
+//                 None
+//             }
+//         })
+//         .flat_map(|list: MetaList| match list.path.get_ident() {
+//             Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
+//                 Some((ident.try_into().unwrap(), list))
+//             }
+//             _ => None,
+//         })
+//         .map(|(language, list): (SupportedLanguage, MetaList)| {
+//             (
+//                 language,
+//                 list.parse_args_with(|input: &ParseBuffer| {
+//                     let mut res: Vec<Meta> = vec![];
 
-                    loop {
-                        if input.is_empty() {
-                            break;
-                        }
+//                     loop {
+//                         if input.is_empty() {
+//                             break;
+//                         }
 
-                        let ident = input.call(Ident::parse_any)?;
+//                         let ident = input.call(Ident::parse_any)?;
 
-                        // Parse `readonly` or any other single ident optionally followed by a comma
-                        if input.peek(Token![,]) || input.is_empty() {
-                            input.parse::<Token![,]>().unwrap_or_default();
-                            res.push(Meta::Path(ident.into()));
-                            continue;
-                        }
+//                         // Parse `readonly` or any other single ident optionally followed by a comma
+//                         if input.peek(Token![,]) || input.is_empty() {
+//                             input.parse::<Token![,]>().unwrap_or_default();
+//                             res.push(Meta::Path(ident.into()));
+//                             continue;
+//                         }
 
-                        if input.is_empty() {
-                            break;
-                        }
+//                         if input.is_empty() {
+//                             break;
+//                         }
 
-                        // Parse `= "any | undefined"` or any other eq sign followed by a string literal
+//                         // Parse `= "any | undefined"` or any other eq sign followed by a string literal
 
-                        let eq_token = input.parse::<Token![=]>()?;
+//                         let eq_token = input.parse::<Token![=]>()?;
 
-                        let value: LitStr = input.parse()?;
-                        res.push(Meta::NameValue(MetaNameValue {
-                            path: ident.into(),
-                            eq_token,
-                            value: Expr::Lit(ExprLit {
-                                attrs: Vec::new(),
-                                lit: value.into(),
-                            }),
-                        }));
+//                         let value: LitStr = input.parse()?;
+//                         res.push(Meta::NameValue(MetaNameValue {
+//                             path: ident.into(),
+//                             eq_token,
+//                             value: Expr::Lit(ExprLit {
+//                                 attrs: Vec::new(),
+//                                 lit: value.into(),
+//                             }),
+//                         }));
 
-                        if input.is_empty() {
-                            break;
-                        }
+//                         if input.is_empty() {
+//                             break;
+//                         }
 
-                        input.parse::<Token![,]>()?;
-                    }
-                    Ok(res)
-                })
-                .iter()
-                .flatten()
-                .filter_map(|nested| match nested {
-                    Meta::Path(path) if path.segments.len() == 1 => {
-                        Some(FieldDecorator::Word(path.get_ident()?.to_string()))
-                    }
-                    Meta::NameValue(name_value) => Some(FieldDecorator::NameValue(
-                        name_value.path.get_ident()?.to_string(),
-                        expr_to_string(&name_value.value)?,
-                    )),
-                    // TODO: this should throw a visible error since it suggests a malformed
-                    //       attribute.
-                    _ => None,
-                })
-                .collect::<Vec<FieldDecorator>>(),
-            )
-        })
-        .fold(HashMap::new(), |mut acc, (language, decorators)| {
-            acc.entry(language).or_default().extend(decorators);
-            acc
-        })
-}
+//                         input.parse::<Token![,]>()?;
+//                     }
+//                     Ok(res)
+//                 })
+//                 .iter()
+//                 .flatten()
+//                 .filter_map(|nested| match nested {
+//                     Meta::Path(path) if path.segments.len() == 1 => {
+//                         Some(FieldDecorator::Word(path.get_ident()?.to_string()))
+//                     }
+//                     Meta::NameValue(name_value) => Some(FieldDecorator::NameValue(
+//                         name_value.path.get_ident()?.to_string(),
+//                         expr_to_string(&name_value.value)?,
+//                     )),
+//                     // TODO: this should throw a visible error since it suggests a malformed
+//                     //       attribute.
+//                     _ => None,
+//                 })
+//                 .collect::<Vec<FieldDecorator>>(),
+//             )
+//         })
+//         .fold(HashMap::new(), |mut acc, (language, decorators)| {
+//             acc.entry(language).or_default().extend(decorators);
+//             acc
+//         })
+// }
 
 fn expr_to_string(expr: &Expr) -> Option<String> {
     match expr {
@@ -717,26 +727,26 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
     }
 }
 
-/// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-/// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
-fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
-    let mut decorator_map: DecoratorMap = DecoratorMap::new();
+// /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
+// /// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
+// fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
+//     let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
-    for decorator_kind in [
-        DecoratorKind::Swift,
-        DecoratorKind::SwiftGenericConstraints,
-        DecoratorKind::Kotlin,
-    ] {
-        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
-            decorator_map
-                .entry(decorator_kind)
-                .or_default()
-                .extend(value.split(',').map(|s| s.trim().to_string()));
-        }
-    }
+//     for decorator_kind in [
+//         DecoratorKind::Swift,
+//         DecoratorKind::SwiftGenericConstraints,
+//         DecoratorKind::Kotlin,
+//     ] {
+//         for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
+//             decorator_map
+//                 .entry(decorator_kind)
+//                 .or_default()
+//                 .extend(value.split(',').map(|s| s.trim().to_string()));
+//         }
+//     }
 
-    decorator_map
-}
+//     decorator_map
+// }
 
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "tag", SERDE).next()

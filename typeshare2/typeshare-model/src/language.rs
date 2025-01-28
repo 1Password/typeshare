@@ -85,7 +85,7 @@ pub trait Language {
         self.end_file(writable)
     }
 
-    fn mapped_type(&self, #[expect(unused_variables)] type_name: &str) -> Option<&str> {
+    fn mapped_type(&self, #[expect(unused_variables)] type_name: &TypeName) -> Option<&TypeName> {
         None
     }
 
@@ -93,14 +93,14 @@ pub trait Language {
     fn format_type(
         &mut self,
         ty: &RustType,
-        generic_types: &[String],
+        generic_context: &[TypeName],
     ) -> Result<String, Self::FormatTypeError> {
         match ty {
-            RustType::Simple { id } => self.format_simple_type(id, generic_types),
+            RustType::Simple { id } => self.format_simple_type(id, generic_context),
             RustType::Generic { id, parameters } => {
-                self.format_generic_type(id, parameters.as_slice(), generic_types)
+                self.format_generic_type(id, parameters.as_slice(), generic_context)
             }
-            RustType::Special(special) => self.format_special_type(special, generic_types),
+            RustType::Special(special) => self.format_special_type(special, generic_context),
         }
     }
 
@@ -109,12 +109,12 @@ pub trait Language {
     /// need to differentiate between a user-defined type and a generic type (for example: Swift)
     fn format_simple_type(
         &mut self,
-        base: &str,
-        #[expect(unused_variables)] generic_context: &[String],
+        base: &TypeName,
+        #[expect(unused_variables)] generic_context: &[TypeName],
     ) -> Result<String, Self::FormatTypeError> {
         Ok(match self.mapped_type(base) {
-            Some(mapped) => mapped.into(),
-            None => base.into(),
+            Some(mapped) => mapped.to_string(),
+            None => base.to_string(),
         })
     }
 
@@ -122,14 +122,14 @@ pub trait Language {
     /// may be recursive.
     fn format_generic_type(
         &mut self,
-        base: &str,
+        base: &TypeName,
         parameters: &[RustType],
-        generic_context: &[String],
+        generic_context: &[TypeName],
     ) -> Result<String, Self::FormatTypeError> {
         match parameters.is_empty() {
             true => self.format_simple_type(base, generic_context),
             false => Ok(match self.mapped_type(base) {
-                Some(mapped) => mapped.into(),
+                Some(mapped) => mapped.to_string(),
                 None => format!(
                     "{}{}",
                     self.format_simple_type(base, generic_context)?,
@@ -145,7 +145,7 @@ pub trait Language {
     fn format_generic_parameters(
         &mut self,
         parameters: &[RustType],
-        generic_context: &[String],
+        generic_context: &[TypeName],
     ) -> Result<String, Self::FormatTypeError> {
         parameters
             .iter()
@@ -157,7 +157,7 @@ pub trait Language {
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
-        generic_types: &[String],
+        generic_context: &[TypeName],
     ) -> Result<String, Self::FormatTypeError>;
 
     /// Implementors can use this function to write a header for typeshared code.
@@ -243,7 +243,7 @@ pub trait Language {
         &mut self,
         w: &mut impl Write,
         e: &RustEnum,
-        make_struct_name: &impl Fn(&str) -> String,
+        make_struct_name: &impl Fn(&TypeName) -> String,
     ) -> std::io::Result<()> {
         for (fields, shared) in e.shared().variants.iter().filter_map(|v| match v {
             RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
@@ -270,8 +270,8 @@ pub trait Language {
                 w,
                 &RustStruct {
                     id: Id {
-                        original: struct_name.clone(),
-                        renamed: struct_name.clone(),
+                        original: TypeName::new_string(struct_name.clone()),
+                        renamed: TypeName::new_string(struct_name)
                     },
                     fields: fields.clone(),
                     generic_types,

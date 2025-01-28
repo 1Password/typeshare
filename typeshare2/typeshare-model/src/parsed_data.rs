@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     collections::{BTreeSet, HashMap, HashSet},
     fmt::{self, Display},
     path::Path,
@@ -15,13 +15,11 @@ impl Display for CrateName {
     }
 }
 
-impl From<String> for CrateName {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
 impl CrateName {
+    pub const fn new(name: String) -> Self {
+        Self(name)
+    }
+
     /// View this crate name as a string slice.
     pub fn as_str(&self) -> &str {
         self.0.as_str()
@@ -37,48 +35,9 @@ impl CrateName {
             .nth(1)
             .and_then(|s| s.to_str())
             .map(file_name_to_crate_name)
-            .map(CrateName::from)
+            .map(CrateName::new)
     }
 }
-
-// /// Errors that can occur while parsing Rust source input.
-// #[derive(Debug, Error)]
-// #[allow(missing_docs)]
-// pub enum ParseError {
-//     #[error("{0}")]
-//     SynError(#[from] syn::Error),
-//     #[error("failed to parse a rust type: {0}")]
-//     RustTypeParseError(#[from] RustTypeParseError),
-//     #[error("unsupported language encountered: {0}")]
-//     UnsupportedLanguage(String),
-//     #[error("unsupported type encountered: {0}")]
-//     UnsupportedType(String),
-//     #[error("tuple structs with more than one field are currently unsupported")]
-//     ComplexTupleStruct,
-//     #[error("multiple unnamed associated types are not currently supported")]
-//     MultipleUnnamedAssociatedTypes,
-//     #[error("the serde tag attribute is not supported for non-algebraic enums: {enum_ident}")]
-//     SerdeTagNotAllowed { enum_ident: String },
-//     #[error("the serde content attribute is not supported for non-algebraic enums: {enum_ident}")]
-//     SerdeContentNotAllowed { enum_ident: String },
-//     #[error("serde tag attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-//     SerdeTagRequired { enum_ident: String },
-//     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-//     SerdeContentRequired { enum_ident: String },
-//     #[error("the serde flatten attribute is not currently supported")]
-//     SerdeFlattenNotAllowed,
-// }
-
-// /// Error with it's related data.
-// #[derive(Debug)]
-// pub struct ErrorInfo {
-//     /// The crate where this error occured.
-//     pub crate_name: CrateName,
-//     /// The file name being parsed.
-//     pub file_name: String,
-//     /// The parse error.
-//     pub error: ParseError,
-// }
 
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
@@ -96,7 +55,7 @@ pub struct ParsedData {
     /// File name to write to for generated type.
     pub file_name: String,
     /// All type names
-    pub type_names: HashSet<String>,
+    pub type_names: HashSet<TypeName>,
     // /// Failures during parsing.
     // pub errors: Vec<ErrorInfo>,
     // /// Using multi file support.
@@ -110,6 +69,24 @@ impl ParsedData {
         self.aliases.extend(other.aliases);
         self.import_types.extend(other.import_types);
         self.type_names.extend(other.type_names);
+    }
+
+    pub fn add(&mut self, item: RustItem) {
+        match item {
+            RustItem::Struct(rust_struct) => {
+                self.type_names.insert(rust_struct.id.renamed.clone());
+                self.structs.push(rust_struct);
+            }
+            RustItem::Enum(rust_enum) => {
+                self.type_names
+                    .insert(rust_enum.shared().id.renamed.clone());
+                self.enums.push(rust_enum);
+            }
+            RustItem::Alias(rust_type_alias) => {
+                self.type_names.insert(rust_type_alias.id.renamed.clone());
+                self.aliases.push(rust_type_alias);
+            }
+        }
     }
 }
 
@@ -126,11 +103,11 @@ impl Borrow<str> for LangIdent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Id {
     /// The original identifier name
-    pub original: String,
+    pub original: TypeName,
     /// The renamed identifier, based on serde attributes.
     /// If there is no re-naming going on, this will be identical to
     /// `original`.
-    pub renamed: String,
+    pub renamed: TypeName,
 }
 
 impl std::fmt::Display for Id {
@@ -149,7 +126,7 @@ pub struct RustStruct {
     /// The identifier for the struct.
     pub id: Id,
     /// The generic parameters that come after the struct name.
-    pub generic_types: Vec<String>,
+    pub generic_types: Vec<TypeName>,
     /// The fields of the struct.
     pub fields: Vec<RustField>,
     /// Comments that were in the struct source.
@@ -169,7 +146,7 @@ pub struct RustTypeAlias {
     /// The identifier for the alias.
     pub id: Id,
     /// The generic parameters that come after the type alias name.
-    pub generic_types: Vec<String>,
+    pub generic_types: Vec<TypeName>,
     /// The type identifier that this type alias is aliasing
     pub r#type: RustType,
     /// Comments that were in the type alias source.
@@ -234,7 +211,7 @@ pub enum RustType {
     /// If a generic type is type-mapped via `typeshare.toml`, the generic parameters will be dropped automatically.
     Generic {
         #[allow(missing_docs)]
-        id: String,
+        id: TypeName,
         #[allow(missing_docs)]
         parameters: Vec<RustType>,
     },
@@ -246,7 +223,7 @@ pub enum RustType {
     /// However, these types can still be transformed as part of the type-map in `typeshare.toml`.
     Simple {
         #[allow(missing_docs)]
-        id: String,
+        id: TypeName,
     },
 }
 
@@ -301,134 +278,12 @@ pub enum SpecialRustType {
     U53,
 }
 
-// #[derive(Debug, Error)]
-// #[allow(missing_docs)]
-// pub enum RustTypeParseError {
-//     #[error("{0:?}")]
-//     UnsupportedType(Vec<String>),
-//     #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
-//     UnexpectedToken(String),
-//     #[error("Tuples are not allowed in typeshare types")]
-//     UnexpectedParameterizedTuple,
-//     #[error("Could not parse numeric literal")]
-//     NumericLiteral(syn::parse::Error),
-// }
-
-// impl FromStr for RustType {
-//     type Err = RustTypeParseError;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         let syn_type =
-//             syn::parse_str(s).map_err(|_| RustTypeParseError::UnsupportedType(vec![]))?;
-//         Self::try_from(&syn_type)
-//     }
-// }
-
-// impl TryFrom<&syn::Type> for RustType {
-//     type Error = RustTypeParseError;
-
-//     fn try_from(ty: &syn::Type) -> Result<Self, Self::Error> {
-//         Ok(match ty {
-//             syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
-//                 Self::Special(SpecialRustType::Unit)
-//             }
-//             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
-//             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
-//             syn::Type::Path(path) => {
-//                 let segment = path.path.segments.iter().last().unwrap();
-//                 let id = segment.ident.to_string();
-//                 let parameters: Vec<Self> = match &segment.arguments {
-//                     syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
-//                         let parameters: Result<Vec<Self>, Self::Error> = angle_bracketed_arguments
-//                             .args
-//                             .iter()
-//                             .filter_map(|arg| match arg {
-//                                 syn::GenericArgument::Type(r#type) => Some(Self::try_from(r#type)),
-//                                 _ => None,
-//                             })
-//                             .collect();
-//                         parameters?
-//                     }
-//                     _ => Vec::default(),
-//                 };
-//                 match id.as_str() {
-//                     "Vec" => Self::Special(SpecialRustType::Vec(
-//                         parameters.into_iter().next().unwrap().into(),
-//                     )),
-//                     "Option" => Self::Special(SpecialRustType::Option(
-//                         parameters.into_iter().next().unwrap().into(),
-//                     )),
-//                     "HashMap" => {
-//                         let mut params = parameters.into_iter();
-//                         Self::Special(SpecialRustType::HashMap(
-//                             params.next().unwrap().into(),
-//                             params.next().unwrap().into(),
-//                         ))
-//                     }
-//                     "str" | "String" => Self::Special(SpecialRustType::String),
-//                     // These smart pointers can be treated as their inner type since serde can handle it
-//                     // See impls of serde::Deserialize
-//                     "Box" | "Weak" | "Arc" | "Rc" | "Cow" | "ArcWeak" | "RcWeak" | "Cell"
-//                     | "Mutex" | "RefCell" | "RwLock" => parameters.into_iter().next().unwrap(),
-//                     "bool" => Self::Special(SpecialRustType::Bool),
-//                     "char" => Self::Special(SpecialRustType::Char),
-//                     "u8" => Self::Special(SpecialRustType::U8),
-//                     "u16" => Self::Special(SpecialRustType::U16),
-//                     "u32" => Self::Special(SpecialRustType::U32),
-//                     "U53" => Self::Special(SpecialRustType::U53),
-//                     "u64" | "i64" | "usize" | "isize" => {
-//                         return Err(RustTypeParseError::UnsupportedType(vec![id]))
-//                     }
-//                     "i8" => Self::Special(SpecialRustType::I8),
-//                     "i16" => Self::Special(SpecialRustType::I16),
-//                     "i32" => Self::Special(SpecialRustType::I32),
-//                     "I54" => Self::Special(SpecialRustType::I54),
-//                     "f32" => Self::Special(SpecialRustType::F32),
-//                     "f64" => Self::Special(SpecialRustType::F64),
-//                     _ => {
-//                         if parameters.is_empty() {
-//                             Self::Simple { id }
-//                         } else {
-//                             Self::Generic { id, parameters }
-//                         }
-//                     }
-//                 }
-//             }
-//             syn::Type::Array(TypeArray {
-//                 elem,
-//                 len:
-//                     Expr::Lit(ExprLit {
-//                         lit: Lit::Int(count),
-//                         ..
-//                     }),
-//                 ..
-//             }) => Self::Special(SpecialRustType::Array(
-//                 Self::try_from(elem.as_ref())?.into(),
-//                 count
-//                     .base10_parse()
-//                     .map_err(RustTypeParseError::NumericLiteral)?,
-//             )),
-//             syn::Type::Slice(TypeSlice {
-//                 bracket_token: _,
-//                 elem,
-//             }) => Self::Special(SpecialRustType::Slice(
-//                 Self::try_from(elem.as_ref())?.into(),
-//             )),
-//             _ => {
-//                 return Err(RustTypeParseError::UnexpectedToken(
-//                     ty.to_token_stream().to_string(),
-//                 ))
-//             }
-//         })
-//     }
-// }
-
 impl RustType {
     /// Check if a type contains a type with an ID that matches `ty`.
     /// For example, `Box<String>` contains the types `Box` and `String`. Similarly,
     /// `Vec<Option<HashMap<String, Url>>>` contains the types `Vec`, `Option`, `HashMap`,
     /// `String`, and `Url`.
-    pub fn contains_type(&self, ty: &str) -> bool {
+    pub fn contains_type(&self, ty: &TypeName) -> bool {
         match &self {
             Self::Simple { id } => id == ty,
             Self::Generic { id, parameters } => {
@@ -439,9 +294,9 @@ impl RustType {
     }
 
     /// Get the ID (AKA name) of the type.
-    pub fn id(&self) -> &str {
+    pub fn id(&self) -> &TypeName {
         match &self {
-            Self::Simple { id } | Self::Generic { id, .. } => id.as_str(),
+            Self::Simple { id } | Self::Generic { id, .. } => id,
             Self::Special(special) => special.id(),
         }
     }
@@ -490,29 +345,6 @@ impl RustType {
     // }
 }
 
-struct RustRefTypeIter<'a> {
-    ty: Option<&'a RustType>,
-    parameters: Vec<&'a RustType>,
-}
-
-impl<'a> Iterator for RustRefTypeIter<'a> {
-    type Item = &'a str;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(t) = self.parameters.pop() {
-            self.parameters.extend(t.parameters());
-            return Some(t.id());
-        }
-
-        if let Some(t) = self.ty.take() {
-            self.parameters = t.parameters().collect();
-            return Some(t.id());
-        }
-
-        None
-    }
-}
-
 impl RustField {
     /// Returns an type override, if it exists, on this field for a given language.
     pub fn type_override(&self, language: &str) -> Option<&str> {
@@ -528,8 +360,8 @@ impl RustField {
 
 impl SpecialRustType {
     /// Check if this type is equivalent to or contains `ty` in one of its generic parameters.
-    pub fn contains_type(&self, ty: &str) -> bool {
-        match &self {
+    pub fn contains_type(&self, ty: &TypeName) -> bool {
+        match self {
             Self::Vec(rty) | Self::Array(rty, _) | Self::Slice(rty) | Self::Option(rty) => {
                 rty.contains_type(ty)
             }
@@ -556,33 +388,53 @@ impl SpecialRustType {
     }
 
     /// Returns the Rust identifier for this special type.
-    pub fn id(&self) -> &'static str {
-        match &self {
-            Self::Unit => "()",
-            Self::F64 => "f64",
-            Self::F32 => "f32",
-            Self::Vec(_) => "Vec",
-            Self::Array(_, _) => "[]",
-            Self::Slice(_) => "&[]",
-            Self::Option(_) => "Option",
-            Self::HashMap(_, _) => "HashMap",
-            Self::String => "String",
-            Self::Char => "char",
-            Self::Bool => "bool",
-            Self::I8 => "i8",
-            Self::I16 => "i16",
-            Self::I32 => "i32",
-            Self::I64 => "i64",
-            Self::U8 => "u8",
-            Self::U16 => "u16",
-            Self::U32 => "u32",
-            Self::U64 => "u64",
-            Self::ISize => "isize",
-            Self::USize => "usize",
-            Self::U53 => "U53",
-            Self::I54 => "I54",
+    pub const fn id(&self) -> &'static TypeName {
+        // Helper macro to handle the tedium of repeating the `const` block
+        // in each match arm
+        macro_rules! match_block {
+            {
+                match $this:ident {
+                    $($pattern:pat => $out:literal,)*
+                }
+            } => {
+                match $this {
+                    $($pattern => const {&TypeName(Cow::Borrowed($out))},)*
+                }
+            }
+        }
+
+        // TODO: I suspect there are bugs related to strings like `[]` being
+        // returned from this function (non-identifier strings) but it seems
+        // to work fine so I'll leave it for now.
+        match_block! {
+            match self {
+                Self::Unit => "()",
+                Self::F64 => "f64",
+                Self::F32 => "f32",
+                Self::Vec(_) => "Vec",
+                Self::Array(_, _) => "[]",
+                Self::Slice(_) => "&[]",
+                Self::Option(_) => "Option",
+                Self::HashMap(_, _) => "HashMap",
+                Self::String => "String",
+                Self::Char => "char",
+                Self::Bool => "bool",
+                Self::I8 => "i8",
+                Self::I16 => "i16",
+                Self::I32 => "i32",
+                Self::I64 => "i64",
+                Self::U8 => "u8",
+                Self::U16 => "u16",
+                Self::U32 => "u32",
+                Self::U64 => "u64",
+                Self::ISize => "isize",
+                Self::USize => "usize",
+                Self::U53 => "U53",
+                Self::I54 => "I54",
+            }
         }
     }
+
     /// Iterate over the generic parameters for this type. Returns an empty iterator
     /// if there are none.
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
@@ -671,7 +523,7 @@ pub struct RustEnumShared {
     /// The enum's ident
     pub id: Id,
     /// Generic parameters for the enum, e.g. `SomeEnum<T>` would produce `vec!["T"]`
-    pub generic_types: Vec<String>,
+    pub generic_types: Vec<TypeName>,
     /// Comments on the enum definition itself
     pub comments: Vec<String>,
     /// The enum's variants
@@ -748,31 +600,73 @@ pub struct ImportedType {
     pub type_name: TypeName,
 }
 
+// TODO: replace this `Cow` with a pair of owned/borrowed types
 /// A type name.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TypeName(pub String);
+pub struct TypeName(Cow<'static, str>);
 
 impl TypeName {
+    #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &str {
-        self.0.as_str()
+        self.0.as_ref()
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn new(ident: &proc_macro2::Ident) -> Self {
+        Self::new_string(ident.to_string())
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn new_string(ident: String) -> Self {
+        Self(Cow::Owned(ident))
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn new_static(ident: &'static str) -> Self {
+        Self(Cow::Borrowed(ident))
+    }
+}
+
+impl AsRef<str> for TypeName {
+    #[inline]
+    #[must_use]
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
 impl Borrow<str> for TypeName {
+    #[inline]
+    #[must_use]
     fn borrow(&self) -> &str {
         self.as_str()
     }
 }
 
 impl fmt::Display for TypeName {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
 
+impl PartialEq<str> for TypeName {
+    #[inline]
+    #[must_use]
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
 impl PartialEq<&str> for TypeName {
+    #[inline]
+    #[must_use]
     fn eq(&self, other: &&str) -> bool {
-        self.as_str() == *other
+        self == *other
     }
 }
 
