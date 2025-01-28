@@ -146,20 +146,15 @@ impl<'a> TypeShareVisitor<'a> {
         );
 
         // Build a set of a all type names.
-        let local_types = self
-            .parsed_data
-            .type_names
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<HashSet<_>>();
+        let local_types: HashSet<&TypeName> = self.parsed_data.type_names.iter().collect();
 
         // Lookup a type name against parsed imports.
-        let find_type = |name: &str| {
+        let find_type = |name: &TypeName| {
             let found = self
                 .parsed_data
                 .import_types
                 .iter()
-                .find(|imp| imp.type_name == name)
+                .find(|imp| imp.type_name == *name)
                 .into_iter()
                 .next()
                 .cloned();
@@ -218,28 +213,28 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
             // and reconcile aftewards. visit_item_use would have to retain non type import types
             // which it discards right now.
             //
-            let crate_candidate = p.segments.first()?.ident.to_string();
-            let type_candidate = p.segments.last()?.ident.to_string();
+            let crate_candidate = CrateName::new(p.segments.first()?.ident.to_string());
+            let type_candidate = TypeName::new(&p.segments.last()?.ident);
 
             (accept_crate(&crate_candidate)
                 && accept_type(&type_candidate)
                 && !self.ignored_types.contains(&type_candidate.as_str())
-                && crate_candidate != type_candidate)
-                .then(|| {
-                    // resolve crate and super aliases into the crate name.
-                    let base_crate = if crate_candidate == "crate"
-                        || crate_candidate == "super"
-                        || crate_candidate == "self"
-                    {
-                        self.parsed_data.crate_name.to_string()
-                    } else {
-                        crate_candidate
-                    };
-                    ImportedType {
-                        base_crate: CrateName::from(base_crate),
-                        type_name: type_candidate,
-                    }
-                })
+                && crate_candidate.as_str() != type_candidate.as_str())
+            .then(|| {
+                // resolve crate and super aliases into the crate name.
+                let base_crate = if crate_candidate == "crate"
+                    || crate_candidate == "super"
+                    || crate_candidate == "self"
+                {
+                    self.parsed_data.crate_name.clone()
+                } else {
+                    crate_candidate
+                };
+                ImportedType {
+                    base_crate: CrateName::from(base_crate),
+                    type_name: type_candidate,
+                }
+            })
         };
 
         if let Some(imported_type) = extract_root_and_types(p) {
@@ -290,9 +285,12 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 }
 
 /// Exclude popular crates that won't be typeshared.
-fn accept_crate(crate_name: &str) -> bool {
-    !IGNORED_BASE_CRATES.contains(&crate_name)
+fn accept_crate(crate_name: &CrateName) -> bool {
+    IGNORED_BASE_CRATES
+        .iter()
+        .all(|&ignored| crate_name != ignored)
         && crate_name
+            .as_str()
             .chars()
             .next()
             .map(|c| c.is_lowercase())
@@ -301,13 +299,13 @@ fn accept_crate(crate_name: &str) -> bool {
 
 /// Accept types which start with an uppercase character.
 pub(crate) fn accept_type(type_name: &TypeName) -> bool {
-    type_name
-        .as_str()
-        .chars()
-        .next()
-        .map(|c| c.is_uppercase())
-        .unwrap_or(false)
-        && !IGNORED_TYPES.contains(&type_name)
+    IGNORED_TYPES.iter().all(|ignored| type_name != ignored)
+        && type_name
+            .as_str()
+            .chars()
+            .next()
+            .map(|c| c.is_uppercase())
+            .unwrap_or(false)
 }
 
 struct ItemUseIter<'a> {
@@ -326,11 +324,12 @@ impl<'a> ItemUseIter<'a> {
     }
 
     fn resolve_crate_name(&self) -> CrateName {
-        let crate_name = self.base_name();
-        if crate_name == "crate" || crate_name == "super" || crate_name == "self" {
+        let base_name = self.base_name();
+
+        if base_name == "crate" || base_name == "super" || base_name == "self" {
             self.crate_name.clone()
         } else {
-            CrateName::from(crate_name)
+            CrateName::new(base_name)
         }
     }
 
@@ -361,7 +360,7 @@ impl<'a> Iterator for ItemUseIter<'a> {
                 syn::UseTree::Name(name) => {
                     let type_name = TypeName::new(&name.ident);
                     let base_crate = self.resolve_crate_name();
-                    if accept_crate(base_crate.as_str()) && accept_type(&type_name) {
+                    if accept_crate(&base_crate) && accept_type(&type_name) {
                         return Some(ImportedType {
                             base_crate,
                             type_name,
@@ -373,10 +372,10 @@ impl<'a> Iterator for ItemUseIter<'a> {
                 }
                 syn::UseTree::Glob(_) => {
                     let base_crate = self.resolve_crate_name();
-                    if accept_crate(base_crate.as_str()) {
+                    if accept_crate(&base_crate) {
                         return Some(ImportedType {
                             base_crate,
-                            type_name: "*".into(),
+                            type_name: TypeName::new_static("*"),
                         });
                     }
                 }
@@ -391,7 +390,7 @@ impl<'a> Iterator for ItemUseIter<'a> {
 }
 
 /// Yield all the type names including nested generic types.
-pub fn all_reference_type_names(ty: &RustType) -> impl Iterator<Item = &'_ str> + '_ {
+pub fn all_reference_type_names(ty: &RustType) -> impl Iterator<Item = &TypeName> + '_ {
     let mut type_stack = Vec::from([ty]);
 
     iter::from_fn(move || match type_stack.pop() {
@@ -418,6 +417,7 @@ mod test {
     use cool_asserts::assert_matches;
     use itertools::Itertools;
     use syn::{visit::Visit, File};
+    use typeshare_model::prelude::{CrateName, FilesMode};
 
     #[test]
     fn test_parse_import_complex() {
@@ -435,7 +435,7 @@ mod test {
             .iter()
             .flat_map(|item| {
                 if let syn::Item::Use(use_item) = item {
-                    parse_import(use_item, &"my_crate".into()).collect()
+                    parse_import(use_item, &CrateName::new("my_crate".to_owned())).collect()
                 } else {
                     Vec::new()
                 }
@@ -448,35 +448,35 @@ mod test {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "combined".into());
+                    assert_eq!(base_crate, "combined");
                     assert_eq!(type_name, "TypeSix");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "combined".into());
+                    assert_eq!(base_crate, "combined");
                     assert_eq!(type_name, "TypeFive");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "combined".into());
+                    assert_eq!(base_crate, "combined");
                     assert_eq!(type_name, "TypeFour");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "combined".into());
+                    assert_eq!(base_crate, "combined");
                     assert_eq!(type_name, "TypeThree");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "combined".into());
+                    assert_eq!(base_crate, "combined");
                     assert_eq!(type_name, "TypeOne");
                 },
             ]
@@ -503,7 +503,7 @@ mod test {
             .iter()
             .flat_map(|item| {
                 if let syn::Item::Use(use_item) = item {
-                    parse_import(use_item, &"my_crate".into()).collect()
+                    parse_import(use_item, &CrateName::new("my_crate".to_owned())).collect()
                 } else {
                     Vec::new()
                 }
@@ -518,42 +518,42 @@ mod test {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "Hello");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "AnotherType");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "MyEnum");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "MyType");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "MyEnum");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "some_crate".into());
+                    assert_eq!(base_crate, "some_crate");
                     assert_eq!(type_name, "*");
                 },
 
@@ -587,16 +587,19 @@ mod test {
 
         let file: File = syn::parse_str(rust_code).unwrap();
         let mut visitor = TypeShareVisitor::new(
-            "my_crate".into(),
+            CrateName::new("my_crate".to_owned()),
             "my_file".into(),
             "file_path".into(),
             &[],
-            true,
+            FilesMode::Multi,
         );
         visitor.visit_file(&file);
 
         let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();
-        sorted_imports.sort();
+        sorted_imports.sort_unstable_by(|lhs, rhs| {
+            Ord::cmp(lhs.base_crate.as_str(), rhs.base_crate.as_str())
+                .then_with(|| Ord::cmp(lhs.type_name.as_str(), rhs.type_name.as_str()))
+        });
 
         assert_matches!(
             sorted_imports,
@@ -605,49 +608,49 @@ mod test {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "AnotherEnum");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "AnotherType");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "MyEnum");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "MyType");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "my_crate".into());
+                    assert_eq!(base_crate, "my_crate");
                     assert_eq!(type_name, "TypeName");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 } => {
-                    assert_eq!(base_crate, "some_crate".into());
+                    assert_eq!(base_crate, "some_crate");
                     assert_eq!(type_name, "*");
                 },
                 ImportedType {
                     base_crate,
                     type_name,
                 }  => {
-                    assert_eq!(base_crate, "some_crate".into());
+                    assert_eq!(base_crate, "some_crate");
                     assert_eq!(type_name, "Type");
                 },
             ]

@@ -12,7 +12,7 @@ use typeshare_model::prelude::*;
 #[derive(Default)]
 pub struct TypeScript {
     /// Mappings from Rust type names to Typescript type names
-    pub type_mappings: HashMap<String, String>,
+    pub type_mappings: HashMap<TypeName, TypeName>,
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
@@ -29,16 +29,14 @@ pub enum FormatTypeError {
 
 impl Language for TypeScript {
     type FormatTypeError = FormatTypeError;
-    fn mapped_type(&self, type_name: &str) -> Option<&str> {
-        self.type_mappings
-            .get(type_name)
-            .map(|mapped| mapped.as_str())
+    fn mapped_type(&self, type_name: &TypeName) -> Option<&TypeName> {
+        self.type_mappings.get(type_name)
     }
 
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
-        generic_context: &[String],
+        generic_context: &[TypeName],
     ) -> Result<String, FormatTypeError> {
         match special_ty {
             SpecialRustType::Vec(rtype) | SpecialRustType::Slice(rtype) => {
@@ -133,7 +131,7 @@ impl Language for TypeScript {
 
         rs.fields
             .iter()
-            .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
+            .try_for_each(|f| self.write_field(w, f, &rs.generic_types))?;
 
         writeln!(w, "}}\n")
     }
@@ -258,7 +256,7 @@ impl TypeScript {
         &mut self,
         w: &mut dyn Write,
         field: &RustField,
-        generic_types: &[String],
+        generic_types: &[TypeName],
     ) -> io::Result<()> {
         self.write_comments(w, 1, &field.comments)?;
         let ts_ty: String = match field.type_override("typescript") {
@@ -279,7 +277,7 @@ impl TypeScript {
             w,
             "\t{}{}{}: {}{};",
             is_readonly.then_some("readonly ").unwrap_or_default(),
-            typescript_property_aware_rename(&field.id.renamed),
+            typescript_property_aware_rename(field.id.renamed.as_str()),
             optional.then_some("?").unwrap_or_default(),
             ts_ty,
             double_optional.then_some(" | null").unwrap_or_default()

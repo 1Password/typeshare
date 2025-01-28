@@ -39,6 +39,18 @@ impl CrateName {
     }
 }
 
+impl PartialEq<str> for CrateName {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for CrateName {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
 /// The results of parsing Rust source input.
 #[derive(Default, Debug)]
 pub struct ParsedData {

@@ -1,20 +1,19 @@
 //! Source file parsing.
 use anyhow::Context;
-use ignore::WalkBuilder;
+use ignore::Walk;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::{hash_map::Entry, BTreeSet, HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap},
     ops::Not,
     path::PathBuf,
 };
 use syn::{
-    parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprLit, Fields,
-    GenericParam, Ident, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList, MetaNameValue,
-    Token,
+    punctuated::Punctuated, visit::Visit, Attribute, Expr, Fields, GenericParam, Ident, ItemEnum,
+    ItemStruct, ItemType, Meta, Token,
 };
 
 use typeshare_model::{
-    parsed_data::{FieldDecorator, Id, LangIdent, RustEnumShared, RustEnumVariantShared, RustItem},
+    parsed_data::{Id, RustEnumShared, RustEnumVariantShared, RustItem},
     prelude::*,
 };
 
@@ -28,7 +27,7 @@ use crate::{
 const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
 
-const SINGLE_FILE_CRATE_NAME: CrateName = CrateName::new(String::new());
+pub const SINGLE_FILE_CRATE_NAME: CrateName = CrateName::new(String::new());
 
 /// Input data for parsing each source file.
 pub struct ParserInput {
@@ -42,18 +41,17 @@ pub struct ParserInput {
 
 // TODO: put this in the language trait
 pub struct LangConfig {
-    extension: &'static str,
-    pascal: bool,
+    pub extension: &'static str,
+    pub pascal: bool,
 }
 
 /// Walk the source folder and collect all parser inputs.
 pub fn parser_inputs(
-    walker_builder: WalkBuilder,
+    walker_builder: Walk,
     language_type: &LangConfig,
     multi_file: bool,
 ) -> Vec<ParserInput> {
     walker_builder
-        .build()
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
@@ -201,6 +199,8 @@ pub fn parse(
         TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, file_mode);
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
+    // TODO: collect errors here
+
     Ok(Some(import_visitor.parsed_data()))
 }
 
@@ -252,7 +252,10 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                     }
 
                     let has_default = serde_default(&f.attrs);
-                    let decorators = get_field_decorators(&f.attrs);
+
+                    // TODO: decorators
+                    //let decorators = get_field_decorators(&f.attrs);
+                    let decorators = HashMap::new();
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &serde_rename_all),
@@ -269,7 +272,9 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 generic_types,
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
-                decorators: get_decorators(&s.attrs),
+                // TODO: decorator
+                //decorators: get_decorators(&s.attrs),
+                decorators: HashMap::new(),
             })
         }
         // Tuple structs
@@ -297,7 +302,9 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             generic_types,
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
-            decorators: get_decorators(&s.attrs),
+            // TODO: decorator
+            //decorators: get_decorators(&s.attrs),
+            decorators: HashMap::new(),
         }),
     })
 }
@@ -359,7 +366,9 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         id: get_ident(Some(&e.ident), &e.attrs, &None),
         comments: parse_comment_attrs(&e.attrs),
         variants,
-        decorators: get_decorators(&e.attrs),
+        // TODO: decorator
+        //decorators: get_decorators(&e.attrs),
+        decorators: HashMap::new(),
         generic_types,
         is_recursive,
     };
@@ -427,10 +436,9 @@ fn parse_enum_variant(
 
             let first_field = associated_type.unnamed.first().unwrap();
 
-            let ty = if let Some(ty) = get_field_type_override(&first_field.attrs) {
-                ty.parse()?
-            } else {
-                RustType::try_from(&first_field.ty)?
+            let ty = match get_field_type_override(&first_field.attrs) {
+                Some(ty) => parse_rust_type_from_string(&ty)?,
+                None => parse_rust_type(&first_field.ty)?,
             };
 
             Ok(RustEnumVariant::Tuple { ty, shared })
@@ -441,14 +449,16 @@ fn parse_enum_variant(
                 .iter()
                 .filter(|f| !is_skipped(&f.attrs))
                 .map(|f| {
-                    let field_type = if let Some(ty) = get_field_type_override(&f.attrs) {
-                        ty.parse()?
-                    } else {
-                        RustType::try_from(&f.ty)?
+                    let field_type = match get_field_type_override(&f.attrs) {
+                        Some(ty) => parse_rust_type_from_string(&ty)?,
+                        None => parse_rust_type(&f.ty)?,
                     };
 
                     let has_default = serde_default(&f.attrs);
-                    let decorators = get_field_decorators(&f.attrs);
+
+                    // TODO: decorators
+                    //let decorators = get_field_decorators(&f.attrs);
+                    let decorators = HashMap::new();
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &variant_serde_rename_all),
@@ -467,10 +477,9 @@ fn parse_enum_variant(
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
 pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
-    let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
-        ty.parse()?
-    } else {
-        RustType::try_from(t.ty.as_ref())?
+    let ty = match get_serialized_as_type(&t.attrs) {
+        Some(ty) => parse_rust_type_from_string(&ty)?,
+        None => parse_rust_type(&t.ty)?,
     };
 
     let generic_types = t
@@ -478,7 +487,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(type_param.ident.to_string()),
+            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
             _ => None,
         })
         .collect();

@@ -1,12 +1,16 @@
-mod config;
+// mod config;
 mod parser;
 mod rename;
 mod type_parser;
 mod visitors;
 mod writer;
 
+use syn::token::Type;
 use thiserror::Error;
-use typeshare_model::prelude::CrateName;
+use typeshare_model::prelude::{CrateName, TypeName};
+
+pub use parser::{parse_input, parser_inputs, LangConfig, ParserInput};
+pub use writer::{write_generated, OutputMode};
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -25,13 +29,13 @@ pub enum ParseError {
     #[error("multiple unnamed associated types are not currently supported")]
     MultipleUnnamedAssociatedTypes,
     #[error("the serde tag attribute is not supported for non-algebraic enums: {enum_ident}")]
-    SerdeTagNotAllowed { enum_ident: String },
+    SerdeTagNotAllowed { enum_ident: TypeName },
     #[error("the serde content attribute is not supported for non-algebraic enums: {enum_ident}")]
-    SerdeContentNotAllowed { enum_ident: String },
+    SerdeContentNotAllowed { enum_ident: TypeName },
     #[error("serde tag attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-    SerdeTagRequired { enum_ident: String },
+    SerdeTagRequired { enum_ident: TypeName },
     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-    SerdeContentRequired { enum_ident: String },
+    SerdeContentRequired { enum_ident: TypeName },
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
 }

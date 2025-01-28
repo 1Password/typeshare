@@ -1,0 +1,11 @@
+[package]
+name = "typeshare-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+typeshare-engine = { path = "../typeshare-engine" }
+typeshare-typescript = { path = "../langs/typescript" }
+typeshare-model = { path = "../typeshare-model" }
+
+ignore = "0.4.23"

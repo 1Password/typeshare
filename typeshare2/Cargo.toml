@@ -5,5 +5,6 @@ members = [
     "typeshare-model",
     "typeshare-engine",
     "typeshare-driver",
+    "typeshare-demo",
 ]
 resolver = "2"
