@@ -199,7 +199,12 @@ impl TypeScript {
                 RustEnumVariant::Unit(shared) => {
                     writeln!(w)?;
                     self.write_comments(w, 1, &shared.comments)?;
-                    write!(w, "\t{} = {:?},", shared.id.original, &shared.id.renamed)
+                    write!(
+                        w,
+                        "\t{} = {:?},",
+                        shared.id.original,
+                        &shared.id.renamed.as_str()
+                    )
                 }
                 _ => unreachable!(),
             }),
@@ -217,7 +222,9 @@ impl TypeScript {
                     RustEnumVariant::Unit(shared) => write!(
                         w,
                         "\t| {{ {}: {:?}, {}?: undefined }}",
-                        tag_key, shared.id.renamed, content_key
+                        tag_key,
+                        shared.id.renamed.as_str(),
+                        content_key
                     ),
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
@@ -227,7 +234,7 @@ impl TypeScript {
                             w,
                             "\t| {{ {}: {:?}, {}{}: {} }}",
                             tag_key,
-                            shared.id.renamed,
+                            shared.id.renamed.as_str(),
                             content_key,
                             ty.is_optional().then_some("?").unwrap_or_default(),
                             r#type
@@ -237,7 +244,9 @@ impl TypeScript {
                         writeln!(
                             w,
                             "\t| {{ {}: {:?}, {}: {{",
-                            tag_key, shared.id.renamed, content_key
+                            tag_key,
+                            shared.id.renamed.as_str(),
+                            content_key
                         )?;
 
                         fields.iter().try_for_each(|f| {

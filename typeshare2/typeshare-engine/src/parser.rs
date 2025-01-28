@@ -766,10 +766,10 @@ fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
 }
 
 /// Removes `-` characters from identifiers
-pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
-    // Dashes are not valid in identifiers, so we map them to underscores
-    name.replace('-', "_")
-}
+// pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
+//     // Dashes are not valid in identifiers, so we map them to underscores
+//     name.replace('-', "_")
+// }
 
 #[test]
 fn test_rename_all_to_case() {
