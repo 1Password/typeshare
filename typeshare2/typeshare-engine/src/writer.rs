@@ -1,7 +1,6 @@
 //! Generated source file output.
-use crate::args::{ARG_OUTPUT_FILE, ARG_OUTPUT_FOLDER};
+use crate::parser::SINGLE_FILE_CRATE_NAME;
 use anyhow::Context;
-use clap::ArgMatches;
 use std::{
     collections::HashMap,
     fs,
@@ -10,22 +9,30 @@ use std::{
 
 use typeshare_model::prelude::*;
 
+#[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
+pub enum OutputMode<'a> {
+    SingleFile {
+        file: &'a Path,
+    },
+    MultiFile {
+        folder: &'a Path,
+        import_candidates: &'a CrateTypes,
+    },
+}
+
 /// Write the parsed data to the one or more files depending on command line options.
 pub fn write_generated(
-    options: ArgMatches,
+    output: OutputMode<'_>,
     lang: &mut impl Language,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
-    import_candidates: CrateTypes,
 ) -> Result<(), anyhow::Error> {
-    let output_folder = options.value_of(ARG_OUTPUT_FOLDER);
-    let output_file = options.value_of(ARG_OUTPUT_FILE);
-
-    if let Some(folder) = output_folder {
-        write_multiple_files(lang, folder, crate_parsed_data, import_candidates)
-    } else if let Some(file) = output_file {
-        write_single_file(lang, file, crate_parsed_data)
-    } else {
-        Ok(())
+    match output {
+        OutputMode::MultiFile {
+            folder,
+            import_candidates,
+        } => write_multiple_files(lang, folder, crate_parsed_data, import_candidates),
+        OutputMode::SingleFile { file } => write_single_file(lang, file, crate_parsed_data),
     }
 }
 
@@ -34,14 +41,14 @@ fn write_multiple_files(
     lang: &mut impl Language,
     output_folder: &Path,
     crate_parsed_data: HashMap<CrateName, ParsedData>,
-    import_candidates: CrateTypes,
+    import_candidates: &CrateTypes,
 ) -> Result<(), anyhow::Error> {
     for (_crate_name, parsed_data) in crate_parsed_data {
         let outfile = Path::new(output_folder).join(&parsed_data.file_name);
         let mut generated_contents = Vec::new();
         lang.generate_types(
             &mut generated_contents,
-            &import_candidates,
+            import_candidates,
             parsed_data,
             FilesMode::Multi,
         )?;
@@ -84,7 +91,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 /// Write all types to a single file.
 fn write_single_file(
     lang: &mut impl Language,
-    file_name: &str,
+    file_name: &Path,
     mut crate_parsed_data: HashMap<CrateName, ParsedData>,
 ) -> Result<(), anyhow::Error> {
     let parsed_data = crate_parsed_data

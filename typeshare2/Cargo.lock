@@ -254,6 +254,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "typeshare-demo"
+version = "0.1.0"
+dependencies = [
+ "ignore",
+ "typeshare-engine",
+ "typeshare-model",
+ "typeshare-typescript",
+]
+
+[[package]]
 name = "typeshare-driver"
 version = "0.1.0"
 
