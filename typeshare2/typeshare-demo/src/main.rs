@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use ignore::{types::TypesBuilder, WalkBuilder};
-use typeshare_engine::{parse_input, parser_inputs, write_generated, LangConfig};
-use typeshare_model::prelude::FilesMode;
+use typeshare_engine::{parse_input, parser_inputs, write_generated, FilesMode, LangConfig};
 
 fn main() {
     let mut typescript = typeshare_typescript::TypeScript::default();

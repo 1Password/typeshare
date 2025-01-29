@@ -9,6 +9,9 @@ use syn::token::Type;
 use thiserror::Error;
 use typeshare_model::prelude::{CrateName, TypeName};
 
+// Re-export this for the driver crate to use
+pub use typeshare_model::language::FilesMode;
+
 pub use parser::{parse_input, parser_inputs, LangConfig, ParserInput};
 pub use writer::{write_generated, OutputMode};
 
