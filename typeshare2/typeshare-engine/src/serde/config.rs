@@ -6,7 +6,7 @@ use std::{
 use itertools::Itertools;
 use serde::de::{self, value::BorrowedStrDeserializer};
 
-use super::args::{ArgSpec, ArgType, ArgsSet};
+use super::args::{ArgSpec, ArgType, CliArgsSet};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigDeserializeError {
@@ -17,7 +17,10 @@ pub enum ConfigDeserializeError {
     NonUtf8CliArgument(OsString),
 
     #[error("error parsing command line value {0:?}")]
-    ParseError(String, #[source] Box<dyn std::error::Error + 'static>),
+    ParseError(
+        String,
+        #[source] Box<dyn std::error::Error + Send + Sync + 'static>,
+    ),
 }
 
 impl de::Error for ConfigDeserializeError {
@@ -31,23 +34,23 @@ impl de::Error for ConfigDeserializeError {
 
 /// Deserializer type that combines the values in `config`, which come from a
 /// config file, with the values in `args`, which come from the CLI.
-pub struct ConfigDeserializer<'config> {
+pub struct ConfigDeserializer<'a, 'config> {
     config: &'config toml::Table,
     args: &'config clap::ArgMatches,
-    spec: &'config ArgsSet,
+    spec: &'a CliArgsSet,
 }
 
-impl<'config> ConfigDeserializer<'config> {
+impl<'a, 'config> ConfigDeserializer<'a, 'config> {
     pub fn new(
         config: &'config toml::Table,
         args: &'config clap::ArgMatches,
-        spec: &'config ArgsSet,
+        spec: &'a CliArgsSet,
     ) -> Self {
         Self { config, args, spec }
     }
 }
 
-impl<'de> de::Deserializer<'de> for ConfigDeserializer<'de> {
+impl<'a: 'de, 'de> de::Deserializer<'de> for ConfigDeserializer<'a, 'de> {
     type Error = ConfigDeserializeError;
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -98,7 +101,7 @@ enum ConfigMapState<'config, ArgsIter> {
 
 struct ConfigMapAccess<'a, 'config, ArgsIter> {
     state: ConfigMapState<'config, ArgsIter>,
-    spec: &'a ArgsSet,
+    spec: &'a CliArgsSet,
 
     saved_value: Option<SavedValue<'config>>,
 }
@@ -221,7 +224,7 @@ where
 }
 
 /// Deserializer for a value we got from the command line. Generally handles
-/// from_str for it.
+/// FromStr for this value.
 struct CliArgumentDeserializer<'a> {
     value: &'a OsStr,
 }
@@ -239,7 +242,7 @@ impl<'a> CliArgumentDeserializer<'a> {
 
     pub fn parse<T: FromStr>(&self) -> Result<T, ConfigDeserializeError>
     where
-        T::Err: std::error::Error + 'static,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         let s = self.get_str()?;
 

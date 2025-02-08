@@ -47,7 +47,7 @@ pub trait Language<'config>: Sized {
     ///
     /// The `serialize` implementation for this type should NOT skip keys, if
     /// possible.
-    type Config: serde::Deserialize<'config> + serde::Serialize + crate::cli::ConfigCliArgs<'config>;
+    type Config: serde::Deserialize<'config> + serde::Serialize;
 
     /// The lowercase conventional name for this language. This should be a
     /// single identifier. It will be used as a prefix for various things;

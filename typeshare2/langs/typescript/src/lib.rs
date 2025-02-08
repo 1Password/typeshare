@@ -7,10 +7,7 @@ use itertools::Itertools;
 use joinery::JoinableIterator;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typeshare_model::{
-    cli::{ArgType, ConfigCliArgs},
-    prelude::*,
-};
+use typeshare_model::prelude::*;
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
@@ -36,21 +33,6 @@ pub enum FormatTypeError {
 pub struct Config {
     type_mappings: HashMap<String, String>,
     no_version_header: bool,
-}
-
-impl ConfigCliArgs<'_> for Config {
-    const ARGS: &'static [(&'static str, ArgType)] = &[("no-version-header", ArgType::Switch)];
-
-    fn enable_cli_switch(&mut self, arg: &str) {
-        match arg {
-            "no-version-header" => self.no_version_header = true,
-            arg => panic!("Unexpected argument {arg} for typescript"),
-        }
-    }
-
-    fn apply_cli_value(&mut self, arg: &str, _value: &'_ str) -> anyhow::Result<()> {
-        panic!("Unexpected argument {arg} for typescript")
-    }
 }
 
 impl Language<'_> for TypeScript {
