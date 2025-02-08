@@ -5,9 +5,16 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
+clap = { version = "4.5", default-features = false, features = [
+    "std",
+    "derive",
+    "string",
+] }
 ignore = "0.4.23"
+itertools = { version = "0.14.0", default-features = false }
 quote = { version = "1.0.38", default-features = false }
 rayon = "1.10.0"
+serde = { version = "1.0.217", default-features = false, features = ["derive"] }
 syn = { version = "2.0.96", features = [
     "full",
     "visit",
@@ -15,6 +22,7 @@ syn = { version = "2.0.96", features = [
     "parsing",
 ] }
 thiserror = "2.0.11"
+toml = "0.8.19"
 typeshare-model = { path = "../typeshare-model" }
 
 [dev-dependencies]

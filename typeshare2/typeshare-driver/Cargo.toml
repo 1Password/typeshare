@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = "4.5.28"
+ignore = "0.4.23"
+typeshare-engine = { version = "0.1.0", path = "../typeshare-engine" }

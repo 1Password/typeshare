@@ -1,15 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    parsed_data::{
-        RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias, SpecialRustType,
-    },
-    prelude::TypeName,
-};
+use typeshare_model::prelude::*;
+
+use crate::writer::BorrowedRustItem;
 
 fn get_dependencies_from_type(
     tp: &RustType,
-    types: &HashMap<TypeName, &RustItem>,
+    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
     res: &mut Vec<TypeName>,
     seen: &mut HashSet<TypeName>,
 ) {
@@ -61,7 +58,7 @@ fn get_dependencies_from_type(
 
 fn get_enum_dependencies(
     enm: &RustEnum,
-    types: &HashMap<TypeName, &RustItem>,
+    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
     res: &mut Vec<TypeName>,
     seen: &mut HashSet<TypeName>,
 ) {
@@ -94,7 +91,7 @@ fn get_enum_dependencies(
 
 fn get_struct_dependencies(
     strct: &RustStruct,
-    types: &HashMap<TypeName, &RustItem>,
+    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
     res: &mut Vec<TypeName>,
     seen: &mut HashSet<TypeName>,
 ) {
@@ -108,7 +105,7 @@ fn get_struct_dependencies(
 
 fn get_type_alias_dependencies(
     ta: &RustTypeAlias,
-    types: &HashMap<TypeName, &RustItem>,
+    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
     res: &mut Vec<TypeName>,
     seen: &mut HashSet<TypeName>,
 ) {
@@ -124,19 +121,19 @@ fn get_type_alias_dependencies(
 }
 
 fn get_dependencies(
-    thing: &RustItem,
-    types: &HashMap<TypeName, &RustItem>,
+    thing: &BorrowedRustItem<'_>,
+    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
     res: &mut Vec<TypeName>,
     seen: &mut HashSet<TypeName>,
 ) {
     match thing {
-        RustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),
-        RustItem::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
-        RustItem::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
+        BorrowedRustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),
+        BorrowedRustItem::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
+        BorrowedRustItem::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
     }
 }
 
-fn get_index(thing: &RustItem, things: &[RustItem]) -> usize {
+fn get_index<T: PartialEq>(thing: &T, things: &[T]) -> usize {
     things
         .iter()
         .position(|r| r == thing)
@@ -187,10 +184,10 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
 /// Sort a list of rust items, such that all items with dependencies
 /// (like `struct Foo(Bar)`) appear after those dependencies (so `Foo` would
 /// appear after `Bar`)
-pub fn topsort(things: &mut [RustItem]) {
-    let types = HashMap::from_iter(things.iter().map(|thing| {
+pub fn topsort(things: &mut [BorrowedRustItem]) {
+    let types = HashMap::from_iter(things.iter().copied().map(|thing| {
         let id = match thing {
-            RustItem::Enum(e) => match e {
+            BorrowedRustItem::Enum(e) => match e {
                 RustEnum::Algebraic {
                     tag_key: _,
                     content_key: _,
@@ -198,8 +195,8 @@ pub fn topsort(things: &mut [RustItem]) {
                 } => shared.id.original.clone(),
                 RustEnum::Unit(shared) => shared.id.original.clone(),
             },
-            RustItem::Struct(strct) => strct.id.original.clone(),
-            RustItem::Alias(ta) => ta.id.original.clone(),
+            BorrowedRustItem::Struct(strct) => strct.id.original.clone(),
+            BorrowedRustItem::Alias(ta) => ta.id.original.clone(),
         };
         (id, thing)
     }));
