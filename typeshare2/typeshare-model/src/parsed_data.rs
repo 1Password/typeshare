@@ -2,7 +2,7 @@ use std::{
     borrow::{Borrow, Cow},
     collections::{BTreeSet, HashMap, HashSet},
     fmt::{self, Display},
-    path::Path,
+    path::{Component, Path},
 };
 
 /// A crate name.
@@ -25,17 +25,30 @@ impl CrateName {
         self.0.as_str()
     }
 
-    /// Extract the crate name from a give path.
+    /// Extract the crate name from a give path to a rust source file. This is
+    /// defined as the name of the directory one level above the `src` directory
+    /// that cotains this source file, with any `-` replaced with `_`.
     pub fn find_crate_name(path: &Path) -> Option<Self> {
-        let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
-
-        path.iter()
+        path.components()
             .rev()
-            .skip_while(|p| *p != "src")
-            .nth(1)
-            .and_then(|s| s.to_str())
-            .map(file_name_to_crate_name)
-            .map(CrateName::new)
+            // Only find paths that use normal components in the suffix. If we
+            // hit something like `..` or `C:\`, end the search immediately.
+            .take_while(|c| matches!(c, Component::Normal(_) | Component::CurDir))
+            // Skip `.` paths entirely
+            .filter_map(|c| match c {
+                Component::Normal(name) => Some(name),
+                _ => None,
+            })
+            // Find the `src` directory in our ancestors
+            .skip_while(|&name| name != "src")
+            // Find the first directory preceeding the `src` directory
+            .find(|&name| name != "src")?
+            // Convert this directory name to a string; fail if it isn't
+            // stringable
+            .to_str()
+            // Fix dashes
+            .map(|name| name.replace("-", "_"))
+            .map(CrateName)
     }
 }
 
@@ -61,13 +74,15 @@ pub struct ParsedData {
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
     /// Imports used by this file
+    /// TODO: This is currently almost empty. Import computation was found to
+    /// be pretty broken during the migration to Typeshare 2, so that part
+    /// of multi-file output was stripped out to be restored later.
     pub import_types: HashSet<ImportedType>,
-    /// Crate this belongs to.
-    pub crate_name: CrateName,
-    /// File name to write to for generated type.
-    pub file_name: String,
-    /// All type names
-    pub type_names: HashSet<TypeName>,
+    // /// Crate this belongs to.
+    // pub crate_name: CrateName,
+    // /// File name to write to for generated type.
+    // pub file_name: String,
+
     // /// Failures during parsing.
     // pub errors: Vec<ErrorInfo>,
     // /// Using multi file support.
@@ -80,25 +95,22 @@ impl ParsedData {
         self.enums.extend(other.enums);
         self.aliases.extend(other.aliases);
         self.import_types.extend(other.import_types);
-        self.type_names.extend(other.type_names);
     }
 
     pub fn add(&mut self, item: RustItem) {
         match item {
-            RustItem::Struct(rust_struct) => {
-                self.type_names.insert(rust_struct.id.renamed.clone());
-                self.structs.push(rust_struct);
-            }
-            RustItem::Enum(rust_enum) => {
-                self.type_names
-                    .insert(rust_enum.shared().id.renamed.clone());
-                self.enums.push(rust_enum);
-            }
-            RustItem::Alias(rust_type_alias) => {
-                self.type_names.insert(rust_type_alias.id.renamed.clone());
-                self.aliases.push(rust_type_alias);
-            }
+            RustItem::Struct(rust_struct) => self.structs.push(rust_struct),
+            RustItem::Enum(rust_enum) => self.enums.push(rust_enum),
+            RustItem::Alias(rust_type_alias) => self.aliases.push(rust_type_alias),
         }
+    }
+
+    pub fn all_type_names(&self) -> impl Iterator<Item = &'_ TypeName> + use<'_> {
+        let s = self.structs.iter().map(|s| &s.id.renamed);
+        let e = self.enums.iter().map(|e| &e.shared().id.renamed);
+        let a = self.aliases.iter().map(|a| &a.id.renamed);
+
+        s.chain(e).chain(a)
     }
 }
 
@@ -614,7 +626,7 @@ pub struct ImportedType {
 
 // TODO: replace this `Cow` with a pair of owned/borrowed types
 /// A type name.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeName(Cow<'static, str>);
 
 impl TypeName {
@@ -690,9 +702,30 @@ mod test {
     #[test]
     fn test_crate_name() {
         let path = Path::new("/some/path/to/projects/core/foundation/op-proxy/src/android.rs");
-        assert_eq!(
-            Some(CrateName("op_proxy".into())),
-            CrateName::find_crate_name(path)
-        );
+        assert_eq!(CrateName::find_crate_name(path).unwrap(), "op_proxy",);
+    }
+
+    #[test]
+    fn skip_curdir() {
+        let path = Path::new("/path/to/crate-name/./src/main.rs");
+        assert_eq!(CrateName::find_crate_name(path).unwrap(), "crate_name")
+    }
+
+    #[test]
+    fn bail_on_parent_dir() {
+        let path = Path::new("/path/to/crate-name/src/foo/../stuff.rs");
+        assert!(CrateName::find_crate_name(path).is_none());
+    }
+
+    #[test]
+    fn accept_parent_dir_before_crate() {
+        let path = Path::new("/path/to/../crate/src/foo/bar/stuff.rs");
+        assert_eq!(CrateName::find_crate_name(path).unwrap(), "crate");
+    }
+
+    #[test]
+    fn reject_rooted_src() {
+        let path = Path::new("/src/foo.rs");
+        assert!(CrateName::find_crate_name(path).is_none());
     }
 }

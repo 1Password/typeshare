@@ -1,19 +1,20 @@
 // mod config;
-mod parser;
+pub mod args;
+pub mod config;
+pub mod driver;
+pub mod parser;
 mod rename;
+mod serde;
+mod topsort;
 mod type_parser;
 mod visitors;
-mod writer;
+pub mod writer;
 
-use syn::token::Type;
 use thiserror::Error;
-use typeshare_model::prelude::{CrateName, TypeName};
+use typeshare_model::prelude::TypeName;
 
 // Re-export this for the driver crate to use
 pub use typeshare_model::language::FilesMode;
-
-pub use parser::{parse_input, parser_inputs, LangConfig, ParserInput};
-pub use writer::{write_generated, OutputMode};
 
 /// Errors that can occur while parsing Rust source input.
 #[derive(Debug, Error)]
@@ -46,10 +47,9 @@ pub enum ParseError {
 /// Error with it's related data.
 #[derive(Debug)]
 pub struct ErrorInfo {
-    /// The crate where this error occured.
-    pub crate_name: CrateName,
-    /// The file name being parsed.
-    pub file_name: String,
+    // TODO: Add a file path and/or other contextual information here
+    // TODO: generally overhaul this error scheme. Maybe switch to miette?
+    // Does miette support error sets?
     /// The parse error.
     pub error: ParseError,
 }

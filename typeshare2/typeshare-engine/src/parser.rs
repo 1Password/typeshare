@@ -12,10 +12,7 @@ use syn::{
     ItemStruct, ItemType, Meta, Token,
 };
 
-use typeshare_model::{
-    parsed_data::{Id, RustEnumShared, RustEnumVariantShared, RustItem},
-    prelude::*,
-};
+use typeshare_model::prelude::*;
 
 use crate::{
     rename::RenameExt,
@@ -27,85 +24,58 @@ use crate::{
 const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
 
-pub const SINGLE_FILE_CRATE_NAME: CrateName = CrateName::new(String::new());
-
 /// Input data for parsing each source file.
 pub struct ParserInput {
     /// Rust source file path.
     file_path: PathBuf,
-    /// File name source from crate for output.
-    file_name: String,
     /// The crate name the source file belongs to.
     crate_name: CrateName,
 }
 
-// TODO: put this in the language trait
-pub struct LangConfig {
-    pub extension: &'static str,
-    pub pascal: bool,
-}
-
 /// Walk the source folder and collect all parser inputs.
-pub fn parser_inputs(
-    walker_builder: Walk,
-    language_type: &LangConfig,
-    multi_file: bool,
-) -> Vec<ParserInput> {
+pub fn parser_inputs(walker_builder: Walk) -> Vec<ParserInput> {
     walker_builder
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
         .filter_map(|dir_entry| {
-            let crate_name = if multi_file {
-                CrateName::find_crate_name(dir_entry.path())?
-            } else {
-                SINGLE_FILE_CRATE_NAME
-            };
-            let file_path = dir_entry.path().to_path_buf();
-            let file_name = output_file_name(language_type, &crate_name);
+            let path = dir_entry.path();
+            // We assume that if the file has no valid crate name, it probably
+            // isn't a file we're interested in typesharing anyway. This
+            // strikes me as sort of a brittle assumption so it might be worth
+            // revisiting someday; in particular it might be worth surfacing
+            // as a warning.
+            let crate_name = CrateName::find_crate_name(path)?;
+            let file_path = path.to_path_buf();
+
             Some(ParserInput {
                 file_path,
-                file_name,
                 crate_name,
             })
         })
         .collect()
 }
 
-/// The output file name to write to.
-fn output_file_name(language_type: &LangConfig, crate_name: &CrateName) -> String {
-    // TODO: improve all of this with the language trait
-    let extension = language_type.extension;
-
-    let snake_case = || format!("{crate_name}.{extension}");
-    let pascal_case = || format!("{}.{extension}", crate_name.to_string().to_pascal_case());
-
-    match language_type.pascal {
-        true => pascal_case(),
-        false => snake_case(),
-    }
-}
-
-/// Collect all the typeshared types into a mapping of crate names to typeshared types. This
-/// mapping is used to lookup and generated import statements for generated files.
-pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
-    file_mappings
-        .iter()
-        .map(|(crate_name, parsed_data)| (crate_name, &parsed_data.type_names))
-        .fold(
-            HashMap::new(),
-            |mut import_map: CrateTypes, (crate_name, type_names)| {
-                match import_map.entry(crate_name.clone()) {
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().extend(type_names.iter().cloned());
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(type_names.clone());
-                    }
-                }
-                import_map
-            },
-        )
-}
+// /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
+// /// mapping is used to lookup and generated import statements for generated files.
+// pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
+//     file_mappings
+//         .iter()
+//         .map(|(crate_name, parsed_data)| (crate_name, &parsed_data.type_names))
+//         .fold(
+//             HashMap::new(),
+//             |mut import_map: CrateTypes, (crate_name, type_names)| {
+//                 match import_map.entry(crate_name.clone()) {
+//                     Entry::Occupied(mut e) => {
+//                         e.get_mut().extend(type_names.iter().cloned());
+//                     }
+//                     Entry::Vacant(e) => {
+//                         e.insert(type_names.clone());
+//                     }
+//                 }
+//                 import_map
+//             },
+//         )
+// }
 
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
@@ -120,22 +90,11 @@ pub fn parse_input(
             |mut results: HashMap<CrateName, ParsedData>,
              ParserInput {
                  file_path,
-                 file_name,
                  crate_name,
              }| {
                 match std::fs::read_to_string(&file_path)
                     .context("Failed to read input")
-                    .and_then(|data| {
-                        parse(
-                            &data,
-                            crate_name.clone(),
-                            file_name.clone(),
-                            file_path,
-                            ignored_types,
-                            mode,
-                        )
-                        .context("Failed to parse")
-                    })
+                    .and_then(|data| parse(&data, ignored_types, mode).context("Failed to parse"))
                     .map(|parsed_data| {
                         parsed_data.and_then(|parsed_data| {
                             is_parsed_data_empty(&parsed_data)
@@ -181,9 +140,6 @@ fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(
     source_code: &str,
-    crate_name: CrateName,
-    file_name: String,
-    file_path: PathBuf,
     ignored_types: &[&str],
     file_mode: FilesMode,
 ) -> Result<Option<ParsedData>, ParseError> {
@@ -195,8 +151,7 @@ pub fn parse(
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor =
-        TypeShareVisitor::new(crate_name, file_name, file_path, ignored_types, file_mode);
+    let mut import_visitor = TypeShareVisitor::new(ignored_types, file_mode);
     import_visitor.visit_file(&syn::parse_file(source_code)?);
 
     // TODO: collect errors here

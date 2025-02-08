@@ -49,8 +49,7 @@ const IGNORED_TYPES: &[&str] = &["Option", "String", "Vec", "HashMap", "T", "I54
 /// qualified referenced items.
 pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
-    #[allow(dead_code)]
-    file_path: PathBuf,
+
     ignored_types: &'a [&'a str],
     mode: FilesMode,
     errors: Vec<ErrorInfo>,
@@ -58,20 +57,9 @@ pub struct TypeShareVisitor<'a> {
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
-    pub fn new(
-        crate_name: CrateName,
-        file_name: String,
-        file_path: PathBuf,
-        ignored_types: &'a [&'a str],
-        mode: FilesMode,
-    ) -> Self {
+    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode) -> Self {
         Self {
-            parsed_data: ParsedData {
-                crate_name,
-                file_name,
-                ..Default::default()
-            },
-            file_path,
+            parsed_data: ParsedData::default(),
             ignored_types,
             mode,
             errors: Vec::new(),
@@ -94,11 +82,7 @@ impl<'a> TypeShareVisitor<'a> {
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
         match result {
             Ok(data) => self.parsed_data.add(data),
-            Err(error) => self.errors.push(ErrorInfo {
-                crate_name: self.parsed_data.crate_name.clone(),
-                file_name: self.parsed_data.file_name.clone(),
-                error,
-            }),
+            Err(error) => self.errors.push(ErrorInfo { error }),
         }
     }
 
@@ -146,7 +130,7 @@ impl<'a> TypeShareVisitor<'a> {
         );
 
         // Build a set of a all type names.
-        let local_types: HashSet<&TypeName> = self.parsed_data.type_names.iter().collect();
+        let local_types: HashSet<&TypeName> = self.parsed_data.all_type_names().collect();
 
         // Lookup a type name against parsed imports.
         let find_type = |name: &TypeName| {
@@ -194,66 +178,75 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     /// Find any reference types that are not part of
     /// the `use` import statements.
     fn visit_path(&mut self, p: &'ast syn::Path) {
-        if !self.multi_file() {
-            return;
-        }
+        // TODO: implement this as a part of import detection.
+        // TODO: paths are used in a lot of places; make sure that we only
+        // care about paths that are part of type definitions.
 
-        let extract_root_and_types = |p: &syn::Path| {
-            // TODO: the first part here may not be a crate name but a module name defined
-            // in a use statement.
-            //
-            // Ex:
-            // use some_crate::some_module;
-            //
-            // struct SomeType {
-            //     field: some_module::RefType
-            // }
-            //
-            // vist_path would be after vist_item_use so we could retain imported module references
-            // and reconcile aftewards. visit_item_use would have to retain non type import types
-            // which it discards right now.
-            //
-            let crate_candidate = CrateName::new(p.segments.first()?.ident.to_string());
-            let type_candidate = TypeName::new(&p.segments.last()?.ident);
+        // if !self.multi_file() {
+        //     return;
+        // }
 
-            (accept_crate(&crate_candidate)
-                && accept_type(&type_candidate)
-                && !self.ignored_types.contains(&type_candidate.as_str())
-                && crate_candidate.as_str() != type_candidate.as_str())
-            .then(|| {
-                // resolve crate and super aliases into the crate name.
-                let base_crate = if crate_candidate == "crate"
-                    || crate_candidate == "super"
-                    || crate_candidate == "self"
-                {
-                    self.parsed_data.crate_name.clone()
-                } else {
-                    crate_candidate
-                };
-                ImportedType {
-                    base_crate: CrateName::from(base_crate),
-                    type_name: type_candidate,
-                }
-            })
-        };
+        // let extract_root_and_types = |p: &syn::Path| {
+        //     // TODO: the first part here may not be a crate name but a module name defined
+        //     // in a use statement.
+        //     //
+        //     // Ex:
+        //     // use some_crate::some_module;
+        //     //
+        //     // struct SomeType {
+        //     //     field: some_module::RefType
+        //     // }
+        //     //
+        //     // vist_path would be after vist_item_use so we could retain imported module references
+        //     // and reconcile aftewards. visit_item_use would have to retain non type import types
+        //     // which it discards right now.
+        //     //
+        //     let crate_candidate = CrateName::new(p.segments.first()?.ident.to_string());
+        //     let type_candidate = TypeName::new(&p.segments.last()?.ident);
 
-        if let Some(imported_type) = extract_root_and_types(p) {
-            self.parsed_data.import_types.insert(imported_type);
-        }
-        syn::visit::visit_path(self, p);
+        //     (accept_crate(&crate_candidate)
+        //         && accept_type(&type_candidate)
+        //         && !self.ignored_types.contains(&type_candidate.as_str())
+        //         && crate_candidate.as_str() != type_candidate.as_str())
+        //     .then(|| {
+        //         // resolve crate and super aliases into the crate name.
+        //         let base_crate = if crate_candidate == "crate"
+        //             || crate_candidate == "super"
+        //             || crate_candidate == "self"
+        //         {
+        //             self.parsed_data.crate_name.clone()
+        //         } else {
+        //             crate_candidate
+        //         };
+        //         ImportedType {
+        //             base_crate: CrateName::from(base_crate),
+        //             type_name: type_candidate,
+        //         }
+        //     })
+        // };
+
+        // if let Some(imported_type) = extract_root_and_types(p) {
+        //     self.parsed_data.import_types.insert(imported_type);
+        // }
+        // syn::visit::visit_path(self, p);
     }
 
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
-        if !self.multi_file() {
-            return;
-        }
+        // TODO: implement this as a part of import detection.
+        // TODO: make sure that use items in submodules are skipped
 
-        self.parsed_data.import_types.extend(
-            parse_import(i, &self.parsed_data.crate_name)
-                .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
-        );
-        syn::visit::visit_item_use(self, i);
+        // if !self.multi_file() {
+        //     return;
+        // }
+
+        // self.parsed_data.import_types.extend(
+        //     parse_import(i, &self.parsed_data.crate_name)
+        //         .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
+        // );
+
+        // pub use other_crate::TypeshareType;
+        // syn::visit::visit_item_use(self, i);
     }
 
     /// Collect rust structs.
@@ -387,6 +380,11 @@ impl<'a> Iterator for ItemUseIter<'a> {
 
         None
     }
+}
+
+struct Foo<Param> {
+    item: i32,
+    param: Param,
 }
 
 /// Yield all the type names including nested generic types.
@@ -586,13 +584,7 @@ mod test {
             ";
 
         let file: File = syn::parse_str(rust_code).unwrap();
-        let mut visitor = TypeShareVisitor::new(
-            CrateName::new("my_crate".to_owned()),
-            "my_file".into(),
-            "file_path".into(),
-            &[],
-            FilesMode::Multi,
-        );
+        let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi);
         visitor.visit_file(&file);
 
         let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();

@@ -1,5 +1,5 @@
 //! Generated source file output.
-use crate::parser::SINGLE_FILE_CRATE_NAME;
+use crate::topsort::topsort;
 use anyhow::Context;
 use std::{
     collections::HashMap,
@@ -7,58 +7,72 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use typeshare_model::prelude::*;
-
-#[derive(Debug, Clone, Copy)]
-#[non_exhaustive]
-pub enum OutputMode<'a> {
-    SingleFile {
-        file: &'a Path,
-    },
-    MultiFile {
-        folder: &'a Path,
-        import_candidates: &'a CrateTypes,
-    },
-}
-
-/// Write the parsed data to the one or more files depending on command line options.
-pub fn write_generated(
-    output: OutputMode<'_>,
-    lang: &mut impl Language,
-    crate_parsed_data: HashMap<CrateName, ParsedData>,
-) -> Result<(), anyhow::Error> {
-    match output {
-        OutputMode::MultiFile {
-            folder,
-            import_candidates,
-        } => write_multiple_files(lang, folder, crate_parsed_data, import_candidates),
-        OutputMode::SingleFile { file } => write_single_file(lang, file, crate_parsed_data),
-    }
-}
+use typeshare_model::{parsed_data::ImportedType, prelude::*};
 
 /// Write multiple module files.
-fn write_multiple_files(
-    lang: &mut impl Language,
+pub fn write_multiple_files<'c>(
+    lang: &mut impl Language<'c>,
     output_folder: &Path,
-    crate_parsed_data: HashMap<CrateName, ParsedData>,
+    crate_parsed_data: &HashMap<CrateName, ParsedData>,
     import_candidates: &CrateTypes,
 ) -> Result<(), anyhow::Error> {
-    for (_crate_name, parsed_data) in crate_parsed_data {
-        let outfile = Path::new(output_folder).join(&parsed_data.file_name);
-        let mut generated_contents = Vec::new();
-        lang.generate_types(
-            &mut generated_contents,
+    for (crate_name, parsed_data) in crate_parsed_data {
+        let outfile = output_folder.join(&lang.output_file_for_crate(&crate_name));
+
+        let mut output = Vec::new();
+
+        generate_types(
+            lang,
+            &mut output,
             import_candidates,
             parsed_data,
-            FilesMode::Multi,
+            MultiFileCrate::Multi(&crate_name),
         )?;
-        check_write_file(&outfile, generated_contents)?;
+
+        check_write_file(&outfile, output)?;
     }
 
     lang.post_generation(output_folder)
         .context("Post generation failed")?;
 
     Ok(())
+}
+
+/// Write all types to a single file.
+pub fn write_single_file<'c>(
+    lang: &mut impl Language<'c>,
+    file_name: &Path,
+    parsed_data: &ParsedData,
+) -> Result<(), anyhow::Error> {
+    let mut output = Vec::new();
+
+    generate_types(
+        lang,
+        &mut output,
+        &HashMap::new(),
+        parsed_data,
+        MultiFileCrate::Single,
+    )?;
+
+    let outfile = Path::new(file_name).to_path_buf();
+    check_write_file(&outfile, output)?;
+    Ok(())
+}
+
+/// If we're in multifile mode, this enum contains the crate name for the
+/// specific file
+enum MultiFileCrate<'a> {
+    Single,
+    Multi(&'a CrateName),
+}
+
+impl MultiFileCrate<'_> {
+    pub fn mode(&self) -> FilesMode {
+        match self {
+            MultiFileCrate::Single => FilesMode::Single,
+            MultiFileCrate::Multi(_) => FilesMode::Multi,
+        }
+    }
 }
 
 /// Write the file if the contents have changed.
@@ -88,20 +102,118 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Write all types to a single file.
-fn write_single_file(
-    lang: &mut impl Language,
-    file_name: &Path,
-    mut crate_parsed_data: HashMap<CrateName, ParsedData>,
-) -> Result<(), anyhow::Error> {
-    let parsed_data = crate_parsed_data
-        .remove(&SINGLE_FILE_CRATE_NAME)
-        .context("Could not get parsed data for single file output")?;
+/// An enum that encapsulates units of code generation for Typeshare.
+/// Analogous to `syn::Item`, even though our variants are more limited.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BorrowedRustItem<'a> {
+    /// A `struct` definition
+    Struct(&'a RustStruct),
+    /// An `enum` definition
+    Enum(&'a RustEnum),
+    /// A `type` definition or newtype struct.
+    Alias(&'a RustTypeAlias),
+}
 
-    let mut output = Vec::new();
-    lang.generate_types(&mut output, &HashMap::new(), parsed_data, FilesMode::Single)?;
+/// Given `data`, generate type-code for this language and write it out to `writable`.
+/// Returns whether or not writing was successful.
+fn generate_types<'c>(
+    lang: &mut impl Language<'c>,
+    out: &mut Vec<u8>,
+    all_types: &CrateTypes,
+    data: &ParsedData,
+    mode: MultiFileCrate<'_>,
+) -> std::io::Result<()> {
+    lang.begin_file(out, &data, mode.mode())?;
 
-    let outfile = Path::new(file_name).to_path_buf();
-    check_write_file(&outfile, output)?;
-    Ok(())
+    if let MultiFileCrate::Multi(crate_name) = mode {
+        lang.write_imports(out, &used_imports(&data, crate_name, all_types))?;
+    }
+
+    let ParsedData {
+        structs,
+        enums,
+        aliases,
+        ..
+    } = data;
+
+    let mut items = Vec::from_iter(
+        aliases
+            .iter()
+            .map(BorrowedRustItem::Alias)
+            .chain(structs.iter().map(BorrowedRustItem::Struct))
+            .chain(enums.iter().map(BorrowedRustItem::Enum)),
+    );
+
+    topsort(&mut items);
+
+    for thing in &items {
+        match thing {
+            BorrowedRustItem::Enum(e) => lang.write_enum(out, e)?,
+            BorrowedRustItem::Struct(s) => lang.write_struct(out, s)?,
+            BorrowedRustItem::Alias(a) => lang.write_type_alias(out, a)?,
+        }
+    }
+
+    lang.end_file(out)
+}
+
+/// Lookup any refeferences to other typeshared types in order to build
+/// a list of imports for the generated module.
+fn used_imports<'a, 'b: 'a>(
+    data: &'b ParsedData,
+    crate_name: &CrateName,
+    all_types: &'a CrateTypes,
+) -> ScopedCrateTypes<'a> {
+    let mut used_imports = ScopedCrateTypes::new();
+
+    // If we have reference that is a re-export we can attempt to find it with the
+    // following heuristic.
+    let fallback = |referenced_import: &'a ImportedType, used: &mut ScopedCrateTypes<'a>| {
+        // Find the first type that does not belong to the current crate.
+        if let Some((crate_name, ty)) = all_types
+            .iter()
+            .flat_map(|(k, v)| {
+                v.iter()
+                    .find(|&t| *t == referenced_import.type_name && k != crate_name)
+                    .map(|t| (k, t))
+            })
+            .next()
+        {
+            println!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
+            used.entry(crate_name).or_default().insert(ty);
+        } else {
+            // println!("Could not lookup reference {referenced_import:?}");
+        }
+    };
+
+    for referenced_import in data
+        .import_types
+        .iter()
+        // Skip over imports that reference the current crate. They
+        // are all collapsed into one module per crate.
+        .filter(|imp| imp.base_crate != *crate_name)
+    {
+        // Look up the types for the referenced imported crate.
+        if let Some(type_names) = all_types.get(&referenced_import.base_crate) {
+            if referenced_import.type_name == "*" {
+                // We can have "*" wildcard here. We need to add all.
+                used_imports
+                    .entry(&referenced_import.base_crate)
+                    .and_modify(|names| names.extend(type_names.iter()));
+            } else if let Some(ty_name) = type_names.get(&referenced_import.type_name) {
+                // Add referenced import for each matching type.
+                used_imports
+                    .entry(&referenced_import.base_crate)
+                    .or_default()
+                    .insert(ty_name);
+            } else {
+                fallback(referenced_import, &mut used_imports);
+            }
+        } else {
+            // We might have a re-export from another crate.
+            fallback(referenced_import, &mut used_imports);
+        }
+    }
+    used_imports
 }
