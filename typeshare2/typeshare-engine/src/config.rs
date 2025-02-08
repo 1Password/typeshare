@@ -1,35 +1,34 @@
 use anyhow::Context;
-use serde::{Deserialize, Serialize};
-use typeshare_model::Language;
+use serde::{ser, Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
-    env, fs, io,
+    env, fs,
     path::{Path, PathBuf},
 };
+use typeshare_model::Language;
 
-use crate::serde::{args::ArgsSet, EmptyDeserializer};
+use crate::serde::{
+    args::{ArgsSetSerializer, CliArgsSet},
+    config::ConfigDeserializer,
+    empty::EmptyDeserializer,
+    toml::TableSerializer,
+};
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
-// /// The paramters that are used to configure the behaviour of typeshare
-// /// from the configuration file `typeshare.toml`
-// #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-// #[serde(default)]
-// pub(crate) struct Config {
-//     pub swift: SwiftParams,
-//     pub typescript: TypeScriptParams,
-//     pub kotlin: KotlinParams,
-//     pub scala: ScalaParams,
-//     #[cfg(feature = "go")]
-//     pub go: GoParams,
-// }
-
-// TODO: someday we'd like to support borrowed data here. For now, though, it
-// seems as though there's no support for borrowed data in the `toml` crate,
-// so it would be wasted effort.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(transparent)]
+/// A partially parsed typeshare config file.
+///
+/// This contains a `toml::Table` for each language that was found in the config
+/// file. The `Config` type on the `Language` trait can be further deserialized
+/// from this toml table.
+#[derive(Debug, Clone, Default)]
 pub struct Config {
+    /// toml::Table doesn't have a const constructor, so there's not an easy
+    /// way to make a long-lived empty table to deserialize from when the
+    /// language is absent from the raw data. So we just put one here.
+    empty: toml::Table,
+
+    /// When we load the typeshare config file, we don't know precisely which
     raw_data: BTreeMap<String, toml::Table>,
 }
 
@@ -38,17 +37,60 @@ impl Config {
     /// the given type. The deserialize implementation should be able to handle
     /// arbitrary missing keys by populating them with default values. Errors
     ///
-    pub fn config_for_language(&self, language: &str) -> Option<&toml::Table>
-
-    {
-        self.raw_data.get(language)
+    pub fn config_for_language(&self, language: &str) -> &toml::Table {
+        self.raw_data.get(language).unwrap_or(&self.empty)
     }
 
     // Store a config for a language, overriding the existing one, by
     // serializing the config type into a toml table
-    pub fn store_config_for_language<T>(&mut self, language: &str, config: &T) {
-        todo!()
+    pub fn store_config_for_language<T: Serialize>(
+        &mut self,
+        language: &str,
+        config: &T,
+    ) -> anyhow::Result<()> {
+        self.raw_data.insert(
+            language.to_owned(),
+            config
+                .serialize(TableSerializer)
+                .context("error converting config to toml")?,
+        );
+
+        Ok(())
     }
+}
+
+impl Serialize for Config {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        self.raw_data.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Config {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Deserialize::deserialize(deserializer).map(|raw_data| Self {
+            empty: toml::Table::new(),
+            raw_data,
+        })
+    }
+}
+
+pub fn compute_args_set<'a, L: Language<'a>>() -> anyhow::Result<CliArgsSet> {
+    let empty_config = L::Config::deserialize(EmptyDeserializer).context(
+        "failed to create empty config; \
+        did you forget `#[serde(default)]`?",
+    )?;
+
+    let args_set = empty_config
+        .serialize(ArgsSetSerializer::new(L::NAME))
+        .context("failed to compute CLI arguments from language configuration type")?;
+
+    Ok(args_set)
 }
 
 // pub fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {
@@ -71,21 +113,28 @@ pub fn load_config(file_path: Option<&Path>) -> anyhow::Result<Config> {
 
     let file_path = match file_path {
         Some(path) => path,
-        None => match find_configuration_file() {None=>return Ok(Config::default()),
+        None => match find_configuration_file() {
+            None => return Ok(Config::default()),
             Some(path) => {
                 file_path_buf = path;
                 &file_path_buf
             }
-        }
+        },
     };
 
-    let config_string = fs::read_to_string(file_path).
-    if let Some(file_path) = file_path.or_else(|| find_configuration_file().as_deref()) {
-        let config_string = fs::read_to_string(file_path)?;
-        toml::from_str(&config_string).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-    } else {
-        Ok(Config::default())
-    }
+    let config_string = fs::read_to_string(file_path).with_context(|| {
+        format!(
+            "i/o error reading typeshare config from '{path}'",
+            path = file_path.display()
+        )
+    })?;
+
+    toml::from_str(&config_string).with_context(|| {
+        format!(
+            "error loading typeshare config from '{path}'",
+            path = file_path.display()
+        )
+    })
 }
 
 /// Search each ancestor directory for configuration file
@@ -104,12 +153,25 @@ fn find_configuration_file() -> Option<PathBuf> {
     }
 }
 
-pub fn load_language_config<'config, L: Language<'config>>(
+pub fn load_language_config<'a: 'config, 'config, L: Language<'config>>(
     config_file_entry: &'config toml::Table,
     cli_matches: &'config clap::ArgMatches,
-    args: &ArgsSet,
+    spec: &'a CliArgsSet,
 ) -> anyhow::Result<L::Config> {
+    L::Config::deserialize(ConfigDeserializer::new(
+        &config_file_entry,
+        &cli_matches,
+        spec,
+    ))
+    .context("error deserializing config")
+}
 
+pub fn load_language_config_from_file<'a: 'config, 'config, L: Language<'config>>(
+    config: &'config Config,
+    cli_matches: &'config clap::ArgMatches,
+    spec: &'a CliArgsSet,
+) -> anyhow::Result<L::Config> {
+    load_language_config::<L>(config.config_for_language(L::NAME), cli_matches, spec)
 }
 
 // #[cfg(test)]

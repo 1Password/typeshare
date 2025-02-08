@@ -1,45 +1,73 @@
 #[macro_export]
 macro_rules! typeshare_binary {
     ($($Language:ident),+ $(,)?) => {
-        fn main() {
-            use clap::Parser;
-            use clap::{CommandFactory, FromArgMatches};
-            use ignore::{types::TypesBuilder, WalkBuilder};
-            use std::collections::HashMap;
-            use typeshare_engine::{
-                args::{add_lang_argument, personalize_args, Output, StandardArgs},
-                parser::{parse_input, parser_inputs},
-                FilesMode,
+        fn main() -> ::anyhow::Result<()> {
+            use ::std::collections::HashMap;
+
+            use ::clap::{Parser as _, CommandFactory as _, FromArgMatches as _};
+            use ::ignore::{types::TypesBuilder, WalkBuilder};
+
+            use ::typeshare_model::Language as LanguageTrait;
+            use ::typeshare_engine::config::{compute_args_set, load_language_config_from_file};
+            use ::typeshare_engine::args::add_language_params_to_clap;
+
+            #[allow(non_snake_case)]
+            struct LangArgsSets {
+                $($Language : CliArgsSet,)*
+            }
+
+            let language_metas = LangArgsSets {
+                $($Language: compute_args_set::<$Language>(),)*
             };
 
             let command = StandardArgs::command();
-            let command = personalize_args(
-                command,
-                "typeshare-typescript",
-                "1.0",
-                "1Password",
-                "A typeshare that generates typescript code",
-            );
-            let command = add_lang_argument(command, &["typescript", "swift"]);
+
+            let command = command
+                .name(personalize.name)
+                .version(personalize.version)
+                .author(personalize.author)
+                .about(personalize.about);
+
+            let command = ::typeshare::engine::args::add_lang_argument(command, &[$($Language::NAME,)*]);
+
+            $(
+                let command = add_language_params_to_clap(command, language_metas.$Language);
+            )*
+
+            // Parse command line arguments.
             let args = command.get_matches();
 
-            let standard_args = StandardArgs::from_arg_matches(&args).unwrap();
+            // Load the standard arguments from the parsed arguments. Generally
+            // we expect that this won't fail, because the `command` has been
+            // configured to only give us valid arrangements of args
+            let standard_args = StandardArgs::from_arg_matches(&args)
+                .expect("StandardArgs should always be loadable from a `command`");
 
-            let config = typeshare_engine::config::load_config(standard_args.config.as_deref()).unwrap();
-            let directories = standard_args.directories.as_slice();
-            let (first_dir, other_dirs) = directories.split_first().unwrap();
+            // Load all of the language configurations
+            let config = ::typeshare_engine::config::load_config(standard_args.config.as_deref())?;
 
-            let mut types = TypesBuilder::new();
-            types.add("rust", "*.rs").unwrap();
-            types.select("rust");
+            // Construct the directory walker that will produce the list of
+            // files to typeshare
+            let walker = {
+                let directories = standard_args.directories.as_slice();
+                let (first_dir, other_dirs) = directories.split_first().unwrap();
 
-            let mut walker_builder = WalkBuilder::new(first_dir);
-            walker_builder.types(types.build().unwrap());
-            other_dirs.iter().for_each(|dir| {
-                walker_builder.add(dir);
-            });
+                let mut types = TypesBuilder::new();
+                types.add("rust", "*.rs").unwrap();
+                types.select("rust");
 
-            let parser_inputs = parser_inputs(walker_builder.build());
+                let mut walker_builder = WalkBuilder::new(first_dir);
+                walker_builder.types(types.build().unwrap());
+                other_dirs.iter().for_each(|dir| {
+                    walker_builder.add(dir);
+                });
+                walker_builder.build()
+            };
+
+            // Collect all of the files we intend to parse with typeshare
+            let parser_inputs = parser_inputs(walker_builder);
+
+            // Parse those files
             let data = parse_input(
                 parser_inputs,
                 &[],
@@ -51,30 +79,32 @@ macro_rules! typeshare_binary {
             )
             .unwrap();
 
-          $crate::use_language! {
-                config, lang, {}; args.get_one("language").unwrap_or(&"typescript"); $($Language,)+
-            }
-        }
-    };
-}
+            let language: &str = args
+                .get_one("language")
+                .expect("clap should guarantee that --lang is provided");
 
-#[macro_export]
-macro_rules! use_language {
-    ($config: expr, $lang:ident, $op:expr; $switch:expr; $($Language:ident,)+) => {
-        {
-            use typeshare_model::Language;
-
-            let choice = $switch;
-            let config = $config;
-
-            if false {}
+            return if false {}
             $(
-               else if *choice == $Language::NAME {
-                    let $lang = $Language::new_from_config(config.config_for_language(choice).unwrap()).unwrap();
-                    $op
+                else if language == <$Language as LanguageTrait>::NAME {
+                    let name = <$Language as LanguageTrait>::NAME;
+
+                    let config = load_language_config_from_file(
+                        &config,
+                        &args,
+                        &language_metas.$Language,
+                    ).with_context(|| format!(
+                        "failed to load configuration for language {name}"
+                    ))?;
+
+                    let language_implementation = <$Language>::new_from_config(&config)
+                        .with_context(|| format!("failed to load configuration for language {name}"))?;
+
+                    // TODO: consolidate parsed data in single file mode, use
+                    // a method in writer to execute
                 }
-            )+
-            else { panic!("OOPS") }
+            )*
+            else panic!("Unrecognized language {language}; clap should have prevented this");
+
         }
     };
 }

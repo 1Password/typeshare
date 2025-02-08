@@ -1,4 +1,3 @@
-pub mod cli;
 pub mod language;
 pub mod parsed_data;
 

@@ -12,7 +12,7 @@ pub enum ArgType {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ArgsSet {
+pub struct CliArgsSet {
     language: &'static str,
 
     // All of the keys in here are `{language}-{key}`. We pre-compute them to
@@ -21,8 +21,8 @@ pub struct ArgsSet {
     args: HashMap<&'static str, (String, ArgType)>,
 }
 
-impl ArgsSet {
-    pub fn iter(&self) -> impl Iterator<Item = ArgSpec<'_>> + use<'_> {
+impl CliArgsSet {
+    pub fn iter(&self) -> impl Iterator<Item = ArgSpec<'_>> + '_ {
         self.args
             .iter()
             .map(|(&key, &(ref full_key, arg_type))| ArgSpec {
@@ -71,20 +71,20 @@ impl ser::Error for ArgsSetError {
 
 pub struct ArgsSetSerializer {
     language: &'static str,
-    args: ArgsSet,
+    args: CliArgsSet,
 }
 
 impl ArgsSetSerializer {
     pub fn new(language: &'static str) -> Self {
         Self {
             language,
-            args: ArgsSet::default(),
+            args: CliArgsSet::default(),
         }
     }
 }
 
 impl ser::Serializer for ArgsSetSerializer {
-    type Ok = ArgsSet;
+    type Ok = CliArgsSet;
     type Error = ArgsSetError;
 
     type SerializeSeq = ser::Impossible<Self::Ok, Self::Error>;
@@ -254,7 +254,7 @@ impl ser::Serializer for ArgsSetSerializer {
 }
 
 impl ser::SerializeStruct for ArgsSetSerializer {
-    type Ok = ArgsSet;
+    type Ok = CliArgsSet;
     type Error = ArgsSetError;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>

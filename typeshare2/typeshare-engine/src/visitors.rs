@@ -1,6 +1,6 @@
 //! Visitors to collect various items from the AST.
 
-use std::{collections::HashSet, iter, path::PathBuf};
+use std::{collections::HashSet, iter};
 use syn::{visit::Visit, ItemUse, UseTree};
 
 use typeshare_model::{
