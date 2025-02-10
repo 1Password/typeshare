@@ -7,15 +7,16 @@ use std::{
 use itertools::Itertools;
 
 use crate::parsed_data::{
-    CrateName, Id, ParsedData, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias,
-    SpecialRustType, TypeName,
+    CrateName, Id, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias, SpecialRustType,
+    TypeName,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum FilesMode {
+/// If we're in multifile mode, this enum contains the crate name for the
+/// specific file
+#[derive(Debug, Clone, Copy)]
+pub enum FilesMode<'a> {
     Single,
-    Multi,
+    Multi(&'a CrateName),
 }
 
 /// Mapping of crate names to typeshare type names.
@@ -24,11 +25,101 @@ pub type CrateTypes = HashMap<CrateName, HashSet<TypeName>>;
 /// Refence types by crate that are scoped for a given output module.
 pub type ScopedCrateTypes<'a> = BTreeMap<&'a CrateName, BTreeSet<&'a TypeName>>;
 
-/// Language-specific state and processing.
-///
-/// The `Language` implementation is allowed to maintain mutable state, and it
-/// is allowed to assume that a unique `Language` instance will be constructed
-/// for each `Generator` instance.
+/**
+Language-specific state and processing.
+
+The `Language` implementation is allowed to maintain mutable state, and it
+is allowed to assume that a unique `Language` instance will be constructed
+for each `Generator` instance.
+
+The basic flow of `typeshare` looks like this. In this example we'll use
+`Kotlin` as the example language (so we assume that somewhere there exists
+`impl Language<'_> for Kotlin`).
+
+1. The language's config is loaded from the config file and command line
+arguments:
+
+```ignore
+let config = Kotlin::Config::deserialize(config_file);
+```
+
+2. The language is loaded from the config file via `new_from_config`. This is
+where the implementation has the opportunity to report any configuration errors
+that weren't detected during deserialization.
+
+```ignore
+let language = Kotlin::new_from_config(config)?;
+```
+
+3. If we're in multi-file mode, we call `output_file_for_crate` for each rust
+crate being typeshared to determine the _filename_ for the output file that
+will contain that crate's types.
+
+```ignore
+let files = crate_names
+    .iter()
+    .map(|crate_name| {
+        let filename = language.output_file_for_type(crate_name);
+        File::create(output_directory.join(filename))
+    });
+}
+```
+
+4. We call `begin_file` on the output type to print any headers or preamble
+appropriate for this language. In multi-file mode, `begin_file` is called once
+for each output file; in this case, the `mode` argument will include the crate
+name.
+
+```ignore
+language.begin_file(&mut file, mode)
+```
+
+5. In mutli-file mode only, we call `write_imports` with a list of all the
+types that are being imported from other typeshare'd crates. This allows the
+language to emit appropriate import statements for its own language.
+
+```ignore
+language.write_imports(&mut file, crate_name, computed_imports)
+```
+
+6. For EACE typeshared item in being typeshared, we call `write_enum`,
+`write_struct`, or `write_type_alias`, as appropriate.
+
+```ignore
+language.write_struct(&mut file, parsed_struct);
+language.write_enum(&mut file, parsed_enum);
+```
+
+    5a. In your implementations of these methods, we recommend that you call
+    `format_type` for the fields of these types. `format_type` will in turn call
+    `format_simple_type`, `format_generic_type`, or `format_special_type`, as
+    appropriate; usually it is only necessary for you to implmenent
+    `format_special_type` yourself, and use the default implementations for the
+    others. The `format_*` methods will otherwise never be called by typeshare.
+
+    5b. If your language doesn't natively support data-containing enums, we
+    recommand that you call `write_types_for_anonymous_structs` in your
+    implementation of `write_enum`; this will call `write_struct` for each variant
+    of the enum.
+
+7. After all the types are written, we call `end_file`.
+
+```ignore
+language.end_file(&mut file)
+```
+
+8. In multi-file mode only, after ALL files are written, we call
+`post_generation` with the output directory. This gives the language an
+opportunity to create any files resembling `mod.rs` or `index.js` as it might
+require.
+
+```ignore
+language.post_generation(&output_directory)
+```
+
+NOTE THAT at this stage, multi-file output is still work-in-progress, as the
+algorithms that compute import sets are being rewritten.
+*/
 pub trait Language<'config>: Sized {
     /// Not all languages can format all types; the `format_` methods of this
     /// trait will return this error if an invalid type is encountered.
@@ -37,13 +128,12 @@ pub trait Language<'config>: Sized {
     type FormatTypeError;
 
     /// The configuration for this language. This configuration will be loaded
-    /// from a config file and, where possible, from the command line. The way
-    /// this works is sort of magical and will be extensively documented later;
-    /// for now suffice it to say that we use serde shennanigans to make it work.
+    /// from a config file and, where possible, from the command line, via
+    /// `serde`.
     ///
-    /// The `Default` implementation ideally should have the "real" default
-    /// values for this language, as it will be used to populate a config file,
-    /// if the user so desires.
+    /// It is important that this type include `#[serde(default)]` or something
+    /// equivelent, so that a config can be loaded with default setting even
+    /// if this language isn't present in the config file.
     ///
     /// The `serialize` implementation for this type should NOT skip keys, if
     /// possible.
@@ -58,11 +148,10 @@ pub trait Language<'config>: Sized {
     /// Create an instance of this language
     fn new_from_config(config: Self::Config) -> anyhow::Result<Self>;
 
-    /// Most languages provide manual overrides for specific types.
-    #[expect(unused_variables)]
-    fn mapped_type(&self, type_name: &TypeName) -> Option<&TypeName> {
-        None
-    }
+    /// Most languages provide manual overrides for specific types. When a type
+    /// is formatted with a name that matches a mapped type, the mapped type
+    /// name is formatted instead.
+    fn mapped_type(&self, type_name: &TypeName) -> Option<&TypeName>;
 
     /// In multi-file mode, typeshare will output one separate file with this
     /// name for each crate in the input set. These file names should have the
@@ -145,29 +234,20 @@ pub trait Language<'config>: Sized {
 
     /// Implementors can use this function to write a header for typeshared code.
     /// By default this does nothing.
-    #[expect(unused_variables)]
-    fn begin_file(
-        &self,
-        w: &mut impl Write,
-        parsed_data: &ParsedData,
-        mode: FilesMode,
-    ) -> std::io::Result<()> {
-        Ok(())
-    }
+    fn begin_file(&self, w: &mut impl Write, mode: FilesMode) -> std::io::Result<()>;
 
     /// For generating import statements. This is called only in multi-file
     /// mode, after `begin_file` and before any another methods.
     fn write_imports(
         &self,
         writer: &mut impl Write,
+        crate_name: &CrateName,
         imports: &ScopedCrateTypes<'_>,
     ) -> std::io::Result<()>;
 
     /// Implementors can use this function to write a footer for typeshared code.
     /// By default this does nothing.
-    fn end_file(&self, _w: &mut impl Write) -> std::io::Result<()> {
-        Ok(())
-    }
+    fn end_file(&self, w: &mut impl Write) -> std::io::Result<()>;
 
     /// Write a type alias by converting it.
     /// Example of a type alias:

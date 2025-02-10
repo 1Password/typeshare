@@ -51,13 +51,13 @@ pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
 
     ignored_types: &'a [&'a str],
-    mode: FilesMode,
+    mode: FilesMode<'a>,
     errors: Vec<ErrorInfo>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
-    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode) -> Self {
+    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode<'a>) -> Self {
         Self {
             parsed_data: ParsedData::default(),
             ignored_types,
@@ -76,7 +76,7 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     fn multi_file(&self) -> bool {
-        matches!(self.mode, FilesMode::Multi)
+        matches!(self.mode, FilesMode::Multi(_))
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
@@ -584,7 +584,8 @@ mod test {
             ";
 
         let file: File = syn::parse_str(rust_code).unwrap();
-        let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi);
+        let crate_name = CrateName::new("my_crate".to_owned());
+        let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi(&crate_name));
         visitor.visit_file(&file);
 
         let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();

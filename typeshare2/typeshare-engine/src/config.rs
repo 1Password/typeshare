@@ -11,7 +11,6 @@ use crate::serde::{
     args::{ArgsSetSerializer, CliArgsSet},
     config::ConfigDeserializer,
     empty::EmptyDeserializer,
-    toml::TableSerializer,
 };
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
@@ -48,14 +47,15 @@ impl Config {
         language: &str,
         config: &T,
     ) -> anyhow::Result<()> {
-        self.raw_data.insert(
-            language.to_owned(),
-            config
-                .serialize(TableSerializer)
-                .context("error converting config to toml")?,
-        );
+        todo!()
+        // self.raw_data.insert(
+        //     language.to_owned(),
+        //     config
+        //         .serialize(TableSerializer)
+        //         .context("error converting config to toml")?,
+        // );
 
-        Ok(())
+        // Ok(())
     }
 }
 
