@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use typeshare_model::{parsed_data::ImportedType, prelude::*};
+use typeshare_model::prelude::*;
 
 /// Write multiple module files.
 pub fn write_multiple_files<'c>(
@@ -26,7 +26,7 @@ pub fn write_multiple_files<'c>(
             &mut output,
             import_candidates,
             parsed_data,
-            MultiFileCrate::Multi(&crate_name),
+            FilesMode::Multi(&crate_name),
         )?;
 
         check_write_file(&outfile, output)?;
@@ -51,28 +51,12 @@ pub fn write_single_file<'c>(
         &mut output,
         &HashMap::new(),
         parsed_data,
-        MultiFileCrate::Single,
+        FilesMode::Single,
     )?;
 
     let outfile = Path::new(file_name).to_path_buf();
     check_write_file(&outfile, output)?;
     Ok(())
-}
-
-/// If we're in multifile mode, this enum contains the crate name for the
-/// specific file
-enum MultiFileCrate<'a> {
-    Single,
-    Multi(&'a CrateName),
-}
-
-impl MultiFileCrate<'_> {
-    pub fn mode(&self) -> FilesMode {
-        match self {
-            MultiFileCrate::Single => FilesMode::Single,
-            MultiFileCrate::Multi(_) => FilesMode::Multi,
-        }
-    }
 }
 
 /// Write the file if the contents have changed.
@@ -122,12 +106,12 @@ fn generate_types<'c>(
     out: &mut Vec<u8>,
     all_types: &CrateTypes,
     data: &ParsedData,
-    mode: MultiFileCrate<'_>,
+    mode: FilesMode<'_>,
 ) -> std::io::Result<()> {
-    lang.begin_file(out, &data, mode.mode())?;
+    lang.begin_file(out, mode)?;
 
-    if let MultiFileCrate::Multi(crate_name) = mode {
-        lang.write_imports(out, &used_imports(&data, crate_name, all_types))?;
+    if let FilesMode::Multi(crate_name) = mode {
+        lang.write_imports(out, crate_name, &used_imports(&data, crate_name, all_types))?;
     }
 
     let ParsedData {
