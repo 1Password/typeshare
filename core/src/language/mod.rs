@@ -492,8 +492,13 @@ fn used_imports<'a, 'b: 'a>(
     }
     used_imports
 }
-
-fn get_vec_u8_conversion(special_type: &SpecialRustType, type_mappings: &HashMap<String,String>, inner_type: &RustType) -> Option<String>{
+/// this function will acquire the byte translation for the target language that is located inside
+/// the typeshare.toml
+fn get_vec_u8_conversion(
+    special_type: &SpecialRustType,
+    type_mappings: &HashMap<String, String>,
+    inner_type: &RustType,
+) -> Option<String> {
     let type_key = format!("{}<{}>", special_type.id(), inner_type.id());
 
     if inner_type.contains_type(SpecialRustType::U8.id()) {

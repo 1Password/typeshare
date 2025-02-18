@@ -38,7 +38,9 @@ impl Language for TypeScript {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype) {
+                // TODO: https://github.com/1Password/typeshare/issues/231
+                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                {
                     return Ok(conversion);
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
