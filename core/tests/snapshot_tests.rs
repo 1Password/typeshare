@@ -424,24 +424,36 @@ static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 });
 
 static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("DateTime", "string")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "Uint8Array"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("DateTime", "string")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "[]byte"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "AnyUrl"), ("DateTime", "datetime")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "AnyUrl"),
+        ("DateTime", "datetime"),
+        ("Vec<u8>", "bytes"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 tests! {
@@ -586,6 +598,9 @@ tests! {
          go {
             type_mappings: super::GO_MAPPINGS.clone(),
         },
+        python {
+            type_mappings: super::PYTHON_MAPPINGS.clone(),
+        }
     ];
     test_serde_url: [
         swift {
@@ -674,4 +689,18 @@ tests! {
     excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
     serde_rename_references: [ swift, kotlin, scala, typescript, go ];
+    test_byte_translation: [
+    go 
+    {
+        type_mappings: super::GO_MAPPINGS.clone(),
+    },
+    python
+    {
+        type_mappings: super::PYTHON_MAPPINGS.clone(),
+    },
+    typescript
+    {
+        type_mappings: super::TYPESCRIPT_MAPPINGS.clone(),
+    }
+    ];
 }

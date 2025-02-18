@@ -38,6 +38,13 @@ impl Language for TypeScript {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
+                if self
+                    .type_map()
+                    .contains_key(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                    && rtype.contains_type(SpecialRustType::U8.id())
+                {
+                    return Ok("Uint8Array".to_owned());
+                }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
             SpecialRustType::Array(rtype, len) => {
@@ -153,7 +160,35 @@ impl Language for TypeScript {
             .iter()
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
-        writeln!(w, "}}\n")
+        writeln!(w, "}}\n")?;
+        rs.fields.iter().try_for_each(|field| {
+            let typescript_type = self
+                .format_type(&field.ty, &rs.generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            if typescript_type == "Uint8Array" {
+                return writeln!(
+                    w,
+                    r#"// Reviver code  - required for JSON deserialization
+function TypeshareReviver(key: string, value: unknown): unknown {{ 
+    return isNumberArray(value) ? new {typescript_type}(value) : value; 
+}}
+            
+function isNumberArray(value: unknown): value is number[] {{
+    return Array.isArray(value) && value.every(item => typeof item === "number");
+}}
+            
+// Replacer code - required for JSON serialization
+            
+function TypeshareReplacer(key: string, value: unknown): unknown {{
+    if (value instanceof {typescript_type}) {{
+        return Array.from(value);
+    }}
+    return value;
+}}"#
+                );
+            }
+            Ok(())
+        })
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {

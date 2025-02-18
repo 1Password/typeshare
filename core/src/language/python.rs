@@ -137,6 +137,7 @@ impl Language for Python {
         parameters: &[RustType],
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        self.add_imports(base);
         if let Some(mapped) = self.type_map().get(base) {
             Ok(mapped.into())
         } else {
@@ -174,9 +175,18 @@ impl Language for Python {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
-            SpecialRustType::Vec(rtype)
-            | SpecialRustType::Array(rtype, _)
-            | SpecialRustType::Slice(rtype) => {
+            SpecialRustType::Vec(rtype) => {
+                if self
+                    .type_map()
+                    .contains_key(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                    && rtype.contains_type(SpecialRustType::U8.id())
+                {
+                    return Ok("bytes".to_owned());
+                }
+                self.add_import("typing".to_string(), "List".to_string());
+                Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
+            }
+            SpecialRustType::Array(rtype, _) | SpecialRustType::Slice(rtype) => {
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -267,6 +277,7 @@ impl Language for Python {
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
+        self.add_import("pydantic".to_string(), "BaseModel".to_string());
         {
             rs.generic_types
                 .iter()
@@ -294,8 +305,31 @@ impl Language for Python {
             write!(w, "    pass")?
         }
         writeln!(w)?;
-        self.add_import("pydantic".to_string(), "BaseModel".to_string());
-        Ok(())
+        rs.fields.iter().try_for_each(|field| {
+            let python_type = self
+                .format_type(&field.ty, &rs.generic_types)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            if python_type == "bytes" {
+                self.add_import("pydantic".to_owned(), "field_validator".to_owned());
+                self.add_import("typing".to_owned(), "Any".to_owned());
+                return writeln!(
+                    w,
+                    r#"    @field_validator('content', mode='before')
+    @classmethod
+    def cast_list_to_{python_type}(cls, value: Any) -> {python_type}:
+        if isinstance(value, list) and all(isinstance(i, int) for i in value):
+          return {python_type}(value)
+
+        raise ValueError("content must be a list of integers")
+
+    class Config:
+        json_encoders = {{
+            bytes: lambda b: list(b),
+        }}"#
+                );
+            };
+            Ok(())
+        })
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {

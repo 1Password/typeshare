@@ -80,6 +80,8 @@ pub enum ParseError {
     RustConstTypeInvalid,
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
+    #[error("the binary data decorator isn't allowed on types other than Vec<u8>")]
+    BinaryDataOnTypesOtherThanBytesNotAllowed,
     #[error("IO error: {0}")]
     IOError(String),
 }
