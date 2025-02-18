@@ -690,7 +690,7 @@ tests! {
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
     serde_rename_references: [ swift, kotlin, scala, typescript, go ];
     test_byte_translation: [
-    go 
+    go
     {
         type_mappings: super::GO_MAPPINGS.clone(),
     },
