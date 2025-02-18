@@ -14,7 +14,7 @@ use std::{
     io::{self, Write},
 };
 
-use super::ScopedCrateTypes;
+use super::{get_vec_u8_conversion, ScopedCrateTypes};
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
@@ -38,13 +38,8 @@ impl Language for TypeScript {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion_value) =
-                        self.type_map()
-                            .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                    {
-                        return Ok(conversion_value.to_string());
-                    }
+                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype) {
+                    return Ok(conversion);
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }

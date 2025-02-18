@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::language::SupportedLanguage;
+use crate::language::{get_vec_u8_conversion, SupportedLanguage};
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
 use crate::rust_types::{RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType};
@@ -120,13 +120,8 @@ impl Language for Go {
     ) -> Result<String, RustTypeFormatError> {
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion_value) =
-                        self.type_map()
-                            .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                    {
-                        return Ok(conversion_value.to_string());
-                    }
+                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype) {
+                    return Ok(conversion);
                 }
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }

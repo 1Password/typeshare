@@ -13,7 +13,7 @@ use std::hash::Hash;
 use std::sync::OnceLock;
 use std::{collections::HashMap, io::Write};
 
-use super::CrateTypes;
+use super::{get_vec_u8_conversion, CrateTypes};
 
 use convert_case::{Case, Casing};
 
@@ -176,13 +176,8 @@ impl Language for Python {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion_value) =
-                        self.type_map()
-                            .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                    {
-                        return Ok(conversion_value.to_string());
-                    }
+                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype) {
+                    return Ok(conversion);
                 }
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))

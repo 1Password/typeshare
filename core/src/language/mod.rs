@@ -493,6 +493,15 @@ fn used_imports<'a, 'b: 'a>(
     used_imports
 }
 
+fn get_vec_u8_conversion(special_type: &SpecialRustType, type_mappings: &HashMap<String,String>, inner_type: &RustType) -> Option<String>{
+    let type_key = format!("{}<{}>", special_type.id(), inner_type.id());
+
+    if inner_type.contains_type(SpecialRustType::U8.id()) {
+        return type_mappings.get(&type_key).map(ToString::to_string);
+    }
+    None
+}
+
 #[cfg(test)]
 mod test {
     use crate::language::CrateName;
