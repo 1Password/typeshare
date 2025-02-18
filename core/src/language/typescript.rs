@@ -38,12 +38,13 @@ impl Language for TypeScript {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if self
-                    .type_map()
-                    .contains_key(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                    && rtype.contains_type(SpecialRustType::U8.id())
-                {
-                    return Ok("Uint8Array".to_owned());
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion_value) =
+                        self.type_map()
+                            .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                    {
+                        return Ok(conversion_value.to_string());
+                    }
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }

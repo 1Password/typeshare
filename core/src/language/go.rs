@@ -120,12 +120,13 @@ impl Language for Go {
     ) -> Result<String, RustTypeFormatError> {
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => {
-                if self
-                    .type_map()
-                    .contains_key(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                    && rtype.contains_type(SpecialRustType::U8.id())
-                {
-                    return Ok("[]byte".to_owned());
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion_value) =
+                        self.type_map()
+                            .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                    {
+                        return Ok(conversion_value.to_string());
+                    }
                 }
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }
