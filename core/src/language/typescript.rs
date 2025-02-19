@@ -24,6 +24,10 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not to include the reviver/replacer functions for Uint8Array.
+    /// This by default should be false as unless the user expclitly wants to translate to its Uint8Array
+    /// representation
+    pub is_bytes: bool,
 }
 
 impl Language for TypeScript {
@@ -38,6 +42,15 @@ impl Language for TypeScript {
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
+                // TODO: https://github.com/1Password/typeshare/issues/231
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        self.type_map().get("Vec<u8>").map(ToString::to_string)
+                    {
+                        self.is_bytes = true;
+                        return Ok(conversion);
+                    }
+                }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
             SpecialRustType::Array(rtype, len) => {
@@ -153,7 +166,27 @@ impl Language for TypeScript {
             .iter()
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
-        writeln!(w, "}}\n")
+        writeln!(w, "}}\n")?;
+        if self.is_bytes {
+            self.is_bytes = false;
+            writeln!(
+                w,
+                r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
+    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
+        ? new Uint8Array(value) 
+        : value;
+}}
+
+export function TypeshareReplacer(key: string, value: unknown): unknown {{
+    if (value instanceof Uint8Array) {{
+        return Array.from(value);
+    }}
+    return value;
+}}"#
+            )
+        } else {
+            Ok(())
+        }
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {

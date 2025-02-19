@@ -83,6 +83,10 @@ pub struct Python {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not to include the serialization/deserialzation functions for bytes.
+    /// This by default should be false as unless the user expclitly wants to translate to its bytes
+    /// representation
+    pub is_bytes: bool,
 }
 
 impl Language for Python {
@@ -127,6 +131,24 @@ impl Language for Python {
 
         self.write_all_imports(w)?;
 
+        if self.is_bytes {
+            writeln!(
+                w,
+                r#"def deserialize_data(value):
+    if isinstance(value, list):
+        if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
+            return bytes(value)
+        raise ValueError("All elements must be integers in the range 0-255 (u8).")
+    elif isinstance(value, bytes):
+            return value
+    raise TypeError("Content must be a list of integers (0-255) or bytes.")
+            
+            
+def serialize_data(value: bytes) -> list[int]:
+    return list(value)"#
+            )?;
+        }
+
         w.write_all(&body)?;
         Ok(())
     }
@@ -137,6 +159,7 @@ impl Language for Python {
         parameters: &[RustType],
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        self.add_imports(base);
         if let Some(mapped) = self.type_map().get(base) {
             Ok(mapped.into())
         } else {
@@ -174,9 +197,20 @@ impl Language for Python {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         match special_ty {
-            SpecialRustType::Vec(rtype)
-            | SpecialRustType::Array(rtype, _)
-            | SpecialRustType::Slice(rtype) => {
+            SpecialRustType::Vec(rtype) => {
+                // TODO: https://github.com/1Password/typeshare/issues/231
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        self.type_map().get("Vec<u8>").map(ToString::to_string)
+                    {
+                        self.is_bytes = true;
+                        return Ok(conversion);
+                    }
+                }
+                self.add_import("typing".to_string(), "List".to_string());
+                Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
+            }
+            SpecialRustType::Array(rtype, _) | SpecialRustType::Slice(rtype) => {
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -267,6 +301,7 @@ impl Language for Python {
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
+        self.add_import("pydantic".to_string(), "BaseModel".to_string());
         {
             rs.generic_types
                 .iter()
@@ -293,9 +328,7 @@ impl Language for Python {
         if rs.fields.is_empty() {
             write!(w, "    pass")?
         }
-        writeln!(w)?;
-        self.add_import("pydantic".to_string(), "BaseModel".to_string());
-        Ok(())
+        writeln!(w)
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
@@ -376,6 +409,20 @@ impl Python {
         }
     }
 
+    fn add_common_imports(&mut self, is_optional: bool, is_bytes: bool, is_aliased: bool) {
+        if is_optional {
+            self.add_import("typing".to_string(), "Optional".to_string());
+        }
+        if is_bytes {
+            self.add_import("pydantic".to_string(), "BeforeValidator".to_string());
+            self.add_import("pydantic".to_string(), "PlainSerializer".to_string());
+            self.add_import("typing".to_string(), "Annotated".to_string());
+        }
+        if is_aliased || is_optional {
+            self.add_import("pydantic".to_string(), "Field".to_string());
+        }
+    }
+
     fn write_field(
         &mut self,
         w: &mut dyn Write,
@@ -390,22 +437,22 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        match (not_optional_but_default, is_aliased) {
-            (true, true) => {
-                self.add_import("typing".to_string(), "Optional".to_string());
-                self.add_import("pydantic".to_string(), "Field".to_string());
+        // the type is checked to ensure its printed on the actual field that is being byte translated and not all
+        let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)))
+            && self.is_bytes;
+        // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
+        self.add_common_imports(is_optional, is_bytes, is_aliased);
+        match (not_optional_but_default, is_aliased, is_bytes) {
+            (true, true, false) => {
                 write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
-            (true, false) => {
-                self.add_import("typing".to_string(), "Optional".to_string());
-                self.add_import("pydantic".to_string(), "Field".to_string());
+            (true, false, false) => {
                 writeln!(
                     w,
                     "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
                 )?
             }
-            (false, true) => {
-                self.add_import("pydantic".to_string(), "Field".to_string());
+            (false, true, false) => {
                 write!(
                     w,
                     "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\"",
@@ -417,7 +464,7 @@ impl Python {
                     writeln!(w, ")")?;
                 }
             }
-            (false, false) => {
+            (false, false, false) => {
                 write!(
                     w,
                     "    {python_field_name}: {python_type}",
@@ -425,14 +472,46 @@ impl Python {
                     python_type = python_type
                 )?;
                 if is_optional {
-                    self.add_import("pydantic".to_string(), "Field".to_string());
+                    writeln!(w, " = Field(default=None)")?;
+                } else {
+                    writeln!(w)?;
+                }
+            }
+            (true, false, true) => {
+                writeln!(
+                    w,
+                    "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(default=None)"
+                )?
+            }
+            (true, true, true) => {
+                write!(w, "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
+            }
+            (false, true, true) => {
+                write!(
+                    w,
+                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(alias=\"{renamed}\"",
+                    renamed = field.id.renamed
+                )?;
+                if is_optional {
+                    writeln!(w, ", default=None)")?;
+                } else {
+                    writeln!(w, ")")?;
+                }
+            }
+            (false, false, true) => {
+                write!(
+                    w,
+                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator(deserialize_data), PlainSerializer(serialize_data)]",
+                    python_field_name = python_field_name,
+                    python_type = python_type
+                )?;
+                if is_optional {
                     writeln!(w, " = Field(default=None)")?;
                 } else {
                     writeln!(w)?;
                 }
             }
         }
-
         self.write_comments(w, true, &field.comments, 1)?;
         Ok(())
     }

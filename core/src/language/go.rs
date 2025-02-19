@@ -119,7 +119,17 @@ impl Language for Go {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         Ok(match special_ty {
-            SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
+            SpecialRustType::Vec(rtype) => {
+                // TODO: https://github.com/1Password/typeshare/issues/231
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        self.type_map().get("Vec<u8>").map(ToString::to_string)
+                    {
+                        return Ok(conversion);
+                    }
+                }
+                format!("[]{}", self.format_type(rtype, generic_types)?)
+            }
             SpecialRustType::Array(rtype, len) => {
                 format!("[{}]{}", len, self.format_type(rtype, generic_types)?)
             }
@@ -491,14 +501,12 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         }
 
         write_comments(w, 1, &field.comments)?;
-
         let type_name = match field.type_override(SupportedLanguage::Go) {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&field.ty, generic_types)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
         };
-
         let go_type = self.acronyms_to_uppercase(&type_name);
         let is_optional = field.ty.is_optional() || field.has_default;
         let formatted_renamed_id = format!("{:?}", &field.id.renamed);
