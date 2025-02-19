@@ -122,10 +122,8 @@ impl Language for Go {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) = self
-                        .type_map()
-                        .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
-                        .map(ToString::to_string)
+                    if let Some(conversion) =
+                        self.type_map().get("Vec<u8>").map(ToString::to_string)
                     {
                         return Ok(conversion);
                     }
