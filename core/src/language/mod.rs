@@ -499,12 +499,9 @@ fn get_vec_u8_conversion(
     type_mappings: &HashMap<String, String>,
     inner_type: &RustType,
 ) -> Option<String> {
-    let type_key = format!("{}<{}>", special_type.id(), inner_type.id());
-
-    if inner_type.contains_type(SpecialRustType::U8.id()) {
-        return type_mappings.get(&type_key).map(ToString::to_string);
-    }
-    None
+    type_mappings
+        .get(&format!("{}<{}>", special_type.id(), inner_type.id()))
+        .map(ToString::to_string)
 }
 
 #[cfg(test)]

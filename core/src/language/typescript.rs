@@ -24,6 +24,10 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not to include the reviver/replacer functions for Uint8Array.
+    /// This by default should be false as unless the user expclitly wants to translate to its Uint8Array
+    /// representation
+    pub is_bytes: bool,
 }
 
 impl Language for TypeScript {
@@ -39,9 +43,13 @@ impl Language for TypeScript {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype)
-                {
-                    return Ok(conversion);
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    {
+                        self.is_bytes = true;
+                        return Ok(conversion);
+                    }
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
@@ -163,17 +171,15 @@ impl Language for TypeScript {
             let typescript_type = self
                 .format_type(&field.ty, &rs.generic_types)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            if typescript_type == "Uint8Array" {
+            if self.is_bytes {
                 return writeln!(
                     w,
-                    r#"// Reviver code  - required for JSON deserialization
-export function TypeshareReviver(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(Number.isFinite) 
+                    r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
+    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
         ? new {typescript_type}(value) 
         : value;
 }}
-    
-// Replacer code - required for JSON serialization
+
 export function TypeshareReplacer(key: string, value: unknown): unknown {{
     if (value instanceof {typescript_type}) {{
         return Array.from(value);

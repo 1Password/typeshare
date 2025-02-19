@@ -121,9 +121,12 @@ impl Language for Go {
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype)
-                {
-                    return Ok(conversion);
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    {
+                        return Ok(conversion);
+                    }
                 }
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }

@@ -1,5 +1,5 @@
 #[typeshare]
 #[serde(rename_all = "camelCase")]
 pub struct Foo {
-    pub bytes: Vec<u8>,
+    pub this_is_bits: Vec<u8>,
 }

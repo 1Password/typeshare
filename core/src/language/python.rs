@@ -83,6 +83,10 @@ pub struct Python {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Whether or not to include the serialization/deserialzation functions for bytes.
+    /// This by default should be false as unless the user expclitly wants to translate to its bytes
+    /// representation
+    pub is_bytes: bool,
 }
 
 impl Language for Python {
@@ -177,9 +181,13 @@ impl Language for Python {
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if let Some(conversion) = get_vec_u8_conversion(special_ty, self.type_map(), rtype)
-                {
-                    return Ok(conversion);
+                if rtype.contains_type(SpecialRustType::U8.id()) {
+                    if let Some(conversion) =
+                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    {
+                        self.is_bytes = true;
+                        return Ok(conversion);
+                    }
                 }
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
@@ -304,26 +312,29 @@ impl Language for Python {
         }
         writeln!(w)?;
         rs.fields.iter().try_for_each(|field| {
-            let python_type = self
-                .format_type(&field.ty, &rs.generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             // Ideally, we should statically compare this to SpecialRustType::Bytes
             // This would cause too much of a refactor
-            if python_type == "bytes" {
+            // TODO https://github.com/1Password/typeshare/issues/231
+            if self.is_bytes {
                 self.add_import("pydantic".to_owned(), "field_validator".to_owned());
                 self.add_import("pydantic".to_owned(), "field_serializer".to_owned());
                 return writeln!(
                     w,
                     r#"    
-    @field_serializer("content")
+    @field_serializer("{field_name}")
     def serialize_data(self, value: bytes) -> list[int]:
         return list(value)
                 
-    @field_validator("content", mode="before")
+    @field_validator("{field_name}", mode="before")
     def deserialize_data(cls, value):
-        if isinstance(value, list): 
-            return bytes(value)
-        return value"#
+        if isinstance(value, list):
+            if all(isinstance(x, int) and 0 <= x <= 255 for x in value): 
+                return bytes(value) 
+            raise ValueError("All elements must be integers in the range 0-255 (u8).")
+        elif isinstance(value, bytes):
+            return value
+        raise TypeError("{field_name} must be a list of integers (0-255) or bytes.")"#,
+                    field_name = field.id.renamed
                 );
             }
             Ok(())
