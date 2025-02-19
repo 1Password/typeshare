@@ -167,30 +167,26 @@ impl Language for TypeScript {
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
         writeln!(w, "}}\n")?;
-        rs.fields.iter().try_for_each(|field| {
-            let typescript_type = self
-                .format_type(&field.ty, &rs.generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            if self.is_bytes {
-                self.is_bytes = false;
-                return writeln!(
-                    w,
-                    r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
-        ? new {typescript_type}(value) 
-        : value;
+        if self.is_bytes {
+            self.is_bytes = false;
+            writeln!(
+                w,
+                r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
+return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
+    ? new Uint8Array(value) 
+    : value;
 }}
 
 export function TypeshareReplacer(key: string, value: unknown): unknown {{
-    if (value instanceof {typescript_type}) {{
-        return Array.from(value);
-    }}
-    return value;
+if (value instanceof Uint8Array) {{
+    return Array.from(value);
+}}
+return value;
 }}"#
-                );
-            }
+            )
+        } else {
             Ok(())
-        })
+        }
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
