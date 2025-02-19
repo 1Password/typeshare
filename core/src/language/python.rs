@@ -312,8 +312,6 @@ impl Language for Python {
         }
         writeln!(w)?;
         rs.fields.iter().try_for_each(|field| {
-            // Ideally, we should statically compare this to SpecialRustType::Bytes
-            // This would cause too much of a refactor
             // TODO https://github.com/1Password/typeshare/issues/231
             if self.is_bytes {
                 self.add_import("pydantic".to_owned(), "field_validator".to_owned());
