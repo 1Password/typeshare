@@ -316,6 +316,7 @@ impl Language for Python {
             if self.is_bytes {
                 self.add_import("pydantic".to_owned(), "field_validator".to_owned());
                 self.add_import("pydantic".to_owned(), "field_serializer".to_owned());
+                self.is_bytes = false;
                 return writeln!(
                     w,
                     r#"    

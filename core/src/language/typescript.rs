@@ -172,6 +172,7 @@ impl Language for TypeScript {
                 .format_type(&field.ty, &rs.generic_types)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             if self.is_bytes {
+                self.is_bytes = false;
                 return writeln!(
                     w,
                     r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
