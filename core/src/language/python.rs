@@ -438,7 +438,8 @@ impl Python {
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
         self.add_common_imports(is_optional, self.is_bytes, is_aliased);
-        match (not_optional_but_default, is_aliased, self.is_bytes) {
+        let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)));
+        match (not_optional_but_default, is_aliased, is_bytes) {
             (true, true, false) => {
                 write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
