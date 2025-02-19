@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::language::{get_vec_u8_conversion, SupportedLanguage};
+use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
 use crate::rust_types::{RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType};
@@ -122,8 +122,10 @@ impl Language for Go {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    if let Some(conversion) = self
+                        .type_map()
+                        .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                        .map(ToString::to_string)
                     {
                         return Ok(conversion);
                     }

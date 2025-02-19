@@ -13,7 +13,7 @@ use std::hash::Hash;
 use std::sync::OnceLock;
 use std::{collections::HashMap, io::Write};
 
-use super::{get_vec_u8_conversion, CrateTypes};
+use super::CrateTypes;
 
 use convert_case::{Case, Casing};
 
@@ -200,8 +200,10 @@ def serialize_data(value: bytes) -> list[int]:
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    if let Some(conversion) = self
+                        .type_map()
+                        .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                        .map(ToString::to_string)
                     {
                         self.is_bytes = true;
                         return Ok(conversion);
@@ -437,8 +439,9 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        self.add_common_imports(is_optional, self.is_bytes, is_aliased);
         let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)));
+        // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
+        self.add_common_imports(is_optional, is_bytes, is_aliased);
         match (not_optional_but_default, is_aliased, is_bytes) {
             (true, true, false) => {
                 write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;

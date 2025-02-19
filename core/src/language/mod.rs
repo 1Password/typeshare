@@ -492,17 +492,6 @@ fn used_imports<'a, 'b: 'a>(
     }
     used_imports
 }
-/// this function will acquire the byte translation for the target language that is located inside
-/// the typeshare.toml
-fn get_vec_u8_conversion(
-    special_type: &SpecialRustType,
-    type_mappings: &HashMap<String, String>,
-    inner_type: &RustType,
-) -> Option<String> {
-    type_mappings
-        .get(&format!("{}<{}>", special_type.id(), inner_type.id()))
-        .map(ToString::to_string)
-}
 
 #[cfg(test)]
 mod test {

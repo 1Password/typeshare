@@ -14,7 +14,7 @@ use std::{
     io::{self, Write},
 };
 
-use super::{get_vec_u8_conversion, ScopedCrateTypes};
+use super::ScopedCrateTypes;
 
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
@@ -44,8 +44,10 @@ impl Language for TypeScript {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        get_vec_u8_conversion(special_ty, self.type_map(), rtype)
+                    if let Some(conversion) = self
+                        .type_map()
+                        .get(&format!("{}<{}>", special_ty.id(), rtype.id()))
+                        .map(ToString::to_string)
                     {
                         self.is_bytes = true;
                         return Ok(conversion);
