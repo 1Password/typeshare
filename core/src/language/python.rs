@@ -437,7 +437,9 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)));
+        // the type is checked to ensure its printed on the actual field that is being byte translated and not all
+        let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)))
+            && self.is_bytes;
         // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
         self.add_common_imports(is_optional, is_bytes, is_aliased);
         match (not_optional_but_default, is_aliased, is_bytes) {

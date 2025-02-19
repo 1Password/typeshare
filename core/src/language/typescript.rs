@@ -172,16 +172,16 @@ impl Language for TypeScript {
             writeln!(
                 w,
                 r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
-return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
-    ? new Uint8Array(value) 
-    : value;
+    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
+        ? new Uint8Array(value) 
+        : value;
 }}
 
 export function TypeshareReplacer(key: string, value: unknown): unknown {{
-if (value instanceof Uint8Array) {{
-    return Array.from(value);
-}}
-return value;
+    if (value instanceof Uint8Array) {{
+        return Array.from(value);
+    }}
+    return value;
 }}"#
             )
         } else {
