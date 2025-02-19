@@ -307,25 +307,25 @@ impl Language for Python {
             let python_type = self
                 .format_type(&field.ty, &rs.generic_types)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            // Ideally, we should statically compare this to SpecialRustType::Bytes
+            // This would cause too much of a refactor
             if python_type == "bytes" {
                 self.add_import("pydantic".to_owned(), "field_validator".to_owned());
-                self.add_import("typing".to_owned(), "Any".to_owned());
+                self.add_import("pydantic".to_owned(), "field_serializer".to_owned());
                 return writeln!(
                     w,
-                    r#"    @field_validator('content', mode='before')
-    @classmethod
-    def cast_list_to_{python_type}(cls, value: Any) -> {python_type}:
-        if isinstance(value, list) and all(isinstance(i, int) for i in value):
-          return {python_type}(value)
-
-        raise ValueError("content must be a list of integers")
-
-    class Config:
-        json_encoders = {{
-            bytes: lambda b: list(b),
-        }}"#
+                    r#"    
+    @field_serializer("content")
+    def serialize_data(self, value: bytes) -> list[int]:
+        return list(value)
+                
+    @field_validator("content", mode="before")
+    def deserialize_data(cls, value):
+        if isinstance(value, list): 
+            return bytes(value)
+        return value"#
                 );
-            };
+            }
             Ok(())
         })
     }
