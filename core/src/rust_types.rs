@@ -552,7 +552,7 @@ impl SpecialRustType {
             Self::I54 => "I54",
         }
     }
-    // Returns the full ID including its sub types back into its original Rust Identifier.
+    /// Returns the full ID including its sub types back into its original Rust Identifier.
     pub fn get_nested_id(&self) -> String {
         match self {
             SpecialRustType::Vec(rust_type) => format!("{}<{}>", self.id(), rust_type.id()),
