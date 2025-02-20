@@ -552,6 +552,7 @@ impl SpecialRustType {
             Self::I54 => "I54",
         }
     }
+
     /// Returns the full ID including its sub types back into its original Rust Identifier.
     pub fn get_nested_id(&self) -> String {
         match self {
@@ -565,6 +566,7 @@ impl SpecialRustType {
             _ => self.id().to_owned(),
         }
     }
+
     /// Iterate over the generic parameters for this type. Returns an empty iterator
     /// if there are none.
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
