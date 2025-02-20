@@ -4,7 +4,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSeriali
 from typing import Annotated
 
 
-def deserialize_data(value):
+def deserialize_binary_data(value):
     if isinstance(value, list):
         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
             return bytes(value)
@@ -14,10 +14,11 @@ def deserialize_data(value):
     raise TypeError("Content must be a list of integers (0-255) or bytes.")
             
             
-def serialize_data(value: bytes) -> list[int]:
+def serialize_binary_data(value: bytes) -> list[int]:
     return list(value)
+
 class Foo(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    this_is_bits: Annotated[bytes, BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(alias="thisIsBits")
+    this_is_bits: Annotated[bytes, BeforeValidator(deserialize_binary_data), PlainSerializer(serialize_binary_data)] = Field(alias="thisIsBits")
 

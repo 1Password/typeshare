@@ -118,15 +118,16 @@ impl Language for Go {
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.get_nested_id()) {
+            mapped.to_owned()
+        } else {
+            String::new()
+        };
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        self.type_map().get("Vec<u8>").map(ToString::to_string)
-                    {
-                        return Ok(conversion);
-                    }
+                if rtype.contains_type(SpecialRustType::U8.id()) & !mapped.is_empty() {
+                    return Ok(mapped);
                 }
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }

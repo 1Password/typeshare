@@ -35,21 +35,43 @@ impl Language for TypeScript {
         &self.type_mappings
     }
 
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+        if self.is_bytes {
+            return writeln!(
+                w,
+                r#"export function ReviverFunc(key: string, value: unknown): unknown {{
+    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
+        ? new Uint8Array(value) 
+        : value;
+}}
+
+export function ReplacerFunc(key: string, value: unknown): unknown {{
+    if (value instanceof Uint8Array) {{
+        return Array.from(value);
+    }}
+    return value;
+}}"#
+            );
+        }
+        Ok(())
+    }
+
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.get_nested_id()) {
+            mapped.to_owned()
+        } else {
+            String::new()
+        };
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        self.type_map().get("Vec<u8>").map(ToString::to_string)
-                    {
-                        self.is_bytes = true;
-                        return Ok(conversion);
-                    }
+                if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
+                    self.is_bytes = true;
+                    return Ok(mapped);
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
@@ -166,27 +188,7 @@ impl Language for TypeScript {
             .iter()
             .try_for_each(|f| self.write_field(w, f, rs.generic_types.as_slice()))?;
 
-        writeln!(w, "}}\n")?;
-        if self.is_bytes {
-            self.is_bytes = false;
-            writeln!(
-                w,
-                r#"export function TypeshareReviver(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
-        ? new Uint8Array(value) 
-        : value;
-}}
-
-export function TypeshareReplacer(key: string, value: unknown): unknown {{
-    if (value instanceof Uint8Array) {{
-        return Array.from(value);
-    }}
-    return value;
-}}"#
-            )
-        } else {
-            Ok(())
-        }
+        writeln!(w, "}}\n")
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {

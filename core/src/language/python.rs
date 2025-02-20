@@ -93,6 +93,7 @@ impl Language for Python {
     fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
     }
+
     fn generate_types(
         &mut self,
         w: &mut dyn Write,
@@ -128,13 +129,12 @@ impl Language for Python {
                 RustItem::Const(c) => self.write_const(&mut body, &c)?,
             };
         }
-
         self.write_all_imports(w)?;
 
         if self.is_bytes {
             writeln!(
                 w,
-                r#"def deserialize_data(value):
+                r#"def deserialize_binary_data(value):
     if isinstance(value, list):
         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
             return bytes(value)
@@ -144,8 +144,9 @@ impl Language for Python {
     raise TypeError("Content must be a list of integers (0-255) or bytes.")
             
             
-def serialize_data(value: bytes) -> list[int]:
-    return list(value)"#
+def serialize_binary_data(value: bytes) -> list[int]:
+    return list(value)
+"#
             )?;
         }
 
@@ -196,16 +197,17 @@ def serialize_data(value: bytes) -> list[int]:
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.get_nested_id()) {
+            mapped.to_owned()
+        } else {
+            String::new()
+        };
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if rtype.contains_type(SpecialRustType::U8.id()) {
-                    if let Some(conversion) =
-                        self.type_map().get("Vec<u8>").map(ToString::to_string)
-                    {
-                        self.is_bytes = true;
-                        return Ok(conversion);
-                    }
+                if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
+                    self.is_bytes = true;
+                    return Ok(mapped);
                 }
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
@@ -409,11 +411,16 @@ impl Python {
         }
     }
 
-    fn add_common_imports(&mut self, is_optional: bool, is_bytes: bool, is_aliased: bool) {
+    fn add_common_imports(
+        &mut self,
+        is_optional: bool,
+        requires_custom_translation: bool,
+        is_aliased: bool,
+    ) {
         if is_optional {
             self.add_import("typing".to_string(), "Optional".to_string());
         }
-        if is_bytes {
+        if requires_custom_translation {
             self.add_import("pydantic".to_string(), "BeforeValidator".to_string());
             self.add_import("pydantic".to_string(), "PlainSerializer".to_string());
             self.add_import("typing".to_string(), "Annotated".to_string());
@@ -437,21 +444,22 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        // the type is checked to ensure its printed on the actual field that is being byte translated and not all
-        let is_bytes = matches!(&field.ty, RustType::Special(SpecialRustType::Vec(boxed_type)) if matches!(**boxed_type, RustType::Special(SpecialRustType::U8)))
-            && self.is_bytes;
+        // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
+        let requires_custom_translation = matches!(python_type.as_str(), "bytes");
         // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
-        self.add_common_imports(is_optional, is_bytes, is_aliased);
-        match (not_optional_but_default, is_aliased, is_bytes) {
+        self.add_common_imports(is_optional, requires_custom_translation, is_aliased);
+        match (
+            not_optional_but_default,
+            is_aliased,
+            requires_custom_translation,
+        ) {
             (true, true, false) => {
                 write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
-            (true, false, false) => {
-                writeln!(
-                    w,
-                    "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
-                )?
-            }
+            (true, false, false) => writeln!(
+                w,
+                "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
+            )?,
             (false, true, false) => {
                 write!(
                     w,
@@ -478,18 +486,24 @@ impl Python {
                 }
             }
             (true, false, true) => {
+                let (serialize_function, deserialize_function) =
+                    get_custom_translation_function_names(&python_type);
                 writeln!(
                     w,
-                    "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(default=None)"
+                    "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(default=None)"
                 )?
             }
             (true, true, true) => {
-                write!(w, "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
+                let (serialize_function, deserialize_function) =
+                    get_custom_translation_function_names(&python_type);
+                write!(w, "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
             }
             (false, true, true) => {
+                let (serialize_function, deserialize_function) =
+                    get_custom_translation_function_names(&python_type);
                 write!(
                     w,
-                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator(deserialize_data), PlainSerializer(serialize_data)] = Field(alias=\"{renamed}\"",
+                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(alias=\"{renamed}\"",
                     renamed = field.id.renamed
                 )?;
                 if is_optional {
@@ -779,6 +793,22 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
     };
 }
 
+/// acquires custom translation function names if custom serialize/deserialize functions are needed
+fn get_custom_translation_function_names(python_type: &str) -> (String, String) {
+    let custom_translations = HashMap::from([(
+        "bytes".to_owned(),
+        (
+            "serialize_binary_data".to_owned(),
+            "deserialize_binary_data".to_owned(),
+        ),
+    )]);
+
+    custom_translations
+        .get(python_type)
+        .map_or((String::new(), String::new()), |(s, d)| {
+            (s.to_owned(), d.to_owned())
+        })
+}
 #[cfg(test)]
 mod test {
     use crate::rust_types::Id;
