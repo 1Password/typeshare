@@ -27,7 +27,7 @@ pub struct TypeScript {
     /// Whether or not to include the reviver/replacer functions for Uint8Array.
     /// This by default should be false as unless the user expclitly wants to translate to its Uint8Array
     /// representation
-    pub is_bytes: bool,
+    pub should_translate_bytes: bool,
 }
 
 impl Language for TypeScript {
@@ -36,11 +36,11 @@ impl Language for TypeScript {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if self.is_bytes {
+        if self.should_translate_bytes {
             return writeln!(
                 w,
                 r#"export function ReviverFunc(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(v => Number.isFinite(v) && v >= 0 && v <= 255)  
+    return Array.isArray(value) && value.every(v => Number.IsInteger(v) && v >= 0 && v <= 255)  
         ? new Uint8Array(value) 
         : value;
 }}
@@ -70,7 +70,7 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
-                    self.is_bytes = true;
+                    self.should_translate_bytes = true;
                     return Ok(mapped);
                 }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))

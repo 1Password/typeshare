@@ -86,7 +86,7 @@ pub struct Python {
     /// Whether or not to include the serialization/deserialzation functions for bytes.
     /// This by default should be false as unless the user expclitly wants to translate to its bytes
     /// representation
-    pub is_bytes: bool,
+    pub should_translate_bytes: bool,
 }
 
 impl Language for Python {
@@ -131,7 +131,7 @@ impl Language for Python {
         }
         self.write_all_imports(w)?;
 
-        if self.is_bytes {
+        if self.should_translate_bytes {
             writeln!(
                 w,
                 r#"def deserialize_binary_data(value):
@@ -206,7 +206,7 @@ def serialize_binary_data(value: bytes) -> list[int]:
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
                 if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
-                    self.is_bytes = true;
+                    self.should_translate_bytes = true;
                     return Ok(mapped);
                 }
                 self.add_import("typing".to_string(), "List".to_string());
@@ -444,88 +444,34 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
-        let requires_custom_translation = matches!(python_type.as_str(), "bytes");
+        let custom_translations = json_translation_for_type(&python_type);
         // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
-        self.add_common_imports(is_optional, requires_custom_translation, is_aliased);
-        match (
-            not_optional_but_default,
-            is_aliased,
-            requires_custom_translation,
-        ) {
-            (true, true, false) => {
-                write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
-            }
-            (true, false, false) => writeln!(
-                w,
-                "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
-            )?,
-            (false, true, false) => {
-                write!(
-                    w,
-                    "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\"",
-                    renamed = field.id.renamed
-                )?;
-                if is_optional {
-                    writeln!(w, ", default=None)")?;
-                } else {
-                    writeln!(w, ")")?;
-                }
-            }
-            (false, false, false) => {
-                write!(
-                    w,
-                    "    {python_field_name}: {python_type}",
-                    python_field_name = python_field_name,
-                    python_type = python_type
-                )?;
-                if is_optional {
-                    writeln!(w, " = Field(default=None)")?;
-                } else {
-                    writeln!(w)?;
-                }
-            }
-            (true, false, true) => {
-                let (serialize_function, deserialize_function) =
-                    get_custom_translation_function_names(&python_type);
-                writeln!(
-                    w,
-                    "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(default=None)"
-                )?
-            }
-            (true, true, true) => {
-                let (serialize_function, deserialize_function) =
-                    get_custom_translation_function_names(&python_type);
-                write!(w, "    {python_field_name}: Annotated[Optional[{python_type}], BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
-            }
+        self.add_common_imports(is_optional, custom_translations.is_some(), is_aliased);
+
+        let python_field_type = match (not_optional_but_default, custom_translations) {
+            (true, _) => format!("Optional[{python_type}]") ,
+            (false, Some((serialize_function, deserialize_function))) => format!(
+                "Annotated[{python_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})]"
+            ),
+            _ => python_type,
+        };
+
+        let python_return_value = match (not_optional_but_default, is_aliased, is_optional) {
+            (true, true, _) => format!(" = Field(alias=\"{}\", default=None)", field.id.renamed),
+            (true, false, _) => " = Field(default=None)".to_owned(),
             (false, true, true) => {
-                let (serialize_function, deserialize_function) =
-                    get_custom_translation_function_names(&python_type);
-                write!(
-                    w,
-                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})] = Field(alias=\"{renamed}\"",
-                    renamed = field.id.renamed
-                )?;
-                if is_optional {
-                    writeln!(w, ", default=None)")?;
-                } else {
-                    writeln!(w, ")")?;
-                }
+                format!(" = Field(alias=\"{}\", default=None)", field.id.renamed)
             }
-            (false, false, true) => {
-                write!(
-                    w,
-                    "    {python_field_name}: Annotated[{python_type}, BeforeValidator(deserialize_data), PlainSerializer(serialize_data)]",
-                    python_field_name = python_field_name,
-                    python_type = python_type
-                )?;
-                if is_optional {
-                    writeln!(w, " = Field(default=None)")?;
-                } else {
-                    writeln!(w)?;
-                }
-            }
-        }
+            (false, true, false) => format!(" = Field(alias=\"{}\")", field.id.renamed),
+            (false, false, true) => " = Field(default=None)".to_owned(),
+            (false, false, false) => String::new(),
+        };
+
+        writeln!(
+            w,
+            r#"    {python_field_name}: {python_field_type}{python_return_value}"#
+        )?;
+
         self.write_comments(w, true, &field.comments, 1)?;
         Ok(())
     }
@@ -794,7 +740,8 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
 }
 
 /// acquires custom translation function names if custom serialize/deserialize functions are needed
-fn get_custom_translation_function_names(python_type: &str) -> (String, String) {
+fn json_translation_for_type(python_type: &str) -> Option<(String, String)> {
+    // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
     let custom_translations = HashMap::from([(
         "bytes".to_owned(),
         (
@@ -805,10 +752,9 @@ fn get_custom_translation_function_names(python_type: &str) -> (String, String) 
 
     custom_translations
         .get(python_type)
-        .map_or((String::new(), String::new()), |(s, d)| {
-            (s.to_owned(), d.to_owned())
-        })
+        .map(|(s, d)| (s.to_owned(), d.to_owned()))
 }
+
 #[cfg(test)]
 mod test {
     use crate::rust_types::Id;
