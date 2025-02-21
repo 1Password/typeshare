@@ -40,7 +40,7 @@ impl Language for TypeScript {
             return writeln!(
                 w,
                 r#"export function ReviverFunc(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(v => Number.IsInteger(v) && v >= 0 && v <= 255)  
+    return Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)  
         ? new Uint8Array(value) 
         : value;
 }}
