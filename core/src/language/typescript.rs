@@ -27,7 +27,13 @@ pub struct TypeScript {
     /// Whether or not to include the reviver/replacer functions for Uint8Array.
     /// This by default should be false as unless the user expclitly wants to translate to its Uint8Array
     /// representation
-    pub should_translate_bytes: bool,
+    pub custom_json_translation_functions: Vec<CustomJsonTranslationContent>,
+}
+
+#[derive(Clone)]
+pub struct CustomJsonTranslationContent {
+    reviver: String,
+    replacer: String,
 }
 
 impl Language for TypeScript {
@@ -36,43 +42,44 @@ impl Language for TypeScript {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if self.should_translate_bytes {
+        if !self.custom_json_translation_functions.is_empty() {
             return writeln!(
                 w,
                 r#"export function ReviverFunc(key: string, value: unknown): unknown {{
-    return Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)  
-        ? new Uint8Array(value) 
-        : value;
+    {}
+    return value;
 }}
 
 export function ReplacerFunc(key: string, value: unknown): unknown {{
-    if (value instanceof Uint8Array) {{
-        return Array.from(value);
-    }}
+    {}
     return value;
-}}"#
+}}"#,
+                self.custom_json_translation_functions
+                    .iter()
+                    .map(|custom_json_translation| custom_json_translation.reviver.clone())
+                    .join("\n"),
+                self.custom_json_translation_functions
+                    .iter()
+                    .map(|custom_json_translation| custom_json_translation.replacer.clone())
+                    .join("\n")
             );
         }
         Ok(())
     }
-
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
-        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
-            mapped.to_owned()
-        } else {
-            String::new()
-        };
+        if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
+            if let Some(custom_json_translation) = custom_translations(mapped) {
+                self.custom_json_translation_functions
+                    .push(custom_json_translation);
+            }
+            return Ok(mapped.to_owned());
+        }
         match special_ty {
             SpecialRustType::Vec(rtype) => {
-                // TODO: https://github.com/1Password/typeshare/issues/231
-                if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
-                    self.should_translate_bytes = true;
-                    return Ok(mapped);
-                }
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
             SpecialRustType::Array(rtype, len) => {
@@ -243,6 +250,23 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
     fn ignored_reference_types(&self) -> Vec<&str> {
         self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
+}
+
+fn custom_translations(ts_type: &str) -> Option<CustomJsonTranslationContent> {
+    let custom_translations = HashMap::from([(
+        "Uint8Array",
+        (
+            CustomJsonTranslationContent{
+                reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
+                    return new Uint8Array(value);
+                }"#.to_owned(),
+                replacer: r#"if (value instanceof Uint8Array) {
+        return Array.from(value);
+    }"#.to_owned()
+            }
+                ))]);
+
+    custom_translations.get(ts_type).cloned()
 }
 
 impl TypeScript {

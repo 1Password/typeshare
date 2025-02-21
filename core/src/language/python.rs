@@ -69,11 +69,11 @@ fn dedup<T: Eq + Hash + Clone>(v: &mut Vec<T>) {
 }
 
 #[derive(Clone)]
-pub(crate) struct CustomTranslationFunctions {
-    pub(crate) serialization_name: String,
-    pub(crate) serialization_content: String,
-    pub(crate) deserialization_name: String,
-    pub(crate) deserialization_content: String,
+struct CustomJsonTranslationFunctions {
+    serialization_name: String,
+    serialization_content: String,
+    deserialization_name: String,
+    deserialization_content: String,
 }
 
 /// All information needed to generate Python type-code
@@ -91,10 +91,8 @@ pub struct Python {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Whether or not to include the serialization/deserialzation functions for bytes.
-    /// This by default should be false as unless the user expclitly wants to translate to its bytes
-    /// representation
-    pub custom_translation_functions: Vec<String>,
+    /// Carries the content of the custom serializer and deserializer functions if required
+    pub custom_json_translation_functions: Vec<String>,
 }
 
 impl Language for Python {
@@ -140,7 +138,7 @@ impl Language for Python {
 
         self.write_all_imports(w)?;
 
-        self.custom_translation_functions.iter().try_for_each(
+        self.custom_json_translation_functions.iter().try_for_each(
             |custom_translation_function| -> std::io::Result<()> {
                 writeln!(w, "{custom_translation_function}")?;
                 writeln!(w)
@@ -194,22 +192,19 @@ impl Language for Python {
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
-            let custom_translation_functions = json_translation_for_type(mapped);
-            if let Some(custom_translation_function) = custom_translation_functions {
-                self.custom_translation_functions
+            let custom_json_translation_functions = json_translation_for_type(mapped);
+            if let Some(custom_translation_function) = custom_json_translation_functions {
+                self.custom_json_translation_functions
                     .push(custom_translation_function.serialization_content);
-                self.custom_translation_functions
+                self.custom_json_translation_functions
                     .push(custom_translation_function.deserialization_content);
             }
             return Ok(mapped.to_owned());
         }
         match special_ty {
-            SpecialRustType::Vec(rtype) => {
-                // TODO: https://github.com/1Password/typeshare/issues/231
-                self.add_import("typing".to_string(), "List".to_string());
-                Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
-            }
-            SpecialRustType::Array(rtype, _) | SpecialRustType::Slice(rtype) => {
+            SpecialRustType::Array(rtype, _)
+            | SpecialRustType::Slice(rtype)
+            | SpecialRustType::Vec(rtype) => {
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -745,11 +740,11 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
 }
 
 /// acquires custom translation function names if custom serialize/deserialize functions are needed
-fn json_translation_for_type(python_type: &str) -> Option<CustomTranslationFunctions> {
+fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationFunctions> {
     // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
     let custom_translations = HashMap::from([(
         "bytes",
-        CustomTranslationFunctions {
+        CustomJsonTranslationFunctions {
             serialization_name: "serialize_binary_data".to_owned(),
             serialization_content: r#"def serialize_binary_data(value: bytes) -> list[int]:
         return list(value)"#

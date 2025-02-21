@@ -3,9 +3,10 @@ export interface Foo {
 }
 
 export function ReviverFunc(key: string, value: unknown): unknown {
-    return Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)  
-        ? new Uint8Array(value) 
-        : value;
+    if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
+                    return new Uint8Array(value);
+                }
+    return value;
 }
 
 export function ReplacerFunc(key: string, value: unknown): unknown {
