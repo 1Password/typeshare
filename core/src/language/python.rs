@@ -68,6 +68,14 @@ fn dedup<T: Eq + Hash + Clone>(v: &mut Vec<T>) {
     v.retain(|e| uniques.insert(e.clone()));
 }
 
+#[derive(Clone)]
+struct CustomJsonTranslationFunctions {
+    serialization_name: String,
+    serialization_content: String,
+    deserialization_name: String,
+    deserialization_content: String,
+}
+
 /// All information needed to generate Python type-code
 #[derive(Default)]
 pub struct Python {
@@ -83,12 +91,15 @@ pub struct Python {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Carries the content of the custom serializer and deserializer functions if required
+    pub custom_json_translation_functions: Vec<String>,
 }
 
 impl Language for Python {
     fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
     }
+
     fn generate_types(
         &mut self,
         w: &mut dyn Write,
@@ -127,8 +138,14 @@ impl Language for Python {
 
         self.write_all_imports(w)?;
 
-        w.write_all(&body)?;
-        Ok(())
+        self.custom_json_translation_functions.iter().try_for_each(
+            |custom_translation_function| -> std::io::Result<()> {
+                writeln!(w, "{custom_translation_function}")?;
+                writeln!(w)
+            },
+        )?;
+
+        w.write_all(&body)
     }
 
     fn format_generic_type(
@@ -137,6 +154,7 @@ impl Language for Python {
         parameters: &[RustType],
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        self.add_imports(base);
         if let Some(mapped) = self.type_map().get(base) {
             Ok(mapped.into())
         } else {
@@ -173,10 +191,20 @@ impl Language for Python {
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
+            let custom_json_translation_functions = json_translation_for_type(mapped);
+            if let Some(custom_translation_function) = custom_json_translation_functions {
+                self.custom_json_translation_functions
+                    .push(custom_translation_function.serialization_content);
+                self.custom_json_translation_functions
+                    .push(custom_translation_function.deserialization_content);
+            }
+            return Ok(mapped.to_owned());
+        }
         match special_ty {
-            SpecialRustType::Vec(rtype)
-            | SpecialRustType::Array(rtype, _)
-            | SpecialRustType::Slice(rtype) => {
+            SpecialRustType::Array(rtype, _)
+            | SpecialRustType::Slice(rtype)
+            | SpecialRustType::Vec(rtype) => {
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -267,6 +295,7 @@ impl Language for Python {
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
+        self.add_import("pydantic".to_string(), "BaseModel".to_string());
         {
             rs.generic_types
                 .iter()
@@ -293,9 +322,7 @@ impl Language for Python {
         if rs.fields.is_empty() {
             write!(w, "    pass")?
         }
-        writeln!(w)?;
-        self.add_import("pydantic".to_string(), "BaseModel".to_string());
-        Ok(())
+        writeln!(w)
     }
 
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> std::io::Result<()> {
@@ -376,6 +403,25 @@ impl Python {
         }
     }
 
+    fn add_common_imports(
+        &mut self,
+        is_optional: bool,
+        requires_custom_translation: bool,
+        is_aliased: bool,
+    ) {
+        if is_optional {
+            self.add_import("typing".to_string(), "Optional".to_string());
+        }
+        if requires_custom_translation {
+            self.add_import("pydantic".to_string(), "BeforeValidator".to_string());
+            self.add_import("pydantic".to_string(), "PlainSerializer".to_string());
+            self.add_import("typing".to_string(), "Annotated".to_string());
+        }
+        if is_aliased || is_optional {
+            self.add_import("pydantic".to_string(), "Field".to_string());
+        }
+    }
+
     fn write_field(
         &mut self,
         w: &mut dyn Write,
@@ -390,48 +436,41 @@ impl Python {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
-        match (not_optional_but_default, is_aliased) {
-            (true, true) => {
-                self.add_import("typing".to_string(), "Optional".to_string());
-                self.add_import("pydantic".to_string(), "Field".to_string());
-                write!(w, "    {python_field_name}: Optional[{python_type}] = Field(alias=\"{renamed}\", default=None)", renamed=field.id.renamed)?;
-            }
-            (true, false) => {
-                self.add_import("typing".to_string(), "Optional".to_string());
-                self.add_import("pydantic".to_string(), "Field".to_string());
-                writeln!(
-                    w,
-                    "    {python_field_name}: Optional[{python_type}] = Field(default=None)"
-                )?
-            }
-            (false, true) => {
-                self.add_import("pydantic".to_string(), "Field".to_string());
-                write!(
-                    w,
-                    "    {python_field_name}: {python_type} = Field(alias=\"{renamed}\"",
-                    renamed = field.id.renamed
-                )?;
-                if is_optional {
-                    writeln!(w, ", default=None)")?;
-                } else {
-                    writeln!(w, ")")?;
-                }
-            }
-            (false, false) => {
-                write!(
-                    w,
-                    "    {python_field_name}: {python_type}",
-                    python_field_name = python_field_name,
-                    python_type = python_type
-                )?;
-                if is_optional {
-                    self.add_import("pydantic".to_string(), "Field".to_string());
-                    writeln!(w, " = Field(default=None)")?;
-                } else {
-                    writeln!(w)?;
-                }
-            }
+        let custom_translations = json_translation_for_type(&python_type);
+        // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
+        self.add_common_imports(is_optional, custom_translations.is_some(), is_aliased);
+
+        let mut field_type = python_type;
+
+        if not_optional_but_default {
+            field_type = format!("Optional[{field_type}]");
         }
+        if let Some(custom_translation) = custom_translations {
+            field_type = format!(
+                "Annotated[{field_type}, BeforeValidator({}), PlainSerializer({})]",
+                custom_translation.deserialization_name, custom_translation.serialization_name
+            );
+        }
+
+        let mut decorators: Vec<String> = Vec::new();
+        if is_aliased {
+            decorators.push(format!("alias=\"{}\"", field.id.renamed));
+        }
+
+        if is_optional || not_optional_but_default {
+            decorators.push("default=None".to_string());
+        }
+
+        let python_return_value = if !decorators.is_empty() {
+            format!(" = Field({})", decorators.join(", "))
+        } else {
+            String::new()
+        };
+
+        writeln!(
+            w,
+            r#"    {python_field_name}: {field_type}{python_return_value}"#
+        )?;
 
         self.write_comments(w, true, &field.comments, 1)?;
         Ok(())
@@ -698,6 +737,34 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
         python_module.add_import("pydantic".to_string(), "ConfigDict".to_string());
         let _ = writeln!(w, "    model_config = ConfigDict(populate_by_name=True)\n");
     };
+}
+
+/// acquires custom translation function names if custom serialize/deserialize functions are needed
+fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationFunctions> {
+    // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
+    let custom_translations = HashMap::from([(
+        "bytes",
+        CustomJsonTranslationFunctions {
+            serialization_name: "serialize_binary_data".to_owned(),
+            serialization_content: r#"def serialize_binary_data(value: bytes) -> list[int]:
+        return list(value)"#
+                .to_owned(),
+            deserialization_name: "deserialize_binary_data".to_owned(),
+            deserialization_content: r#"def deserialize_binary_data(value):
+     if isinstance(value, list):
+         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
+             return bytes(value)
+         raise ValueError("All elements must be integers in the range 0-255 (u8).")
+     elif isinstance(value, bytes):
+             return value
+     raise TypeError("Content must be a list of integers (0-255) or bytes.")"#
+                .to_owned(),
+        },
+    )]);
+
+    custom_translations
+        .get(python_type)
+        .map(|custom_translation| (*custom_translation).to_owned())
 }
 
 #[cfg(test)]

@@ -24,6 +24,14 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Carries the content of the custom reviver/replacer content if needed.
+    pub custom_json_translation_functions: Vec<CustomJsonTranslationContent>,
+}
+
+#[derive(Clone)]
+pub struct CustomJsonTranslationContent {
+    reviver: String,
+    replacer: String,
 }
 
 impl Language for TypeScript {
@@ -31,11 +39,43 @@ impl Language for TypeScript {
         &self.type_mappings
     }
 
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+        if !self.custom_json_translation_functions.is_empty() {
+            return writeln!(
+                w,
+                r#"export function ReviverFunc(key: string, value: unknown): unknown {{
+    {}
+    return value;
+}}
+
+export function ReplacerFunc(key: string, value: unknown): unknown {{
+    {}
+    return value;
+}}"#,
+                self.custom_json_translation_functions
+                    .iter()
+                    .map(|custom_json_translation| custom_json_translation.reviver.clone())
+                    .join("\n"),
+                self.custom_json_translation_functions
+                    .iter()
+                    .map(|custom_json_translation| custom_json_translation.replacer.clone())
+                    .join("\n")
+            );
+        }
+        Ok(())
+    }
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
+            if let Some(custom_json_translation) = custom_translations(mapped) {
+                self.custom_json_translation_functions
+                    .push(custom_json_translation);
+            }
+            return Ok(mapped.to_owned());
+        }
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
@@ -208,6 +248,23 @@ impl Language for TypeScript {
     fn ignored_reference_types(&self) -> Vec<&str> {
         self.type_mappings.keys().map(|s| s.as_str()).collect()
     }
+}
+
+fn custom_translations(ts_type: &str) -> Option<CustomJsonTranslationContent> {
+    let custom_translations = HashMap::from([(
+        "Uint8Array",
+        (
+            CustomJsonTranslationContent{
+                reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
+                    return new Uint8Array(value);
+                }"#.to_owned(),
+                replacer: r#"if (value instanceof Uint8Array) {
+        return Array.from(value);
+    }"#.to_owned()
+            }
+                ))]);
+
+    custom_translations.get(ts_type).cloned()
 }
 
 impl TypeScript {

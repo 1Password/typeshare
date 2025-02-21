@@ -118,6 +118,10 @@ impl Language for Go {
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
+            return Ok(mapped.to_owned());
+        };
+
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
             SpecialRustType::Array(rtype, len) => {
