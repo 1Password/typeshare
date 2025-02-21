@@ -68,6 +68,14 @@ fn dedup<T: Eq + Hash + Clone>(v: &mut Vec<T>) {
     v.retain(|e| uniques.insert(e.clone()));
 }
 
+#[derive(Clone)]
+pub(crate) struct CustomTranslationFunctions {
+    pub(crate) serialization_name: String,
+    pub(crate) serialization_content: String,
+    pub(crate) deserialization_name: String,
+    pub(crate) deserialization_content: String,
+}
+
 /// All information needed to generate Python type-code
 #[derive(Default)]
 pub struct Python {
@@ -86,7 +94,7 @@ pub struct Python {
     /// Whether or not to include the serialization/deserialzation functions for bytes.
     /// This by default should be false as unless the user expclitly wants to translate to its bytes
     /// representation
-    pub should_translate_bytes: bool,
+    pub custom_translation_functions: Vec<String>,
 }
 
 impl Language for Python {
@@ -132,27 +140,14 @@ impl Language for Python {
 
         self.write_all_imports(w)?;
 
-        if self.should_translate_bytes {
-            writeln!(
-                w,
-                r#"def deserialize_binary_data(value):
-    if isinstance(value, list):
-        if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
-            return bytes(value)
-        raise ValueError("All elements must be integers in the range 0-255 (u8).")
-    elif isinstance(value, bytes):
-            return value
-    raise TypeError("Content must be a list of integers (0-255) or bytes.")
-            
-            
-def serialize_binary_data(value: bytes) -> list[int]:
-    return list(value)
-"#
-            )?;
-        }
+        self.custom_translation_functions.iter().try_for_each(
+            |custom_translation_function| -> std::io::Result<()> {
+                writeln!(w, "{custom_translation_function}")?;
+                writeln!(w)
+            },
+        )?;
 
-        w.write_all(&body)?;
-        Ok(())
+        w.write_all(&body)
     }
 
     fn format_generic_type(
@@ -198,18 +193,19 @@ def serialize_binary_data(value: bytes) -> list[int]:
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
-        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
-            mapped.to_owned()
-        } else {
-            String::new()
-        };
+        if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
+            let custom_translation_functions = json_translation_for_type(mapped);
+            if let Some(custom_translation_function) = custom_translation_functions {
+                self.custom_translation_functions
+                    .push(custom_translation_function.serialization_content);
+                self.custom_translation_functions
+                    .push(custom_translation_function.deserialization_content);
+            }
+            return Ok(mapped.to_owned());
+        }
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 // TODO: https://github.com/1Password/typeshare/issues/231
-                if rtype.contains_type(SpecialRustType::U8.id()) && !mapped.is_empty() {
-                    self.should_translate_bytes = true;
-                    return Ok(mapped);
-                }
                 self.add_import("typing".to_string(), "List".to_string());
                 Ok(format!("List[{}]", self.format_type(rtype, generic_types)?))
             }
@@ -454,9 +450,11 @@ impl Python {
         if not_optional_but_default {
             field_type = format!("Optional[{field_type}]");
         }
-        if let Some((serialize_function, deserialize_function)) = custom_translations {
+        if let Some(custom_translation) = custom_translations {
             field_type = format!(
-                "Annotated[{field_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})]");
+                "Annotated[{field_type}, BeforeValidator({}), PlainSerializer({})]",
+                custom_translation.deserialization_name, custom_translation.serialization_name
+            );
         }
 
         let mut decorators: Vec<String> = Vec::new();
@@ -747,19 +745,31 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
 }
 
 /// acquires custom translation function names if custom serialize/deserialize functions are needed
-fn json_translation_for_type(python_type: &str) -> Option<(String, String)> {
+fn json_translation_for_type(python_type: &str) -> Option<CustomTranslationFunctions> {
     // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
     let custom_translations = HashMap::from([(
-        "bytes".to_owned(),
-        (
-            "serialize_binary_data".to_owned(),
-            "deserialize_binary_data".to_owned(),
-        ),
+        "bytes",
+        CustomTranslationFunctions {
+            serialization_name: "serialize_binary_data".to_owned(),
+            serialization_content: r#"def serialize_binary_data(value: bytes) -> list[int]:
+        return list(value)"#
+                .to_owned(),
+            deserialization_name: "deserialize_binary_data".to_owned(),
+            deserialization_content: r#"def deserialize_binary_data(value):
+     if isinstance(value, list):
+         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
+             return bytes(value)
+         raise ValueError("All elements must be integers in the range 0-255 (u8).")
+     elif isinstance(value, bytes):
+             return value
+     raise TypeError("Content must be a list of integers (0-255) or bytes.")"#
+                .to_owned(),
+        },
     )]);
 
     custom_translations
         .get(python_type)
-        .map(|(s, d)| (s.to_owned(), d.to_owned()))
+        .map(|custom_translation| (*custom_translation).to_owned())
 }
 
 #[cfg(test)]
