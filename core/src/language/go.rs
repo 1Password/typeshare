@@ -123,9 +123,7 @@ impl Language for Go {
         };
 
         Ok(match special_ty {
-            SpecialRustType::Vec(rtype) => {
-                format!("[]{}", self.format_type(rtype, generic_types)?)
-            }
+            SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
             SpecialRustType::Array(rtype, len) => {
                 format!("[{}]{}", len, self.format_type(rtype, generic_types)?)
             }
