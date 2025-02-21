@@ -124,7 +124,6 @@ impl Language for Go {
 
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => {
-                // TODO: https://github.com/1Password/typeshare/issues/231
                 format!("[]{}", self.format_type(rtype, generic_types)?)
             }
             SpecialRustType::Array(rtype, len) => {
