@@ -1,5 +1,6 @@
 use quote::ToTokens;
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
@@ -211,6 +212,30 @@ pub enum RustType {
     },
 }
 
+impl Display for RustType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let rust_type = match &self {
+            RustType::Simple { id } => id,
+            RustType::Generic { id, parameters } => {
+                if parameters.is_empty() {
+                    id
+                } else {
+                    &format!(
+                        "{id}<{}>",
+                        parameters
+                            .iter()
+                            .map(|p| p.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            }
+            RustType::Special(ty) => &ty.to_string(),
+        };
+        write!(f, "{rust_type}")
+    }
+}
+
 /// A special rust type that needs a manual type conversion
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecialRustType {
@@ -260,6 +285,24 @@ pub enum SpecialRustType {
     I54,
     /// Represents `U53` from `typeshare::U53`
     U53,
+}
+
+impl Display for SpecialRustType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let special_type = match self {
+            SpecialRustType::Vec(rust_type) => format!("Vec<{rust_type}>"),
+            SpecialRustType::Array(rust_type, _) => format!("[{rust_type}]"),
+            SpecialRustType::Slice(rust_type) => format!("&[{rust_type}]"),
+            SpecialRustType::HashMap(rust_type, rust_type1) => {
+                format!("HashMap<{rust_type},{rust_type1}>")
+            }
+            SpecialRustType::Option(rust_type) => {
+                format!("Option<{}>", rust_type.id())
+            }
+            _ => self.id().to_string(),
+        };
+        write!(f, "{special_type}")
+    }
 }
 
 #[derive(Debug, Error)]
@@ -550,20 +593,6 @@ impl SpecialRustType {
             Self::USize => "usize",
             Self::U53 => "U53",
             Self::I54 => "I54",
-        }
-    }
-
-    /// Returns the full ID including its sub types back into its original Rust Identifier.
-    pub fn get_nested_id(&self) -> String {
-        match self {
-            SpecialRustType::Vec(rust_type) => format!("{}<{}>", self.id(), rust_type.id()),
-            SpecialRustType::Array(rust_type, _) => format!("[{}]", rust_type.id()),
-            SpecialRustType::Slice(rust_type) => format!("&[{}]", rust_type.id()),
-            SpecialRustType::HashMap(rust_type, rust_type1) => {
-                format!("{}<{},{}>", self.id(), rust_type.id(), rust_type1.id())
-            }
-            SpecialRustType::Option(rust_type) => format!("{}<{}>", self.id(), rust_type.id()),
-            _ => self.id().to_owned(),
         }
     }
 

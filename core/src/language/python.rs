@@ -197,7 +197,7 @@ def serialize_binary_data(value: bytes) -> list[int]:
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
-        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.get_nested_id()) {
+        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
             mapped.to_owned()
         } else {
             String::new()

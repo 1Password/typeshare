@@ -61,7 +61,7 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
-        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.get_nested_id()) {
+        let mapped = if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
             mapped.to_owned()
         } else {
             String::new()
