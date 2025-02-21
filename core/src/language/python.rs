@@ -448,28 +448,34 @@ impl Python {
         // Adds all the required imports needed based off whether its optional ,aliased, or needs a byte translation
         self.add_common_imports(is_optional, custom_translations.is_some(), is_aliased);
 
-        let python_field_type = match (not_optional_but_default, custom_translations) {
-            (true, _) => format!("Optional[{python_type}]") ,
-            (false, Some((serialize_function, deserialize_function))) => format!(
-                "Annotated[{python_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})]"
-            ),
-            _ => python_type,
-        };
+        let mut field_type = python_type;
 
-        let python_return_value = match (not_optional_but_default, is_aliased, is_optional) {
-            (true, true, _) => format!(" = Field(alias=\"{}\", default=None)", field.id.renamed),
-            (true, false, _) => " = Field(default=None)".to_owned(),
-            (false, true, true) => {
-                format!(" = Field(alias=\"{}\", default=None)", field.id.renamed)
-            }
-            (false, true, false) => format!(" = Field(alias=\"{}\")", field.id.renamed),
-            (false, false, true) => " = Field(default=None)".to_owned(),
-            (false, false, false) => String::new(),
+        if not_optional_but_default {
+            field_type = format!("Optional[{field_type}]");
+        }
+        if let Some((serialize_function, deserialize_function)) = custom_translations {
+            field_type = format!(
+                "Annotated[{field_type}, BeforeValidator({deserialize_function}), PlainSerializer({serialize_function})]");
+        }
+
+        let mut decorators: Vec<String> = Vec::new();
+        if is_aliased {
+            decorators.push(format!("alias=\"{}\"", field.id.renamed));
+        }
+
+        if is_optional || not_optional_but_default {
+            decorators.push("default=None".to_string());
+        }
+
+        let python_return_value = if !decorators.is_empty() {
+            format!(" = Field({})", decorators.join(", "))
+        } else {
+            String::new()
         };
 
         writeln!(
             w,
-            r#"    {python_field_name}: {python_field_type}{python_return_value}"#
+            r#"    {python_field_name}: {field_type}{python_return_value}"#
         )?;
 
         self.write_comments(w, true, &field.comments, 1)?;
