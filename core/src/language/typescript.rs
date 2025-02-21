@@ -24,9 +24,7 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Whether or not to include the reviver/replacer functions for Uint8Array.
-    /// This by default should be false as unless the user expclitly wants to translate to its Uint8Array
-    /// representation
+    /// Carries the content of the custom reviver/replacer content if needed.
     pub custom_json_translation_functions: Vec<CustomJsonTranslationContent>,
 }
 
