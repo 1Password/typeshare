@@ -30,5 +30,5 @@ typeshare-core = { path = "../core", version = "=1.13.2" }
 log.workspace = true
 flexi_logger.workspace = true
 anyhow = "1"
-clap_complete = "4.5.32"
+clap_complete_command = "0.6.1"
 crossbeam = "0.8"
