@@ -413,7 +413,7 @@ impl Go {
                         "\t{} {} = {:?}",
                         variant_type_const,
                         variant_key_type,
-                        &v.shared().id.original
+                        &v.shared().id.renamed
                     )?;
                 }
 
