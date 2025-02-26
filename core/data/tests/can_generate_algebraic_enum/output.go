@@ -121,11 +121,11 @@ func NewAdvancedColorsTypeVariantReallyCoolType(content *ItemDetailsFieldValue) 
 type AdvancedColors2Types string
 const (
 	// This is a case comment
-	AdvancedColors2TypeVariantString AdvancedColors2Types = "String"
-	AdvancedColors2TypeVariantNumber AdvancedColors2Types = "Number"
-	AdvancedColors2TypeVariantNumberArray AdvancedColors2Types = "NumberArray"
+	AdvancedColors2TypeVariantString AdvancedColors2Types = "string"
+	AdvancedColors2TypeVariantNumber AdvancedColors2Types = "number"
+	AdvancedColors2TypeVariantNumberArray AdvancedColors2Types = "number-array"
 	// Comment on the last element
-	AdvancedColors2TypeVariantReallyCoolType AdvancedColors2Types = "ReallyCoolType"
+	AdvancedColors2TypeVariantReallyCoolType AdvancedColors2Types = "really-cool-type"
 )
 type AdvancedColors2 struct{ 
 	Type AdvancedColors2Types `json:"type"`
