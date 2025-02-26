@@ -6,10 +6,10 @@ type ItemDetailsFieldValue struct {
 }
 type AdvancedColorsTypes string
 const (
-	AdvancedColorsTypeVariantString AdvancedColorsTypes = "String"
-	AdvancedColorsTypeVariantNumber AdvancedColorsTypes = "Number"
-	AdvancedColorsTypeVariantNumberArray AdvancedColorsTypes = "NumberArray"
-	AdvancedColorsTypeVariantReallyCoolType AdvancedColorsTypes = "ReallyCoolType"
+	AdvancedColorsTypeVariantString AdvancedColorsTypes = "string"
+	AdvancedColorsTypeVariantNumber AdvancedColorsTypes = "number"
+	AdvancedColorsTypeVariantNumberArray AdvancedColorsTypes = "number-array"
+	AdvancedColorsTypeVariantReallyCoolType AdvancedColorsTypes = "reallyCoolType"
 )
 type AdvancedColors struct{ 
 	Type AdvancedColorsTypes `json:"type"`
