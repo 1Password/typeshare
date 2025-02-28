@@ -91,8 +91,8 @@ pub struct Python {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Carries the content of the custom serializer and deserializer functions if required
-    pub custom_json_translation_functions: HashSet<String>,
+    /// Carries the unique set of types for custom json translation
+    pub types_for_custom_json_translation: HashSet<String>,
 }
 
 impl Language for Python {
@@ -138,24 +138,22 @@ impl Language for Python {
 
         self.write_all_imports(w)?;
 
-        if !self.custom_json_translation_functions.is_empty() {
-            self.custom_json_translation_functions
-                .iter()
-                .filter_map(|py_type| json_translation_for_type(py_type))
-                .map(|custom_translation_functions| {
-                    format!(
-                        r#"{}
+        self.types_for_custom_json_translation
+            .iter()
+            .filter_map(|py_type| json_translation_for_type(py_type))
+            .map(|custom_translation_functions| {
+                format!(
+                    r#"{}
 
 {}"#,
-                        custom_translation_functions.serialization_content,
-                        custom_translation_functions.deserialization_content
-                    )
-                })
-                .try_for_each(|custom_translation_function| -> std::io::Result<()> {
-                    writeln!(w, "{custom_translation_function}")?;
-                    writeln!(w)
-                })?;
-        }
+                    custom_translation_functions.serialization_content,
+                    custom_translation_functions.deserialization_content
+                )
+            })
+            .try_for_each(|custom_translation_function| -> std::io::Result<()> {
+                writeln!(w, "{custom_translation_function}")?;
+                writeln!(w)
+            })?;
 
         w.write_all(&body)
     }
@@ -205,7 +203,7 @@ impl Language for Python {
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
             if json_translation_for_type(mapped).is_some() {
-                self.custom_json_translation_functions
+                self.types_for_custom_json_translation
                     .insert(mapped.to_string());
             }
             return Ok(mapped.to_owned());
@@ -761,11 +759,11 @@ fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationF
             deserialization_name: "deserialize_binary_data".to_owned(),
             deserialization_content: r#"def deserialize_binary_data(value):
      if isinstance(value, list):
-         if all(isinstance(x, int) and 0 <= x <= 255 for x in value) & len(value) > 0:
-             return bytes(value)
+         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
+            return bytes(value)
          raise ValueError("All elements must be integers in the range 0-255 (u8).")
      elif isinstance(value, bytes):
-             return value
+            return value
      raise TypeError("Content must be a list of integers (0-255) or bytes.")"#
                 .to_owned(),
         },

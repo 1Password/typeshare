@@ -25,8 +25,8 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Carries the content of the custom reviver/replacer content if needed.
-    pub custom_json_translation_functions: HashSet<String>,
+    /// Carries the unique set of types for custom json translation
+    pub types_for_custom_json_translation: HashSet<String>,
 }
 
 #[derive(Clone)]
@@ -41,9 +41,9 @@ impl Language for TypeScript {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if !self.custom_json_translation_functions.is_empty() {
+        if !self.types_for_custom_json_translation.is_empty() {
             let custom_translation_content: Vec<CustomJsonTranslationContent> = self
-                .custom_json_translation_functions
+                .types_for_custom_json_translation
                 .iter()
                 .filter_map(|ts_type| custom_translations(ts_type))
                 .collect();
@@ -77,7 +77,7 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
             if custom_translations(mapped).is_some() {
-                self.custom_json_translation_functions
+                self.types_for_custom_json_translation
                     .insert(mapped.to_string());
             }
             return Ok(mapped.to_owned());
