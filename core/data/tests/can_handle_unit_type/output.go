@@ -9,7 +9,7 @@ type StructHasVoidType struct {
 // This enum has a variant associated with unit data
 type EnumHasVoidTypeTypes string
 const (
-	EnumHasVoidTypeTypeVariantHasAUnit EnumHasVoidTypeTypes = "HasAUnit"
+	EnumHasVoidTypeTypeVariantHasAUnit EnumHasVoidTypeTypes = "hasAUnit"
 )
 type EnumHasVoidType struct{ 
 	Type EnumHasVoidTypeTypes `json:"type"`
