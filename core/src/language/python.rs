@@ -137,7 +137,7 @@ impl Language for Python {
         }
 
         self.write_all_imports(w)?;
-        
+
         if !self.custom_json_translation_functions.is_empty() {
             self.custom_json_translation_functions
                 .iter()
