@@ -9,6 +9,7 @@ use crate::{
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
+use std::collections::HashSet;
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -24,8 +25,8 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
-    /// Carries the content of the custom reviver/replacer content if needed.
-    pub custom_json_translation_functions: Vec<CustomJsonTranslationContent>,
+    /// Carries the unique set of types for custom json translation
+    pub types_for_custom_json_translation: HashSet<String>,
 }
 
 #[derive(Clone)]
@@ -40,7 +41,12 @@ impl Language for TypeScript {
     }
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
-        if !self.custom_json_translation_functions.is_empty() {
+        if !self.types_for_custom_json_translation.is_empty() {
+            let custom_translation_content: Vec<CustomJsonTranslationContent> = self
+                .types_for_custom_json_translation
+                .iter()
+                .filter_map(|ts_type| custom_translations(ts_type))
+                .collect();
             return writeln!(
                 w,
                 r#"export function ReviverFunc(key: string, value: unknown): unknown {{
@@ -52,11 +58,11 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
     {}
     return value;
 }}"#,
-                self.custom_json_translation_functions
+                custom_translation_content
                     .iter()
                     .map(|custom_json_translation| custom_json_translation.reviver.clone())
                     .join("\n"),
-                self.custom_json_translation_functions
+                custom_translation_content
                     .iter()
                     .map(|custom_json_translation| custom_json_translation.replacer.clone())
                     .join("\n")
@@ -70,9 +76,9 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
-            if let Some(custom_json_translation) = custom_translations(mapped) {
-                self.custom_json_translation_functions
-                    .push(custom_json_translation);
+            if custom_translations(mapped).is_some() {
+                self.types_for_custom_json_translation
+                    .insert(mapped.to_string());
             }
             return Ok(mapped.to_owned());
         }
@@ -255,9 +261,9 @@ fn custom_translations(ts_type: &str) -> Option<CustomJsonTranslationContent> {
         "Uint8Array",
         (
             CustomJsonTranslationContent{
-                reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
-                    return new Uint8Array(value);
-                }"#.to_owned(),
+                reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
+        return new Uint8Array(value);
+    }"#.to_owned(),
                 replacer: r#"if (value instanceof Uint8Array) {
         return Array.from(value);
     }"#.to_owned()

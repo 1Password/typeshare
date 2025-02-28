@@ -1,11 +1,12 @@
 export interface Foo {
 	thisIsBits: Uint8Array;
+	thisIsRedundant: Uint8Array;
 }
 
 export function ReviverFunc(key: string, value: unknown): unknown {
-    if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
-                    return new Uint8Array(value);
-                }
+    if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
+        return new Uint8Array(value);
+    }
     return value;
 }
 
