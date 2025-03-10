@@ -51,7 +51,7 @@ impl Language for TypeScript {
             "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),
             "ReplacerFunc is used during JSON serialization to modify certain values before stringifying.".to_owned(),
             "These functions allow for flexible encoding and decoding of data, ensuring that complex types are properly handled when converting between TS objects and JSON".to_owned()])?;
-            
+
             return writeln!(
                 w,
                 r#"export const ReviverFunc = (key: string, value: unknown): unknown => {{
