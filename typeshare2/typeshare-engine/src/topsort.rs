@@ -4,23 +4,23 @@ use typeshare_model::prelude::*;
 
 use crate::writer::BorrowedRustItem;
 
-fn get_dependencies_from_type(
-    tp: &RustType,
-    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
-    res: &mut Vec<TypeName>,
-    seen: &mut HashSet<TypeName>,
+fn get_dependencies_from_type<'a>(
+    tp: &'a RustType,
+    types: &'a HashMap<TypeName, BorrowedRustItem<'a>>,
+    res: &mut Vec<&'a TypeName>,
+    seen: &mut HashSet<&'a TypeName>,
 ) {
     match tp {
         RustType::Generic { id, parameters } => {
-            if let Some(tp) = types.get(id) {
-                if seen.insert(id.clone()) {
-                    res.push(id.clone());
+            if let Some(&tp) = types.get(id) {
+                if seen.insert(&id) {
+                    res.push(&id);
                     get_dependencies(tp, types, res, seen);
                     for parameter in parameters {
                         let id = parameter.id();
-                        if let Some(tp) = types.get(id) {
-                            if seen.insert(id.clone()) {
-                                res.push(id.clone());
+                        if let Some(&tp) = types.get(id) {
+                            if seen.insert(&id) {
+                                res.push(&id);
                                 get_dependencies(tp, types, res, seen);
                                 seen.remove(&id.clone());
                             }
@@ -32,9 +32,9 @@ fn get_dependencies_from_type(
         }
         RustType::Simple { id } => {
             if let Some(tp) = types.get(id) {
-                if seen.insert(id.clone()) {
-                    res.push(id.clone());
-                    get_dependencies(tp, types, res, seen);
+                if seen.insert(id) {
+                    res.push(&id);
+                    get_dependencies(*tp, types, res, seen);
                     seen.remove(&id.clone());
                 }
             }
@@ -53,14 +53,15 @@ fn get_dependencies_from_type(
             _ => {}
         },
     };
+
     seen.remove(tp.id());
 }
 
-fn get_enum_dependencies(
-    enm: &RustEnum,
-    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
-    res: &mut Vec<TypeName>,
-    seen: &mut HashSet<TypeName>,
+fn get_enum_dependencies<'a>(
+    enm: &'a RustEnum,
+    types: &'a HashMap<TypeName, BorrowedRustItem<'a>>,
+    res: &mut Vec<&'a TypeName>,
+    seen: &mut HashSet<&'a TypeName>,
 ) {
     match enm {
         RustEnum::Unit(_) => {}
@@ -69,8 +70,8 @@ fn get_enum_dependencies(
             content_key: _,
             shared,
         } => {
-            if seen.insert(shared.id.original.clone()) {
-                res.push(shared.id.original.clone());
+            if seen.insert(&shared.id.original) {
+                res.push(&shared.id.original);
                 for variant in &shared.variants {
                     match variant {
                         RustEnumVariant::Unit(_) => {}
@@ -89,13 +90,13 @@ fn get_enum_dependencies(
     }
 }
 
-fn get_struct_dependencies(
-    strct: &RustStruct,
-    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
-    res: &mut Vec<TypeName>,
-    seen: &mut HashSet<TypeName>,
+fn get_struct_dependencies<'a>(
+    strct: &'a RustStruct,
+    types: &'a HashMap<TypeName, BorrowedRustItem<'a>>,
+    res: &mut Vec<&'a TypeName>,
+    seen: &mut HashSet<&'a TypeName>,
 ) {
-    if seen.insert(strct.id.original.clone()) {
+    if seen.insert(&strct.id.original) {
         for field in &strct.fields {
             get_dependencies_from_type(&field.ty, types, res, seen)
         }
@@ -103,40 +104,53 @@ fn get_struct_dependencies(
     }
 }
 
-fn get_type_alias_dependencies(
-    ta: &RustTypeAlias,
-    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
-    res: &mut Vec<TypeName>,
-    seen: &mut HashSet<TypeName>,
+fn get_type_alias_dependencies<'a>(
+    ta: &'a RustTypeAlias,
+    types: &'a HashMap<TypeName, BorrowedRustItem<'a>>,
+    res: &mut Vec<&'a TypeName>,
+    seen: &mut HashSet<&'a TypeName>,
 ) {
-    if seen.insert(ta.id.original.clone()) {
+    if seen.insert(&ta.id.original) {
         get_dependencies_from_type(&ta.r#type, types, res, seen);
         for generic in &ta.generic_types {
             if let Some(thing) = types.get(generic) {
-                get_dependencies(thing, types, res, seen)
+                get_dependencies(*thing, types, res, seen)
             }
         }
         seen.remove(&ta.id.original);
     }
 }
 
-fn get_dependencies(
-    thing: &BorrowedRustItem<'_>,
-    types: &HashMap<TypeName, BorrowedRustItem<'_>>,
-    res: &mut Vec<TypeName>,
-    seen: &mut HashSet<TypeName>,
+// fn get_const_dependencies(
+//     c: &RustConst,
+//     types: &HashMap<TypeName, &RustItem>,
+//     res: &mut Vec<String>,
+//     seen: &mut HashSet<String>,
+// ) {
+//     if seen.insert(c.id.original.to_string()) {
+//         get_dependencies_from_type(&c.r#type, types, res, seen);
+//         seen.remove(&c.id.original.to_string());
+//     }
+// }
+
+fn get_dependencies<'a>(
+    thing: BorrowedRustItem<'a>,
+    types: &'a HashMap<TypeName, BorrowedRustItem<'a>>,
+    res: &mut Vec<&'a TypeName>,
+    seen: &mut HashSet<&'a TypeName>,
 ) {
     match thing {
         BorrowedRustItem::Enum(en) => get_enum_dependencies(en, types, res, seen),
         BorrowedRustItem::Struct(strct) => get_struct_dependencies(strct, types, res, seen),
         BorrowedRustItem::Alias(alias) => get_type_alias_dependencies(alias, types, res, seen),
+        // RustItem::Const(c) => get_const_dependencies(c, types, res, seen),
     }
 }
 
-fn get_index<T: PartialEq>(thing: &T, things: &[T]) -> usize {
+fn get_index(thing: BorrowedRustItem<'_>, things: &[BorrowedRustItem<'_>]) -> usize {
     things
         .iter()
-        .position(|r| r == thing)
+        .position(|r| *r == thing)
         .expect("Unable to find thing in things!")
 }
 
@@ -181,11 +195,8 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
     res
 }
 
-/// Sort a list of rust items, such that all items with dependencies
-/// (like `struct Foo(Bar)`) appear after those dependencies (so `Foo` would
-/// appear after `Bar`)
-pub fn topsort(things: &mut [BorrowedRustItem]) {
-    let types = HashMap::from_iter(things.iter().copied().map(|thing| {
+pub(crate) fn topsort(things: &mut [BorrowedRustItem<'_>]) {
+    let types = HashMap::from_iter(things.iter().map(|thing| {
         let id = match thing {
             BorrowedRustItem::Enum(e) => match e {
                 RustEnum::Algebraic {
@@ -197,17 +208,18 @@ pub fn topsort(things: &mut [BorrowedRustItem]) {
             },
             BorrowedRustItem::Struct(strct) => strct.id.original.clone(),
             BorrowedRustItem::Alias(ta) => ta.id.original.clone(),
+            //   RustItem::Const(c) => c.id.original.clone(),
         };
-        (id, thing)
+        (id, *thing)
     }));
 
     let dag: Vec<Vec<usize>> = things
         .iter()
-        .map(|thing| {
+        .map(|&thing| {
             let mut deps = Vec::new();
             get_dependencies(thing, &types, &mut deps, &mut HashSet::new());
             deps.iter()
-                .map(|dep| get_index(types.get(dep).unwrap(), things))
+                .map(|&dep| get_index(*types.get(dep).unwrap(), things))
                 .collect()
         })
         .collect();
@@ -216,7 +228,7 @@ pub fn topsort(things: &mut [BorrowedRustItem]) {
 }
 
 /// In place sort of array using provided indices.
-pub fn sort_by_indices<T>(data: &mut [T], mut indices: Vec<usize>) {
+pub(crate) fn sort_by_indices<T>(data: &mut [T], mut indices: Vec<usize>) {
     for idx in 0..data.len() {
         if indices[idx] != idx {
             let mut current_idx = idx;
