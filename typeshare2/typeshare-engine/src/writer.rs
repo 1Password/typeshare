@@ -1,5 +1,5 @@
 //! Generated source file output.
-use crate::topsort::topsort;
+use crate::{args::OutputLocation, topsort::topsort};
 use anyhow::Context;
 use std::{
     collections::HashMap,
@@ -9,9 +9,34 @@ use std::{
 
 use typeshare_model::prelude::*;
 
+pub fn write_output<'c>(
+    lang: &impl Language<'c>,
+    crate_parsed_data: HashMap<CrateName, ParsedData>,
+    dest: OutputLocation<'_>,
+) -> anyhow::Result<()> {
+    match dest {
+        OutputLocation::File(file) => {
+            // merge all data together
+            let parsed_data = crate_parsed_data
+                .into_values()
+                .reduce(|mut data, new_data| {
+                    data.merge(new_data);
+                    data
+                })
+                .context("called `write_output` with no data")?;
+            write_single_file(lang, file, &parsed_data)
+        }
+        OutputLocation::Folder(directory) => {
+            // TODO: compute import candidates here
+            let import_candidates = HashMap::new();
+            write_multiple_files(lang, directory, &crate_parsed_data, &import_candidates)
+        }
+    }
+}
+
 /// Write multiple module files.
 pub fn write_multiple_files<'c>(
-    lang: &mut impl Language<'c>,
+    lang: &impl Language<'c>,
     output_folder: &Path,
     crate_parsed_data: &HashMap<CrateName, ParsedData>,
     import_candidates: &CrateTypes,
@@ -40,7 +65,7 @@ pub fn write_multiple_files<'c>(
 
 /// Write all types to a single file.
 pub fn write_single_file<'c>(
-    lang: &mut impl Language<'c>,
+    lang: &impl Language<'c>,
     file_name: &Path,
     parsed_data: &ParsedData,
 ) -> Result<(), anyhow::Error> {
@@ -102,11 +127,11 @@ pub enum BorrowedRustItem<'a> {
 /// Given `data`, generate type-code for this language and write it out to `writable`.
 /// Returns whether or not writing was successful.
 fn generate_types<'c>(
-    lang: &mut impl Language<'c>,
+    lang: &impl Language<'c>,
     out: &mut Vec<u8>,
     all_types: &CrateTypes,
     data: &ParsedData,
-    mode: FilesMode<'_>,
+    mode: FilesMode<&CrateName>,
 ) -> std::io::Result<()> {
     lang.begin_file(out, mode)?;
 

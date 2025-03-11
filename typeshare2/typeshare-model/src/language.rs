@@ -14,9 +14,22 @@ use crate::parsed_data::{
 /// If we're in multifile mode, this enum contains the crate name for the
 /// specific file
 #[derive(Debug, Clone, Copy)]
-pub enum FilesMode<'a> {
+pub enum FilesMode<T> {
     Single,
-    Multi(&'a CrateName),
+    Multi(T),
+}
+
+impl<T> FilesMode<T> {
+    pub fn map<U>(self, op: impl FnOnce(T) -> U) -> FilesMode<U> {
+        match self {
+            FilesMode::Single => FilesMode::Single,
+            FilesMode::Multi(value) => FilesMode::Multi(op(value)),
+        }
+    }
+
+    pub fn is_multi(&self) -> bool {
+        matches!(*self, Self::Multi(_))
+    }
 }
 
 /// Mapping of crate names to typeshare type names.
@@ -234,7 +247,7 @@ pub trait Language<'config>: Sized {
 
     /// Implementors can use this function to write a header for typeshared code.
     /// By default this does nothing.
-    fn begin_file(&self, w: &mut impl Write, mode: FilesMode) -> std::io::Result<()>;
+    fn begin_file(&self, w: &mut impl Write, mode: FilesMode<&CrateName>) -> std::io::Result<()>;
 
     /// For generating import statements. This is called only in multi-file
     /// mode, after `begin_file` and before any another methods.

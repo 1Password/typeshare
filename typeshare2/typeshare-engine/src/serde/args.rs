@@ -11,7 +11,7 @@ pub enum ArgType {
     Value,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct CliArgsSet {
     language: &'static str,
 
@@ -70,15 +70,16 @@ impl ser::Error for ArgsSetError {
 }
 
 pub struct ArgsSetSerializer {
-    language: &'static str,
     args: CliArgsSet,
 }
 
 impl ArgsSetSerializer {
     pub fn new(language: &'static str) -> Self {
         Self {
-            language,
-            args: CliArgsSet::default(),
+            args: CliArgsSet {
+                language,
+                args: HashMap::new(),
+            },
         }
     }
 }
@@ -265,7 +266,7 @@ impl ser::SerializeStruct for ArgsSetSerializer {
         if let Some(arg_type) = value.serialize(ArgsSetFieldSerializer)? {
             let full_key = format!(
                 "{language}-{key}",
-                language = self.language,
+                language = self.args.language,
                 key = UnderscoreToHyphen(key)
             );
 

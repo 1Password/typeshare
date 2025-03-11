@@ -1,10 +1,16 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::builder::PossibleValuesParser;
 
 use crate::serde::args::{ArgType, CliArgsSet};
 
-#[derive(clap::Args)]
+#[derive(Debug, Clone, Copy)]
+pub enum OutputLocation<'a> {
+    File(&'a Path),
+    Folder(&'a Path),
+}
+
+#[derive(clap::Args, Debug)]
 #[group(required = true, multiple = false)]
 pub struct Output {
     /// The file to write all typeshare output to. When this flag is used, all
@@ -21,7 +27,20 @@ pub struct Output {
     pub ouput_directory: Option<PathBuf>,
 }
 
-#[derive(clap::Parser)]
+impl Output {
+    pub fn location(&self) -> OutputLocation<'_> {
+        match (&self.ouput_directory, &self.output_file) {
+            (Some(dir), None) => OutputLocation::Folder(dir),
+            (None, Some(file)) => OutputLocation::File(file),
+            (None, None) => panic!("need either a file or a directory."),
+            (Some(dir), Some(file)) => {
+                panic!("got both file '{file:?}' and directory '{dir:?}'")
+            }
+        }
+    }
+}
+
+#[derive(clap::Parser, Debug)]
 pub struct StandardArgs {
     /// Path to the config file for this typeshare
     #[arg(short, long, visible_alias("config-file"))]
@@ -31,7 +50,7 @@ pub struct StandardArgs {
     pub output: Output,
 
     /// The directories within which to recursively find and process rust files
-    #[arg(num_args(1..))]
+    #[arg(num_args(1..), required=true)]
     pub directories: Vec<PathBuf>,
 }
 

@@ -63,9 +63,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
+checksum = "6b964d184e89d9b6b67dd2715bc8e74cf3107fb2b529990c90cf517326150bf4"
 
 [[package]]
 name = "bstr"
@@ -276,9 +276,9 @@ checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.93"
+version = "1.0.94"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60946a68e5f9d28b0dc1c21bb8a97ee7d018a8b322fa57838ba31cc878e22d99"
+checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
 ]
@@ -442,6 +442,7 @@ dependencies = [
 name = "typeshare-demo"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "ignore",
  "typeshare-driver",
@@ -467,7 +468,9 @@ dependencies = [
  "clap",
  "cool_asserts",
  "ignore",
+ "indent_write",
  "itertools 0.14.0",
+ "proc-macro2",
  "quote",
  "rayon",
  "serde",

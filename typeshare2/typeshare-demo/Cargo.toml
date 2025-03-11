@@ -11,3 +11,4 @@ typeshare-model = { path = "../typeshare-model" }
 
 ignore = "0.4.23"
 clap = "4.5.28"
+anyhow = "1.0.96"

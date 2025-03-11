@@ -7,11 +7,9 @@ use std::{
 };
 use typeshare_model::Language;
 
-use crate::serde::{
-    args::{ArgsSetSerializer, CliArgsSet},
-    config::ConfigDeserializer,
-    empty::EmptyDeserializer,
-};
+use crate::serde::{args::ArgsSetSerializer, config::ConfigDeserializer, empty::EmptyDeserializer};
+
+pub use crate::serde::args::CliArgsSet;
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 

@@ -1,10 +1,9 @@
 //! Source file parsing.
-use anyhow::Context;
 use ignore::Walk;
+use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap},
-    ops::Not,
     path::PathBuf,
 };
 use syn::{
@@ -12,13 +11,16 @@ use syn::{
     ItemStruct, ItemType, Meta, Token,
 };
 
-use typeshare_model::prelude::*;
+use typeshare_model::{
+    decorator::{self, DecoratorSet},
+    prelude::*,
+};
 
 use crate::{
     rename::RenameExt,
     type_parser::{parse_rust_type, parse_rust_type_from_string},
     visitors::TypeShareVisitor,
-    ParseError,
+    FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
 };
 
 const SERDE: &str = "serde";
@@ -55,6 +57,7 @@ pub fn parser_inputs(walker_builder: Walk) -> Vec<ParserInput> {
         .collect()
 }
 
+// /// This function produces the `import_candidates`
 // /// Collect all the typeshared types into a mapping of crate names to typeshared types. This
 // /// mapping is used to lookup and generated import statements for generated files.
 // pub fn all_types(file_mappings: &HashMap<CrateName, ParsedData>) -> CrateTypes {
@@ -77,59 +80,97 @@ pub fn parser_inputs(walker_builder: Walk) -> Vec<ParserInput> {
 //         )
 // }
 
+fn add_parsed_data(
+    container: &mut HashMap<CrateName, ParsedData>,
+    crate_name: CrateName,
+    parsed_data: ParsedData,
+) {
+    match container.entry(crate_name) {
+        Entry::Vacant(entry) => {
+            entry.insert(parsed_data);
+        }
+        Entry::Occupied(entry) => {
+            entry.into_mut().merge(parsed_data);
+        }
+    }
+}
+
 /// Collect all the parsed sources into a mapping of crate name to parsed data.
 pub fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[&str],
-    mode: FilesMode,
-) -> anyhow::Result<HashMap<CrateName, ParsedData>> {
+    mode: FilesMode<()>,
+) -> Result<HashMap<CrateName, ParsedData>, Vec<FileParseErrors>> {
     inputs
         .into_par_iter()
-        .try_fold(
-            HashMap::new,
-            |mut results: HashMap<CrateName, ParsedData>,
-             ParserInput {
-                 file_path,
-                 crate_name,
-             }| {
-                match std::fs::read_to_string(&file_path)
-                    .context("Failed to read input")
-                    .and_then(|data| parse(&data, ignored_types, mode).context("Failed to parse"))
-                    .map(|parsed_data| {
-                        parsed_data.and_then(|parsed_data| {
-                            is_parsed_data_empty(&parsed_data)
-                                .not()
-                                .then_some((crate_name, parsed_data))
-                        })
-                    })? {
-                    Some((crate_name, parsed_data)) => {
-                        match results.entry(crate_name) {
-                            Entry::Occupied(mut entry) => {
-                                entry.get_mut().merge(parsed_data);
-                            }
-                            Entry::Vacant(entry) => {
-                                entry.insert(parsed_data);
-                            }
-                        }
-                        Ok::<_, anyhow::Error>(results)
+        .map(|parser_input| {
+            // Performance nit: we don't need to clone in the error case;
+            // map_err is taking unconditional ownership unnecessarily
+            let content = std::fs::read_to_string(&parser_input.file_path).map_err(|err| {
+                FileParseErrors::new(
+                    parser_input.file_path.clone(),
+                    parser_input.crate_name.clone(),
+                    crate::FileErrorKind::ReadError(err),
+                )
+            })?;
+
+            let parsed_data = parse(
+                &content,
+                ignored_types,
+                mode.map(|()| &parser_input.crate_name),
+            )
+            .map_err(|err| {
+                FileParseErrors::new(
+                    parser_input.file_path.clone(),
+                    parser_input.crate_name.clone(),
+                    crate::FileErrorKind::ParseErrors(err),
+                )
+            })?;
+
+            let parsed_data = parsed_data.and_then(|parsed_data| {
+                if is_parsed_data_empty(&parsed_data) {
+                    None
+                } else {
+                    Some(parsed_data)
+                }
+            });
+
+            Ok(parsed_data.map(|parsed_data| (parser_input.crate_name, parsed_data)))
+        })
+        .filter_map(|data| data.transpose())
+        .fold(
+            || Ok(HashMap::new()),
+            |mut accum, result| {
+                match (&mut accum, result) {
+                    (Ok(accum), Ok((crate_name, parsed_data))) => {
+                        add_parsed_data(accum, crate_name, parsed_data)
                     }
-                    None => Ok(results),
+                    (Ok(_), Err(error)) => {
+                        accum = Err(Vec::from([error]));
+                    }
+                    (Err(accum), Err(error)) => accum.push(error),
+                    (Err(_), Ok(_)) => {}
+                }
+
+                accum
+            },
+        )
+        .reduce(
+            || Ok(HashMap::new()),
+            |old, new| match (old, new) {
+                (Ok(mut old), Ok(new)) => {
+                    new.into_iter().for_each(|(crate_name, parsed_data)| {
+                        add_parsed_data(&mut old, crate_name, parsed_data)
+                    });
+                    Ok(old)
+                }
+                (Err(errors), Ok(_)) | (Ok(_), Err(errors)) => Err(errors),
+                (Err(mut err1), Err(err2)) => {
+                    err1.extend(err2);
+                    Err(err1)
                 }
             },
         )
-        .try_reduce(HashMap::new, |mut file_maps, mapping| {
-            for (crate_name, parsed_data) in mapping {
-                match file_maps.entry(crate_name) {
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().merge(parsed_data);
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(parsed_data);
-                    }
-                }
-            }
-            Ok(file_maps)
-        })
 }
 
 /// Check if we have not parsed any relavent typehsared types.
@@ -141,8 +182,8 @@ fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
 pub fn parse(
     source_code: &str,
     ignored_types: &[&str],
-    file_mode: FilesMode,
-) -> Result<Option<ParsedData>, ParseError> {
+    file_mode: FilesMode<&CrateName>,
+) -> Result<Option<ParsedData>, ParseErrorSet> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
     if !source_code.contains("#[typeshare") {
@@ -152,11 +193,12 @@ pub fn parse(
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(ignored_types, file_mode);
-    import_visitor.visit_file(&syn::parse_file(source_code)?);
+    let file_contents = syn::parse_file(source_code)
+        .map_err(|err| ParseError::new(&err.span(), ParseErrorKind::SynError(err)))?;
 
-    // TODO: collect errors here
+    import_visitor.visit_file(&file_contents);
 
-    Ok(Some(import_visitor.parsed_data()))
+    import_visitor.parsed_data().map(Some)
 }
 
 /// Parses a struct into a definition that more succinctly represents what
@@ -177,10 +219,12 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
         })
         .collect();
 
+    let decorators = get_decorators(&s.attrs);
+
     // Check if this struct should be parsed as a type alias.
     // TODO: we shouldn't lie and return a type alias when parsing a struct. this
     // is a temporary hack
-    if let Some(ty) = get_serialized_as_type(&s.attrs) {
+    if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&s.ident), &s.attrs, &None),
             r#type: parse_rust_type_from_string(&ty)?,
@@ -197,20 +241,18 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 .iter()
                 .filter(|field| !is_skipped(&field.attrs))
                 .map(|f| {
-                    let ty = match get_field_type_override(&f.attrs) {
+                    let decorators = get_decorators(&f.attrs);
+
+                    let ty = match get_serialized_as_type(&decorators) {
                         Some(ty) => parse_rust_type_from_string(&ty)?,
                         None => parse_rust_type(&f.ty)?,
                     };
 
                     if serde_flatten(&f.attrs) {
-                        return Err(ParseError::SerdeFlattenNotAllowed);
+                        return Err(ParseError::new(&f, ParseErrorKind::SerdeFlattenNotAllowed));
                     }
 
                     let has_default = serde_default(&f.attrs);
-
-                    // TODO: decorators
-                    //let decorators = get_field_decorators(&f.attrs);
-                    let decorators = HashMap::new();
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &serde_rename_all),
@@ -227,19 +269,18 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 generic_types,
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
-                // TODO: decorator
-                //decorators: get_decorators(&s.attrs),
-                decorators: HashMap::new(),
+                decorators,
             })
         }
         // Tuple structs
         Fields::Unnamed(f) => {
-            if f.unnamed.len() > 1 {
-                return Err(ParseError::ComplexTupleStruct);
-            }
-            let f = &f.unnamed[0];
+            let Some(f) = f.unnamed.iter().exactly_one().ok() else {
+                return Err(ParseError::new(f, ParseErrorKind::ComplexTupleStruct));
+            };
 
-            let ty = match get_field_type_override(&f.attrs) {
+            let decorators = get_decorators(&f.attrs);
+
+            let ty = match get_serialized_as_type(&decorators) {
                 Some(ty) => parse_rust_type_from_string(&ty)?,
                 None => parse_rust_type(&f.ty)?,
             };
@@ -257,9 +298,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             generic_types,
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
-            // TODO: decorator
-            //decorators: get_decorators(&s.attrs),
-            decorators: HashMap::new(),
+            decorators,
         }),
     })
 }
@@ -281,10 +320,11 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .collect();
 
     let serde_rename_all = serde_rename_all(&e.attrs);
+    let decorators = get_decorators(&e.attrs);
 
     // TODO: we shouldn't lie and return a type alias when parsing an enum. this
     // is a temporary hack
-    if let Some(ty) = get_serialized_as_type(&e.attrs) {
+    if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&e.ident), &e.attrs, &None),
             r#type: parse_rust_type_from_string(&ty)?,
@@ -321,9 +361,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         id: get_ident(Some(&e.ident), &e.attrs, &None),
         comments: parse_comment_attrs(&e.attrs),
         variants,
-        // TODO: decorator
-        //decorators: get_decorators(&e.attrs),
-        decorators: HashMap::new(),
+        decorators,
         generic_types,
         is_recursive,
     };
@@ -336,30 +374,42 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     {
         // All enum variants are unit-type
         if maybe_tag_key.is_some() {
-            return Err(ParseError::SerdeTagNotAllowed {
-                enum_ident: original_enum_ident,
-            });
+            return Err(ParseError::new(
+                &e,
+                ParseErrorKind::SerdeTagNotAllowed {
+                    enum_ident: original_enum_ident,
+                },
+            ));
         }
         if maybe_content_key.is_some() {
-            return Err(ParseError::SerdeContentNotAllowed {
-                enum_ident: original_enum_ident,
-            });
+            return Err(ParseError::new(
+                &e,
+                ParseErrorKind::SerdeContentNotAllowed {
+                    enum_ident: original_enum_ident,
+                },
+            ));
         }
 
         Ok(RustItem::Enum(RustEnum::Unit(shared)))
     } else {
         // At least one enum variant is either a tuple or an anonymous struct
-
-        let tag_key = maybe_tag_key.ok_or_else(|| ParseError::SerdeTagRequired {
-            enum_ident: original_enum_ident.clone(),
-        })?;
-        let content_key = maybe_content_key.ok_or_else(|| ParseError::SerdeContentRequired {
-            enum_ident: original_enum_ident.clone(),
-        })?;
-
         Ok(RustItem::Enum(RustEnum::Algebraic {
-            tag_key,
-            content_key,
+            tag_key: maybe_tag_key.ok_or_else(|| {
+                ParseError::new(
+                    &e,
+                    ParseErrorKind::SerdeTagRequired {
+                        enum_ident: original_enum_ident.clone(),
+                    },
+                )
+            })?,
+            content_key: maybe_content_key.ok_or_else(|| {
+                ParseError::new(
+                    &e,
+                    ParseErrorKind::SerdeContentRequired {
+                        enum_ident: original_enum_ident.clone(),
+                    },
+                )
+            })?,
             shared,
         }))
     }
@@ -385,15 +435,17 @@ fn parse_enum_variant(
     match &v.fields {
         syn::Fields::Unit => Ok(RustEnumVariant::Unit(shared)),
         syn::Fields::Unnamed(associated_type) => {
-            if associated_type.unnamed.len() > 1 {
-                return Err(ParseError::MultipleUnnamedAssociatedTypes);
-            }
+            let Some(field) = associated_type.unnamed.iter().exactly_one().ok() else {
+                return Err(ParseError::new(
+                    associated_type,
+                    ParseErrorKind::MultipleUnnamedAssociatedTypes,
+                ));
+            };
+            let decorators = get_decorators(&field.attrs);
 
-            let first_field = associated_type.unnamed.first().unwrap();
-
-            let ty = match get_field_type_override(&first_field.attrs) {
+            let ty = match get_serialized_as_type(&decorators) {
                 Some(ty) => parse_rust_type_from_string(&ty)?,
-                None => parse_rust_type(&first_field.ty)?,
+                None => parse_rust_type(&field.ty)?,
             };
 
             Ok(RustEnumVariant::Tuple { ty, shared })
@@ -404,16 +456,14 @@ fn parse_enum_variant(
                 .iter()
                 .filter(|f| !is_skipped(&f.attrs))
                 .map(|f| {
-                    let field_type = match get_field_type_override(&f.attrs) {
+                    let decorators = get_decorators(&f.attrs);
+
+                    let field_type = match get_serialized_as_type(&decorators) {
                         Some(ty) => parse_rust_type_from_string(&ty)?,
                         None => parse_rust_type(&f.ty)?,
                     };
 
                     let has_default = serde_default(&f.attrs);
-
-                    // TODO: decorators
-                    //let decorators = get_field_decorators(&f.attrs);
-                    let decorators = HashMap::new();
 
                     Ok(RustField {
                         id: get_ident(f.ident.as_ref(), &f.attrs, &variant_serde_rename_all),
@@ -423,7 +473,7 @@ fn parse_enum_variant(
                         decorators,
                     })
                 })
-                .collect::<Result<Vec<_>, ParseError>>()?,
+                .try_collect()?,
             shared,
         }),
     }
@@ -432,7 +482,9 @@ fn parse_enum_variant(
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
 pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
-    let ty = match get_serialized_as_type(&t.attrs) {
+    let decorators = get_decorators(&t.attrs);
+
+    let ty = match get_serialized_as_type(&decorators) {
         Some(ty) => parse_rust_type_from_string(&ty)?,
         None => parse_rust_type(&t.ty)?,
     };
@@ -469,12 +521,12 @@ pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "rename_all", SERDE).next()
 }
 
-pub(crate) fn get_serialized_as_type(attrs: &[syn::Attribute]) -> Option<String> {
-    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
-}
-
-pub(crate) fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String> {
-    get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
+pub(crate) fn get_serialized_as_type(decorators: &DecoratorSet) -> Option<&str> {
+    // TODO: what to do if there are multiple instances of serialized_as?
+    match decorators.get("serialized_as")?.first()? {
+        decorator::Value::String(s) => Some(s),
+        _ => None,
+    }
 }
 
 pub(crate) fn get_name_value_meta_items<'a>(
@@ -586,96 +638,28 @@ fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
     serde_attr(attrs, "flatten")
 }
 
-// /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`
-// /// Takes a slice of `syn::Attribute`, returns a `HashMap<language, BTreeSet<decorator>>`, where `language` is `SupportedLanguage`
-// /// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
-// fn get_field_decorators(attrs: &[Attribute]) -> HashMap<LangIdent, BTreeSet<FieldDecorator>> {
-//     let languages: HashSet<SupportedLanguage> = SupportedLanguage::all_languages().collect();
+/// Checks the struct or enum for decorators like `#[typeshare(typescript = "readonly")]`
+/// Takes a slice of `syn::Attribute`, returns a `HashMap<language, Vec<decorator>>`, where `language` is `SupportedLanguage`
+/// and `decorator` is `FieldDecorator`. Field decorators are ordered in a `BTreeSet` for consistent code generation.
+fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
+    attrs
+        .iter()
+        .flat_map(|attr| match attr.meta {
+            Meta::List(ref meta) => Some(meta),
+            Meta::Path(_) | Meta::NameValue(_) => None,
+        })
+        .filter(|meta| meta.path.is_ident(TYPESHARE))
+        .filter_map(|meta| {
+            meta.parse_args_with(Punctuated::<KeyMaybeValue, Token![,]>::parse_terminated)
+                .ok()
+        })
+        .flatten()
+        .fold(DecoratorSet::new(), |mut set, decorator| {
+            set.entry(decorator.key).or_default().push(decorator.value);
 
-//     attrs
-//         .iter()
-//         .flat_map(|attr| get_meta_items(attr, TYPESHARE))
-//         .flat_map(|meta| {
-//             if let Meta::List(list) = meta {
-//                 Some(list)
-//             } else {
-//                 None
-//             }
-//         })
-//         .flat_map(|list: MetaList| match list.path.get_ident() {
-//             Some(ident) if languages.contains(&ident.try_into().unwrap()) => {
-//                 Some((ident.try_into().unwrap(), list))
-//             }
-//             _ => None,
-//         })
-//         .map(|(language, list): (SupportedLanguage, MetaList)| {
-//             (
-//                 language,
-//                 list.parse_args_with(|input: &ParseBuffer| {
-//                     let mut res: Vec<Meta> = vec![];
-
-//                     loop {
-//                         if input.is_empty() {
-//                             break;
-//                         }
-
-//                         let ident = input.call(Ident::parse_any)?;
-
-//                         // Parse `readonly` or any other single ident optionally followed by a comma
-//                         if input.peek(Token![,]) || input.is_empty() {
-//                             input.parse::<Token![,]>().unwrap_or_default();
-//                             res.push(Meta::Path(ident.into()));
-//                             continue;
-//                         }
-
-//                         if input.is_empty() {
-//                             break;
-//                         }
-
-//                         // Parse `= "any | undefined"` or any other eq sign followed by a string literal
-
-//                         let eq_token = input.parse::<Token![=]>()?;
-
-//                         let value: LitStr = input.parse()?;
-//                         res.push(Meta::NameValue(MetaNameValue {
-//                             path: ident.into(),
-//                             eq_token,
-//                             value: Expr::Lit(ExprLit {
-//                                 attrs: Vec::new(),
-//                                 lit: value.into(),
-//                             }),
-//                         }));
-
-//                         if input.is_empty() {
-//                             break;
-//                         }
-
-//                         input.parse::<Token![,]>()?;
-//                     }
-//                     Ok(res)
-//                 })
-//                 .iter()
-//                 .flatten()
-//                 .filter_map(|nested| match nested {
-//                     Meta::Path(path) if path.segments.len() == 1 => {
-//                         Some(FieldDecorator::Word(path.get_ident()?.to_string()))
-//                     }
-//                     Meta::NameValue(name_value) => Some(FieldDecorator::NameValue(
-//                         name_value.path.get_ident()?.to_string(),
-//                         expr_to_string(&name_value.value)?,
-//                     )),
-//                     // TODO: this should throw a visible error since it suggests a malformed
-//                     //       attribute.
-//                     _ => None,
-//                 })
-//                 .collect::<Vec<FieldDecorator>>(),
-//             )
-//         })
-//         .fold(HashMap::new(), |mut acc, (language, decorators)| {
-//             acc.entry(language).or_default().extend(decorators);
-//             acc
-//         })
-// }
+            set
+        })
+}
 
 fn expr_to_string(expr: &Expr) -> Option<String> {
     match expr {
@@ -691,27 +675,6 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
     }
 }
 
-// /// Checks the struct or enum for decorators like `#[typeshare(swift = "Codable, Equatable")]`
-// /// Takes a slice of `syn::Attribute`, returns a [`DecoratorMap`].
-// fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
-//     let mut decorator_map: DecoratorMap = DecoratorMap::new();
-
-//     for decorator_kind in [
-//         DecoratorKind::Swift,
-//         DecoratorKind::SwiftGenericConstraints,
-//         DecoratorKind::Kotlin,
-//     ] {
-//         for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
-//             decorator_map
-//                 .entry(decorator_kind)
-//                 .or_default()
-//                 .extend(value.split(',').map(|s| s.trim().to_string()));
-//         }
-//     }
-
-//     decorator_map
-// }
-
 fn get_tag_key(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "tag", SERDE).next()
 }
@@ -720,11 +683,38 @@ fn get_content_key(attrs: &[syn::Attribute]) -> Option<String> {
     get_name_value_meta_items(attrs, "content", SERDE).next()
 }
 
-/// Removes `-` characters from identifiers
-// pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
-//     // Dashes are not valid in identifiers, so we map them to underscores
-//     name.replace('-', "_")
-// }
+/// For parsing decorators: a single `key` or `key = "value"` in an attribute,
+/// where `key` is an identifier and `value` is some literal
+struct KeyMaybeValue {
+    key: String,
+    value: decorator::Value,
+}
+
+impl syn::parse::Parse for KeyMaybeValue {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let key: Ident = input.parse()?;
+        let eq: Option<syn::Token![=]> = input.parse()?;
+        let value: Option<syn::Lit> = eq.map(|_| input.parse()).transpose()?;
+
+        let value = match value {
+            None => decorator::Value::None,
+            Some(syn::Lit::Str(lit)) => decorator::Value::String(lit.value()),
+            Some(syn::Lit::Int(lit)) => decorator::Value::Int(lit.base10_parse()?),
+            Some(syn::Lit::Bool(lit)) => decorator::Value::Bool(lit.value),
+            Some(lit) => {
+                return Err(syn::Error::new(
+                    lit.span(),
+                    "unsupported decorator type (need string, int, or bool)",
+                ))
+            }
+        };
+
+        Ok(KeyMaybeValue {
+            key: key.to_string(),
+            value,
+        })
+    }
+}
 
 #[test]
 fn test_rename_all_to_case() {

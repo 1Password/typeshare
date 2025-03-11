@@ -1,6 +1,6 @@
 //! Visitors to collect various items from the AST.
 
-use std::{collections::HashSet, iter};
+use std::{collections::HashSet, iter, mem};
 use syn::{visit::Visit, ItemUse, UseTree};
 
 use typeshare_model::{
@@ -10,7 +10,7 @@ use typeshare_model::{
 
 use crate::{
     parser::{has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias},
-    ErrorInfo, ParseError,
+    ParseError, ParseErrorKind, ParseErrorSet,
 };
 
 /// List of some popular crate names that we can ignore
@@ -51,13 +51,13 @@ pub struct TypeShareVisitor<'a> {
     parsed_data: ParsedData,
 
     ignored_types: &'a [&'a str],
-    mode: FilesMode<'a>,
-    errors: Vec<ErrorInfo>,
+    mode: FilesMode<&'a CrateName>,
+    errors: Vec<ParseError>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
-    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode<'a>) -> Self {
+    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode<&'a CrateName>) -> Self {
         Self {
             parsed_data: ParsedData::default(),
             ignored_types,
@@ -67,22 +67,24 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     /// Consume the visitor and return parsed data.
-    pub fn parsed_data(mut self) -> ParsedData {
-        if self.multi_file() {
-            self.reconcile_referenced_types();
-        }
+    pub fn parsed_data(mut self) -> Result<ParsedData, ParseErrorSet> {
+        ParseErrorSet::collect(mem::take(&mut self.errors)).map(|()| {
+            if self.multi_file() {
+                self.reconcile_referenced_types();
+            }
 
-        self.parsed_data
+            self.parsed_data
+        })
     }
 
     fn multi_file(&self) -> bool {
-        matches!(self.mode, FilesMode::Multi(_))
+        self.mode.is_multi()
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
         match result {
             Ok(data) => self.parsed_data.add(data),
-            Err(error) => self.errors.push(ErrorInfo { error }),
+            Err(error) => self.errors.push(error),
         }
     }
 

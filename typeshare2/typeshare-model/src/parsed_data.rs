@@ -5,6 +5,8 @@ use std::{
     path::{Component, Path},
 };
 
+use crate::decorator::DecoratorSet;
+
 /// A crate name.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct CrateName(String);
@@ -158,7 +160,7 @@ pub struct RustStruct {
     /// so we need to collect them here.
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
-    pub decorators: HashMap<LangIdent, Vec<String>>,
+    pub decorators: DecoratorSet,
 }
 
 /// Rust type alias.
@@ -192,32 +194,7 @@ pub struct RustField {
     pub has_default: bool,
     /// Language-specific decorators assigned to a given field.
     /// The keys are language names (e.g. SupportedLanguage::TypeScript), the values are field decorators (e.g. readonly)
-    pub decorators: HashMap<LangIdent, BTreeSet<FieldDecorator>>,
-}
-
-/// A single decorator on a field in Rust code.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FieldDecorator {
-    /// A boolean flag enabled by its existence as a decorator: for example, `readonly`.
-    Word(String),
-    /// A key-value pair, such as `type = "any"`.
-    NameValue(String, String),
-}
-
-impl FieldDecorator {
-    /// Returns the name of the field decorator. For a word decorator, this is just the identifier.
-    pub fn name(&self) -> &str {
-        match self {
-            Self::Word(name) | Self::NameValue(name, _) => name,
-        }
-    }
-
-    pub fn is_word(&self, word: &str) -> bool {
-        match self {
-            Self::Word(this) => this == word,
-            _ => false,
-        }
-    }
+    pub decorators: DecoratorSet,
 }
 
 /// A named Rust type.
@@ -367,19 +344,6 @@ impl RustType {
     //     }
     //     .filter(|s| accept_type(s))
     // }
-}
-
-impl RustField {
-    /// Returns an type override, if it exists, on this field for a given language.
-    pub fn type_override(&self, language: &str) -> Option<&str> {
-        self.decorators
-            .get(language)?
-            .iter()
-            .find_map(|fd| match fd {
-                FieldDecorator::NameValue(name, ty) if name == "type" => Some(ty.as_str()),
-                _ => None,
-            })
-    }
 }
 
 impl SpecialRustType {
@@ -555,7 +519,7 @@ pub struct RustEnumShared {
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
-    pub decorators: HashMap<LangIdent, Vec<String>>,
+    pub decorators: DecoratorSet,
     /// True if this enum references itself in any field of any variant
     /// Swift needs the special keyword `indirect` for this case
     pub is_recursive: bool,
