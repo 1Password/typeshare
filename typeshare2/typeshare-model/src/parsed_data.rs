@@ -1,6 +1,7 @@
 use std::{
     borrow::{Borrow, Cow},
-    collections::{BTreeSet, HashMap, HashSet},
+    cmp::Ord,
+    collections::HashSet,
     fmt::{self, Display},
     path::{Component, Path},
 };
@@ -80,15 +81,6 @@ pub struct ParsedData {
     /// be pretty broken during the migration to Typeshare 2, so that part
     /// of multi-file output was stripped out to be restored later.
     pub import_types: HashSet<ImportedType>,
-    // /// Crate this belongs to.
-    // pub crate_name: CrateName,
-    // /// File name to write to for generated type.
-    // pub file_name: String,
-
-    // /// Failures during parsing.
-    // pub errors: Vec<ErrorInfo>,
-    // /// Using multi file support.
-    // pub multi_file: bool,
 }
 
 impl ParsedData {
@@ -113,6 +105,18 @@ impl ParsedData {
         let a = self.aliases.iter().map(|a| &a.id.renamed);
 
         s.chain(e).chain(a)
+    }
+
+    pub fn sort_contents(&mut self) {
+        self.structs
+            .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
+
+        self.enums.sort_unstable_by(|lhs, rhs| {
+            Ord::cmp(&lhs.shared().id.original, &rhs.shared().id.original)
+        });
+
+        self.aliases
+            .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
     }
 }
 
