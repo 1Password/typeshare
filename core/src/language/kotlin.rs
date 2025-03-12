@@ -74,12 +74,14 @@ impl Language for Kotlin {
                 )
             }
             SpecialRustType::Unit => "Unit".into(),
-            SpecialRustType::String | SpecialRustType::DateTime => "String".into(),
-            SpecialRustType::Char => "String".into(),
+            // Char in Kotlin is 16 bits long, so we need to use String
+            SpecialRustType::String | SpecialRustType::DateTime | SpecialRustType::Char => "String".into(),
+            // https://kotlinlang.org/docs/basic-types.html#integer-types
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),
             SpecialRustType::ISize | SpecialRustType::I32 => "Int".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "Long".into(),
+            // https://kotlinlang.org/docs/basic-types.html#unsigned-integers
             SpecialRustType::U8 => "UByte".into(),
             SpecialRustType::U16 => "UShort".into(),
             SpecialRustType::USize | SpecialRustType::U32 => "UInt".into(),
