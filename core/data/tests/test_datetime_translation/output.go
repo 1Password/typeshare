@@ -6,5 +6,6 @@ import (
 )
 
 type Foo struct {
-	Time string `json:"time"`
+	Time time.Time `json:"time"`
+	Time2 time.Time `json:"time2"`
 }

@@ -403,8 +403,14 @@ impl Language for Python {
 
 impl Python {
     fn add_imports(&mut self, tp: &str) {
-        if tp == "Url" {
-            self.add_import("pydantic.networks".to_string(), "AnyUrl".to_string());
+        match tp {
+            "Url" => {
+                self.add_import("pydantic.networks".to_string(), "AnyUrl".to_string());
+            }
+            "DateTime" => {
+                self.add_import("datetime".to_string(), "datetime".to_string());
+            }
+            _ => {}
         }
     }
 

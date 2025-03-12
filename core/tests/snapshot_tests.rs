@@ -403,45 +403,57 @@ macro_rules! tests {
 }
 
 static KOTLIN_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String")]
+    [("Url", "String"), ("DateTime", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
 static SCALA_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String")]
+    [("Url", "String"), ("DateTime", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
 static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String")]
+    [("Url", "String"), ("DateTime", "Date")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
 static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("Vec<u8>", "Uint8Array")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "Uint8Array"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("Vec<u8>", "[]byte")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "[]byte"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "AnyUrl"), ("Vec<u8>", "bytes")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "AnyUrl"),
+        ("DateTime", "datetime"),
+        ("Vec<u8>", "bytes"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 tests! {
@@ -691,4 +703,6 @@ tests! {
         type_mappings: super::TYPESCRIPT_MAPPINGS.clone(),
     }
     ];
+    test_datetime_translation: [go,python,typescript];
+
 }
