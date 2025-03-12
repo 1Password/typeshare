@@ -1,7 +1,10 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 type Foo struct {
-	Time string `json:"time"`
+	Time time.Time `json:"time"`
 }

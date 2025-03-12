@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 // A struct with no target_os. Should be generated when
 // we use --target-os.

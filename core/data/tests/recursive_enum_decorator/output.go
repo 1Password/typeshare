@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 // Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 type MoreOptionsExactlyInner struct {

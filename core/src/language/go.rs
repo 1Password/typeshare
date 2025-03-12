@@ -162,6 +162,7 @@ impl Language for Go {
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
+            SpecialRustType::DateTime => "time.Time".into(),
         })
     }
 
@@ -177,7 +178,13 @@ impl Language for Go {
         }
         writeln!(w, "package {}", self.package)?;
         writeln!(w)?;
-        writeln!(w, "import \"encoding/json\"")?;
+        writeln!(
+            w,
+            r#"import (
+    "encoding/json"
+    "time"
+)"#
+        )?;
         writeln!(w)?;
         Ok(())
     }

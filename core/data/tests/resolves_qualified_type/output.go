@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 type QualifiedTypes struct {
 	Unqualified string `json:"unqualified"`

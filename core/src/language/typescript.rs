@@ -111,6 +111,7 @@ export function ReplacerFunc(key: string, value: unknown): unknown {{
                 self.format_type(rtype2, generic_types)?
             )),
             SpecialRustType::Unit => Ok("undefined".into()),
+            SpecialRustType::DateTime => Ok("Date".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::Char => Ok("string".into()),
             SpecialRustType::I8
@@ -268,7 +269,18 @@ fn custom_translations(ts_type: &str) -> Option<CustomJsonTranslationContent> {
         return Array.from(value);
     }"#.to_owned()
             }
-                ))]);
+                )),
+                (
+                    "Date",
+                    CustomJsonTranslationContent{
+                        replacer: r#"if (value instanceof Date) {
+        return value.toISOString();
+    }"#.to_owned(),
+                        reviver: r#"if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value as string)) {
+        return new Date(value as string)
+    }"#.to_owned()
+                    }
+                )]);
 
     custom_translations.get(ts_type).cloned()
 }
@@ -348,7 +360,9 @@ impl TypeScript {
                 .format_type(&field.ty, generic_types)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
         };
-
+        if custom_translations(&ts_ty).is_some() {
+            self.types_for_custom_json_translation.insert(ts_ty.clone());
+        }
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
         let is_readonly = field

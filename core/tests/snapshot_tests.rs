@@ -403,21 +403,21 @@ macro_rules! tests {
 }
 
 static KOTLIN_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String"), ("DateTime", "String")]
+    [("Url", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
 static SCALA_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String"), ("DateTime", "String")]
+    [("Url", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
 static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "String"), ("DateTime", "Date")]
+    [("Url", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
@@ -426,7 +426,6 @@ static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     [
         ("Url", "string"),
-        ("DateTime", "string"),
         ("Vec<u8>", "Uint8Array"),
     ]
     .iter()
@@ -437,7 +436,6 @@ static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     [
         ("Url", "string"),
-        ("DateTime", "string"),
         ("Vec<u8>", "[]byte"),
     ]
     .iter()
@@ -448,7 +446,6 @@ static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     [
         ("Url", "AnyUrl"),
-        ("DateTime", "datetime"),
         ("Vec<u8>", "bytes"),
     ]
     .iter()

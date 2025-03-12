@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+    "encoding/json"
+    "time"
+)
 
 type OverrideStruct struct {
 	FieldToOverride uint `json:"fieldToOverride"`
