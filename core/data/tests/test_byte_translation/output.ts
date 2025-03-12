@@ -11,14 +11,14 @@ export interface Foo {
  */
 export const ReviverFunc = (key: string, value: unknown): unknown => {
     if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
-        return new Uint8Array(value);
-    }
+            return new Uint8Array(value);
+        }
     return value;
 };
 
 export const ReplacerFunc = (key: string, value: unknown): unknown => {
     if (value instanceof Uint8Array) {
-        return Array.from(value);
-    }
+            return Array.from(value);
+        }
     return value;
 };

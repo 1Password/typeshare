@@ -9,7 +9,6 @@ use crate::{
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
-use std::collections::HashSet;
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -26,7 +25,7 @@ pub struct TypeScript {
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
     /// Carries the unique set of types for custom json translation
-    pub types_for_custom_json_translation: HashSet<String>,
+    pub types_for_custom_json_translation: HashMap<String, Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -44,8 +43,8 @@ impl Language for TypeScript {
         if !self.types_for_custom_json_translation.is_empty() {
             let custom_translation_content: Vec<CustomJsonTranslationContent> = self
                 .types_for_custom_json_translation
-                .iter()
-                .filter_map(|ts_type| custom_translations(ts_type))
+                .keys()
+                .filter_map(|ts_type| self.custom_translations(ts_type))
                 .collect();
             self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
             "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),
@@ -81,9 +80,9 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
-            if custom_translations(mapped).is_some() {
+            if self.custom_translations(mapped).is_some() {
                 self.types_for_custom_json_translation
-                    .insert(mapped.to_string());
+                    .insert(mapped.to_string(), Vec::new());
             }
             return Ok(mapped.to_owned());
         }
@@ -262,34 +261,6 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
     }
 }
 
-fn custom_translations(ts_type: &str) -> Option<CustomJsonTranslationContent> {
-    let custom_translations = HashMap::from([(
-        "Uint8Array",
-        (
-            CustomJsonTranslationContent{
-                reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
-        return new Uint8Array(value);
-    }"#.to_owned(),
-                replacer: r#"if (value instanceof Uint8Array) {
-        return Array.from(value);
-    }"#.to_owned()
-            }
-                )),
-                (
-                    "Date",
-                    CustomJsonTranslationContent{
-                        replacer: r#"if (value instanceof Date) {
-        return value.toISOString();
-    }"#.to_owned(),
-                        reviver: r#"if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value as string)) {
-        return new Date(value as string)
-    }"#.to_owned()
-                    }
-                )]);
-
-    custom_translations.get(ts_type).cloned()
-}
-
 impl TypeScript {
     fn write_enum_variants(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         match e {
@@ -365,8 +336,11 @@ impl TypeScript {
                 .format_type(&field.ty, generic_types)
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
         };
-        if custom_translations(&ts_ty).is_some() {
-            self.types_for_custom_json_translation.insert(ts_ty.clone());
+        if self.custom_translations(&ts_ty).is_some() {
+            self.types_for_custom_json_translation
+                .entry(ts_ty.clone())
+                .and_modify(|ids| ids.push(field.id.renamed.clone()))
+                .or_insert_with(|| vec![field.id.renamed.clone()]);
         }
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
@@ -415,6 +389,43 @@ impl TypeScript {
             writeln!(w, "{}", comment)?;
         }
         Ok(())
+    }
+    fn custom_translations(&self, ts_type: &str) -> Option<CustomJsonTranslationContent> {
+        let id = self
+            .types_for_custom_json_translation
+            .get(ts_type)
+            .and_then(|ids| {
+                if !ids.is_empty() {
+                    return Some(format!(" && key == \"{}\"", ids.join("\" || key == \"")));
+                }
+                None
+            });
+
+        let custom_translations = HashMap::from([(
+            "Uint8Array",
+            (
+                CustomJsonTranslationContent{
+                    reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
+            return new Uint8Array(value);
+        }"#.to_owned(),
+                    replacer: r#"if (value instanceof Uint8Array) {
+            return Array.from(value);
+        }"#.to_owned()
+                }
+                    )),
+                    (
+                        "Date",
+                        CustomJsonTranslationContent{
+                            replacer: r#"if (value instanceof Date) {
+        return value.toISOString();
+    }"#.to_owned(),
+                            reviver: format!(r#"if (/^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}Z$/.test(value as string){}) {{
+        return new Date(value as string);
+    }}"#, id.unwrap_or_default())
+                        }
+                    )]);
+
+        custom_translations.get(ts_type).cloned()
     }
 }
 

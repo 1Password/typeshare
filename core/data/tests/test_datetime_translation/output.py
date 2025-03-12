@@ -16,4 +16,6 @@ class Foo(BaseModel):
 
     time: Annotated[datetime, BeforeValidator(deserialize_datetime_data), PlainSerializer(serialize_datetime_data)]
     time_2: Annotated[datetime, BeforeValidator(deserialize_datetime_data), PlainSerializer(serialize_datetime_data)] = Field(alias="time2")
+    time_3: Annotated[datetime, BeforeValidator(deserialize_datetime_data), PlainSerializer(serialize_datetime_data)] = Field(alias="time3")
+    non_time: str = Field(alias="nonTime")
 
