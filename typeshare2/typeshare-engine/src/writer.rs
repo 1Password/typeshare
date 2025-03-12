@@ -129,6 +129,8 @@ pub enum BorrowedRustItem<'a> {
     Enum(&'a RustEnum),
     /// A `type` definition or newtype struct.
     Alias(&'a RustTypeAlias),
+    /// A `const` definition
+    Const(&'a RustConst),
 }
 
 /// Given `data`, generate type-code for this language and write it out to `writable`.
@@ -168,6 +170,7 @@ fn generate_types<'c>(
             BorrowedRustItem::Enum(e) => lang.write_enum(out, e)?,
             BorrowedRustItem::Struct(s) => lang.write_struct(out, s)?,
             BorrowedRustItem::Alias(a) => lang.write_type_alias(out, a)?,
+            BorrowedRustItem::Const(c) => lang.write_const(out, c)?,
         }
     }
 

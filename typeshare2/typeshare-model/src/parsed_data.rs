@@ -76,6 +76,8 @@ pub struct ParsedData {
     pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+    /// Constant variables defined in the source
+    pub consts: Vec<RustConst>,
     /// Imports used by this file
     /// TODO: This is currently almost empty. Import computation was found to
     /// be pretty broken during the migration to Typeshare 2, so that part
@@ -96,6 +98,7 @@ impl ParsedData {
             RustItem::Struct(rust_struct) => self.structs.push(rust_struct),
             RustItem::Enum(rust_enum) => self.enums.push(rust_enum),
             RustItem::Alias(rust_type_alias) => self.aliases.push(rust_type_alias),
+            RustItem::Const(rust_const) => self.consts.push(rust_const),
         }
     }
 
@@ -570,6 +573,30 @@ pub struct RustEnumVariantShared {
     pub comments: Vec<String>,
 }
 
+/// Rust const variable.
+///
+/// Typeshare can only handle numeric and string constants.
+/// ```
+/// pub const MY_CONST: &str = "constant value";
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub struct RustConst {
+    /// The identifier for the constant.
+    pub id: Id,
+    /// The type identifier that this constant is referring to.
+    pub ty: RustType,
+    /// The expression that the constant contains.
+    pub expr: RustConstExpr,
+}
+
+/// A constant expression that can be shared via a constant variable across the typeshare
+/// boundary.
+#[derive(Debug, Clone, PartialEq)]
+pub enum RustConstExpr {
+    /// Expression represents an integer.
+    Int(i128),
+}
+
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
 #[non_exhaustive]
@@ -581,6 +608,8 @@ pub enum RustItem {
     Enum(RustEnum),
     /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
+    /// A `const` definition
+    Const(RustConst),
 }
 
 /// An imported type reference.

@@ -7,8 +7,8 @@ use std::{
 use itertools::Itertools;
 
 use crate::parsed_data::{
-    CrateName, Id, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias, SpecialRustType,
-    TypeName,
+    CrateName, Id, RustConst, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias,
+    SpecialRustType, TypeName,
 };
 
 /// If we're in multifile mode, this enum contains the crate name for the
@@ -292,6 +292,13 @@ pub trait Language<'config>: Sized {
     /// }
     /// ```
     fn write_enum(&self, w: &mut impl Write, e: &RustEnum) -> std::io::Result<()>;
+
+    /// Write a constant variable.
+    /// Example of a constant variable:
+    /// ```
+    /// const ANSWER_TO_EVERYTHING: u32 = 42;
+    /// ```
+    fn write_const(&self, w: &mut impl Write, c: &RustConst) -> std::io::Result<()>;
 
     /// Write out named types to represent anonymous struct enum variants.
     ///

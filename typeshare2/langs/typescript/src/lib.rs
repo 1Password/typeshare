@@ -5,6 +5,7 @@ use std::{
 
 use itertools::Itertools;
 use joinery::JoinableIterator;
+use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};
@@ -129,7 +130,7 @@ impl Language<'_> for TypeScript {
         w: &mut impl Write,
         _crate_name: &CrateName,
         imports: &ScopedCrateTypes<'_>,
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         for (path, ty) in imports {
             write!(w, "import {{ ")?;
             let ty_list = ty.iter().join(", ");
@@ -209,14 +210,30 @@ impl Language<'_> for TypeScript {
 
                 self.write_enum_variants(w, e)?;
 
-                write!(w, ";")?;
-                writeln!(w)?;
-                writeln!(w)
+                write!(w, ";\n\n")
             }
         }
     }
 
-    fn end_file(&self, _w: &mut impl Write) -> std::io::Result<()> {
+    fn write_const(&self, w: &mut impl Write, c: &RustConst) -> io::Result<()> {
+        let expr = &c.expr;
+
+        let value = lazy_format!(match (expr) {
+            RustConstExpr::Int(val) => "{val}",
+        });
+
+        let const_type = self
+            .format_type(&c.ty, &[])
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        writeln!(
+            w,
+            "export const {ident}: {const_type} = {value};",
+            ident = c.id.renamed.as_str().to_uppercase(),
+        )
+    }
+
+    fn end_file(&self, _w: &mut impl Write) -> io::Result<()> {
         Ok(())
     }
 
