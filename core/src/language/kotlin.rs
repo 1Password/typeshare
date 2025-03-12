@@ -74,7 +74,7 @@ impl Language for Kotlin {
                 )
             }
             SpecialRustType::Unit => "Unit".into(),
-            SpecialRustType::String | SpecialRustType::DateTime  => "String".into(),
+            SpecialRustType::String | SpecialRustType::DateTime => "String".into(),
             SpecialRustType::Char => "String".into(),
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),

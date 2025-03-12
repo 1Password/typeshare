@@ -451,7 +451,8 @@ impl Python {
             field_type = format!("Optional[{field_type}]");
         }
         if let Some(custom_translation) = custom_translations {
-            self.types_for_custom_json_translation.insert(field_type.clone());
+            self.types_for_custom_json_translation
+                .insert(field_type.clone());
             field_type = format!(
                 "Annotated[{field_type}, BeforeValidator({}), PlainSerializer({})]",
                 custom_translation.deserialization_name, custom_translation.serialization_name

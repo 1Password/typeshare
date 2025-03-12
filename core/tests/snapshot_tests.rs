@@ -424,33 +424,24 @@ static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 });
 
 static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [
-        ("Url", "string"),
-        ("Vec<u8>", "Uint8Array"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
+    [("Url", "string"), ("Vec<u8>", "Uint8Array")]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 });
 
 static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [
-        ("Url", "string"),
-        ("Vec<u8>", "[]byte"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
+    [("Url", "string"), ("Vec<u8>", "[]byte")]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 });
 
 static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [
-        ("Url", "AnyUrl"),
-        ("Vec<u8>", "bytes"),
-    ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
+    [("Url", "AnyUrl"), ("Vec<u8>", "bytes")]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
 });
 
 tests! {
