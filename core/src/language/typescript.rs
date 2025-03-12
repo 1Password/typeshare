@@ -47,17 +47,22 @@ impl Language for TypeScript {
                 .iter()
                 .filter_map(|ts_type| custom_translations(ts_type))
                 .collect();
+            self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
+            "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),
+            "ReplacerFunc is used during JSON serialization to modify certain values before stringifying.".to_owned(),
+            "These functions allow for flexible encoding and decoding of data, ensuring that complex types are properly handled when converting between TS objects and JSON".to_owned()])?;
+
             return writeln!(
                 w,
-                r#"export function ReviverFunc(key: string, value: unknown): unknown {{
+                r#"export const ReviverFunc = (key: string, value: unknown): unknown => {{
     {}
     return value;
-}}
+}};
 
-export function ReplacerFunc(key: string, value: unknown): unknown {{
+export const ReplacerFunc = (key: string, value: unknown): unknown => {{
     {}
     return value;
-}}"#,
+}};"#,
                 custom_translation_content
                     .iter()
                     .map(|custom_json_translation| custom_json_translation.reviver.clone())
