@@ -41,11 +41,11 @@ impl Language for TypeScript {
 
     fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
         if !self.types_for_custom_json_translation.is_empty() {
-            let custom_translation_content: Vec<CustomJsonTranslationContent> = self
+            let custom_translation_content = self
                 .types_for_custom_json_translation
                 .keys()
                 .filter_map(|ts_type| self.custom_translations(ts_type))
-                .collect();
+                .collect::<Vec<CustomJsonTranslationContent>>();
             self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
             "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),
             "ReplacerFunc is used during JSON serialization to modify certain values before stringifying.".to_owned(),
@@ -64,11 +64,11 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
 }};"#,
                 custom_translation_content
                     .iter()
-                    .map(|custom_json_translation| custom_json_translation.reviver.clone())
+                    .map(|custom_json_translation| &custom_json_translation.reviver)
                     .join("\n"),
                 custom_translation_content
                     .iter()
-                    .map(|custom_json_translation| custom_json_translation.replacer.clone())
+                    .map(|custom_json_translation| &custom_json_translation.replacer)
                     .join("\n")
             );
         }
@@ -390,16 +390,13 @@ impl TypeScript {
         }
         Ok(())
     }
+
     fn custom_translations(&self, ts_type: &str) -> Option<CustomJsonTranslationContent> {
         let id = self
             .types_for_custom_json_translation
             .get(ts_type)
-            .and_then(|ids| {
-                if !ids.is_empty() {
-                    return Some(format!(" && key == \"{}\"", ids.join("\" || key == \"")));
-                }
-                None
-            });
+            .filter(|ids| !ids.is_empty())
+            .map(|ids| format!(" && (key == \"{}\")", ids.join("\" || key == \"")));
 
         let custom_translations = HashMap::from([(
             "Uint8Array",
