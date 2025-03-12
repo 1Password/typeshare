@@ -371,7 +371,7 @@ impl TryFrom<&syn::Type> for RustType {
                             params.next().unwrap().into(),
                         ))
                     }
-                    "DateTime" => Self::Special(SpecialRustType::DateTime),
+                    "OffsetDateTime" => Self::Special(SpecialRustType::DateTime),
                     "str" | "String" => Self::Special(SpecialRustType::String),
                     // These smart pointers can be treated as their inner type since serde can handle it
                     // See impls of serde::Deserialize
