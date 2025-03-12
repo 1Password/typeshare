@@ -584,7 +584,7 @@ impl SpecialRustType {
             Self::Slice(_) => "&[]",
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
-            Self::DateTime => "DateTime",
+            Self::DateTime => "OffsetDateTime",
             Self::String => "String",
             Self::Char => "char",
             Self::Bool => "bool",

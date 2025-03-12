@@ -779,9 +779,8 @@ fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationF
             "datetime",
             CustomJsonTranslationFunctions {
                 serialization_name: "serialize_datetime_data".to_owned(),
-                serialization_content: r#"def serialize_datetime_data(utc_time: str) -> str:
-        utc_time = datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
-        return utc_time"#
+                serialization_content: r#"def serialize_datetime_data(utc_time: datetime) -> str:
+        return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")"#
                     .to_owned(),
                 deserialization_name: "deserialize_datetime_data".to_owned(),
                 deserialization_content:
