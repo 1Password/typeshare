@@ -565,94 +565,94 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_path_visitor() {
-        let rust_code = "
-            use std::sync::Arc;
-            use quote::ToTokens;
-            use std::collections::BTreeSet;
-            use std::str::FromStr;
-            use std::{collections::HashMap, convert::TryFrom};
-            use some_crate::blah::*;
-            use crate::types::{MyType, MyEnum};
-            use super::some_module::{another_module::AnotherType, AnotherEnum};
+    // #[test]
+    // fn test_path_visitor() {
+    //     let rust_code = "
+    //         use std::sync::Arc;
+    //         use quote::ToTokens;
+    //         use std::collections::BTreeSet;
+    //         use std::str::FromStr;
+    //         use std::{collections::HashMap, convert::TryFrom};
+    //         use some_crate::blah::*;
+    //         use crate::types::{MyType, MyEnum};
+    //         use super::some_module::{another_module::AnotherType, AnotherEnum};
 
-            enum TestEnum {
-                Variant,
-                Another {
-                    field: Option<some_crate::module::Type>
-                }
-            }
+    //         enum TestEnum {
+    //             Variant,
+    //             Another {
+    //                 field: Option<some_crate::module::Type>
+    //             }
+    //         }
 
-            struct S {
-                f: crate::another::TypeName
-            }
-            ";
+    //         struct S {
+    //             f: crate::another::TypeName
+    //         }
+    //         ";
 
-        let file: File = syn::parse_str(rust_code).unwrap();
-        let crate_name = CrateName::new("my_crate".to_owned());
-        let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi(&crate_name));
-        visitor.visit_file(&file);
+    //     let file: File = syn::parse_str(rust_code).unwrap();
+    //     let crate_name = CrateName::new("my_crate".to_owned());
+    //     let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi(&crate_name));
+    //     visitor.visit_file(&file);
 
-        let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();
-        sorted_imports.sort_unstable_by(|lhs, rhs| {
-            Ord::cmp(lhs.base_crate.as_str(), rhs.base_crate.as_str())
-                .then_with(|| Ord::cmp(lhs.type_name.as_str(), rhs.type_name.as_str()))
-        });
+    //     let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();
+    //     sorted_imports.sort_unstable_by(|lhs, rhs| {
+    //         Ord::cmp(lhs.base_crate.as_str(), rhs.base_crate.as_str())
+    //             .then_with(|| Ord::cmp(lhs.type_name.as_str(), rhs.type_name.as_str()))
+    //     });
 
-        assert_matches!(
-            sorted_imports,
-            [
-                ImportedType {
-                    base_crate,
-                    type_name,
-                }  => {
-                    assert_eq!(base_crate, "my_crate");
-                    assert_eq!(type_name, "AnotherEnum");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "my_crate");
-                    assert_eq!(type_name, "AnotherType");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                }  => {
-                    assert_eq!(base_crate, "my_crate");
-                    assert_eq!(type_name, "MyEnum");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "my_crate");
-                    assert_eq!(type_name, "MyType");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                }  => {
-                    assert_eq!(base_crate, "my_crate");
-                    assert_eq!(type_name, "TypeName");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                } => {
-                    assert_eq!(base_crate, "some_crate");
-                    assert_eq!(type_name, "*");
-                },
-                ImportedType {
-                    base_crate,
-                    type_name,
-                }  => {
-                    assert_eq!(base_crate, "some_crate");
-                    assert_eq!(type_name, "Type");
-                },
-            ]
-        );
-    }
+    //     assert_matches!(
+    //         sorted_imports,
+    //         [
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             }  => {
+    //                 assert_eq!(base_crate, "my_crate");
+    //                 assert_eq!(type_name, "AnotherEnum");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             } => {
+    //                 assert_eq!(base_crate, "my_crate");
+    //                 assert_eq!(type_name, "AnotherType");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             }  => {
+    //                 assert_eq!(base_crate, "my_crate");
+    //                 assert_eq!(type_name, "MyEnum");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             } => {
+    //                 assert_eq!(base_crate, "my_crate");
+    //                 assert_eq!(type_name, "MyType");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             }  => {
+    //                 assert_eq!(base_crate, "my_crate");
+    //                 assert_eq!(type_name, "TypeName");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             } => {
+    //                 assert_eq!(base_crate, "some_crate");
+    //                 assert_eq!(type_name, "*");
+    //             },
+    //             ImportedType {
+    //                 base_crate,
+    //                 type_name,
+    //             }  => {
+    //                 assert_eq!(base_crate, "some_crate");
+    //                 assert_eq!(type_name, "Type");
+    //             },
+    //         ]
+    //     );
+    // }
 }

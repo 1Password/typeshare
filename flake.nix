@@ -18,30 +18,27 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        typeshare = with pkgs;
+        typeshare = pkgs.rustPlatform.buildRustPackage rec {
+          pname = "typeshare";
+          version = (builtins.fromTOML (builtins.readFile ./app/cli/Cargo.toml)).package.version;
+          src = pkgs.lib.cleanSource ./.;
+          cargoLock = { lockFile = ./Cargo.lock; };
+          nativeBuildInputs = [ pkgs.installShellFiles ];
 
-          rustPlatform.buildRustPackage rec {
-            pname = "typeshare";
-            version = (builtins.fromTOML (builtins.readFile ./cli/Cargo.toml)).package.version;
-            src = lib.cleanSource ./.;
-            cargoLock = { lockFile = ./Cargo.lock; };
-            nativeBuildInputs = [ installShellFiles ];
-            buildFeatures = [ "go" ];
+          postInstall = ''
+            installShellCompletion --cmd typeshare \
+              --bash <($out/bin/typeshare completions bash) \
+              --fish <($out/bin/typeshare completions fish) \
+              --zsh <($out/bin/typeshare completions zsh)
+          '';
 
-            postInstall = ''
-              installShellCompletion --cmd typeshare \
-                --bash <($out/bin/typeshare completions bash) \
-                --fish <($out/bin/typeshare completions fish) \
-                --zsh <($out/bin/typeshare completions zsh)
-            '';
-
-            meta = with lib; {
-              description = "Command Line Tool for generating language files with typeshare";
-              homepage = "https://github.com/1password/typeshare";
-              changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
-              license = with licenses; [ asl20 /* or */ mit ];
-            };
+          meta = {
+            description = "Command Line Tool for generating language files with typeshare";
+            homepage = "https://github.com/1password/typeshare";
+            changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
+            license = let licenses = pkgs.lib.licenses; in [licenses.asl20 /* or */ licenses.mit ];
           };
+        };
       in
       {
         packages.default = typeshare;

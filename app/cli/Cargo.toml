@@ -1,8 +1,12 @@
 [package]
-name = "typeshare-demo"
-version = "0.1.0"
+name = "typeshare-cli"
+version = "2.0.0"
 edition = "2021"
 
 [dependencies]
 typeshare-typescript = { path = "../langs/typescript" }
 typeshare-driver = { path = "../driver" }
+
+[[bin]]
+name = "typeshare2"
+path = "src/main.rs"

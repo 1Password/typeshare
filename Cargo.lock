@@ -155,6 +155,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap_complete"
+version = "4.5.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5c5508ea23c5366f77e53f5a0070e5a84e51687ec3ef9e0464c86dc8d13ce98"
+dependencies = [
+ "clap",
+]
+
+[[package]]
 name = "clap_derive"
 version = "4.5.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -601,8 +610,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "typeshare-demo"
-version = "0.1.0"
+name = "typeshare-cli"
+version = "2.0.0"
 dependencies = [
  "typeshare-driver",
  "typeshare-typescript",
@@ -614,6 +623,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "clap_complete",
  "ignore",
  "typeshare-engine",
  "typeshare-model",
@@ -625,6 +635,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "clap_complete",
  "cool_asserts",
  "ignore",
  "indent_write",

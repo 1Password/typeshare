@@ -10,6 +10,7 @@ members = [
   "app/driver",
   "app/cli",
 ]
+resolver = "2"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
@@ -33,7 +34,7 @@ targets = [
 
 [profile.release]
 lto = 'thin'
-opt-level = 2
+opt-level = 3
 debug-assertions = false
 codegen-units = 16
 incremental = true

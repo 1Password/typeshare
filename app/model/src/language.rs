@@ -103,17 +103,17 @@ language.write_struct(&mut file, parsed_struct);
 language.write_enum(&mut file, parsed_enum);
 ```
 
-    5a. In your implementations of these methods, we recommend that you call
-    `format_type` for the fields of these types. `format_type` will in turn call
-    `format_simple_type`, `format_generic_type`, or `format_special_type`, as
-    appropriate; usually it is only necessary for you to implmenent
-    `format_special_type` yourself, and use the default implementations for the
-    others. The `format_*` methods will otherwise never be called by typeshare.
+5a. In your implementations of these methods, we recommend that you call
+`format_type` for the fields of these types. `format_type` will in turn call
+`format_simple_type`, `format_generic_type`, or `format_special_type`, as
+appropriate; usually it is only necessary for you to implmenent
+`format_special_type` yourself, and use the default implementations for the
+others. The `format_*` methods will otherwise never be called by typeshare.
 
-    5b. If your language doesn't natively support data-containing enums, we
-    recommand that you call `write_types_for_anonymous_structs` in your
-    implementation of `write_enum`; this will call `write_struct` for each variant
-    of the enum.
+5b. If your language doesn't natively support data-containing enums, we
+recommand that you call `write_types_for_anonymous_structs` in your
+implementation of `write_enum`; this will call `write_struct` for each variant
+of the enum.
 
 7. After all the types are written, we call `end_file`.
 

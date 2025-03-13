@@ -11,47 +11,60 @@ pub enum OutputLocation<'a> {
 }
 
 #[derive(clap::Args, Debug)]
-#[group(required = true, multiple = false)]
+#[group(multiple = false, required = true)]
 pub struct Output {
-    /// The file to write all typeshare output to. When this flag is used, all
-    /// typeshare output will be into a single file. This it the typical way
-    /// typeshare is used.
-    #[arg(short, long)]
-    pub output_file: Option<PathBuf>,
+    /// File to write output to. mtime will be preserved if the file contents
+    /// don't change
+    #[arg(short = 'o', long = "output-file")]
+    pub file: Option<PathBuf>,
 
-    /// The directory into which to write all typeshare output. When this flag
-    /// is used, typeshare will emit one source file *per crate* from the
-    /// scanned rust code. Multi-file support is still somewhat unstable while
-    /// certain bugs are resolved.
-    #[arg(short = 'd', long)]
-    pub ouput_directory: Option<PathBuf>,
+    /// Folder to write output to. mtime will be preserved if the file contents
+    /// don't change
+    #[arg(short = 'd', long = "output-folder")]
+    pub directory: Option<PathBuf>,
 }
 
 impl Output {
     pub fn location(&self) -> OutputLocation<'_> {
-        match (&self.ouput_directory, &self.output_file) {
+        match (&self.directory, &self.file) {
             (Some(dir), None) => OutputLocation::Folder(dir),
             (None, Some(file)) => OutputLocation::File(file),
-            (None, None) => panic!("need either a file or a directory."),
+            (None, None) => panic!("got neither a file nor a directory; clap should prevent this"),
             (Some(dir), Some(file)) => {
-                panic!("got both file '{file:?}' and directory '{dir:?}'")
+                panic!("got both file '{file:?}' and directory '{dir:?}'; clap should prevent this")
             }
         }
     }
 }
 
 #[derive(clap::Parser, Debug)]
+#[command(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
 pub struct StandardArgs {
+    #[command(subcommand)]
+    pub subcommand: Option<Command>,
+
     /// Path to the config file for this typeshare
     #[arg(short, long, visible_alias("config-file"))]
     pub config: Option<PathBuf>,
 
+    /// The directories within which to recursively find and process rust files
+    #[arg(num_args(1..), required_unless_present="completions")]
+    pub directories: Vec<PathBuf>,
+
+    #[arg(long, exclusive(true))]
+    pub completions: Option<String>,
+
     #[command(flatten)]
     pub output: Output,
+}
 
-    /// The directories within which to recursively find and process rust files
-    #[arg(num_args(1..), required=true)]
-    pub directories: Vec<PathBuf>,
+#[derive(Debug, Clone, Copy, clap::Subcommand)]
+pub enum Command {
+    /// Generate shell completions
+    Completions {
+        /// The shell to generate the completions for
+        shell: clap_complete::Shell,
+    },
 }
 
 /// Add a `--lang` argument to the command. This argument will be optional if

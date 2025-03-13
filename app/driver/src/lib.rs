@@ -5,6 +5,7 @@ pub mod reexport {
 
     pub use anyhow;
     pub use clap;
+    pub use clap_complete;
     pub use ignore;
 }
 
@@ -12,19 +13,23 @@ pub mod reexport {
 macro_rules! typeshare_binary {
     ($($Language:ident),+ $(,)?) => {
         fn main() -> $crate::reexport::anyhow::Result<()> {
-            use ::std::collections::HashMap;
+            use ::std::{
+                collections::HashMap,
+                io,
+            };
 
             use $crate::reexport::{
                 anyhow::Context as _,
                 clap::{CommandFactory as _, FromArgMatches as _, Parser as _},
                 engine::{
-                    args::{add_language_params_to_clap, StandardArgs, add_lang_argument},
+                    args::{add_language_params_to_clap, StandardArgs, add_lang_argument, Command},
                     config::{compute_args_set, load_language_config_from_file, CliArgsSet, load_config},
                     parser::{parse_input, parser_inputs},
                     writer::write_output,
                 },
                 ignore::{types::TypesBuilder, WalkBuilder},
                 model::{prelude::FilesMode, Language as LanguageTrait},
+                clap_complete::generate as generate_completions,
             };
 
             #[allow(non_snake_case)]
@@ -50,14 +55,28 @@ macro_rules! typeshare_binary {
                 let command = add_language_params_to_clap(command, &language_metas.$Language);
             )*
 
-            // Parse command line arguments.
-            let args = command.get_matches();
+            // Parse command line arguments. Need to clone here because we
+            // need to be able to generate completions later.
+            let args = command.clone().get_matches();
 
             // Load the standard arguments from the parsed arguments. Generally
             // we expect that this won't fail, because the `command` has been
             // configured to only give us valid arrangements of args
             let standard_args = StandardArgs::from_arg_matches(&args)
                 .expect("StandardArgs should always be loadable from a `command`");
+
+            // If we asked for completions, do that before anything else
+            if let Some(options) = standard_args.subcommand {
+                match options {
+                    Command::Completions { shell } => {
+                        let mut command = command;
+                        let bin_name = command.get_name().to_string();
+                        generate_completions(shell, &mut command, bin_name, &mut io::stdout());
+                    }
+                }
+
+                return Ok(());
+            }
 
             // Load all of the language configurations
             let config = load_config(standard_args.config.as_deref())?;
@@ -89,7 +108,7 @@ macro_rules! typeshare_binary {
             let data = parse_input(
                 parser_inputs,
                 &[],
-                if standard_args.output.output_file.is_some() {
+                if standard_args.output.file.is_some() {
                     FilesMode::Single
                 } else {
                     FilesMode::Multi(())
