@@ -26,7 +26,7 @@
           nativeBuildInputs = [ pkgs.installShellFiles ];
 
           postInstall = ''
-            installShellCompletion --cmd typeshare \
+            installShellCompletion --cmd typeshare2 \
               --bash <($out/bin/typeshare2 completions bash) \
               --fish <($out/bin/typeshare2 completions fish) \
               --zsh <($out/bin/typeshare2 completions zsh)
@@ -35,7 +35,8 @@
           meta = {
             description = "Command Line Tool for generating language files with typeshare";
             homepage = "https://github.com/1password/typeshare";
-            changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
+            # TODO: restore this
+            # changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
             license = let licenses = pkgs.lib.licenses; in [licenses.asl20 /* or */ licenses.mit ];
           };
         };
