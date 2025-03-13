@@ -18,8 +18,9 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        typeshare = pkgs.rustPlatform.buildRustPackage rec {
-          pname = "typeshare";
+      in {
+        packages.default = pkgs.rustPlatform.buildRustPackage {
+          pname = "typeshare2";
           version = (builtins.fromTOML (builtins.readFile ./app/cli/Cargo.toml)).package.version;
           src = pkgs.lib.cleanSource ./.;
           cargoLock = { lockFile = ./Cargo.lock; };
@@ -40,8 +41,6 @@
             license = let licenses = pkgs.lib.licenses; in [licenses.asl20 /* or */ licenses.mit ];
           };
         };
-      in
-      {
-        packages.default = typeshare;
-      });
+      }
+    );
 }
