@@ -13,3 +13,6 @@ dist/
 # IDE specific files
 .idea/
 .vscode/
+
+# `nix build` output goes here
+/result

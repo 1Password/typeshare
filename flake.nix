@@ -27,9 +27,9 @@
 
           postInstall = ''
             installShellCompletion --cmd typeshare \
-              --bash <($out/bin/typeshare completions bash) \
-              --fish <($out/bin/typeshare completions fish) \
-              --zsh <($out/bin/typeshare completions zsh)
+              --bash <($out/bin/typeshare2 completions bash) \
+              --fish <($out/bin/typeshare2 completions fish) \
+              --zsh <($out/bin/typeshare2 completions zsh)
           '';
 
           meta = {
