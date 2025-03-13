@@ -10,4 +10,4 @@ joinery = "3.1.0"
 lazy_format = "2.0.3"
 serde = { version = "1.0.217", features = ["derive"] }
 thiserror = "2.0.10"
-typeshare-model = { path = "../../typeshare-model" }
+typeshare-model = { path = "../../model" }

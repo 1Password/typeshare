@@ -1,6 +1,15 @@
 [workspace]
-members = ["annotation", "cli", "core", "lib"]
-resolver = "2"
+members = [
+  "lib/annotation",
+  "lib",
+
+  "app/langs/swift",
+  "app/langs/typescript",
+  "app/model",
+  "app/engine",
+  "app/driver",
+  "app/cli",
+]
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

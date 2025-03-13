@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-typeshare-model = { path = "../../typeshare-model" }
+typeshare-model = { path = "../../model" }

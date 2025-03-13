@@ -1,0 +1,8 @@
+[package]
+name = "typeshare-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+typeshare-typescript = { path = "../langs/typescript" }
+typeshare-driver = { path = "../driver" }

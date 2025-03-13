@@ -1,19 +1,31 @@
+#[doc(hidden)]
+pub mod reexport {
+    pub use typeshare_engine as engine;
+    pub use typeshare_model as model;
+
+    pub use anyhow;
+    pub use clap;
+    pub use ignore;
+}
+
 #[macro_export]
 macro_rules! typeshare_binary {
     ($($Language:ident),+ $(,)?) => {
-        fn main() -> ::anyhow::Result<()> {
+        fn main() -> $crate::reexport::anyhow::Result<()> {
             use ::std::collections::HashMap;
 
-            use ::clap::{Parser as _, CommandFactory as _, FromArgMatches as _};
-            use ::ignore::{types::TypesBuilder, WalkBuilder};
-            use ::anyhow::Context as _;
-
-            use ::typeshare_model::Language as LanguageTrait;
-            use ::typeshare_model::prelude::FilesMode;
-            use ::typeshare_engine::config::{compute_args_set, load_language_config_from_file, CliArgsSet};
-            use ::typeshare_engine::args::{add_language_params_to_clap, StandardArgs};
-            use ::typeshare_engine::writer::write_output;
-            use ::typeshare_engine::parser::{parser_inputs, parse_input};
+            use $crate::reexport::{
+                anyhow::Context as _,
+                clap::{CommandFactory as _, FromArgMatches as _, Parser as _},
+                engine::{
+                    args::{add_language_params_to_clap, StandardArgs, add_lang_argument},
+                    config::{compute_args_set, load_language_config_from_file, CliArgsSet, load_config},
+                    parser::{parse_input, parser_inputs},
+                    writer::write_output,
+                },
+                ignore::{types::TypesBuilder, WalkBuilder},
+                model::{prelude::FilesMode, Language as LanguageTrait},
+            };
 
             #[allow(non_snake_case)]
             struct LangArgsSets {
@@ -32,19 +44,14 @@ macro_rules! typeshare_binary {
             //     .author(personalize.author)
             //     .about(personalize.about);
 
-            let command = ::typeshare_engine::args::add_lang_argument(command, &[$($Language::NAME,)*]);
+            let command = add_lang_argument(command, &[$($Language::NAME,)*]);
 
             $(
-                eprintln!("{:#?}", &language_metas.$Language);
                 let command = add_language_params_to_clap(command, &language_metas.$Language);
             )*
 
-            eprintln!("{command:#?}");
-
             // Parse command line arguments.
             let args = command.get_matches();
-
-            eprintln!("{args:#?}");
 
             // Load the standard arguments from the parsed arguments. Generally
             // we expect that this won't fail, because the `command` has been
@@ -52,10 +59,8 @@ macro_rules! typeshare_binary {
             let standard_args = StandardArgs::from_arg_matches(&args)
                 .expect("StandardArgs should always be loadable from a `command`");
 
-            eprintln!("{standard_args:#?}");
-
             // Load all of the language configurations
-            let config = ::typeshare_engine::config::load_config(standard_args.config.as_deref())?;
+            let config = load_config(standard_args.config.as_deref())?;
 
             // Construct the directory walker that will produce the list of
             // files to typeshare

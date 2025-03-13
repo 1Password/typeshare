@@ -1,0 +1,12 @@
+[package]
+name = "typeshare-driver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ignore = "0.4.23"
+clap = "4.5.28"
+anyhow = "1.0.96"
+
+typeshare-engine = { version = "0.1.0", path = "../engine" }
+typeshare-model = { version = "0.1.0", path = "../model" }
