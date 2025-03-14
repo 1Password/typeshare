@@ -16,9 +16,9 @@ export const ReviverFunc = (key: string, value: unknown): unknown => {
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value as string) && (key == "time" || key == "time2" || key == "time3")) {
         return new Date(value as string);
     }
-if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
-            return new Uint8Array(value);
-        }
+	if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
+        return new Uint8Array(value);
+    }
     return value;
 };
 
@@ -26,8 +26,8 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {
     if (value instanceof Date) {
         return value.toISOString();
     }
-if (value instanceof Uint8Array) {
-            return Array.from(value);
-        }
+	if (value instanceof Uint8Array) {
+        return Array.from(value);
+    }
     return value;
 };

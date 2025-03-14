@@ -65,11 +65,11 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
                 custom_translation_content
                     .iter()
                     .map(|custom_json_translation| &custom_json_translation.reviver)
-                    .join("\n"),
+                    .join("\n\t"),
                 custom_translation_content
                     .iter()
                     .map(|custom_json_translation| &custom_json_translation.replacer)
-                    .join("\n")
+                    .join("\n\t")
             );
         }
         Ok(())
@@ -403,11 +403,11 @@ impl TypeScript {
             (
                 CustomJsonTranslationContent{
                     reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
-            return new Uint8Array(value);
-        }"#.to_owned(),
+        return new Uint8Array(value);
+    }"#.to_owned(),
                     replacer: r#"if (value instanceof Uint8Array) {
-            return Array.from(value);
-        }"#.to_owned()
+        return Array.from(value);
+    }"#.to_owned()
                 }
                     )),
                     (

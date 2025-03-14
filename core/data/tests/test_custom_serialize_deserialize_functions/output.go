@@ -1,8 +1,8 @@
 package proto
 
 import (
-    "encoding/json,
-	time"
+    "encoding/json"
+	"time"
 )
 
 type Foo struct {

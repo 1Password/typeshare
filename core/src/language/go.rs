@@ -555,7 +555,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             r#"import (
     "{}"
 )"#,
-            self.imports.clone().join_with(",\n\t")
+            self.imports.clone().join_with("\"\n\t\"")
         )?;
         writeln!(w)
     }
