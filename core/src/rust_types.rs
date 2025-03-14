@@ -249,6 +249,12 @@ pub enum SpecialRustType {
     HashMap(Box<RustType>, Box<RustType>),
     /// Represents `Option<T>` from the standard library
     Option(Box<RustType>),
+    /// Represents time::OffsetDateTime from time
+    /// We serialize/deserialize this to an UTC time specifically
+    /// encoded in the RFC3339 or ISO8601 format.
+    /// This should be used with serde's with tag when serializing/deserializing
+    /// like so #[serde(with = "time::serde::rfc3339")]
+    DateTime,
     /// Represents `()`
     Unit,
     /// Represents `String` from the standard library
@@ -369,6 +375,7 @@ impl TryFrom<&syn::Type> for RustType {
                             params.next().unwrap().into(),
                         ))
                     }
+                    "OffsetDateTime" => Self::Special(SpecialRustType::DateTime),
                     "str" | "String" => Self::Special(SpecialRustType::String),
                     // These smart pointers can be treated as their inner type since serde can handle it
                     // See impls of serde::Deserialize
@@ -536,6 +543,8 @@ pub enum RustTypeFormatError {
     GenericsForbiddenInGo(String),
     #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
     GenericKeyForbiddenInTS(String),
+    #[error("The special type `{0}` is not supported in this language")]
+    UnsupportedSpecialType(String),
 }
 
 impl SpecialRustType {
@@ -548,6 +557,7 @@ impl SpecialRustType {
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
             Self::Unit
             | Self::String
+            | Self::DateTime
             | Self::Char
             | Self::I8
             | Self::I16
@@ -578,6 +588,7 @@ impl SpecialRustType {
             Self::Slice(_) => "&[]",
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
+            Self::DateTime => "OffsetDateTime",
             Self::String => "String",
             Self::Char => "char",
             Self::Bool => "bool",
@@ -608,6 +619,7 @@ impl SpecialRustType {
             }
             Self::Unit
             | Self::String
+            | Self::DateTime
             | Self::Char
             | Self::I8
             | Self::I16

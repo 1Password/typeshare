@@ -215,6 +215,12 @@ impl Language for Swift {
             SpecialRustType::Bool => "Bool".into(),
             SpecialRustType::F32 => "Float".into(),
             SpecialRustType::F64 => "Double".into(),
+            // TODO: https://github.com/1Password/typeshare/issues/237
+            SpecialRustType::DateTime => {
+                return Err(RustTypeFormatError::UnsupportedSpecialType(
+                    special_ty.to_string(),
+                ))
+            }
         })
     }
 

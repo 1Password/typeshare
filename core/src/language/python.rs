@@ -16,6 +16,7 @@ use std::{collections::HashMap, io::Write};
 use super::CrateTypes;
 
 use convert_case::{Case, Casing};
+use itertools::Itertools;
 
 // Utility function from the original author of supporting Python
 // Since we won't be supporting generics right now, this function is unused and is left here for future reference
@@ -140,6 +141,7 @@ impl Language for Python {
 
         self.types_for_custom_json_translation
             .iter()
+            .sorted()
             .filter_map(|py_type| json_translation_for_type(py_type))
             .map(|custom_translation_functions| {
                 format!(
@@ -235,6 +237,10 @@ impl Language for Python {
                     },
                     self.format_type(rtype2, generic_types)?
                 ))
+            }
+            SpecialRustType::DateTime => {
+                self.add_import("datetime".to_string(), "datetime".to_string());
+                Ok("datetime".into())
             }
             SpecialRustType::Unit => Ok("None".into()),
             SpecialRustType::String | SpecialRustType::Char => Ok("str".into()),
@@ -453,6 +459,8 @@ impl Python {
             field_type = format!("Optional[{field_type}]");
         }
         if let Some(custom_translation) = custom_translations {
+            self.types_for_custom_json_translation
+                .insert(field_type.clone());
             field_type = format!(
                 "Annotated[{field_type}, BeforeValidator({}), PlainSerializer({})]",
                 custom_translation.deserialization_name, custom_translation.serialization_name
@@ -749,15 +757,16 @@ fn handle_model_config(w: &mut dyn Write, python_module: &mut Python, fields: &[
 /// acquires custom translation function names if custom serialize/deserialize functions are needed
 fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationFunctions> {
     // if more custom serialization/deserialization is needed, we can add it here and in the hashmap below
-    let custom_translations = HashMap::from([(
-        "bytes",
-        CustomJsonTranslationFunctions {
-            serialization_name: "serialize_binary_data".to_owned(),
-            serialization_content: r#"def serialize_binary_data(value: bytes) -> list[int]:
+    let custom_translations = HashMap::from([
+        (
+            "bytes",
+            CustomJsonTranslationFunctions {
+                serialization_name: "serialize_binary_data".to_owned(),
+                serialization_content: r#"def serialize_binary_data(value: bytes) -> list[int]:
         return list(value)"#
-                .to_owned(),
-            deserialization_name: "deserialize_binary_data".to_owned(),
-            deserialization_content: r#"def deserialize_binary_data(value):
+                    .to_owned(),
+                deserialization_name: "deserialize_binary_data".to_owned(),
+                deserialization_content: r#"def deserialize_binary_data(value):
      if isinstance(value, list):
          if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
             return bytes(value)
@@ -765,9 +774,34 @@ fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationF
      elif isinstance(value, bytes):
             return value
      raise TypeError("Content must be a list of integers (0-255) or bytes.")"#
-                .to_owned(),
-        },
-    )]);
+                    .to_owned(),
+            },
+        ),
+        (
+            "datetime",
+            CustomJsonTranslationFunctions {
+                serialization_name: "serialize_datetime_data".to_owned(),
+                serialization_content: r#"def serialize_datetime_data(utc_time: datetime) -> str:
+        return utc_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")"#
+                    .to_owned(),
+                deserialization_name: "parse_rfc3339".to_owned(),
+                deserialization_content: r#"def parse_rfc3339(date_str: str) -> datetime:
+    date_formats = [
+        "%Y-%m-%dT%H:%M:%SZ",   
+        "%Y-%m-%dT%H:%M:%S.%fZ"
+    ]
+    
+    for fmt in date_formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    
+    raise ValueError(f"Invalid RFC 3339 date format: {date_str}")"#
+                    .to_owned(),
+            },
+        ),
+    ]);
 
     custom_translations
         .get(python_type)

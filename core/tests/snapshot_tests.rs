@@ -689,8 +689,7 @@ tests! {
     excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
     serde_rename_references: [ swift, kotlin, scala, typescript, go ];
-    test_byte_translation: [
-    go
+    test_custom_serialize_deserialize_functions: [    go
     {
         type_mappings: super::GO_MAPPINGS.clone(),
     },
@@ -703,4 +702,5 @@ tests! {
         type_mappings: super::TYPESCRIPT_MAPPINGS.clone(),
     }
     ];
+
 }

@@ -9,7 +9,7 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::CrateTypes;
 
@@ -18,6 +18,8 @@ use super::CrateTypes;
 pub struct Go {
     /// Name of the Go package.
     pub package: String,
+    /// BTreeSet<PackageName>
+    pub imports: BTreeSet<String>,
     /// Conversions from Rust type names to Go type names.
     pub type_mappings: HashMap<String, String>,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.
@@ -93,16 +95,17 @@ impl Language for Go {
             }
         }
 
+        let mut body: Vec<u8> = Vec::new();
         for thing in &items {
             match thing {
-                RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
-                RustItem::Struct(s) => self.write_struct(w, s)?,
-                RustItem::Alias(a) => self.write_type_alias(w, a)?,
-                RustItem::Const(c) => self.write_const(w, c)?,
+                RustItem::Enum(e) => self.write_enum(&mut body, e, &types_mapping_to_struct)?,
+                RustItem::Struct(s) => self.write_struct(&mut body, s)?,
+                RustItem::Alias(a) => self.write_type_alias(&mut body, a)?,
+                RustItem::Const(c) => self.write_const(&mut body, c)?,
             }
         }
-
-        self.end_file(w)
+        self.write_all_imports(w)?;
+        w.write_all(&body)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
@@ -162,6 +165,10 @@ impl Language for Go {
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
+            SpecialRustType::DateTime => {
+                self.add_import("time");
+                "time.Time".into()
+            }
         })
     }
 
@@ -176,8 +183,7 @@ impl Language for Go {
             )?;
         }
         writeln!(w, "package {}", self.package)?;
-        writeln!(w)?;
-        writeln!(w, "import \"encoding/json\"")?;
+        self.add_import("encoding/json");
         writeln!(w)?;
         Ok(())
     }
@@ -535,6 +541,27 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             name
         };
         self.acronyms_to_uppercase(&name)
+    }
+
+    fn add_import(&mut self, name: &str) {
+        self.imports.insert(name.to_string());
+    }
+
+    fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        let mut imports = self.imports.iter().cloned().collect::<Vec<String>>();
+        imports.sort();
+        match imports.as_slice() {
+            [] => return Ok(()),
+            [import] => writeln!(w, "import \"{import}\"")?,
+            _ => {
+                writeln!(w, "import (")?;
+                for import in imports {
+                    writeln!(w, "\t\"{import}\"")?;
+                }
+                writeln!(w, ")")?
+            }
+        }
+        writeln!(w)
     }
 }
 
