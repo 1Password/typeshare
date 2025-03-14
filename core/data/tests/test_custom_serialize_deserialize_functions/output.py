@@ -5,18 +5,6 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSeriali
 from typing import Annotated
 
 
-def serialize_binary_data(value: bytes) -> list[int]:
-        return list(value)
-
-def deserialize_binary_data(value):
-     if isinstance(value, list):
-         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
-            return bytes(value)
-         raise ValueError("All elements must be integers in the range 0-255 (u8).")
-     elif isinstance(value, bytes):
-            return value
-     raise TypeError("Content must be a list of integers (0-255) or bytes.")
-
 def serialize_datetime_data(utc_time: datetime) -> str:
         return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -33,6 +21,18 @@ def parse_rfc3339(date_str: str) -> datetime:
             continue
     
     raise ValueError(f"Invalid RFC 3339 date format: {date_str}")
+
+def serialize_binary_data(value: bytes) -> list[int]:
+        return list(value)
+
+def deserialize_binary_data(value):
+     if isinstance(value, list):
+         if all(isinstance(x, int) and 0 <= x <= 255 for x in value):
+            return bytes(value)
+         raise ValueError("All elements must be integers in the range 0-255 (u8).")
+     elif isinstance(value, bytes):
+            return value
+     raise TypeError("Content must be a list of integers (0-255) or bytes.")
 
 class Foo(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

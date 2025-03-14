@@ -1,7 +1,7 @@
 package proto
 
 import (
-    "encoding/json"
+	"encoding/json"
 )
 
 // Struct comment

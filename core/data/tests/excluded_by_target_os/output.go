@@ -1,7 +1,7 @@
 package proto
 
 import (
-    "encoding/json"
+	"encoding/json"
 )
 
 // A struct with no target_os. Should be generated when

@@ -1,7 +1,7 @@
 package proto
 
 import (
-    "encoding/json"
+	"encoding/json"
 )
 
 type ItemId string

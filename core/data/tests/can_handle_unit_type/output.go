@@ -1,7 +1,7 @@
 package proto
 
 import (
-    "encoding/json"
+	"encoding/json"
 )
 
 // This struct has a unit field

@@ -1,7 +1,5 @@
 use std::io::Write;
 
-use joinery::Joinable;
-
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
@@ -550,13 +548,13 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     }
 
     fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
-        writeln!(
-            w,
-            r#"import (
-    "{}"
-)"#,
-            self.imports.clone().join_with("\"\n\t\"")
-        )?;
+        let mut imports = self.imports.iter().cloned().collect::<Vec<String>>();
+        imports.sort();
+        writeln!(w, "import (")?;
+        for import in imports {
+            writeln!(w, "\t\"{import}\"")?;
+        }
+        writeln!(w, ")")?;
         writeln!(w)
     }
 }
