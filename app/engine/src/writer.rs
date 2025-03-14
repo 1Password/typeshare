@@ -12,7 +12,7 @@ use typeshare_model::prelude::*;
 pub fn write_output<'c>(
     lang: &impl Language<'c>,
     mut crate_parsed_data: HashMap<CrateName, ParsedData>,
-    dest: OutputLocation<'_>,
+    dest: &OutputLocation<'_>,
 ) -> anyhow::Result<()> {
     match dest {
         OutputLocation::File(file) => {
