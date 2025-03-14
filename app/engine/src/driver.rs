@@ -211,7 +211,6 @@ where
 
     // Load all of the language configurations
     let config = load_config(standard_args.config.as_deref())?;
-    let language_metas = language_metas;
 
     // Construct the directory walker that will produce the list of
     // files to typeshare

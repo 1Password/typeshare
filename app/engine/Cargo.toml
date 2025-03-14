@@ -5,11 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
-clap = { version = "4.5", default-features = false, features = [
-    "std",
-    "derive",
-    "string",
-] }
+clap = { version = "4.5", features = ["std", "derive", "string"] }
 clap_complete = "4.5.32"
 ignore = "0.4.23"
 indent_write = "2.2.0"
