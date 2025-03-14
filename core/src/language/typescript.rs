@@ -43,8 +43,9 @@ impl Language for TypeScript {
         if !self.types_for_custom_json_translation.is_empty() {
             let custom_translation_content = self
                 .types_for_custom_json_translation
-                .keys()
-                .filter_map(|ts_type| self.custom_translations(ts_type))
+                .iter()
+                .sorted()
+                .filter_map(|(ts_type,..)| self.custom_translations(ts_type))
                 .collect::<Vec<CustomJsonTranslationContent>>();
             self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
             "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),

@@ -16,6 +16,7 @@ use std::{collections::HashMap, io::Write};
 use super::CrateTypes;
 
 use convert_case::{Case, Casing};
+use itertools::Itertools;
 
 // Utility function from the original author of supporting Python
 // Since we won't be supporting generics right now, this function is unused and is left here for future reference
@@ -140,6 +141,7 @@ impl Language for Python {
 
         self.types_for_custom_json_translation
             .iter()
+            .sorted()
             .filter_map(|py_type| json_translation_for_type(py_type))
             .map(|custom_translation_functions| {
                 format!(
