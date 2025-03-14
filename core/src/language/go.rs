@@ -9,7 +9,7 @@ use crate::{
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::CrateTypes;
 
@@ -18,8 +18,8 @@ use super::CrateTypes;
 pub struct Go {
     /// Name of the Go package.
     pub package: String,
-    /// HashMap<ModuleName, HashSet<Identifier>
-    pub imports: HashSet<String>,
+    /// BTreeSet<PackageName>
+    pub imports: BTreeSet<String>,
     /// Conversions from Rust type names to Go type names.
     pub type_mappings: HashMap<String, String>,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.

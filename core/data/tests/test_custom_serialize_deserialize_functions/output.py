@@ -18,7 +18,7 @@ def deserialize_binary_data(value):
      raise TypeError("Content must be a list of integers (0-255) or bytes.")
 
 def serialize_datetime_data(utc_time: datetime) -> str:
-        return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return utc_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 def parse_rfc3339(date_str: str) -> datetime:
     date_formats = [

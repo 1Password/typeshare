@@ -6,7 +6,7 @@ from typing import Annotated
 
 
 def serialize_datetime_data(utc_time: datetime) -> str:
-        return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return utc_time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 def parse_rfc3339(date_str: str) -> datetime:
     date_formats = [
