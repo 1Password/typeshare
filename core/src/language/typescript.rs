@@ -397,7 +397,12 @@ impl TypeScript {
             .types_for_custom_json_translation
             .get(ts_type)
             .filter(|ids| !ids.is_empty())
-            .map(|ids| format!(" && (key == \"{}\")", ids.join("\" || key == \"")));
+            .map(|ids| {
+                format!(
+                    " && ({})",
+                    ids.iter().map(|id| format!("key == \"{id}\"")).join(" || ")
+                )
+            });
 
         let custom_translations = HashMap::from([(
             "Uint8Array",
@@ -417,8 +422,8 @@ impl TypeScript {
                             replacer: r#"if (value instanceof Date) {
         return value.toISOString();
     }"#.to_owned(),
-                            reviver: format!(r#"if (/^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}(\.\d+)?Z$/.test(value as string){}) {{
-        return new Date(value as string);
+                            reviver: format!(r#"if (typeof value === "string" && /^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}(\.\d+)?Z$/.test(value){}) {{
+        return new Date(value);
     }}"#, id.unwrap_or_default())
                         }
                     )]);
