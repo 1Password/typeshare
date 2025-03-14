@@ -166,7 +166,7 @@ impl Language for Go {
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
             SpecialRustType::DateTime => {
-                self.write_import("time");
+                self.add_import("time");
                 "time.Time".into()
             }
         })
@@ -183,7 +183,7 @@ impl Language for Go {
             )?;
         }
         writeln!(w, "package {}", self.package)?;
-        self.write_import("encoding/json");
+        self.add_import("encoding/json");
         writeln!(w)?;
         Ok(())
     }
@@ -543,7 +543,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         self.acronyms_to_uppercase(&name)
     }
 
-    fn write_import(&mut self, name: &str) {
+    fn add_import(&mut self, name: &str) {
         self.imports.insert(name.to_string());
     }
 
