@@ -12,3 +12,7 @@ type Foo struct {
 	Bytes []byte `json:"bytes"`
 	Bytes2 []byte `json:"bytes2"`
 }
+type TwoFoo struct {
+	Time time.Time `json:"time"`
+	Bytes []byte `json:"bytes"`
+}

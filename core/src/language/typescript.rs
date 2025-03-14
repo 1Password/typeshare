@@ -9,6 +9,7 @@ use crate::{
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
+use std::collections::{BTreeMap, BTreeSet};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -25,7 +26,7 @@ pub struct TypeScript {
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
     /// Carries the unique set of types for custom json translation
-    pub types_for_custom_json_translation: HashMap<String, Vec<String>>,
+    pub types_for_custom_json_translation: BTreeMap<String, BTreeSet<String>>,
 }
 
 #[derive(Clone)]
@@ -44,7 +45,6 @@ impl Language for TypeScript {
             let custom_translation_content = self
                 .types_for_custom_json_translation
                 .iter()
-                .sorted()
                 .filter_map(|(ts_type, ..)| self.custom_translations(ts_type))
                 .collect::<Vec<CustomJsonTranslationContent>>();
             self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
@@ -83,7 +83,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
         if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
             if self.custom_translations(mapped).is_some() {
                 self.types_for_custom_json_translation
-                    .insert(mapped.to_string(), Vec::new());
+                    .insert(mapped.to_string(), BTreeSet::new());
             }
             return Ok(mapped.to_owned());
         }
@@ -340,8 +340,11 @@ impl TypeScript {
         if self.custom_translations(&ts_ty).is_some() {
             self.types_for_custom_json_translation
                 .entry(ts_ty.clone())
-                .and_modify(|ids| ids.push(field.id.renamed.clone()))
-                .or_insert_with(|| vec![field.id.renamed.clone()]);
+                .and_modify(|ids| {
+                    ids.insert(field.id.renamed.clone());
+                })
+                .or_default()
+                .insert(field.id.renamed.clone());
         }
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();

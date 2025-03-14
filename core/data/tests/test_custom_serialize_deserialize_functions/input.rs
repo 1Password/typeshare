@@ -7,3 +7,10 @@ pub struct Foo {
     pub bytes: Vec<u8>,
     pub bytes2: Vec<u8>
 }
+
+#[typeshare]
+#[serde(rename_all = "camelCase")]
+pub struct TwoFoo {
+    pub time: time::OffsetDateTime,
+    pub bytes: Vec<u8>,
+}

@@ -43,3 +43,7 @@ class Foo(BaseModel):
     bytes: Annotated[bytes, BeforeValidator(deserialize_binary_data), PlainSerializer(serialize_binary_data)]
     bytes_2: Annotated[bytes, BeforeValidator(deserialize_binary_data), PlainSerializer(serialize_binary_data)] = Field(alias="bytes2")
 
+class TwoFoo(BaseModel):
+    time: Annotated[datetime, BeforeValidator(parse_rfc3339), PlainSerializer(serialize_datetime_data)]
+    bytes: Annotated[bytes, BeforeValidator(deserialize_binary_data), PlainSerializer(serialize_binary_data)]
+

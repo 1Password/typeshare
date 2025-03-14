@@ -6,6 +6,11 @@ export interface Foo {
 	bytes2: Uint8Array;
 }
 
+export interface TwoFoo {
+	time: Date;
+	bytes: Uint8Array;
+}
+
 /**
  * Custom JSON reviver and replacer functions for dynamic data transformation
  * ReviverFunc is used during JSON parsing to detect and transform specific data structures
