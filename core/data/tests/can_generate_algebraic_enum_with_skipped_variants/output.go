@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type SomeEnumTypes string
 const (
 	SomeEnumTypeVariantA SomeEnumTypes = "A"

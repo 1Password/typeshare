@@ -551,17 +551,17 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
         let mut imports = self.imports.iter().cloned().collect::<Vec<String>>();
         imports.sort();
         match imports.as_slice() {
-            [] => Ok(()),
-            [import] => writeln!(w, "import \"{import}\""),
+            [] => return Ok(()),
+            [import] => writeln!(w, "import \"{import}\"")?,
             _ => {
                 writeln!(w, "import (")?;
                 for import in imports {
                     writeln!(w, "\t\"{import}\"")?;
                 }
-                writeln!(w, ")")?;
-                writeln!(w)
+                writeln!(w, ")")?
             }
         }
+        writeln!(w)
     }
 }
 

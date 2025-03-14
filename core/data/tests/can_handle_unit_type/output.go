@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 // This struct has a unit field
 type StructHasVoidType struct {
 	ThisIsAUnit struct{} `json:"thisIsAUnit"`

@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type AddressDetails struct {
 }
 type AddressTypes string

@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type OptionalU16 *int
 
 type OptionalU32 *uint32

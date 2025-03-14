@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type AccountID string
 
 type Foo struct {

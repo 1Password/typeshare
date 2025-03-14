@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type ItemDetailsFieldValue struct {
 	Hello string `json:"hello"`
 }

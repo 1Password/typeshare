@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type CustomType struct {
 }
 type Types struct {

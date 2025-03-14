@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 // A struct with no target_os. Should be generated when
 // we use --target-os.
 type AlwaysAccept struct {

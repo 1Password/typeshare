@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type ItemDetailsFieldValue struct {
 }
 type AdvancedColorsTypes string

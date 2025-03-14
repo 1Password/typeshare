@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type AliasTest []SomethingFoo
 
 type Test struct {

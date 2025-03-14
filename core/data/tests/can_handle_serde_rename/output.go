@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type OtherType struct {
 }
 // This is a comment.

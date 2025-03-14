@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type OverrideStruct struct {
 	FieldToOverride uint `json:"fieldToOverride"`
 }

@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type QualifiedTypes struct {
 	Unqualified string `json:"unqualified"`
 	Qualified string `json:"qualified"`

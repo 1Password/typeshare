@@ -1,6 +1,7 @@
 package proto
 
 import "encoding/json"
+
 type Location struct {
 }
 // This is a comment.
