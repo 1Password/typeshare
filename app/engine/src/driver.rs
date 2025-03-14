@@ -10,7 +10,7 @@ use crate::config::load_config;
 use crate::parser::{parse_input, parser_inputs};
 use crate::{
     args::{add_lang_argument, add_language_params_to_clap, Command, OutputLocation, StandardArgs},
-    config::{self, compute_args_set, load_language_config_from_file, CliArgsSet},
+    config::{self, compute_args_set, load_language_config_from_file_and_args, CliArgsSet},
     writer::write_output,
 };
 
@@ -123,23 +123,13 @@ macro_rules! language_set_for {
 
                 $(
                     if language == <$Language as Language>::NAME {
-                        let name = <$Language as Language>::NAME;
-
-                        let config = load_language_config_from_file::<$Language>(
-                            &config,
-                            &args,
+                        execute_typeshare_for_language::<$Language>(
+                            config,
+                            args,
                             $Language,
-                        ).with_context(|| format!(
-                            "failed to load configuration for language {name}"
-                        ))?;
-
-                        let language_implementation = <$Language>::new_from_config(config)
-                            .with_context(|| format!("failed to load configuration for language {name}"))?;
-
-                        write_output(&language_implementation, data, destination)
-                            .with_context(|| format!("failed to generate typeshared code for language {name}"))?;
-
-                        Ok(())
+                            data,
+                            destination
+                        )
                     } else
                 )*
                 {
@@ -148,6 +138,27 @@ macro_rules! language_set_for {
             }
         }
     }
+}
+
+fn execute_typeshare_for_language<'config, 'a: 'config, L: Language<'config>>(
+    config: &'config config::Config,
+    args: &'config clap::ArgMatches,
+    meta: &'a CliArgsSet,
+    data: HashMap<CrateName, ParsedData>,
+    destination: &OutputLocation<'_>,
+) -> anyhow::Result<()> {
+    let name = L::NAME;
+
+    let config = load_language_config_from_file_and_args::<L>(&config, &args, meta)
+        .with_context(|| format!("failed to load configuration for language {name}"))?;
+
+    let language_implementation = <L>::new_from_config(config)
+        .with_context(|| format!("failed to load configuration for language {name}"))?;
+
+    write_output(&language_implementation, data, destination)
+        .with_context(|| format!("failed to generate typeshared code for language {name}"))?;
+
+    Ok(())
 }
 
 // We support typeshare binaries for up to 16 languages. Fork us and make your
