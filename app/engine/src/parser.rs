@@ -27,6 +27,7 @@ const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
 
 /// Input data for parsing each source file.
+#[derive(Debug)]
 pub struct ParserInput {
     /// Rust source file path.
     file_path: PathBuf,

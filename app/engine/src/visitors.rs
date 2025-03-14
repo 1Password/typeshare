@@ -233,10 +233,6 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         // syn::visit::visit_path(self, p);
     }
 
-    fn visit_item(&mut self, i: &'ast syn::Item) {
-        
-    }
-
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
         // TODO: implement this as a part of import detection.
