@@ -2,7 +2,6 @@ package proto
 
 import (
     "encoding/json"
-    "time"
 )
 
 type OverrideStruct struct {

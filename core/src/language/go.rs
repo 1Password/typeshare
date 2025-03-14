@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use joinery::Joinable;
+
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
@@ -18,6 +20,8 @@ use super::CrateTypes;
 pub struct Go {
     /// Name of the Go package.
     pub package: String,
+    /// HashMap<ModuleName, HashSet<Identifier>
+    pub imports: HashSet<String>,
     /// Conversions from Rust type names to Go type names.
     pub type_mappings: HashMap<String, String>,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.
@@ -93,16 +97,17 @@ impl Language for Go {
             }
         }
 
+        let mut body: Vec<u8> = Vec::new();
         for thing in &items {
             match thing {
-                RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
-                RustItem::Struct(s) => self.write_struct(w, s)?,
-                RustItem::Alias(a) => self.write_type_alias(w, a)?,
-                RustItem::Const(c) => self.write_const(w, c)?,
+                RustItem::Enum(e) => self.write_enum(&mut body, e, &types_mapping_to_struct)?,
+                RustItem::Struct(s) => self.write_struct(&mut body, s)?,
+                RustItem::Alias(a) => self.write_type_alias(&mut body, a)?,
+                RustItem::Const(c) => self.write_const(&mut body, c)?,
             }
         }
-
-        self.end_file(w)
+        self.write_all_imports(w)?;
+        w.write_all(&body)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
@@ -162,7 +167,10 @@ impl Language for Go {
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
-            SpecialRustType::DateTime => "time.Time".into(),
+            SpecialRustType::DateTime => {
+                self.write_import("time");
+                "time.Time".into()
+            }
         })
     }
 
@@ -177,14 +185,7 @@ impl Language for Go {
             )?;
         }
         writeln!(w, "package {}", self.package)?;
-        writeln!(w)?;
-        writeln!(
-            w,
-            r#"import (
-    "encoding/json"
-    "time"
-)"#
-        )?;
+        self.write_import("encoding/json");
         writeln!(w)?;
         Ok(())
     }
@@ -542,6 +543,21 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             name
         };
         self.acronyms_to_uppercase(&name)
+    }
+
+    fn write_import(&mut self, name: &str) {
+        self.imports.insert(name.to_string());
+    }
+
+    fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        writeln!(
+            w,
+            r#"import (
+    "{}"
+)"#,
+            self.imports.clone().join_with(",\n\t")
+        )?;
+        writeln!(w)
     }
 }
 

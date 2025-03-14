@@ -2,7 +2,6 @@ package proto
 
 import (
     "encoding/json"
-    "time"
 )
 
 // Generated type representing the anonymous struct variant `List` of the `AnonymousStructWithRename` Rust enum

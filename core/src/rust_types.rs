@@ -250,6 +250,10 @@ pub enum SpecialRustType {
     /// Represents `Option<T>` from the standard library
     Option(Box<RustType>),
     /// Represents time::OffsetDateTime from time
+    /// We serialize/deserialize this to an UTC time specifically
+    /// encoded in the RFC3339 or ISO8601 format.
+    /// This should be used with serde's with tag when serializing/deserializing
+    /// like so #[serde(with = "time::serde::rfc3339")]
     DateTime,
     /// Represents `()`
     Unit,
