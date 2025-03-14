@@ -48,7 +48,7 @@ pub struct StandardArgs {
     pub config: Option<PathBuf>,
 
     /// The directories within which to recursively find and process rust files
-    #[arg(num_args(1..), required_unless_present="completions")]
+    #[arg(num_args(1..), required=true)]
     pub directories: Vec<PathBuf>,
 
     #[arg(long, exclusive(true))]
