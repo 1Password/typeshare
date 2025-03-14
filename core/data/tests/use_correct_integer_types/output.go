@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 // This is a comment.
 type Foo struct {
 	A int `json:"a"`

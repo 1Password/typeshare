@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 // Generated type representing the anonymous struct variant `Us` of the `AutofilledBy` Rust enum
 type AutofilledByUsInner struct {
 	// The UUID for the fill

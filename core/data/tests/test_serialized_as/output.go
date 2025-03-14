@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 type ItemId string
 
 // Options that you could pick

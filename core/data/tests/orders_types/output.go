@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 type A struct {
 	Field uint32 `json:"field"`
 }

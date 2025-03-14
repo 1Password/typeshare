@@ -550,12 +550,18 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
     fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
         let mut imports = self.imports.iter().cloned().collect::<Vec<String>>();
         imports.sort();
-        writeln!(w, "import (")?;
-        for import in imports {
-            writeln!(w, "\t\"{import}\"")?;
+        match imports.as_slice() {
+            [] => Ok(()),
+            [import] => writeln!(w, "import \"{import}\""),
+            _ => {
+                writeln!(w, "import (")?;
+                for import in imports {
+                    writeln!(w, "\t\"{import}\"")?;
+                }
+                writeln!(w, ")")?;
+                writeln!(w)
+            }
         }
-        writeln!(w, ")")?;
-        writeln!(w)
     }
 }
 

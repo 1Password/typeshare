@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 // Generated type representing the anonymous struct variant `Exactly` of the `MoreOptions` Rust enum
 type MoreOptionsExactlyInner struct {
 	Config string `json:"config"`

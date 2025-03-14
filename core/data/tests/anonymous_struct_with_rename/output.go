@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 // Generated type representing the anonymous struct variant `List` of the `AnonymousStructWithRename` Rust enum
 type AnonymousStructWithRenameListInner struct {
 	List []string `json:"list"`

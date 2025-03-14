@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 // This is a Person struct with camelCase rename
 type Person struct {
 	FirstName string `json:"firstName"`

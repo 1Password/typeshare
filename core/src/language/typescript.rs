@@ -66,11 +66,11 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
                 custom_translation_content
                     .iter()
                     .map(|custom_json_translation| &custom_json_translation.reviver)
-                    .join("\n\t"),
+                    .join("\n    "),
                 custom_translation_content
                     .iter()
                     .map(|custom_json_translation| &custom_json_translation.replacer)
-                    .join("\n\t")
+                    .join("\n    ")
             );
         }
         Ok(())
@@ -417,7 +417,7 @@ impl TypeScript {
                             replacer: r#"if (value instanceof Date) {
         return value.toISOString();
     }"#.to_owned(),
-                            reviver: format!(r#"if (/^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}Z$/.test(value as string){}) {{
+                            reviver: format!(r#"if (/^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}(\.\d+)?Z$/.test(value as string){}) {{
         return new Date(value as string);
     }}"#, id.unwrap_or_default())
                         }

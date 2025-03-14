@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 type MyType struct {
 	Field rune `json:"field"`
 }

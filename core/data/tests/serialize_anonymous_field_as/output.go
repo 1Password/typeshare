@@ -1,9 +1,6 @@
 package proto
 
-import (
-	"encoding/json"
-)
-
+import "encoding/json"
 type SomeEnumTypes string
 const (
 	// The associated String contains some opaque context
