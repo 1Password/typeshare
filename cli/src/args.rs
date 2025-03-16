@@ -4,6 +4,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
 #[non_exhaustive]
 pub enum AvailableLanguage {
+    Java,
     Kotlin,
     Scala,
     Swift,

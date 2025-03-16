@@ -20,6 +20,7 @@ use std::{
 };
 
 mod go;
+mod java;
 mod kotlin;
 mod python;
 mod scala;
@@ -27,6 +28,7 @@ mod swift;
 mod typescript;
 
 pub use go::Go;
+pub use java::Java;
 pub use kotlin::Kotlin;
 pub use python::Python;
 pub use scala::Scala;
@@ -98,6 +100,7 @@ pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum SupportedLanguage {
     Go,
+    Java,
     Kotlin,
     Scala,
     Swift,
@@ -109,13 +112,14 @@ impl SupportedLanguage {
     /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript, Python].into_iter()
+        [Go, Java, Kotlin, Scala, Swift, TypeScript, Python].into_iter()
     }
 
     /// Get the file name extension for the supported language.
     pub fn language_extension(&self) -> &'static str {
         match self {
             SupportedLanguage::Go => "go",
+            SupportedLanguage::Java => "java",
             SupportedLanguage::Kotlin => "kt",
             SupportedLanguage::Scala => "scala",
             SupportedLanguage::Swift => "swift",
@@ -131,6 +135,7 @@ impl FromStr for SupportedLanguage {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "go" => Ok(Self::Go),
+            "java" => Ok(Self::Java),
             "kotlin" => Ok(Self::Kotlin),
             "scala" => Ok(Self::Scala),
             "swift" => Ok(Self::Swift),
