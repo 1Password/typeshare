@@ -10,6 +10,7 @@ This input:
 /// This is a comment.
 #[typeshare]
 pub struct Person {
+    /// This is another comment
     pub name: String,
     pub age: u8,
 }
