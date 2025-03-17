@@ -197,6 +197,7 @@ fn language(
             ..Default::default()
         }),
         SupportedLanguage::Java => Box::new(Java {
+            allow_multiple_classes_per_file: config.java.allow_multiple_classes_per_file,
             package: config.java.package,
             module_name: config.java.module_name,
             prefix: config.java.prefix,
@@ -250,12 +251,27 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
         config.swift.prefix = swift_prefix.clone();
     }
 
+    if let Some(java_allow_multiple_classes_per_file) =
+        options.java_allow_multiple_classes_per_file.as_ref()
+    {
+        config.java.allow_multiple_classes_per_file = java_allow_multiple_classes_per_file.clone();
+    }
+
+    if let Some(java_prefix) = options.java_prefix.as_ref() {
+        config.java.prefix = java_prefix.clone();
+    }
+
     if let Some(kotlin_prefix) = options.kotlin_prefix.as_ref() {
         config.kotlin.prefix = kotlin_prefix.clone();
     }
 
     if let Some(java_package) = options.java_package.as_ref() {
+        config.java.package = java_package.clone();
         config.kotlin.package = java_package.clone();
+    }
+
+    if let Some(module_name) = options.java_module_name.as_ref() {
+        config.java.module_name = module_name.to_string();
     }
 
     if let Some(module_name) = options.kotlin_module_name.as_ref() {

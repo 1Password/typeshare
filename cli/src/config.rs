@@ -21,6 +21,7 @@ pub struct PythonParams {
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
 pub struct JavaParams {
+    pub allow_multiple_classes_per_file: bool,
     pub package: String,
     pub module_name: String,
     pub prefix: String,

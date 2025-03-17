@@ -34,6 +34,14 @@ pub struct Args {
     #[arg(short, long)]
     pub swift_prefix: Option<String>,
 
+    /// Prefix for generated Java types
+    #[arg(long)]
+    pub java_allow_multiple_classes_per_file: Option<bool>,
+
+    /// Prefix for generated Java types
+    #[arg(long)]
+    pub java_prefix: Option<String>,
+
     /// Prefix for generated Kotlin types
     #[arg(short, long)]
     pub kotlin_prefix: Option<String>,
@@ -41,6 +49,10 @@ pub struct Args {
     /// JAVA package name
     #[arg(short, long)]
     pub java_package: Option<String>,
+
+    /// Java serializer module name
+    #[arg(long = "java-module-name")]
+    pub java_module_name: Option<String>,
 
     /// Kotlin serializer module name
     #[arg(short = 'm', long = "module-name")]
