@@ -54,6 +54,7 @@ fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) ->
 
     match language_type {
         SupportedLanguage::Go => snake_case(),
+        SupportedLanguage::Java => snake_case(),
         SupportedLanguage::Kotlin => snake_case(),
         SupportedLanguage::Scala => snake_case(),
         SupportedLanguage::Swift => pascal_case(),

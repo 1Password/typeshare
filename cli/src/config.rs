@@ -20,6 +20,16 @@ pub struct PythonParams {
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
+pub struct JavaParams {
+    pub allow_multiple_classes_per_file: bool,
+    pub package: String,
+    pub module_name: String,
+    pub prefix: String,
+    pub type_mappings: HashMap<String, String>,
+}
+
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[serde(default)]
 pub struct KotlinParams {
     pub package: String,
     pub module_name: String,
@@ -69,6 +79,7 @@ pub struct GoParams {
 pub(crate) struct Config {
     pub swift: SwiftParams,
     pub typescript: TypeScriptParams,
+    pub java: JavaParams,
     pub kotlin: KotlinParams,
     pub scala: ScalaParams,
     #[cfg(feature = "python")]
