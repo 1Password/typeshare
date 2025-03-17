@@ -43,7 +43,7 @@ There are two possible ways to represent structs in Java: classes and records. T
 
 | | Classes | Records |
 |-|-|-|
-| Purpose | Storing data | Associating data with behavior |
+| Purpose | Associating data with behavior | Storing data |
 | Immutable | no | yes |
 | Minimum Java Version | - | 15 |
 | Verbosity | high | low |
