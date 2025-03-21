@@ -18,7 +18,7 @@ export interface TwoFoo {
  * These functions allow for flexible encoding and decoding of data, ensuring that complex types are properly handled when converting between TS objects and JSON
  */
 export const ReviverFunc = (key: string, value: unknown): unknown => {
-    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value) && (key == "time" || key == "time2" || key == "time3")) {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value) && (key === "time" || key === "time2" || key === "time3")) {
         return new Date(value);
     }
     if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
