@@ -403,7 +403,7 @@ impl TypeScript {
             .map(|ids| {
                 format!(
                     " && ({})",
-                    ids.iter().map(|id| format!("key == \"{id}\"")).join(" || ")
+                    ids.iter().map(|id| format!("key === \"{id}\"")).join(" || ")
                 )
             });
 
