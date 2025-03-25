@@ -83,7 +83,7 @@ pub enum Command {
     /// Generate shell completions
     Completions {
         /// The shell to generate the completions for
-        shell: clap_complete::Shell,
+        shell: clap_complete_command::Shell,
     },
 }
 
