@@ -35,6 +35,8 @@ pub enum DecoratorKind {
     Swift,
     /// The typeshare attribute for swift generic constraints "swiftGenericConstraints"
     SwiftGenericConstraints,
+    /// The typeshare attribute for java "java"
+    Java,
     /// The typeshare attribute for kotlin "kotlin"
     Kotlin,
 }
@@ -45,6 +47,7 @@ impl DecoratorKind {
         match self {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
+            DecoratorKind::Java => "java",
             DecoratorKind::Kotlin => "kotlin",
         }
     }
@@ -830,6 +833,7 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
     for decorator_kind in [
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Java,
         DecoratorKind::Kotlin,
     ] {
         for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {

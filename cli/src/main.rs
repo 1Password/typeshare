@@ -27,7 +27,7 @@ use typeshare_core::language::Go;
 use typeshare_core::language::Python;
 use typeshare_core::{
     context::ParseContext,
-    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{CrateName, Java, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
     parser::ParsedData,
     reconcile::reconcile_aliases,
 };
@@ -87,6 +87,7 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
     let language_type = match options.language {
         None => panic!("no language specified; `clap` should have guaranteed its presence"),
         Some(language) => match language {
+            args::AvailableLanguage::Java => SupportedLanguage::Java,
             args::AvailableLanguage::Kotlin => SupportedLanguage::Kotlin,
             args::AvailableLanguage::Scala => SupportedLanguage::Scala,
             args::AvailableLanguage::Swift => SupportedLanguage::Swift,
@@ -195,6 +196,14 @@ fn language(
             codablevoid_constraints: config.swift.codablevoid_constraints,
             ..Default::default()
         }),
+        SupportedLanguage::Java => Box::new(Java {
+            allow_multiple_classes_per_file: config.java.allow_multiple_classes_per_file,
+            package: config.java.package,
+            module_name: config.java.module_name,
+            prefix: config.java.prefix,
+            type_mappings: config.java.type_mappings,
+            ..Default::default()
+        }),
         SupportedLanguage::Kotlin => Box::new(Kotlin {
             package: config.kotlin.package,
             module_name: config.kotlin.module_name,
@@ -242,12 +251,27 @@ fn override_configuration(mut config: Config, options: &Args) -> anyhow::Result<
         config.swift.prefix = swift_prefix.clone();
     }
 
+    if let Some(java_allow_multiple_classes_per_file) =
+        options.java_allow_multiple_classes_per_file.as_ref()
+    {
+        config.java.allow_multiple_classes_per_file = java_allow_multiple_classes_per_file.clone();
+    }
+
+    if let Some(java_prefix) = options.java_prefix.as_ref() {
+        config.java.prefix = java_prefix.clone();
+    }
+
     if let Some(kotlin_prefix) = options.kotlin_prefix.as_ref() {
         config.kotlin.prefix = kotlin_prefix.clone();
     }
 
     if let Some(java_package) = options.java_package.as_ref() {
+        config.java.package = java_package.clone();
         config.kotlin.package = java_package.clone();
+    }
+
+    if let Some(module_name) = options.java_module_name.as_ref() {
+        config.java.module_name = module_name.to_string();
     }
 
     if let Some(module_name) = options.kotlin_module_name.as_ref() {

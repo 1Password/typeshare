@@ -136,6 +136,9 @@ fn check(
 /// Makes a string literal representing the correct output filename for the
 /// given ident
 macro_rules! output_file_for_ident {
+    (java) => {
+        "output.java"
+    };
     (kotlin) => {
         "output.kt"
     };
@@ -188,6 +191,26 @@ macro_rules! output_file_for_ident {
 /// });
 /// ```
 macro_rules! language_instance {
+    // Default java
+    (java) => {
+        language_instance!(java {
+            allow_multiple_classes_per_file: true,
+            package: "com.agilebits.onepassword".to_string(),
+            module_name: String::new(),
+            type_mappings: Default::default(),
+        })
+    };
+
+    // java with configuration fields forwarded
+    (java {$($field:ident: $val:expr),* $(,)?}) => {
+        #[allow(clippy::needless_update)]
+        Box::new(typeshare_core::language::Java {
+            no_version_header: true,
+            $($field: $val,)*
+            ..Default::default()
+        })
+    };
+
     // Default kotlin
     (kotlin) => {
         language_instance!(kotlin {
@@ -402,6 +425,13 @@ macro_rules! tests {
     )*};
 }
 
+static JAVA_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    [("Url", "String"), ("DateTime", "String")]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect()
+});
+
 static KOTLIN_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     [("Url", "String"), ("DateTime", "String")]
         .iter()
@@ -500,7 +530,7 @@ tests! {
         typescript
     ];
     can_generate_const: [typescript, go, python];
-    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, python];
+    can_generate_slice_of_user_type: [swift, java, kotlin, scala, typescript, go, python];
     can_generate_readonly_fields: [
         typescript
     ];
@@ -508,20 +538,22 @@ tests! {
         swift {
             prefix: "TypeShare".to_string(),
         },
+        java,
         kotlin,
         scala,
         typescript,
         go,
         python
     ];
-    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go, python ];
+    can_generate_bare_string_enum: [swift, java, kotlin, scala, typescript, go, python ];
     can_generate_double_option_pattern: [
+        java,
         typescript
     ];
     can_recognize_types_inside_modules: [
-        swift, kotlin, scala, typescript, go, python
+        swift, java, kotlin, scala, typescript, go, python
     ];
-    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go, python ];
+    test_simple_enum_case_name_support: [swift, java, kotlin, scala, typescript, go, python ];
     test_algebraic_enum_case_name_support: [
         swift {
             prefix: "OP".to_string(),
@@ -541,11 +573,11 @@ tests! {
     can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
     can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
     can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go, python];
-    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go, python];
-    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go, python];
-    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go, python];
+    can_generate_struct_with_skipped_fields: [swift, java, kotlin, scala,  typescript, go, python];
+    enum_is_properly_named_with_serde_overrides: [swift, java, kotlin, scala,  typescript, go, python];
+    can_handle_quote_in_serde_rename: [swift, java, kotlin, scala, typescript, go, python];
     can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go, python];
-    test_generate_char: [swift, kotlin, scala, typescript, go, python];
+    test_generate_char: [swift, java, kotlin, scala, typescript, go, python];
     anonymous_struct_with_rename: [
         swift {
             prefix: "Core".to_string(),
@@ -559,8 +591,8 @@ tests! {
     can_override_types: [swift, kotlin, scala, typescript, go];
 
     /// Structs
-    can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala, go, python];
-    generate_types: [kotlin, swift, typescript, scala,  go, python];
+    can_generate_simple_struct_with_a_comment: [java, kotlin, swift, typescript, scala, go, python];
+    generate_types: [java, kotlin, swift, typescript, scala,  go, python];
     can_handle_serde_rename: [
         swift {
             prefix: "TypeShareX_".to_string(),
@@ -572,15 +604,20 @@ tests! {
         python
     ];
     // TODO: kotlin and typescript don't appear to support this yet
-    generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go,python];
+    generates_empty_structs_and_initializers: [swift, java, kotlin, scala, typescript, go,python];
     test_default_decorators: [swift { default_decorators: vec!["Sendable".into(), "Identifiable".into()]}];
     test_default_generic_constraints: [swift { default_generic_constraints: typeshare_core::language::GenericConstraints::from_config(vec!["Sendable".into(), "Identifiable".into()]) }];
-    test_i54_u53_type: [swift, kotlin, scala,  typescript, go, python];
-    test_serde_default_struct: [swift, kotlin, scala,  typescript, go, python];
+    test_i54_u53_type: [swift, java, kotlin, scala,  typescript, go, python];
+    test_serde_default_struct: [swift, java, kotlin, scala,  typescript, go, python];
     test_serde_iso8601: [
         swift {
             prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
+        },
+        java {
+            package: "com.agilebits.onepassword".to_string(),
+            module_name: "colorModule".to_string(),
+            type_mappings: super::JAVA_MAPPINGS.clone()
         },
         kotlin {
             package: "com.agilebits.onepassword".to_string(),
@@ -606,6 +643,11 @@ tests! {
         swift {
             prefix: String::new(),
             type_mappings: super::SWIFT_MAPPINGS.clone(),
+        },
+        java {
+            package: "com.agilebits.onepassword".to_string(),
+            module_name: "colorModule".to_string(),
+            type_mappings: super::KOTLIN_MAPPINGS.clone()
         },
         kotlin {
             package: "com.agilebits.onepassword".to_string(),
@@ -643,27 +685,27 @@ tests! {
         },
         python
     ];
-    can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go,python];
-    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python];
-    can_generate_unit_structs: [swift, kotlin, scala, typescript, go, python];
-    kebab_case_rename: [swift, kotlin, scala,  typescript, go, python];
+    can_handle_serde_rename_all: [swift, java, kotlin, scala,  typescript, go,python];
+    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, java, kotlin, scala,  typescript, go, python];
+    can_generate_unit_structs: [swift, java, kotlin, scala, typescript, go, python];
+    kebab_case_rename: [swift, java, kotlin, scala,  typescript, go, python];
 
     /// Globals get topologically sorted
-    orders_types: [swift, kotlin, go, python];
+    orders_types: [swift, java, kotlin, go, python];
 
     /// Other
-    use_correct_integer_types: [swift, kotlin, scala,  typescript, go, python];
+    use_correct_integer_types: [swift, java, kotlin, scala,  typescript, go, python];
     // Only swift supports generating types with keywords
     generate_types_with_keywords: [swift];
     // TODO: how is this different from generates_empty_structs_and_initializers?
-    use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go, python];
-    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go, python];
+    use_correct_decoded_variable_name: [swift, java, kotlin, scala,  typescript, go, python];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]}, kotlin, scala,  typescript, go, python];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
-    serialize_field_as: [kotlin, swift, typescript, scala,  go, python];
+    serialize_field_as: [java, kotlin, swift, typescript, scala,  go, python];
     serialize_type_alias: [kotlin, swift, typescript, scala,  go, python];
     serialize_anonymous_field_as: [kotlin, swift, typescript, scala, go, python];
     smart_pointers: [kotlin, swift, typescript, scala, go, python];
@@ -679,6 +721,7 @@ tests! {
             prefix: "Core".into()
         },
         typescript,
+        java,
         kotlin,
         scala,
         go,
