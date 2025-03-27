@@ -1,10 +1,15 @@
 // TODO: NotNull annotations?
 
-use super::{Language, ScopedCrateTypes};
+use convert_case::{Case, Casing as _};
+use itertools::Itertools as _;
+
+use super::{used_imports, CrateTypes, Language, ScopedCrateTypes};
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
-use crate::rust_types::{RustConst, RustEnum, RustField, RustStruct, RustTypeAlias};
+use crate::rust_types::{RustConst, RustEnum, RustField, RustItem, RustStruct, RustTypeAlias};
 use crate::rust_types::{RustEnumShared, RustTypeFormatError, SpecialRustType};
+use crate::topsort::topsort;
+use std::io::BufWriter;
 use std::{collections::HashMap, io::Write};
 
 /// All information needed for Java type-code
@@ -26,6 +31,66 @@ pub struct Java {
 }
 
 impl Language for Java {
+    /// Given `data`, generate type-code for this language and write it out to `writable`.
+    /// Returns whether or not writing was successful.
+    fn generate_types(
+        &mut self,
+        writable: &mut dyn Write,
+        all_types: &CrateTypes,
+        data: ParsedData,
+    ) -> std::io::Result<()> {
+        self.begin_file(writable, &data)?;
+
+        if data.multi_file {
+            self.write_imports(writable, used_imports(&data, all_types))?;
+        }
+
+        let ParsedData {
+            structs,
+            enums,
+            aliases,
+            consts,
+            crate_name,
+            ..
+        } = data;
+
+        let namespace_class_name = crate_name.as_str().to_case(Case::Pascal);
+
+        writeln!(writable, "public class {namespace_class_name} {{")?;
+        writeln!(writable)?;
+
+        let mut items = Vec::from_iter(
+            aliases
+                .into_iter()
+                .map(RustItem::Alias)
+                .chain(structs.into_iter().map(RustItem::Struct))
+                .chain(enums.into_iter().map(RustItem::Enum))
+                .chain(consts.into_iter().map(RustItem::Const)),
+        );
+
+        topsort(&mut items);
+
+        for thing in &items {
+            let mut thing_writer = BufWriter::new(Vec::new());
+
+            match thing {
+                RustItem::Enum(e) => self.write_enum(&mut thing_writer, e)?,
+                RustItem::Struct(s) => self.write_struct(&mut thing_writer, s)?,
+                RustItem::Alias(a) => self.write_type_alias(&mut thing_writer, a)?,
+                RustItem::Const(c) => self.write_const(&mut thing_writer, c)?,
+            }
+
+            let thing_bytes = thing_writer.into_inner()?;
+            let thing = self.indent(String::from_utf8(thing_bytes).unwrap(), 1);
+
+            writable.write(thing.as_bytes())?;
+        }
+
+        writeln!(writable, "}}")?;
+
+        self.end_file(writable)
+    }
+
     fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
     }
@@ -109,9 +174,9 @@ impl Language for Java {
                 writeln!(w)?;
             }
             if parsed_data.multi_file {
-                writeln!(w, "package {}.{}", self.package, parsed_data.crate_name)?;
+                writeln!(w, "package {}.{};", self.package, parsed_data.crate_name)?;
             } else {
-                writeln!(w, "package {}", self.package)?;
+                writeln!(w, "package {};", self.package)?;
             }
             writeln!(w)?;
         }
@@ -364,5 +429,19 @@ impl Java {
         comments
             .iter()
             .try_for_each(|comment| self.write_comment(w, indent, comment))
+    }
+
+    fn indent(&self, str: impl AsRef<str>, count: usize) -> String {
+        let indentation = "    ".repeat(count);
+        str.as_ref()
+            .split('\n')
+            .map(|line| {
+                if line.is_empty() {
+                    line.to_string()
+                } else {
+                    format!("{indentation}{line}")
+                }
+            })
+            .join("\n")
     }
 }
