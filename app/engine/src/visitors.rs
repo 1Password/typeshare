@@ -384,11 +384,6 @@ impl<'a> Iterator for ItemUseIter<'a> {
     }
 }
 
-struct Foo<Param> {
-    item: i32,
-    param: Param,
-}
-
 /// Yield all the type names including nested generic types.
 pub fn all_reference_type_names(ty: &RustType) -> impl Iterator<Item = &TypeName> + '_ {
     let mut type_stack = Vec::from([ty]);
