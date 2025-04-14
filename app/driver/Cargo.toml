@@ -1,7 +1,12 @@
 [package]
 name = "typeshare-driver"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+
+description = "macro for trivially creating your own typeshare binaries"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/1Password/typeshare"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.96"

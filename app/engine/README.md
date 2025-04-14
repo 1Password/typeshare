@@ -1,17 +1,5 @@
 # typeshare-engine
 
-This crate includes all of the actual implmenentations of typeshare functionality. It should be a dependency of anyone trying to USE typeshare as a library. It depends ONLY on typeshare-model, not on any language crates. It exports functions that make use of the traits in typeshare-model, so that callers can do something like this (this is just an example, not my real intended API)
+This crate includes all of the actual implementations of typeshare functionality. It should be a dependency of anyone trying to USE typeshare as a library. It depends ONLY on typeshare-model, not on any language crates. It exports functions that make use of the trait in typeshare-model.
 
-```rust
-use std::env::current_dir;
-use typeshare_engine::run;
-use typeshare_swift::Swift;
-
-fn main() {
-    let working_dir = current_dir();
-    let source_dir = working_dir.join("src");
-    let out_dir = working_dir.join("output");
-
-    run(source_dir, working_dir, Swift);
-}
-```
+Currently, the public API of typeshare-engine is considered fairly unstable. Feel free to use it, but we expect updates to usually be published as major versions. You only need to depend on `typeshare-engine` if you want to use typeshare as a _library_; if you're implementing your own language, you only need to depend on `typeshare-model`, and if you're creating a typeshare binary, you only also need `typeshare-driver`.

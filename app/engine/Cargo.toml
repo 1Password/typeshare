@@ -3,6 +3,11 @@ name = "typeshare-engine"
 version = "0.1.0"
 edition = "2021"
 
+description = "Behavioral engine for typeshare: parsing, writing, configuration, and everything in between."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/1Password/typeshare"
+readme = "README.md"
+
 [dependencies]
 anyhow = "1.0.95"
 clap = { version = "4.5", features = ["std", "derive", "string"] }

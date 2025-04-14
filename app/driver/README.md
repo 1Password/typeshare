@@ -1,18 +1,15 @@
 # typeshare-driver
 
-This crate contains a macro generating all the glue code necessary to create a typeshare binary. The idea is that person wanting a typeshare binary supporting
-certain languages would be able to write something as simple as:
+This crate contains a macro generating all the glue code necessary to create a typeshare binary. Supposing you had your own Python and Golang implementations
+of typeshare, all you need to write is this:
 
 ```rust
-use typeshare_swift::Swift;
-use typeshare_typescript::Typescript;
-use typeshare_driver::generate_typeshare_cli
+use typeshare_driver::typeshare_binary;
 
-generate_typeshare_cli!(Swift, Typescript)
+use typeshare_golang::Golang;
+use typeshare_python::Python;
+
+typeshare_binary! { Python, Golang }
 ```
 
-This would create a `fn main` that uses these languages, plus `typeshare-engine`, that implements a full typeshare CLI.
-
-This crate is among the last things I want to work on, because making it sufficiently configurable might be tricky.
-
-Theoretically, if (for example) `typeshare-python` wanted to export a full `typeshare-python` binary, it could depend on both `typeshare-model` (for the implementation) and `typeshare-main` for the binary, exposing the latter probably as a cargo feature.
+This creates an `fn main` that uses these languages, plus `typeshare-engine`, to implements a full typeshare CLI.
