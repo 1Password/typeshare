@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-model"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "itertools 0.13.0",
