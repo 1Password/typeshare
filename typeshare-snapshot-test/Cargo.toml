@@ -14,3 +14,6 @@ clap = { version = "4.5.35", features = ["derive", "unicode", "wrap_help"] }
 indent_write = "2.2.0"
 lazy_format = "2.0.3"
 similar = { version = "2.7.0", features = ["bytes"], default-features = false }
+
+[dev-dependencies]
+cool_asserts = "2.0.3"

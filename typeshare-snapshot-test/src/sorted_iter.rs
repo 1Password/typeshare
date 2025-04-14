@@ -31,10 +31,14 @@ impl<I: Iterator> SortedPairsIter<I>
 where
     I::Item: Ord,
 {
-    pub fn new(left: I, right: I) -> Self {
+    pub fn new<I1, I2>(left: I1, right: I2) -> Self
+    where
+        I1: IntoIterator<IntoIter = I>,
+        I2: IntoIterator<IntoIter = I>,
+    {
         Self {
-            left,
-            right,
+            left: left.into_iter(),
+            right: right.into_iter(),
             state: None,
         }
     }
@@ -88,4 +92,24 @@ where
 
         (min, max)
     }
+}
+
+#[test]
+fn test_sorted_pairs_iter() {
+    use cool_asserts::assert_matches;
+
+    let left = [1, 2, 4];
+    let right = [1, 3, 4];
+
+    let iter = SortedPairsIter::new(left, right);
+
+    assert_matches!(
+        iter,
+        [
+            EitherOrBoth::Both(1),
+            EitherOrBoth::Left(2),
+            EitherOrBoth::Right(3),
+            EitherOrBoth::Both(4)
+        ]
+    )
 }
