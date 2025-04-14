@@ -1,6 +1,7 @@
 mod sorted_iter;
 
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet},
     fmt::Display,
     fs,
@@ -18,25 +19,67 @@ use similar::TextDiff;
 
 use crate::sorted_iter::{EitherOrBoth, SortedPairsIter};
 
+/**
+Utility for capturing and running snapshot tests for your implementation of
+typeshare. See the README.md for a tutorial on how to use this; this usage
+message is just a reference.
+
+typeshare-snapshot-test expects one directory per test, all contained in a
+single parent directory. When run, it will either capture a new snapshot for
+each test in that directory, or will test that the typeshare output matches
+the existing snapshot.
+
+If the test directory contains a subdirectory called input, we assume we're
+running this test in multi-file mode. In this case, that input directory
+should contain one or more dummy rust crates with the standard layout
+(crate_name/src/{files}.rs). Otherwise, we'll assume the test is for
+single-file output, and the directory should just contain one or more .rs
+files.
+
+If any directory doesn't have a captured snapshot, it will be skipped with a
+non-fatal warning.
+
+Afterwards, typeshare-snapshot-test will print a report and exit nonzero if
+anything went wrong. This could include snapshot test failures (if the output
+didn't match the output), nonzero exits from you `typeshare` binary, or any
+filesystem errors or layout issues in your tests.
+ */
 #[derive(Parser)]
 struct Args {
+    /// The directory containing all of the snapshot tests. Each snapshot test
+    /// should be a subdirectory inside of this parent directory, and is
+    /// identified by the name of that directory.
     snapshots: PathBuf,
 
+    /// name or path to your typeshare binary. If ommitted, we assume the
+    /// binary is called `typeshare-{LANGUAGE}`.
     #[arg(short, long)]
-    typeshare: PathBuf,
+    typeshare: Option<PathBuf>,
 
-    #[arg(long)]
+    /// Path to the config file used by your typeshare call. Currently, all
+    /// snapshot tests must use an identical config.
+    #[arg(short, long)]
     config: Option<PathBuf>,
 
-    #[arg(long)]
+    /// Name of the language for which we're performing a snapshot test.
+    /// This is passed as `--language` to the underlying typeshare call, and
+    /// also is used as the name of the snapshot output in some circumstances.
+    #[arg(short, long)]
     language: String,
 
+    /// Suffix for the output file for this snapshot test. This should always
+    /// be the typical suffix for your language (.go for golang, .ts for
+    /// typescript, etc).
     #[arg(long)]
     suffix: String,
 
+    /// Which mode to run (capture a new snapshot, or perform a snapshot test)
     #[arg(short, long)]
     mode: Mode,
 
+    /// Any additional arguments to pass to the underlying `typeshare`
+    /// binary. Make sure to use `--` to separate options passed to `typeshare`
+    /// from options passed to `typeshare-snapshot-test`
     additional_args: Vec<String>,
     // TODO: test selection
     // TODO: concurrency limiter
@@ -51,15 +94,22 @@ impl Args {
             None => self.suffix.as_str(),
         }
     }
+
+    fn typeshare_binary(&self) -> Cow<'_, Path> {
+        self.typeshare
+            .as_deref()
+            .map(Cow::Borrowed)
+            .unwrap_or_else(|| Cow::Owned(PathBuf::from(format!("typeshare-{}", self.language))))
+    }
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
 enum Mode {
     /// Recreate typeshare output, but only for snapshot tests that already
-    /// have output in this language
+    /// have output in this language.
     Regenerate,
 
-    /// Create typeshare output for ALL snapshot tests
+    /// Capture a new snapshot for all snapshot tests.
     Generate,
 
     /// Execute a typeshare snapshot test
@@ -487,11 +537,12 @@ fn snapshot_test(
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let typeshare_binary = args.typeshare_binary();
 
     // First, do `typeshare --help`. We do this only so that we verify that
     // the given typeshare binary exists, without that error appearing a dozen
     // times.
-    let _ = Command::new(&args.typeshare)
+    let _ = Command::new(typeshare_binary.as_ref())
         .arg("--help")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -500,7 +551,7 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| {
             format!(
                 "failed to launch '{}'; does it exist?",
-                args.typeshare.display()
+                typeshare_binary.display()
             )
         })?
         // We don't actually care about the process finishing successfully
@@ -548,7 +599,7 @@ fn main() -> anyhow::Result<()> {
                     snapshot_test(
                         &entry_path,
                         args.mode,
-                        &args.typeshare,
+                        &typeshare_binary,
                         args.config.as_deref(),
                         &args.language,
                         args.trimmed_suffix(),
