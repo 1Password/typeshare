@@ -1,6 +1,7 @@
 //! Generated source file output.
 use crate::{args::OutputLocation, topsort::topsort};
 use anyhow::Context;
+use itertools::Itertools;
 use std::{
     collections::HashMap,
     fs,
@@ -11,7 +12,7 @@ use typeshare_model::prelude::*;
 
 pub fn write_output<'c>(
     lang: &impl Language<'c>,
-    mut crate_parsed_data: HashMap<CrateName, ParsedData>,
+    crate_parsed_data: HashMap<Option<CrateName>, ParsedData>,
     dest: &OutputLocation<'_>,
 ) -> anyhow::Result<()> {
     match dest {
@@ -32,9 +33,19 @@ pub fn write_output<'c>(
             // TODO: compute import candidates here
             let import_candidates = HashMap::new();
 
-            crate_parsed_data
-                .values_mut()
-                .for_each(|data| data.sort_contents());
+            let crate_parsed_data = crate_parsed_data
+                .into_iter()
+                .map(|(crate_name, mut data)| match crate_name {
+                    Some(crate_name) => {
+                        data.sort_contents();
+                        Ok((crate_name, data))
+                    }
+                    None => anyhow::bail!(
+                        "got files with unknown crates; all files \
+                         must be in crates in multi-file mode"
+                    ),
+                })
+                .try_collect()?;
 
             write_multiple_files(lang, directory, &crate_parsed_data, &import_candidates)
         }

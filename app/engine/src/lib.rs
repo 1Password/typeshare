@@ -27,12 +27,12 @@ pub use typeshare_model::language::FilesMode;
 #[derive(Debug, Error)]
 pub struct FileParseErrors {
     pub path: PathBuf,
-    pub crate_name: CrateName,
+    pub crate_name: Option<CrateName>,
     pub kind: FileErrorKind,
 }
 
 impl FileParseErrors {
-    pub fn new(path: PathBuf, crate_name: CrateName, kind: FileErrorKind) -> Self {
+    pub fn new(path: PathBuf, crate_name: Option<CrateName>, kind: FileErrorKind) -> Self {
         Self {
             path,
             crate_name,
@@ -54,6 +54,7 @@ impl Display for FileParseErrors {
 
 #[derive(Debug)]
 pub enum FileErrorKind {
+    UnknownCrate,
     ParseErrors(ParseErrorSet),
     ReadError(io::Error),
 }
@@ -61,6 +62,7 @@ pub enum FileErrorKind {
 impl Display for FileErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            FileErrorKind::UnknownCrate => f.write_str("unknown crate in mutli-file mode"),
             FileErrorKind::ParseErrors(parse_error_set) => parse_error_set.fmt(f),
             FileErrorKind::ReadError(error) => write!(f, "i/o error: {error}"),
         }

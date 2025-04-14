@@ -31,8 +31,8 @@ const TYPESHARE: &str = "typeshare";
 pub struct ParserInput {
     /// Rust source file path.
     file_path: PathBuf,
-    /// The crate name the source file belongs to.
-    crate_name: CrateName,
+    /// The crate name the source file belongs to, if we could detect it
+    crate_name: Option<CrateName>,
 }
 
 /// Walk the source folder and collect all parser inputs.
@@ -40,20 +40,15 @@ pub fn parser_inputs(walker_builder: Walk) -> Vec<ParserInput> {
     walker_builder
         .filter_map(Result::ok)
         .filter(|dir_entry| !dir_entry.path().is_dir())
-        .filter_map(|dir_entry| {
+        .map(|dir_entry| {
             let path = dir_entry.path();
-            // We assume that if the file has no valid crate name, it probably
-            // isn't a file we're interested in typesharing anyway. This
-            // strikes me as sort of a brittle assumption so it might be worth
-            // revisiting someday; in particular it might be worth surfacing
-            // as a warning.
-            let crate_name = CrateName::find_crate_name(path)?;
+            let crate_name = CrateName::find_crate_name(path);
             let file_path = path.to_path_buf();
 
-            Some(ParserInput {
+            ParserInput {
                 file_path,
                 crate_name,
-            })
+            }
         })
         .collect()
 }
@@ -82,8 +77,8 @@ pub fn parser_inputs(walker_builder: Walk) -> Vec<ParserInput> {
 // }
 
 fn add_parsed_data(
-    container: &mut HashMap<CrateName, ParsedData>,
-    crate_name: CrateName,
+    container: &mut HashMap<Option<CrateName>, ParsedData>,
+    crate_name: Option<CrateName>,
     parsed_data: ParsedData,
 ) {
     match container.entry(crate_name) {
@@ -101,7 +96,7 @@ pub fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[&str],
     mode: FilesMode<()>,
-) -> Result<HashMap<CrateName, ParsedData>, Vec<FileParseErrors>> {
+) -> Result<HashMap<Option<CrateName>, ParsedData>, Vec<FileParseErrors>> {
     inputs
         .into_par_iter()
         .map(|parser_input| {
@@ -118,7 +113,19 @@ pub fn parse_input(
             let parsed_data = parse(
                 &content,
                 ignored_types,
-                mode.map(|()| &parser_input.crate_name),
+                match mode {
+                    FilesMode::Single => FilesMode::Single,
+                    FilesMode::Multi(()) => match parser_input.crate_name {
+                        None => {
+                            return Err(FileParseErrors::new(
+                                parser_input.file_path.clone(),
+                                parser_input.crate_name,
+                                crate::FileErrorKind::UnknownCrate,
+                            ))
+                        }
+                        Some(ref crate_name) => FilesMode::Multi(crate_name),
+                    },
+                },
             )
             .map_err(|err| {
                 FileParseErrors::new(

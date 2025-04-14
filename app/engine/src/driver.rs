@@ -46,7 +46,7 @@ pub trait LanguageSet {
         config: &'c config::Config,
         args: &'c clap::ArgMatches,
         metas: &'a Self::LanguageMetas,
-        data: HashMap<CrateName, ParsedData>,
+        data: HashMap<Option<CrateName>, ParsedData>,
         destination: &OutputLocation<'_>,
     ) -> anyhow::Result<()>;
 }
@@ -115,7 +115,7 @@ macro_rules! language_set_for {
                 config: &'c config::Config,
                 args: &'c clap::ArgMatches,
                 metas: &'a Self::LanguageMetas,
-                data: HashMap<CrateName, ParsedData>,
+                data: HashMap<Option<CrateName>, ParsedData>,
                 destination: &OutputLocation<'_>,
             ) -> anyhow::Result<()> {
                 #[allow(non_snake_case)]
@@ -144,7 +144,7 @@ fn execute_typeshare_for_language<'config, 'a: 'config, L: Language<'config>>(
     config: &'config config::Config,
     args: &'config clap::ArgMatches,
     meta: &'a CliArgsSet,
-    data: HashMap<CrateName, ParsedData>,
+    data: HashMap<Option<CrateName>, ParsedData>,
     destination: &OutputLocation<'_>,
 ) -> anyhow::Result<()> {
     let name = L::NAME;
@@ -218,7 +218,7 @@ where
         let directories = standard_args.directories.as_slice();
         let (first_dir, other_dirs) = directories
             .split_first()
-            .expect("clap should guarantee that there's at least one output directory");
+            .expect("clap should guarantee that there's at least one input directory");
 
         let mut types = TypesBuilder::new();
         types.add("rust", "*.rs").unwrap();
