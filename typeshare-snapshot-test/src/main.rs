@@ -127,9 +127,9 @@ impl Report {
             }
             Report::TestFailure { ref diff } => {
                 writeln!(dest, "test failure in {name}:")?;
-                let mut dest = IndentWriter::new("    ", dest);
                 match diff {
                     ReportDiff::Directory(report) => {
+                        let mut dest = IndentWriter::new("    ", dest);
                         if !report.unexpected_files.is_empty() {
                             writeln!(dest, "these files were not present in the snapshot:")?;
                             let mut dest = IndentWriter::new("  ", &mut dest);
@@ -157,11 +157,8 @@ impl Report {
                         })
                     }
                     ReportDiff::File(diff) => {
-                        let diff = diff.indented("| ");
-                        writeln!(
-                            dest,
-                            "the typeshare output didn't match the snapshot:\n{diff}"
-                        )
+                        let diff = diff.indented("|   ");
+                        writeln!(dest, "{diff}")
                     }
                 }
             }
