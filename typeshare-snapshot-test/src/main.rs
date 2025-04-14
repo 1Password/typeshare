@@ -15,6 +15,7 @@ use std::{
 use anyhow::Context;
 use clap::Parser;
 use indent_write::{indentable::Indentable, io::IndentWriter};
+use lazy_format::lazy_format;
 use similar::TextDiff;
 
 use crate::sorted_iter::{EitherOrBoth, SortedPairsIter};
@@ -114,6 +115,40 @@ enum Mode {
 
     /// Execute a typeshare snapshot test
     Test,
+}
+
+#[derive(Debug, Default)]
+struct Stats {
+    success: i32,
+    warning: i32,
+    failed: i32,
+}
+
+impl Stats {
+    pub fn total(&self) -> i32 {
+        self.success + self.warning + self.failed
+    }
+}
+
+impl Display for Stats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Stats {
+            success,
+            warning,
+            failed,
+        } = *self;
+        let total = self.total();
+        let total_success = success + warning;
+
+        let warnings = lazy_format!(
+            if warning > 0 => " ({warning} with warnings)"
+        );
+
+        write!(
+            f,
+            "{total_success}/{total} passed{warnings}. {failed}/{total} failures."
+        )
+    }
 }
 
 enum Report {
@@ -618,12 +653,26 @@ fn main() -> anyhow::Result<()> {
     });
 
     let reports = reports?;
+
+    let mut stats = Stats::default();
     let mut stderr = stderr();
 
     for (entry, report) in &reports {
         report
             .print_report(&entry, &mut stderr)
             .expect("shouldn't be a problem writing to stderr");
+
+        match report {
+            Report::Success => stats.success += 1,
+            Report::Warning { .. } => stats.warning += 1,
+            Report::CommandError { .. }
+            | Report::OperationError { .. }
+            | Report::TestFailure { .. } => stats.failed += 1,
+        }
+    }
+
+    if matches!(args.mode, Mode::Test) {
+        writeln!(stderr, "{stats}").expect("shouldn't be a problem writing to stderr");
     }
 
     if reports.iter().any(|(_, report)| report.is_problem()) {
