@@ -1,0 +1,2 @@
+#[typeshare]
+pub struct MyEmptyStruct {}
