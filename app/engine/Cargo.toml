@@ -29,7 +29,7 @@ syn = { version = "2.0.96", features = [
 ] }
 thiserror = "2.0.11"
 toml = "0.8.19"
-typeshare-model = { path = "../model" }
+typeshare-model = { path = "../model", version = "1.0" }
 
 [dev-dependencies]
 cool_asserts = "2.0.3"
