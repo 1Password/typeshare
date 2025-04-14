@@ -45,7 +45,7 @@ impl Language<'_> for TypeScript {
 
     fn new_from_config(config: Self::Config) -> anyhow::Result<Self> {
         Ok(Self {
-            no_version_header: false,
+            no_version_header: config.no_version_header,
             type_mappings: config
                 .type_mappings
                 .into_iter()
