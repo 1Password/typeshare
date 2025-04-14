@@ -130,7 +130,7 @@ impl<'a> TypeShareVisitor<'a> {
             self.parsed_data
                 .aliases
                 .iter()
-                .flat_map(|alias| all_reference_type_names(&alias.r#type)),
+                .flat_map(|alias| all_reference_type_names(&alias.ty)),
         );
 
         // Build a set of a all type names.

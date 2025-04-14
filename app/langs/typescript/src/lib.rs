@@ -154,7 +154,7 @@ impl Language<'_> for TypeScript {
         self.write_comments(w, 0, &ty.comments)?;
 
         let r#type = self
-            .format_type(&ty.r#type, ty.generic_types.as_slice())
+            .format_type(&ty.ty, ty.generic_types.as_slice())
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
         writeln!(
@@ -165,7 +165,7 @@ impl Language<'_> for TypeScript {
                 .then(|| format!("<{}>", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
             r#type,
-            ty.r#type
+            ty.ty
                 .is_optional()
                 .then_some(" | undefined")
                 .unwrap_or_default(),

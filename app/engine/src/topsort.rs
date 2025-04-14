@@ -107,7 +107,7 @@ fn get_type_alias_dependencies<'a>(
     seen: &mut HashSet<&'a TypeName>,
 ) {
     if seen.insert(&ta.id.original) {
-        get_dependencies_from_type(&ta.r#type, types, res, seen);
+        get_dependencies_from_type(&ta.ty, types, res, seen);
         for generic in &ta.generic_types {
             if let Some(thing) = types.get(generic) {
                 get_dependencies(*thing, types, res, seen)

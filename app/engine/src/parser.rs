@@ -306,7 +306,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&s.ident), &s.attrs, &None),
-            r#type: parse_rust_type_from_string(&ty)?,
+            ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
         }));
@@ -366,7 +366,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 
             RustItem::Alias(RustTypeAlias {
                 id: get_ident(Some(&s.ident), &s.attrs, &None),
-                r#type: ty,
+                ty: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
             })
@@ -406,7 +406,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&e.ident), &e.attrs, &None),
-            r#type: parse_rust_type_from_string(&ty)?,
+            ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
         }));
@@ -589,7 +589,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
 
     Ok(RustItem::Alias(RustTypeAlias {
         id: get_ident(Some(&t.ident), &t.attrs, &None),
-        r#type: ty,
+        ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
     }))
