@@ -107,23 +107,23 @@ impl<'a> TypeShareVisitor<'a> {
         );
 
         // Enums
-        for v in self
-            .parsed_data
-            .enums
-            .iter()
-            .flat_map(|e| e.shared().variants.iter())
-        {
-            match v {
-                RustEnumVariant::Unit(_) => (),
-                RustEnumVariant::Tuple { ty, .. } => {
-                    all_references.extend(all_reference_type_names(ty));
-                }
-                RustEnumVariant::AnonymousStruct { fields, .. } => {
-                    all_references
-                        .extend(fields.iter().flat_map(|f| all_reference_type_names(&f.ty)));
-                }
-            }
-        }
+        // for v in self
+        //     .parsed_data
+        //     .enums
+        //     .iter()
+        //     .flat_map(|e| e.shared().variants.iter())
+        // {
+        //     match v {
+        //         RustEnumVariant::Unit(_) => (),
+        //         RustEnumVariant::Tuple { ty, .. } => {
+        //             all_references.extend(all_reference_type_names(ty));
+        //         }
+        //         RustEnumVariant::AnonymousStruct { fields, .. } => {
+        //             all_references
+        //                 .extend(fields.iter().flat_map(|f| all_reference_type_names(&f.ty)));
+        //         }
+        //     }
+        // }
 
         // Aliases
         all_references.extend(

@@ -434,20 +434,19 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         RustEnumVariant::AnonymousStruct { fields, .. } => fields
             .iter()
             .any(|f| f.ty.contains_type(&original_enum_ident)),
+        _ => panic!("unrecgonized enum type"),
     });
 
     let shared = RustEnumShared {
         id: get_ident(Some(&e.ident), &e.attrs, &None),
         comments: parse_comment_attrs(&e.attrs),
-        variants,
         decorators,
         generic_types,
         is_recursive,
     };
 
     // Figure out if we're dealing with a unit enum or an algebraic enum
-    if shared
-        .variants
+    if variants
         .iter()
         .all(|v| matches!(v, RustEnumVariant::Unit(_)))
     {
@@ -469,7 +468,16 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
             ));
         }
 
-        Ok(RustItem::Enum(RustEnum::Unit(shared)))
+        Ok(RustItem::Enum(RustEnum::Unit {
+            shared,
+            unit_variants: variants
+                .into_iter()
+                .map(|variant| match variant {
+                    RustEnumVariant::Unit(unit) => unit,
+                    _ => unreachable!("non-unit variant; this was checked earlier"),
+                })
+                .collect(),
+        }))
     } else {
         // At least one enum variant is either a tuple or an anonymous struct
         Ok(RustItem::Enum(RustEnum::Algebraic {
@@ -490,6 +498,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
                 )
             })?,
             shared,
+            variants,
         }))
     }
 }

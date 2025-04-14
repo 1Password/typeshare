@@ -64,24 +64,20 @@ fn get_enum_dependencies<'a>(
     seen: &mut HashSet<&'a TypeName>,
 ) {
     match enm {
-        RustEnum::Unit(_) => {}
+        RustEnum::Unit { .. } => {}
         RustEnum::Algebraic {
-            tag_key: _,
-            content_key: _,
-            shared,
+            shared, variants, ..
         } => {
             if seen.insert(&shared.id.original) {
                 res.push(&shared.id.original);
-                for variant in &shared.variants {
+                for variant in variants {
                     match variant {
                         RustEnumVariant::Unit(_) => {}
-                        RustEnumVariant::AnonymousStruct {
-                            fields: _,
-                            shared: _,
-                        } => {}
-                        RustEnumVariant::Tuple { ty, shared: _ } => {
+                        RustEnumVariant::AnonymousStruct { .. } => {}
+                        RustEnumVariant::Tuple { ty, .. } => {
                             get_dependencies_from_type(ty, types, res, seen)
                         }
+                        _ => panic!("unrecognized enum variant"),
                     }
                 }
                 seen.remove(&shared.id.original);
@@ -198,9 +194,7 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
 pub(crate) fn topsort(things: &mut [BorrowedRustItem<'_>]) {
     let types = HashMap::from_iter(things.iter().map(|thing| {
         let id = match thing {
-            BorrowedRustItem::Enum(e) => match e {
-                RustEnum::Unit(shared) | RustEnum::Algebraic { shared, .. } => &shared.id.original,
-            },
+            BorrowedRustItem::Enum(e) => &e.shared().id.original,
             BorrowedRustItem::Struct(strct) => &strct.id.original,
             BorrowedRustItem::Alias(ta) => &ta.id.original,
             BorrowedRustItem::Const(cnst) => &cnst.id.original,

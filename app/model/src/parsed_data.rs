@@ -172,6 +172,7 @@ pub enum RustType {
 
 /// A special rust type that needs a manual type conversion
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SpecialRustType {
     /// Represents `Vec<T>` from the standard library
     Vec(Box<RustType>),
@@ -411,7 +412,15 @@ pub enum RustEnum {
     ///     Yay,
     /// }
     /// ```
-    Unit(RustEnumShared),
+    Unit {
+        /// Shared context for this enum
+        shared: RustEnumShared,
+
+        /// All of the variants for this enum. This is a Unit enum, so all
+        /// of these variants have only unit data available.
+        unit_variants: Vec<RustEnumVariantShared>,
+    },
+
     /// An algebraic enum
     ///
     /// An example of such an enum:
@@ -435,6 +444,8 @@ pub enum RustEnum {
         content_key: String,
         /// Shared context for this enum.
         shared: RustEnumShared,
+        /// The variants on this enum
+        variants: Vec<RustEnumVariant>,
     },
 }
 
@@ -442,7 +453,7 @@ impl RustEnum {
     /// Get a reference to the inner shared content
     pub fn shared(&self) -> &RustEnumShared {
         match self {
-            Self::Unit(shared) | Self::Algebraic { shared, .. } => shared,
+            Self::Unit { shared, .. } | Self::Algebraic { shared, .. } => shared,
         }
     }
 }
@@ -456,8 +467,7 @@ pub struct RustEnumShared {
     pub generic_types: Vec<TypeName>,
     /// Comments on the enum definition itself
     pub comments: Vec<String>,
-    /// The enum's variants
-    pub variants: Vec<RustEnumVariant>,
+
     /// Decorators applied to the enum for generation in other languages
     ///
     /// Example: `#[typeshare(swift = "Equatable, Comparable, Hashable")]`.
@@ -469,6 +479,7 @@ pub struct RustEnumShared {
 
 /// Parsed information about a Rust enum variant
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum RustEnumVariant {
     /// A unit variant
     Unit(RustEnumVariantShared),

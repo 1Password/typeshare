@@ -495,10 +495,15 @@ pub trait Language<'config>: Sized {
         e: &RustEnum,
         make_struct_name: &impl Fn(&TypeName) -> String,
     ) -> anyhow::Result<()> {
-        for (fields, variant) in e.shared().variants.iter().filter_map(|v| match v {
-            RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
-            _ => None,
-        }) {
+        let variants = match e {
+            RustEnum::Unit { .. } => return Ok(()),
+            RustEnum::Algebraic { variants, .. } => variants.iter().filter_map(|v| match v {
+                RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
+                _ => None,
+            }),
+        };
+
+        for (fields, variant) in variants {
             let struct_name = make_struct_name(&variant.id.original);
 
             // Builds the list of generic types (e.g [T, U, V]), by digging

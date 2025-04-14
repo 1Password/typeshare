@@ -4,6 +4,7 @@ use std::{
     io::{self, Write},
 };
 
+use anyhow::Context;
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use serde::{Deserialize, Serialize};
@@ -111,6 +112,7 @@ impl Language<'_> for TypeScript {
             | SpecialRustType::I64
             | SpecialRustType::ISize
             | SpecialRustType::USize => anyhow::bail!("can't use 64+ bit integers in typescript"),
+            ty => anyhow::bail!("unsupported type {ty:?}"),
         }
     }
 
@@ -200,7 +202,7 @@ impl Language<'_> for TypeScript {
             .unwrap_or_default();
 
         match e {
-            RustEnum::Unit(shared) => {
+            RustEnum::Unit { shared, .. } => {
                 write!(
                     w,
                     "export enum {}{} {{",
@@ -252,22 +254,23 @@ impl Language<'_> for TypeScript {
 }
 
 impl TypeScript {
-    fn write_enum_variants(&self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
+    fn write_enum_variants(&self, w: &mut dyn Write, e: &RustEnum) -> anyhow::Result<()> {
         match e {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
-            RustEnum::Unit(shared) => shared.variants.iter().try_for_each(|v| match v {
-                RustEnumVariant::Unit(shared) => {
-                    writeln!(w)?;
-                    self.write_comments(w, 1, &shared.comments)?;
-                    write!(
-                        w,
-                        "\t{} = {:?},",
-                        shared.id.original,
-                        &shared.id.renamed.as_str()
-                    )
-                }
-                _ => unreachable!(),
+            RustEnum::Unit {
+                shared,
+                unit_variants,
+            } => unit_variants.iter().try_for_each(|variant| {
+                writeln!(w)?;
+                self.write_comments(w, 1, &variant.comments)?;
+                write!(
+                    w,
+                    "\t{} = {:?},",
+                    shared.id.original,
+                    &shared.id.renamed.as_str()
+                )?;
+                Ok(())
             }),
 
             // Write all the algebraic variants out (all three variant types are possible
@@ -276,7 +279,8 @@ impl TypeScript {
                 tag_key,
                 content_key,
                 shared,
-            } => shared.variants.iter().try_for_each(|v| {
+                variants,
+            } => variants.iter().try_for_each(|v| {
                 writeln!(w)?;
                 self.write_comments(w, 1, &v.shared().comments)?;
                 match v {
@@ -286,11 +290,15 @@ impl TypeScript {
                         tag_key,
                         shared.id.renamed.as_str(),
                         content_key
-                    ),
+                    )
+                    .with_context(|| format!("error writing unit variant {}", shared.id.original)),
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
                             .format_type(ty, e.shared().generic_types.as_slice())
-                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                            .with_context(|| {
+                                format!("error formatting type for variant {}", shared.id.original)
+                            })?;
+
                         write!(
                             w,
                             "\t| {{ {}: {:?}, {}{}: {} }}",
@@ -300,6 +308,9 @@ impl TypeScript {
                             ty.is_optional().then_some("?").unwrap_or_default(),
                             r#type
                         )
+                        .with_context(|| {
+                            format!("error writing newtype variant {}", shared.id.original)
+                        })
                     }
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
                         writeln!(
@@ -310,13 +321,24 @@ impl TypeScript {
                             content_key
                         )?;
 
-                        fields.iter().try_for_each(|f| {
-                            self.write_field(w, f, e.shared().generic_types.as_slice())
-                        })?;
+                        fields
+                            .iter()
+                            .try_for_each(|f| {
+                                self.write_field(w, f, e.shared().generic_types.as_slice())
+                                    .with_context(|| {
+                                        format!("error writing field {}", f.id.original)
+                                    })
+                            })
+                            .with_context(|| {
+                                format!("error writing variant {}", shared.id.original)
+                            })?;
 
                         write!(w, "}}")?;
-                        write!(w, "}}")
+                        write!(w, "}}")?;
+
+                        Ok(())
                     }
+                    kind => anyhow::bail!("unsupported enum shape {kind:?}"),
                 }
             }),
         }
