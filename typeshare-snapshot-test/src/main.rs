@@ -188,43 +188,41 @@ impl Report {
                 writeln!(dest, "typeshare arguments: {:#?}", command)?;
                 writeln!(dest, "{error:?}")
             }
-            Report::TestFailure { ref diff } => {
-                writeln!(dest, "test failure in {name}:")?;
-                match diff {
-                    ReportDiff::Directory(report) => {
-                        let mut dest = IndentWriter::new("    ", dest);
-                        if !report.unexpected_files.is_empty() {
-                            writeln!(dest, "these files were not present in the snapshot:")?;
-                            let mut dest = IndentWriter::new("  ", &mut dest);
-                            report
-                                .unexpected_files
-                                .iter()
-                                .try_for_each(|filename| writeln!(dest, "{filename}"))?;
-                        }
-
-                        if !report.absent_files.is_empty() {
-                            writeln!(dest, "these expected files were absent:")?;
-                            let mut dest = IndentWriter::new("  ", &mut dest);
-                            report
-                                .absent_files
-                                .iter()
-                                .try_for_each(|filename| writeln!(dest, "{filename}"))?;
-                        }
-
-                        report.diffs.iter().try_for_each(|(filename, diff)| {
-                            let diff = diff.indented("| ");
-                            writeln!(
-                                dest,
-                                "the typeshare output didn't match the snapshot for {filename}:\n{diff}"
-                            )
-                        })
+            Report::TestFailure { ref diff } => match diff {
+                ReportDiff::Directory(report) => {
+                    writeln!(dest, "test failure in {name}:")?;
+                    let mut dest = IndentWriter::new("    ", dest);
+                    if !report.unexpected_files.is_empty() {
+                        writeln!(dest, "these files were not present in the snapshot:")?;
+                        let mut dest = IndentWriter::new("  ", &mut dest);
+                        report
+                            .unexpected_files
+                            .iter()
+                            .try_for_each(|filename| writeln!(dest, "{filename}"))?;
                     }
-                    ReportDiff::File(diff) => {
-                        let diff = diff.indented("|   ");
-                        writeln!(dest, "{diff}")
+
+                    if !report.absent_files.is_empty() {
+                        writeln!(dest, "these expected files were absent:")?;
+                        let mut dest = IndentWriter::new("  ", &mut dest);
+                        report
+                            .absent_files
+                            .iter()
+                            .try_for_each(|filename| writeln!(dest, "{filename}"))?;
                     }
+
+                    report.diffs.iter().try_for_each(|(filename, diff)| {
+                        let diff = diff.indented("| ");
+                        writeln!(
+                            dest,
+                            "the typeshare output didn't match the snapshot for {filename}:\n{diff}"
+                        )
+                    })
                 }
-            }
+                ReportDiff::File(diff) => {
+                    let diff = diff.indented("|   ");
+                    writeln!(dest, "test failure in {name}:\n{diff}")
+                }
+            },
         }
     }
 }
