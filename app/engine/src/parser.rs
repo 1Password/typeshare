@@ -3,7 +3,7 @@ use ignore::Walk;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, HashMap, HashSet},
     path::PathBuf,
 };
 use syn::{
@@ -25,6 +25,77 @@ use crate::{
 
 const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
+
+/// An enum that encapsulates units of code generation for Typeshare.
+/// Analogous to `syn::Item`, even though our variants are more limited.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
+pub enum RustItem {
+    /// A `struct` definition
+    Struct(RustStruct),
+    /// An `enum` definition
+    Enum(RustEnum),
+    /// A `type` definition or newtype struct.
+    Alias(RustTypeAlias),
+    /// A `const` definition
+    Const(RustConst),
+}
+
+/// The results of parsing Rust source input.
+#[derive(Default, Debug)]
+pub struct ParsedData {
+    /// Structs defined in the source
+    pub structs: Vec<RustStruct>,
+    /// Enums defined in the source
+    pub enums: Vec<RustEnum>,
+    /// Type aliases defined in the source
+    pub aliases: Vec<RustTypeAlias>,
+    /// Constant variables defined in the source
+    pub consts: Vec<RustConst>,
+    /// Imports used by this file
+    /// TODO: This is currently almost empty. Import computation was found to
+    /// be pretty broken during the migration to Typeshare 2, so that part
+    /// of multi-file output was stripped out to be restored later.
+    pub import_types: HashSet<ImportedType>,
+}
+
+impl ParsedData {
+    pub fn merge(&mut self, other: Self) {
+        self.structs.extend(other.structs);
+        self.enums.extend(other.enums);
+        self.aliases.extend(other.aliases);
+        self.import_types.extend(other.import_types);
+    }
+
+    pub fn add(&mut self, item: RustItem) {
+        match item {
+            RustItem::Struct(rust_struct) => self.structs.push(rust_struct),
+            RustItem::Enum(rust_enum) => self.enums.push(rust_enum),
+            RustItem::Alias(rust_type_alias) => self.aliases.push(rust_type_alias),
+            RustItem::Const(rust_const) => self.consts.push(rust_const),
+        }
+    }
+
+    pub fn all_type_names(&self) -> impl Iterator<Item = &'_ TypeName> + use<'_> {
+        let s = self.structs.iter().map(|s| &s.id.renamed);
+        let e = self.enums.iter().map(|e| &e.shared().id.renamed);
+        let a = self.aliases.iter().map(|a| &a.id.renamed);
+
+        s.chain(e).chain(a)
+    }
+
+    pub fn sort_contents(&mut self) {
+        self.structs
+            .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
+
+        self.enums.sort_unstable_by(|lhs, rhs| {
+            Ord::cmp(&lhs.shared().id.original, &rhs.shared().id.original)
+        });
+
+        self.aliases
+            .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
+    }
+}
 
 /// Input data for parsing each source file.
 #[derive(Debug)]

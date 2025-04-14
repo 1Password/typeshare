@@ -22,7 +22,7 @@ use thiserror::Error;
 use typeshare_model::prelude::{CrateName, TypeName};
 
 // Re-export this for the driver crate to use
-pub use typeshare_model::language::FilesMode;
+pub use typeshare_model::prelude::FilesMode;
 
 #[derive(Debug, Error)]
 pub struct FileParseErrors {

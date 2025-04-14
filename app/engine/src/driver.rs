@@ -4,13 +4,14 @@ use anyhow::Context as _;
 use clap::{CommandFactory as _, FromArgMatches as _};
 use clap_complete::generate as generate_completions;
 use ignore::{types::TypesBuilder, WalkBuilder};
-use typeshare_model::prelude::{CrateName, FilesMode, Language, ParsedData};
+use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
-use crate::config::load_config;
-use crate::parser::{parse_input, parser_inputs};
 use crate::{
     args::{add_lang_argument, add_language_params_to_clap, Command, OutputLocation, StandardArgs},
-    config::{self, compute_args_set, load_language_config_from_file_and_args, CliArgsSet},
+    config::{
+        self, compute_args_set, load_config, load_language_config_from_file_and_args, CliArgsSet,
+    },
+    parser::{parse_input, parser_inputs, ParsedData},
     writer::write_output,
 };
 

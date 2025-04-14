@@ -1,14 +1,14 @@
-//! Generated source file output.
-use crate::{args::OutputLocation, topsort::topsort};
-use anyhow::Context;
-use itertools::Itertools;
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
 
+use anyhow::Context;
+use itertools::Itertools;
 use typeshare_model::prelude::*;
+
+use crate::{args::OutputLocation, parser::ParsedData, topsort::topsort};
 
 pub fn write_output<'c>(
     lang: &impl Language<'c>,

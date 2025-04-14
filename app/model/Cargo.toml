@@ -1,10 +1,11 @@
 [package]
 name = "typeshare-model"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = { version = "1.0.95", default-features = false }
 itertools = "0.13.0"
+lazy_format = "2.0.3"
 proc-macro2 = { version = "1.0.93", default-features = false }
 serde = { version = "1.0.217", default-features = false }

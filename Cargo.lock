@@ -702,6 +702,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "itertools 0.13.0",
+ "lazy_format",
  "proc-macro2",
  "serde",
 ]

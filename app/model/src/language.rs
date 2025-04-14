@@ -1,10 +1,8 @@
-use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    io::Write,
-    path::Path,
-};
+use std::{borrow::Cow, fmt::Display, io::Write, path::Path};
 
+use anyhow::Context;
 use itertools::Itertools;
+use lazy_format::lazy_format;
 
 use crate::parsed_data::{
     CrateName, Id, RustConst, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias,
@@ -32,28 +30,60 @@ impl<T> FilesMode<T> {
     }
 }
 
-/// Mapping of crate names to typeshare type names.
-pub type CrateTypes = HashMap<CrateName, HashSet<TypeName>>;
-
-/// Refence types by crate that are scoped for a given output module.
-pub type ScopedCrateTypes<'a> = BTreeMap<&'a CrateName, BTreeSet<&'a TypeName>>;
-
 /**
-Language-specific state and processing.
+*The* trait you need to implement in order to have your own implementation of
+typeshare. The whole world revolves around this trait.
 
-The `Language` implementation is allowed to maintain mutable state, and it
-is allowed to assume that a unique `Language` instance will be constructed
-for each `Generator` instance.
+In general, to implement this correctly, you *must* implement:
 
-The basic flow of `typeshare` looks like this. In this example we'll use
-`Kotlin` as the example language (so we assume that somewhere there exists
-`impl Language<'_> for Kotlin`).
+- `new_from_config`, which instantiates your `Language` struct from
+  configuration which was read from a config file or the command line
+- `output_filename_for_crate`, which (in multi-file mode) produces a file
+  name from a crate name. All of the typeshared types from that crate will
+  be written to that file.
+- The `write_*` methods, which output the actual type definitions. These
+  methods *should* call `format_type` to format the actual types contained
+  in the type definitions, which will in turn dispatch to the relevant
+  `format_*` method, depending on what kind of type it is.
+- The `format_special_type` method, which outputs things like integer types,
+  arrays, and other builtin or primitive types. This method is only ever called
+  by `format_type`, which is only called if you choose to call it in your
+  `write_*` implementations.
+
+Additionally, you must provide a `Config` associated type, which must implement
+`Serialize + Deserialize`. This type will be used to load configuration from
+a config file and from the command line arguments for your language, which will
+be passed to `new_from_config`. This type should provide defaults for *all* of
+its fields; it should always tolerate being loaded from an empty config file.
+When *serializing*, this type should always output all of its fields, even if
+they're defaulted.
+
+It's also very common to implement:
+
+- `mapped_type`, to define certain types as having specialied handling in your
+  lanugage.
+- `begin_type`, `end_type`, and `write_additional_files`, to add additional
+  per-file or per-directory content to your output.
+
+If your language spells type names in an unusual way (here, defined as the C++
+descended convention, where a type might be spelled `Foo<Bar, Baz<Zed>>`),
+you'll want to implement the `format_*` methods.
+
+Other methods can be specialized as needed.
+
+# Typeshare execution flow.
+
+This is the detailed flow of how the `Language` trait is actually used by
+typeshare. It includes references to all of the methods that are called, and
+in what order. For these examples, we're assuming a hypothetical implementation
+for Kotlin, which means that there must be `impl Language<'_> for Kotlin`
+somewhere.
 
 1. The language's config is loaded from the config file and command line
 arguments:
 
 ```ignore
-let config = Kotlin::Config::deserialize(config_file);
+let config = Kotlin::Config::deserialize(config_file)?;
 ```
 
 2. The language is loaded from the config file via `new_from_config`. This is
@@ -64,7 +94,7 @@ that weren't detected during deserialization.
 let language = Kotlin::new_from_config(config)?;
 ```
 
-3. If we're in multi-file mode, we call `output_file_for_crate` for each rust
+3. If we're in multi-file mode, we call `output_filename_for_crate` for each rust
 crate being typeshared to determine the _filename_ for the output file that
 will contain that crate's types.
 
@@ -92,94 +122,116 @@ types that are being imported from other typeshare'd crates. This allows the
 language to emit appropriate import statements for its own language.
 
 ```ignore
+// Only in multi-file mode
 language.write_imports(&mut file, crate_name, computed_imports)
 ```
 
 6. For EACE typeshared item in being typeshared, we call `write_enum`,
-`write_struct`, or `write_type_alias`, as appropriate.
+`write_struct`, `write_type_alias`, or `write_const`, as appropriate.
 
 ```ignore
 language.write_struct(&mut file, parsed_struct);
 language.write_enum(&mut file, parsed_enum);
 ```
 
-5a. In your implementations of these methods, we recommend that you call
+6a. In your implementations of these methods, we recommend that you call
 `format_type` for the fields of these types. `format_type` will in turn call
 `format_simple_type`, `format_generic_type`, or `format_special_type`, as
 appropriate; usually it is only necessary for you to implmenent
 `format_special_type` yourself, and use the default implementations for the
 others. The `format_*` methods will otherwise never be called by typeshare.
 
-5b. If your language doesn't natively support data-containing enums, we
+6b. If your language doesn't natively support data-containing enums, we
 recommand that you call `write_types_for_anonymous_structs` in your
 implementation of `write_enum`; this will call `write_struct` for each variant
 of the enum.
 
-7. After all the types are written, we call `end_file`.
+7. After all the types are written, we call `end_file`, with the same
+arguments that were passed to `begin_file`.
 
 ```ignore
-language.end_file(&mut file)
+language.end_file(&mut file, mode)
 ```
 
 8. In multi-file mode only, after ALL files are written, we call
-`post_generation` with the output directory. This gives the language an
+`write_additional_files` with the output directory. This gives the language an
 opportunity to create any files resembling `mod.rs` or `index.js` as it might
 require.
 
 ```ignore
-language.post_generation(&output_directory)
+// Only in multi-file mode
+language.write_additional_files(&output_directory, generated_files.iter())
 ```
 
-NOTE THAT at this stage, multi-file output is still work-in-progress, as the
-algorithms that compute import sets are being rewritten.
+NOTE: at this stage, multi-file output is still work-in-progress, as the
+algorithms that compute import sets are being rewritten. The API presented
+here is stable, but output might be buggy while issues with import detection
+are resolved.
 */
 pub trait Language<'config>: Sized {
-    /// Not all languages can format all types; the `format_` methods of this
-    /// trait will return this error if an invalid type is encountered.
-    // TODO: type formatting errors should include context during stack
-    // unwinding
-    type FormatTypeError;
+    /**
+    The configuration for this language. This configuration will be loaded
+    from a config file and, where possible, from the command line, via
+    `serde`.
 
-    /// The configuration for this language. This configuration will be loaded
-    /// from a config file and, where possible, from the command line, via
-    /// `serde`.
-    ///
-    /// It is important that this type include `#[serde(default)]` or something
-    /// equivelent, so that a config can be loaded with default setting even
-    /// if this language isn't present in the config file.
-    ///
-    /// The `serialize` implementation for this type should NOT skip keys, if
-    /// possible.
+    It is important that this type include `#[serde(default)]` or something
+    equivelent, so that a config can be loaded with default setting even
+    if this language isn't present in the config file.
+
+    The `serialize` implementation for this type should NOT skip keys, if
+    possible.
+    */
     type Config: serde::Deserialize<'config> + serde::Serialize;
 
-    /// The lowercase conventional name for this language. This should be a
-    /// single identifier. It will be used as a prefix for various things;
-    /// for instance, it will identify this language in the config file, and
-    /// be used as a prefix when generating CLI parameters
+    /**
+    The lowercase conventional name for this language. This should be a
+    single identifier. It will be used as a prefix for various things;
+    for instance, it will identify this language in the config file, and
+    be used as a prefix when generating CLI parameters
+    */
     const NAME: &'static str;
 
-    /// Create an instance of this language
+    /// Create an instance of this language from the loaded configuration.
     fn new_from_config(config: Self::Config) -> anyhow::Result<Self>;
 
-    /// Most languages provide manual overrides for specific types. When a type
-    /// is formatted with a name that matches a mapped type, the mapped type
-    /// name is formatted instead.
-    fn mapped_type(&self, type_name: &TypeName) -> Option<&TypeName>;
+    /**
+    Most languages provide manual overrides for specific types. When a type
+    is formatted with a name that matches a mapped type, the mapped type
+    name is formatted instead.
 
-    /// In multi-file mode, typeshare will output one separate file with this
-    /// name for each crate in the input set. These file names should have the
-    /// appropriate naming convention and extension for this language.
-    ///
-    /// This method isn't used in single-file mode.
-    fn output_file_for_crate(&self, crate_name: &CrateName) -> String;
-
-    /// Convert a Rust type into a type from this language. By default this
-    /// calls `format_simple_type`, `format_generic_type`
-    fn format_type(
+    By default this returns `None` for all types.
+    */
+    fn mapped_type(
         &self,
-        ty: &RustType,
-        generic_context: &[TypeName],
-    ) -> Result<String, Self::FormatTypeError> {
+        #[expect(unused_variables)] type_name: &TypeName,
+    ) -> Option<Cow<'_, str>> {
+        None
+    }
+
+    /**
+    In multi-file mode, typeshare will output one separate file with this
+    name for each crate in the input set. These file names should have the
+    appropriate naming convention and extension for this language.
+
+    This method isn't used in single-file mode.
+    */
+    fn output_filename_for_crate(&self, crate_name: &CrateName) -> String;
+
+    /**
+    Convert a Rust type into a type from this language. By default this
+    calls `format_simple_type`, `format_generic_type`, or
+    `format_special_type`, depending on the type. There should only rarely
+    be a need to specialize this.
+
+    This method should be called by the `write_*` methods to write the types
+    contained by type definitions.
+
+    The `generic_context` is the set of generic types being provided by
+    the enclosing type definition; this allows languages that do type
+    renaming to be able to distinguish concrete type names (like `int`)
+    from generic type names (like `T`)
+    */
+    fn format_type(&self, ty: &RustType, generic_context: &[TypeName]) -> anyhow::Result<String> {
         match ty {
             RustType::Simple { id } => self.format_simple_type(id, generic_context),
             RustType::Generic { id, parameters } => {
@@ -189,28 +241,49 @@ pub trait Language<'config>: Sized {
         }
     }
 
-    /// Format a simple type with no generic parameters.
-    /// Note that we still need to take a list of generic types in case the implementors
-    /// need to differentiate between a user-defined type and a generic type (for example: Swift)
+    /**
+    Format a simple type with no generic parameters.
+
+    By default, this first checks `self.mapped_type` to see if there's an
+    alternative way this type should be formatted, and otherwise prints the
+    `base` verbatim.
+
+    The `generic_context` is the set of generic types being provided by
+    the enclosing type definition; this allows languages that do type
+    renaming to be able to distinguish concrete type names (like `int`)
+    from generic type names (like `T`).
+    */
     fn format_simple_type(
         &self,
         base: &TypeName,
         #[expect(unused_variables)] generic_context: &[TypeName],
-    ) -> Result<String, Self::FormatTypeError> {
+    ) -> anyhow::Result<String> {
         Ok(match self.mapped_type(base) {
             Some(mapped) => mapped.to_string(),
             None => base.to_string(),
         })
     }
 
-    /// Format a generic type that takes in generic arguments, which
-    /// may be recursive.
+    /**
+    Format a generic type that takes in generic arguments, which
+    may be recursive.
+
+    By default, this creates a composite type name by appending
+    `self.format_simple_type` and `self.format_generic_parameters`. With
+    their default implementations, this will print `name<parameters>`,
+    which is a common syntax used by many languages for generics.
+
+    The `generic_context` is the set of generic types being provided by
+    the enclosing type definition; this allows languages that do type
+    renaming to be able to distinguish concrete type names (like `int`)
+    from generic type names (like `T`).
+    */
     fn format_generic_type(
         &self,
         base: &TypeName,
         parameters: &[RustType],
         generic_context: &[TypeName],
-    ) -> Result<String, Self::FormatTypeError> {
+    ) -> anyhow::Result<String> {
         match parameters.is_empty() {
             true => self.format_simple_type(base, generic_context),
             false => Ok(match self.mapped_type(base) {
@@ -224,117 +297,210 @@ pub trait Language<'config>: Sized {
         }
     }
 
-    /// Format generic parameters into a syntax used by this language. By
-    /// default, this returns `<A, B, C, ...>`, since that's a common syntax
-    /// used by most languages.
+    /**
+    Format generic parameters into a syntax used by this language. By
+    default, this returns `<A, B, C, ...>`, since that's a common syntax
+    used by most languages.
+
+    This method is only used when `format_generic_type` calls it.
+
+    The `generic_context` is the set of generic types being provided by
+    the enclosing type definition; this allows languages that do type
+    renaming to be able to distinguish concrete type names (like `int`)
+    from generic type names (like `T`).
+    */
     fn format_generic_parameters(
         &self,
         parameters: &[RustType],
         generic_context: &[TypeName],
-    ) -> Result<String, Self::FormatTypeError> {
+    ) -> anyhow::Result<String> {
         parameters
             .iter()
             .map(|ty| self.format_type(ty, generic_context))
             .process_results(|mut formatted| format!("<{}>", formatted.join(", ")))
     }
 
-    /// Format a base type that is classified as a SpecialRustType.
+    /**
+    Format a special type. This will handle things like arrays, primitives,
+    options, and so on. Every lanugage has different spellings for these types,
+    so this is one of the key methods that a language implementation needs to
+    deal with.
+    */
     fn format_special_type(
         &self,
         special_ty: &SpecialRustType,
         generic_context: &[TypeName],
-    ) -> Result<String, Self::FormatTypeError>;
+    ) -> anyhow::Result<String>;
 
-    /// Implementors can use this function to write a header for typeshared code.
-    /// By default this does nothing.
-    fn begin_file(&self, w: &mut impl Write, mode: FilesMode<&CrateName>) -> std::io::Result<()>;
+    /**
+    Write a header for typeshared code. This is called unconditionally
+    at the start of the output file (or at the start of all files, if in
+    multi-file mode).
 
-    /// For generating import statements. This is called only in multi-file
-    /// mode, after `begin_file` and before any another methods.
-    fn write_imports(
+    By default this does nothing.
+    */
+    fn begin_file(
+        &self,
+        #[expect(unused_variables)] w: &mut impl Write,
+        #[expect(unused_variables)] mode: FilesMode<&CrateName>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    /**
+    For generating import statements. This is called only in multi-file
+    mode, after `begin_file` and before any other writes.
+
+    `imports` includes an ordered list of type names that typeshare
+    believes are being imported by this file, grouped by the crates they
+    come from. `typeshare` guarantees that these will be passed in some stable
+    order, so that your output remains consistent.
+
+    NOTE: Currently this is bugged and doesn't receive correct imports.
+    This will be fixed in a future release.
+    */
+    fn write_imports<'a, Crates, Types>(
         &self,
         writer: &mut impl Write,
         crate_name: &CrateName,
-        imports: &ScopedCrateTypes<'_>,
-    ) -> std::io::Result<()>;
+        imports: Crates,
+    ) -> anyhow::Result<()>
+    where
+        Crates: IntoIterator<Item = (&'a CrateName, Types)>,
+        Types: IntoIterator<Item = &'a TypeName>;
 
-    /// Implementors can use this function to write a footer for typeshared code.
-    /// By default this does nothing.
-    fn end_file(&self, w: &mut impl Write) -> std::io::Result<()>;
+    /**
+    Write a header for typeshared code. This is called unconditionally
+    at the end of the output file (or at the end of all files, if in
+    multi-file mode).
 
-    /// Write a type alias by converting it.
-    /// Example of a type alias:
-    /// ```
-    /// type MyTypeAlias = String;
-    /// ```
-    fn write_type_alias(&self, w: &mut impl Write, t: &RustTypeAlias) -> std::io::Result<()>;
+    By default this does nothing.
+    */
+    fn end_file(
+        &self,
+        #[expect(unused_variables)] w: &mut impl Write,
+        #[expect(unused_variables)] mode: FilesMode<&CrateName>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 
-    /// Write a struct by converting it
-    /// Example of a struct:
-    /// ```ignore
-    /// #[typeshare]
-    /// #[derive(Serialize, Deserialize)]
-    /// struct Foo {
-    ///     bar: String
-    /// }
-    /// ```
-    fn write_struct(&self, w: &mut impl Write, rs: &RustStruct) -> std::io::Result<()>;
+    /**
+    Write a type alias definition.
 
-    /// Write an enum by converting it.
-    /// Example of an enum:
-    /// ```ignore
-    /// #[typeshare]
-    /// #[derive(Serialize, Deserialize)]
-    /// #[serde(tag = "type", content = "content")]
-    /// enum Foo {
-    ///     Fizz,
-    ///     Buzz { yep_this_works: bool }
-    /// }
-    /// ```
-    fn write_enum(&self, w: &mut impl Write, e: &RustEnum) -> std::io::Result<()>;
+    Example of a type alias:
+    ```
+    type MyTypeAlias = String;
+    ```
 
-    /// Write a constant variable.
-    /// Example of a constant variable:
-    /// ```
-    /// const ANSWER_TO_EVERYTHING: u32 = 42;
-    /// ```
-    fn write_const(&self, w: &mut impl Write, c: &RustConst) -> std::io::Result<()>;
+    Generally this method will call `self.format_type` to produce the
+    aliased type name in the output definition.
+    */
+    fn write_type_alias(&self, w: &mut impl Write, t: &RustTypeAlias) -> anyhow::Result<()>;
 
-    /// Write out named types to represent anonymous struct enum variants.
-    ///
-    /// Take the following enum as an example:
-    ///
-    /// ```
-    /// enum AlgebraicEnum {
-    ///     AnonymousStruct {
-    ///         field: String,
-    ///         another_field: bool,
-    ///     },
-    /// }
-    /// ```
-    ///
-    /// This function will write out:
-    ///
-    /// ```compile_fail
-    /// /// Generated type representing the anonymous struct variant `<make_struct_name>` of the `AlgebraicEnum` rust enum
-    /// /* the struct definition for whatever language */
-    /// ```
-    ///
-    /// It does this by calling `write_struct` on the given `language_impl`. The
-    /// name of the struct is controlled by the `make_struct_name` closure; you're
-    /// given the variant name and asked to return whatever struct name works best
-    /// for your language.
-    fn write_types_for_anonymous_structs(
+    /**
+    Write a struct definition.
+
+    Example of a struct:
+    ```ignore
+    #[typeshare]
+    #[derive(Serialize, Deserialize)]
+    struct Foo {
+        bar: String
+    }
+    ```
+
+    Generally this method will call `self.format_type` to produce the types
+    of the individual fields.
+    */
+    fn write_struct(&self, w: &mut impl Write, rs: &RustStruct) -> anyhow::Result<()>;
+
+    /**
+    Write an enum definition.
+
+    Example of an enum:
+    ```ignore
+    #[typeshare]
+    #[derive(Serialize, Deserialize)]
+    #[serde(tag = "type", content = "content")]
+    enum Foo {
+        Fizz,
+        Buzz { yep_this_works: bool }
+    }
+    ```
+
+    Generally this will call `self.format_type` to produce the types of
+    the individual fields. If this enum is an algebraic sum type, and this
+    language doesn't really support those, it should consider calling
+    `write_struct_types_for_enum_variants` to produce struct types matching
+    those variants, which can be used for this language's abstraction for
+    data like this.
+    */
+    fn write_enum(&self, w: &mut impl Write, e: &RustEnum) -> anyhow::Result<()>;
+
+    /**
+    Write a constant variable.
+
+    Example of a constant variable:
+    ```
+    const ANSWER_TO_EVERYTHING: u32 = 42;
+    ```
+
+    If necessary, generally this will call `self.format_type` to produce
+    the type of this constant (though some languages are allowed to omit
+    it).
+    */
+    fn write_const(&self, w: &mut impl Write, c: &RustConst) -> anyhow::Result<()>;
+
+    /**
+    Write out named types to represent anonymous struct enum variants.
+
+    Take the following enum as an example:
+
+    ```
+    enum AlgebraicEnum {
+        AnonymousStruct {
+            field: String,
+            another_field: bool,
+        },
+
+        Variant2 {
+            field: i32,
+        }
+    }
+    ```
+
+    This function will write out a pair of struct types resembling:
+
+    ```compile_fail
+    struct AnonymousStruct {
+        field: String,
+        another_field: bool,
+    }
+
+    struct Variant2 {
+        field: i32,
+    }
+    ```
+
+    Except that it will use `make_struct_name` to compute the names of these
+    structs based on the names of the variants.
+
+    This method isn't called by default; it is instead provided as a helper
+    for your implementation of `write_enum`, since many languages don't have
+    a specific notion of an algebraic sum type, and have to emulate it with
+    subclasses, tagged unions, or something similar.
+    */
+    fn write_struct_types_for_enum_variants(
         &self,
         w: &mut impl Write,
         e: &RustEnum,
         make_struct_name: &impl Fn(&TypeName) -> String,
-    ) -> std::io::Result<()> {
-        for (fields, shared) in e.shared().variants.iter().filter_map(|v| match v {
+    ) -> anyhow::Result<()> {
+        for (fields, variant) in e.shared().variants.iter().filter_map(|v| match v {
             RustEnumVariant::AnonymousStruct { fields, shared } => Some((fields, shared)),
             _ => None,
         }) {
-            let struct_name = make_struct_name(&shared.id.original);
+            let struct_name = make_struct_name(&variant.id.original);
 
             // Builds the list of generic types (e.g [T, U, V]), by digging
             // through the fields recursively and comparing against the
@@ -356,32 +522,64 @@ pub trait Language<'config>: Sized {
                 &RustStruct {
                     id: Id {
                         original: TypeName::new_string(struct_name.clone()),
-                        renamed: TypeName::new_string(struct_name)
+                        renamed: TypeName::new_string(struct_name),
                     },
                     fields: fields.clone(),
                     generic_types,
                     comments: vec![format!(
-                        "Generated type representing the anonymous struct variant `{}` of the `{}` Rust enum",
-                        &shared.id.original,
+                        "Generated type representing the anonymous struct \
+                        variant `{}` of the `{}` Rust enum",
+                        &variant.id.original,
                         &e.shared().id.original,
                     )],
                     decorators: e.shared().decorators.clone(),
                 },
-            )?;
+            )
+            .with_context(|| {
+                format!(
+                    "failed to write struct type for the \
+                    `{}` variant of the `{}` enum",
+                    variant.id.original,
+                    e.shared().id.original
+                )
+            })?;
         }
 
         Ok(())
     }
 
-    /// Types that are remapped will be excluded from import references.
-    fn ignored_reference_types(&self) -> Vec<&str> {
-        Vec::new()
+    /**
+    If a type with this name appears in a type definition, it will be
+    unconditionally excluded from cross-file import analysis. Usually this will
+    be the types in `mapped_types`, since those are types with special behavior
+    (for instance, a datetime date provided as a standard type by your
+    langauge).
+
+    This is mostly a performance optimization. By default it returns `false`
+    for all types.
+    */
+    fn exclude_from_import_analysis(&self, #[expect(unused_variables)] name: &TypeName) -> bool {
+        false
     }
 
-    /// Any other final steps after modules have been generated. For example creating a new
-    /// module with special types.
-    // TODO: different error type
-    fn post_generation(&self, _output_folder: &Path) -> std::io::Result<()> {
+    /**
+    In multi-file mode, this method is called after all of the individual
+    typeshare files are completely generated. Use it to generate any
+    additional files your language might need in this directory to
+    function correctly, such as a `mod.rs`, `__init__.py`, `index.js`, or
+    anything else like that.
+
+    It passed a list of crate names, for each crate that was typeshared, and
+    the associated file paths, indicating all of the files that were generated
+    by typeshare.
+
+    By default, this does nothing.
+    */
+    fn write_additional_files<'a>(
+        &self,
+        #[expect(unused_variables)] output_folder: &Path,
+        #[expect(unused_variables)] output_files: impl IntoIterator<Item = (&'a CrateName, &'a Path)>,
+    ) -> anyhow::Result<()> {
         Ok(())
     }
 }
