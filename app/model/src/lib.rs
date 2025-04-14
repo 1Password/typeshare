@@ -3,6 +3,7 @@ typeshare-model is the core dependency of all typeshare implementations. It
 defines the [`Language`] trait, which should be implemented by all aspiring
 typeshare implementations, as well as a
  */
+pub mod config;
 pub mod decorator;
 mod language;
 pub mod parsed_data;
