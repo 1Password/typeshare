@@ -38,6 +38,19 @@ struct Args {
     mode: Mode,
 
     additional_args: Vec<String>,
+    // TODO: test selection
+    // TODO: concurrency limiter
+}
+
+impl Args {
+    // We want to allow people to write `--suffix ts` or `--suffix .tx`,
+    // whatever brings them joy.
+    fn trimmed_suffix(&self) -> &str {
+        match self.suffix.strip_prefix('.') {
+            Some(suffix) => suffix,
+            None => self.suffix.as_str(),
+        }
+    }
 }
 
 #[derive(clap::ValueEnum, Clone, Copy, Debug)]
@@ -538,7 +551,7 @@ fn main() -> anyhow::Result<()> {
                         &args.typeshare,
                         args.config.as_deref(),
                         &args.language,
-                        &args.suffix,
+                        args.trimmed_suffix(),
                         &args.additional_args,
                     )
                     .with_context(|| format!("error from snapshot test {entry_name}"))
