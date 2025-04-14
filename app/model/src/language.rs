@@ -1,8 +1,7 @@
-use std::{borrow::Cow, fmt::Display, io::Write, path::Path};
+use std::{borrow::Cow, io::Write, path::Path};
 
 use anyhow::Context;
 use itertools::Itertools;
-use lazy_format::lazy_format;
 
 use crate::parsed_data::{
     CrateName, Id, RustConst, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias,

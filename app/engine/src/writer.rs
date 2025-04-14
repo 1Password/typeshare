@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -31,7 +31,6 @@ pub fn write_output<'c>(
         }
         OutputLocation::Folder(directory) => {
             // TODO: compute import candidates here
-            let import_candidates = HashMap::new();
 
             let crate_parsed_data = crate_parsed_data
                 .into_iter()
@@ -47,7 +46,7 @@ pub fn write_output<'c>(
                 })
                 .try_collect()?;
 
-            write_multiple_files(lang, directory, &crate_parsed_data, &import_candidates)
+            write_multiple_files(lang, directory, &crate_parsed_data)
         }
     }
 }
@@ -57,26 +56,41 @@ pub fn write_multiple_files<'c>(
     lang: &impl Language<'c>,
     output_folder: &Path,
     crate_parsed_data: &HashMap<CrateName, ParsedData>,
-    import_candidates: &CrateTypes,
-) -> Result<(), anyhow::Error> {
+) -> anyhow::Result<()> {
+    let mut output_files = Vec::with_capacity(crate_parsed_data.len());
+
     for (crate_name, parsed_data) in crate_parsed_data {
-        let outfile = output_folder.join(&lang.output_file_for_crate(&crate_name));
+        let file_path = output_folder.join(&lang.output_filename_for_crate(&crate_name));
 
         let mut output = Vec::new();
 
         generate_types(
             lang,
             &mut output,
-            import_candidates,
             parsed_data,
             FilesMode::Multi(&crate_name),
-        )?;
+        )
+        .with_context(|| format!("error generating typeshare types for crate {crate_name}"))?;
 
-        check_write_file(&outfile, output)?;
+        check_write_file(&file_path, output).with_context(|| {
+            format!(
+                "error writing generated typeshare types for crate {crate_name} to '{}'",
+                file_path.display()
+            )
+        })?;
+
+        output_files.push((crate_name, file_path));
     }
 
-    lang.post_generation(output_folder)
-        .context("Post generation failed")?;
+    output_files.sort_by_key(|&(crate_name, _)| crate_name);
+
+    lang.write_additional_files(
+        output_folder,
+        output_files
+            .iter()
+            .map(|(crate_name, file_path)| (*crate_name, file_path.as_path())),
+    )
+    .context("failed to write additional files")?;
 
     Ok(())
 }
@@ -89,16 +103,12 @@ pub fn write_single_file<'c>(
 ) -> Result<(), anyhow::Error> {
     let mut output = Vec::new();
 
-    generate_types(
-        lang,
-        &mut output,
-        &HashMap::new(),
-        parsed_data,
-        FilesMode::Single,
-    )?;
+    generate_types(lang, &mut output, parsed_data, FilesMode::Single)
+        .context("error generating typeshare types")?;
 
     let outfile = Path::new(file_name).to_path_buf();
-    check_write_file(&outfile, output)?;
+    check_write_file(&outfile, output)
+        .context("error writing generated typeshare types to file")?;
     Ok(())
 }
 
@@ -109,7 +119,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
             // avoid writing the file to leave the mtime intact
             // for tools which might use it to know when to
             // rebuild.
-            println!("Skipping writing to {outfile:?} no changes");
+            eprintln!("Skipping writing to {outfile:?} no changes");
             return Ok(());
         }
         _ => {}
@@ -144,19 +154,34 @@ pub enum BorrowedRustItem<'a> {
     Const(&'a RustConst),
 }
 
+impl BorrowedRustItem<'_> {
+    pub fn name(&self) -> &str {
+        match *self {
+            BorrowedRustItem::Struct(item) => &item.id,
+            BorrowedRustItem::Enum(item) => &item.shared().id,
+            BorrowedRustItem::Alias(item) => &item.id,
+            BorrowedRustItem::Const(item) => &item.id,
+        }
+        .original
+        .as_str()
+    }
+}
+
 /// Given `data`, generate type-code for this language and write it out to `writable`.
 /// Returns whether or not writing was successful.
 fn generate_types<'c>(
     lang: &impl Language<'c>,
     out: &mut Vec<u8>,
-    all_types: &CrateTypes,
     data: &ParsedData,
     mode: FilesMode<&CrateName>,
-) -> std::io::Result<()> {
-    lang.begin_file(out, mode)?;
+) -> anyhow::Result<()> {
+    lang.begin_file(out, mode)
+        .context("error writing file header")?;
 
     if let FilesMode::Multi(crate_name) = mode {
-        lang.write_imports(out, crate_name, &used_imports(&data, crate_name, all_types))?;
+        let all_types = HashMap::new();
+        lang.write_imports(out, crate_name, used_imports(&data, crate_name, &all_types))
+            .context("error writing imports")?;
     }
 
     let ParsedData {
@@ -177,15 +202,26 @@ fn generate_types<'c>(
     topsort(&mut items);
 
     for thing in &items {
+        let name = thing.name();
+
         match thing {
-            BorrowedRustItem::Enum(e) => lang.write_enum(out, e)?,
-            BorrowedRustItem::Struct(s) => lang.write_struct(out, s)?,
-            BorrowedRustItem::Alias(a) => lang.write_type_alias(out, a)?,
-            BorrowedRustItem::Const(c) => lang.write_const(out, c)?,
+            BorrowedRustItem::Enum(e) => lang
+                .write_enum(out, e)
+                .with_context(|| format!("error writing enum {name}"))?,
+            BorrowedRustItem::Struct(s) => lang
+                .write_struct(out, s)
+                .with_context(|| format!("error writing struct {name}"))?,
+            BorrowedRustItem::Alias(a) => lang
+                .write_type_alias(out, a)
+                .with_context(|| format!("error writing type alias {name}"))?,
+            BorrowedRustItem::Const(c) => lang
+                .write_const(out, c)
+                .with_context(|| format!("error writing const {name}"))?,
         }
     }
 
-    lang.end_file(out)
+    lang.end_file(out, mode)
+        .context("error writing file trailer")
 }
 
 /// Lookup any refeferences to other typeshared types in order to build
@@ -193,13 +229,14 @@ fn generate_types<'c>(
 fn used_imports<'a, 'b: 'a>(
     data: &'b ParsedData,
     crate_name: &CrateName,
-    all_types: &'a CrateTypes,
-) -> ScopedCrateTypes<'a> {
-    let mut used_imports = ScopedCrateTypes::new();
+    all_types: &'a HashMap<CrateName, HashSet<TypeName>>,
+) -> BTreeMap<&'a CrateName, BTreeSet<&'a TypeName>> {
+    let mut used_imports: BTreeMap<&'a CrateName, BTreeSet<&'a TypeName>> = BTreeMap::new();
 
     // If we have reference that is a re-export we can attempt to find it with the
     // following heuristic.
-    let fallback = |referenced_import: &'a ImportedType, used: &mut ScopedCrateTypes<'a>| {
+    let fallback = |referenced_import: &'a ImportedType,
+                    used: &mut BTreeMap<&'a CrateName, BTreeSet<&'a TypeName>>| {
         // Find the first type that does not belong to the current crate.
         if let Some((crate_name, ty)) = all_types
             .iter()

@@ -6,7 +6,6 @@ use std::{
 
 use itertools::Itertools;
 use joinery::JoinableIterator;
-use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};

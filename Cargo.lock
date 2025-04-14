@@ -732,7 +732,6 @@ dependencies = [
  "anyhow",
  "itertools 0.14.0",
  "joinery",
- "lazy_format",
  "serde",
  "thiserror",
  "typeshare-model",
