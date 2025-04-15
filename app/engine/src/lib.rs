@@ -159,6 +159,10 @@ pub enum ParseErrorKind {
     SerdeContentRequired { enum_ident: TypeName },
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
+    #[error("the expression assigned to this constant variable is not a numeric literal")]
+    RustConstExprInvalid,
+    #[error("you cannot use typeshare on a constant that is not a numeric literal")]
+    RustConstTypeInvalid,
 }
 
 #[derive(Debug, Error)]

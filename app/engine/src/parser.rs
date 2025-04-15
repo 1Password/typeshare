@@ -7,8 +7,8 @@ use std::{
     path::PathBuf,
 };
 use syn::{
-    punctuated::Punctuated, visit::Visit, Attribute, Expr, Fields, GenericParam, Ident, ItemEnum,
-    ItemStruct, ItemType, Meta, Token,
+    punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprGroup, ExprLit, ExprParen, Fields,
+    GenericParam, Ident, ItemConst, ItemEnum, ItemStruct, ItemType, Lit, Meta, Token,
 };
 
 use typeshare_model::{
@@ -593,6 +593,53 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
     }))
+}
+
+/// Parses a const variant.
+pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
+    let expr = parse_const_expr(&c.expr)?;
+    let decorators = get_decorators(&c.attrs);
+
+    // serialized_as needs to be supported in case the user wants to use a different type
+    // for the constant variable in a different language
+    let ty = match get_serialized_as_type(&decorators) {
+        Some(ty) => parse_rust_type_from_string(ty)?,
+        None => parse_rust_type(&c.ty)?,
+    };
+
+    match &ty {
+        RustType::Special(SpecialRustType::HashMap(_, _))
+        | RustType::Special(SpecialRustType::Vec(_))
+        | RustType::Special(SpecialRustType::Option(_)) => {
+            return Err(ParseError::new(&c.ty, ParseErrorKind::RustConstTypeInvalid));
+        }
+        RustType::Special(_) => (),
+        RustType::Simple { .. } => (),
+        _ => return Err(ParseError::new(&c.ty, ParseErrorKind::RustConstTypeInvalid)),
+    };
+
+    Ok(RustItem::Const(RustConst {
+        id: get_ident(Some(&c.ident), &c.attrs, &None),
+        ty,
+        expr,
+    }))
+}
+
+fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
+    let value = match e {
+        Expr::Lit(ExprLit {
+            lit: Lit::Int(lit), ..
+        }) => lit
+            .base10_parse()
+            .map_err(|_| ParseError::new(&lit, ParseErrorKind::RustConstExprInvalid))?,
+
+        Expr::Group(ExprGroup { expr, .. }) | Expr::Paren(ExprParen { expr, .. }) => {
+            return parse_const_expr(expr)
+        }
+        _ => return Err(ParseError::new(e, ParseErrorKind::RustConstExprInvalid)),
+    };
+
+    Ok(RustConstExpr::Int(value))
 }
 
 // Helpers

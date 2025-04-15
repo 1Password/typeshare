@@ -10,7 +10,8 @@ use typeshare_model::{
 
 use crate::{
     parser::{
-        has_typeshare_annotation, parse_enum, parse_struct, parse_type_alias, ParsedData, RustItem,
+        has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
+        ParsedData, RustItem,
     },
     ParseError, ParseErrorSet,
 };
@@ -278,6 +279,14 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         }
 
         syn::visit::visit_item_type(self, i);
+    }
+
+    fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
+        if has_typeshare_annotation(&i.attrs) {
+            self.collect_result(parse_const(i));
+        }
+
+        syn::visit::visit_item_const(self, i);
     }
 }
 
