@@ -260,7 +260,10 @@ pub fn parse_input(
 
 /// Check if we have not parsed any relavent typehsared types.
 fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
-    parsed_data.enums.is_empty() && parsed_data.aliases.is_empty() && parsed_data.structs.is_empty()
+    parsed_data.enums.is_empty()
+        && parsed_data.aliases.is_empty()
+        && parsed_data.structs.is_empty()
+        && parsed_data.consts.is_empty()
 }
 
 /// Parse the given Rust source string into `ParsedData`.

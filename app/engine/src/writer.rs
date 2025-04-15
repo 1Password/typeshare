@@ -188,6 +188,7 @@ fn generate_types<'c>(
         structs,
         enums,
         aliases,
+        consts,
         ..
     } = data;
 
@@ -196,7 +197,8 @@ fn generate_types<'c>(
             .iter()
             .map(BorrowedRustItem::Alias)
             .chain(structs.iter().map(BorrowedRustItem::Struct))
-            .chain(enums.iter().map(BorrowedRustItem::Enum)),
+            .chain(enums.iter().map(BorrowedRustItem::Enum))
+            .chain(consts.iter().map(BorrowedRustItem::Const)),
     );
 
     topsort(&mut items);
