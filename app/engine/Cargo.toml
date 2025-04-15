@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-engine"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 description = "Behavioral engine for typeshare: parsing, writing, configuration, and everything in between."
