@@ -64,6 +64,7 @@ impl ParsedData {
         self.structs.extend(other.structs);
         self.enums.extend(other.enums);
         self.aliases.extend(other.aliases);
+        self.consts.extend(other.consts);
         self.import_types.extend(other.import_types);
     }
 
@@ -80,6 +81,8 @@ impl ParsedData {
         let s = self.structs.iter().map(|s| &s.id.renamed);
         let e = self.enums.iter().map(|e| &e.shared().id.renamed);
         let a = self.aliases.iter().map(|a| &a.id.renamed);
+        // currently we ignore consts, which aren't types. May revisit this
+        // later.
 
         s.chain(e).chain(a)
     }
@@ -93,6 +96,9 @@ impl ParsedData {
         });
 
         self.aliases
+            .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
+
+        self.consts
             .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
     }
 }
