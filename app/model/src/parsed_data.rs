@@ -1,6 +1,7 @@
 use std::{
     borrow::{Borrow, Cow},
     cmp::Ord,
+    ffi::OsStr,
     fmt::{self, Display},
     path::{Component, Path},
 };
@@ -31,24 +32,22 @@ impl CrateName {
     /// defined as the name of the directory one level above the `src` directory
     /// that cotains this source file, with any `-` replaced with `_`.
     pub fn find_crate_name(path: &Path) -> Option<Self> {
-        path.components()
-            .rev()
-            // Only find paths that use normal components in the suffix. If we
-            // hit something like `..` or `C:\`, end the search immediately.
-            .take_while(|c| matches!(c, Component::Normal(_) | Component::CurDir))
-            // Skip `.` paths entirely
-            .filter_map(|c| match c {
-                Component::Normal(name) => Some(name),
-                _ => None,
+        path.ancestors()
+            // Only consider paths that contain normal stuff. If there's a
+            // .. or anything like that, skip it.
+            .take_while(|path| {
+                matches!(
+                    path.components().next_back(),
+                    Some(Component::Normal(_) | Component::CurDir)
+                )
             })
-            // Find the `src` directory in our ancestors
-            .skip_while(|&name| name != "src")
-            // Find the first directory preceeding the `src` directory
-            .find(|&name| name != "src")?
-            // Convert this directory name to a string; fail if it isn't
-            // stringable
+            // Find the `src directory`
+            .find(|path| path.file_name() == Some(OsStr::new("src")))?
+            // The directory that contains it is the crate name candidate
+            .parent()?
+            // Get the crate name and convert it to a string, with - replaced
+            .file_name()?
             .to_str()
-            // Fix dashes
             .map(|name| name.replace("-", "_"))
             .map(CrateName)
     }
