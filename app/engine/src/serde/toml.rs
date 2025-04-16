@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str};
 
 use serde::de;
 
@@ -78,6 +78,7 @@ struct SeqAccess<'a, E> {
     values: &'a [toml::Value],
     err: PhantomData<E>,
 }
+
 impl<'a, E> SeqAccess<'a, E> {
     pub fn new(values: &'a [toml::Value]) -> Self {
         SeqAccess {

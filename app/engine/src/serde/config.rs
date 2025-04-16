@@ -184,19 +184,18 @@ where
                     seed.deserialize(BorrowedStrDeserializer::new(arg_spec.key))
                         .map(Some)
                 }
-                ConfigMapState::TomlValues { ref mut iterator } => {
-                    // This part is much simpler: iterate over the config file,
-                    // skipping fields that match those found in the argspec.
-                    // Once this iterator is exhausted, the deserializing is
-                    // done!
-                    iterator
-                        .find(|(key, _)| !self.spec.contains_key(key))
-                        .map(|(key, value)| {
-                            self.saved_value = Some(SavedValue::TomlValue(value));
-                            seed.deserialize(BorrowedStrDeserializer::new(key))
-                        })
-                        .transpose()
-                }
+
+                // This part is much simpler: iterate over the config file,
+                // skipping fields that match those found in the argspec.
+                // Once this iterator is exhausted, the deserializing is
+                // done!
+                ConfigMapState::TomlValues { ref mut iterator } => iterator
+                    .find(|(key, _)| !self.spec.contains_key(key))
+                    .map(|(key, value)| {
+                        self.saved_value = Some(SavedValue::TomlValue(value));
+                        seed.deserialize(BorrowedStrDeserializer::new(key))
+                    })
+                    .transpose(),
             };
         }
     }
