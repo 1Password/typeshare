@@ -118,6 +118,8 @@ pub struct RustTypeAlias {
     pub ty: RustType,
     /// Comments that were in the type alias source.
     pub comments: Vec<String>,
+    /// Attributes that exist for this struct.
+    pub decorators: DecoratorSet,
 }
 
 /// Rust field definition.
@@ -277,15 +279,6 @@ impl RustType {
             Self::Special(special) => special.parameters(),
         }
     }
-
-    // /// Yield all the type names including nested generic types.
-    // pub fn all_reference_type_names(&self) -> impl Iterator<Item = &'_ str> + '_ {
-    //     RustRefTypeIter {
-    //         ty: Some(self),
-    //         parameters: Vec::new(),
-    //     }
-    //     .filter(|s| accept_type(s))
-    // }
 }
 
 impl SpecialRustType {
