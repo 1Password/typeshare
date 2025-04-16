@@ -40,7 +40,7 @@ impl<'de, E: de::Error> de::Deserializer<'de> for ValueDeserializer<'de, E> {
                 let date = date.to_string();
                 visitor.visit_string(date)
             }
-            toml::Value::Array(ref values) => visitor.visit_seq(SeqAccess::new(values)),
+            toml::Value::Array(ref values) => visitor.visit_seq(SeqAccess::new(values.iter())),
             toml::Value::Table(ref map) => visitor.visit_map(MapAccess::new(
                 map.iter().map(|(key, value)| (key.as_str(), value)),
             )),
@@ -74,13 +74,16 @@ impl<'de, E: de::Error> de::Deserializer<'de> for ValueDeserializer<'de, E> {
     // TODO: support for deserializing enums. `toml` does the same thing that
     // JSON does, where it serializes them as `{"Variant": ...}`
 }
-struct SeqAccess<'a, E> {
-    values: &'a [toml::Value],
-    err: PhantomData<E>,
+struct SeqAccess<'a, I, E> {
+    values: I,
+    err: PhantomData<(&'a toml::Value, E)>,
 }
 
-impl<'a, E> SeqAccess<'a, E> {
-    pub fn new(values: &'a [toml::Value]) -> Self {
+impl<'a, I, E> SeqAccess<'a, I, E>
+where
+    I: Iterator<Item = &'a toml::Value>,
+{
+    pub fn new(values: I) -> Self {
         SeqAccess {
             values,
             err: PhantomData,
@@ -88,7 +91,11 @@ impl<'a, E> SeqAccess<'a, E> {
     }
 }
 
-impl<'de, E: de::Error> de::SeqAccess<'de> for SeqAccess<'de, E> {
+impl<'de, I, E> de::SeqAccess<'de> for SeqAccess<'de, I, E>
+where
+    E: de::Error,
+    I: Iterator<Item = &'de toml::Value>,
+{
     type Error = E;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -96,11 +103,8 @@ impl<'de, E: de::Error> de::SeqAccess<'de> for SeqAccess<'de, E> {
         T: de::DeserializeSeed<'de>,
     {
         self.values
-            .split_first()
-            .map(|(value, tail)| {
-                self.values = tail;
-                seed.deserialize(ValueDeserializer::new(value))
-            })
+            .next()
+            .map(|value| seed.deserialize(ValueDeserializer::new(value)))
             .transpose()
     }
 }
