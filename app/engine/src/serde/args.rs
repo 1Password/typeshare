@@ -11,13 +11,17 @@ pub enum ArgType {
     Value,
 }
 
+/// Support type for automatic CLI argument generation. A CliArgSet is a
+/// description of the fields for a given config type, but only the fields
+/// that can be effectively loaded from the command like (boolean flags and
+/// string or integer options)
 #[derive(Debug, Clone)]
 pub struct CliArgsSet {
-    language: &'static str,
-
-    // All of the keys in here are `{language}-{key}`. We pre-compute them to
-    // avoid numerous duplicate format calls, and to handle underscore-hyphen
-    // conversions
+    // Mapping for the fields. The keys of this type are the field name itself,
+    // such as `prefix`, and the value includes both information about the
+    // field's type and the argument that will be used on the command line,
+    // such as `swift-prefix`. Pre-computing these strings makes it easier
+    // to reuse them for building a clap parser and for deserialize operations.
     args: HashMap<&'static str, (String, ArgType)>,
 }
 
@@ -30,10 +34,6 @@ impl CliArgsSet {
                 full_key: full_key.as_str(),
                 arg_type,
             })
-    }
-
-    pub const fn language(&self) -> &'static str {
-        self.language
     }
 
     pub fn contains_key(&self, key: &str) -> bool {
@@ -69,15 +69,18 @@ impl ser::Error for ArgsSetError {
     }
 }
 
+/// Serializer that constructs a new `CliArgsSet`. It does this by serializing
+/// a config object to learn about its fields' names and their types.
 pub struct ArgsSetSerializer {
+    language: &'static str,
     args: CliArgsSet,
 }
 
 impl ArgsSetSerializer {
     pub fn new(language: &'static str) -> Self {
         Self {
+            language,
             args: CliArgsSet {
-                language,
                 args: HashMap::new(),
             },
         }
@@ -266,7 +269,7 @@ impl ser::SerializeStruct for ArgsSetSerializer {
         if let Some(arg_type) = value.serialize(ArgsSetFieldSerializer)? {
             let full_key = format!(
                 "{language}-{key}",
-                language = self.args.language,
+                language = self.language,
                 key = UnderscoreToHyphen(key)
             );
 

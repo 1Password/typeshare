@@ -1,14 +1,17 @@
 //! Source file parsing.
 use ignore::Walk;
 use itertools::Itertools;
+use proc_macro2::{Delimiter, Group, TokenStream};
+use quote::ToTokens;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
     path::PathBuf,
 };
 use syn::{
-    punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprGroup, ExprLit, ExprParen, Fields,
-    GenericParam, Ident, ItemConst, ItemEnum, ItemStruct, ItemType, Lit, Meta, Token,
+    ext::IdentExt, parse::Parser, punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprGroup,
+    ExprLit, ExprParen, Fields, GenericParam, Ident, ItemConst, ItemEnum, ItemStruct, ItemType,
+    Lit, Meta, Token,
 };
 
 use typeshare_model::{
@@ -29,7 +32,7 @@ const TYPESHARE: &str = "typeshare";
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum RustItem {
     /// A `struct` definition
     Struct(RustStruct),
@@ -202,6 +205,7 @@ pub fn parse_input(
                         }
                         Some(ref crate_name) => FilesMode::Multi(crate_name),
                     },
+                    _ => panic!("unsupported mode {mode:?}; this is probably a typeshare bug"),
                 },
             )
             .map_err(|err| {
@@ -318,6 +322,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
+            decorators,
         }));
     }
 
@@ -361,16 +366,16 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             })
         }
         // Tuple structs
-        Fields::Unnamed(f) => {
-            let Some(f) = f.unnamed.iter().exactly_one().ok() else {
-                return Err(ParseError::new(f, ParseErrorKind::ComplexTupleStruct));
+        Fields::Unnamed(fields) => {
+            let Some(field) = fields.unnamed.iter().exactly_one().ok() else {
+                return Err(ParseError::new(fields, ParseErrorKind::ComplexTupleStruct));
             };
 
-            let decorators = get_decorators(&f.attrs);
+            let field_decorators = get_decorators(&field.attrs);
 
-            let ty = match get_serialized_as_type(&decorators) {
+            let ty = match get_serialized_as_type(&field_decorators) {
                 Some(ty) => parse_rust_type_from_string(&ty)?,
-                None => parse_rust_type(&f.ty)?,
+                None => parse_rust_type(&field.ty)?,
             };
 
             RustItem::Alias(RustTypeAlias {
@@ -378,6 +383,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 ty: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
+                decorators,
             })
         }
         // Unit structs or `None`
@@ -418,6 +424,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
             ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
+            decorators,
         }));
     }
 
@@ -601,6 +608,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
+        decorators,
     }))
 }
 
@@ -667,7 +675,7 @@ pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
 
 pub(crate) fn get_serialized_as_type(decorators: &DecoratorSet) -> Option<&str> {
     // TODO: what to do if there are multiple instances of serialized_as?
-    match decorators.get("serialized_as")?.first()? {
+    match decorators.get("serialized_as")? {
         decorator::Value::String(s) => Some(s),
         _ => None,
     }
@@ -793,17 +801,13 @@ fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
             Meta::Path(_) | Meta::NameValue(_) => None,
         })
         .filter(|meta| meta.path.is_ident(TYPESHARE))
-        .filter_map(|meta| {
-            meta.parse_args_with(Punctuated::<KeyMaybeValue, Token![,]>::parse_terminated)
-                .ok()
-        })
+        .filter_map(|meta| meta.parse_args_with(KeyValueSeq::parse_terminated).ok())
         .flatten()
-        .fold(DecoratorSet::new(), |mut set, decorator| {
-            set.entry(decorator.key).or_default().push(decorator.value);
-
-            set
-        })
+        .map(|pair| (pair.key, pair.value))
+        .collect()
 }
+
+type KeyValueSeq = Punctuated<KeyMaybeValue, Token![,]>;
 
 fn expr_to_string(expr: &Expr) -> Option<String> {
     match expr {
@@ -836,21 +840,44 @@ struct KeyMaybeValue {
 
 impl syn::parse::Parse for KeyMaybeValue {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let key: Ident = input.parse()?;
-        let eq: Option<syn::Token![=]> = input.parse()?;
-        let value: Option<syn::Lit> = eq.map(|_| input.parse()).transpose()?;
+        // Use `parse_any` to allow parsing keyword identifiers like `type`
+        let key = input.call(Ident::parse_any)?;
 
-        let value = match value {
-            None => decorator::Value::None,
-            Some(syn::Lit::Str(lit)) => decorator::Value::String(lit.value()),
-            Some(syn::Lit::Int(lit)) => decorator::Value::Int(lit.base10_parse()?),
-            Some(syn::Lit::Bool(lit)) => decorator::Value::Bool(lit.value),
-            Some(lit) => {
-                return Err(syn::Error::new(
-                    lit.span(),
-                    "unsupported decorator type (need string, int, or bool)",
-                ))
+        // If this is `key = value,`, parse a literal
+        let value = if let Some(syn::token::Eq { .. }) = input.parse()? {
+            match input.parse()? {
+                syn::Lit::Str(lit) => decorator::Value::String(lit.value()),
+                syn::Lit::Int(lit) => decorator::Value::Int(lit.base10_parse()?),
+                syn::Lit::Bool(lit) => decorator::Value::Bool(lit.value),
+                lit => {
+                    return Err(syn::Error::new(
+                        lit.span(),
+                        "unsupported decorator type (need string, int, or bool)",
+                    ))
+                }
             }
+        }
+        // If this is `key(...)`, parse a nested decorator set
+        else if let Some(group @ Group { .. }) = input.parse()? {
+            let Delimiter::Parenthesis = group.delimiter() else {
+                return Err(syn::Error::new(
+                    group.span(),
+                    "expected a parenthesized group",
+                ));
+            };
+
+            let pairs = KeyValueSeq::parse_terminated.parse2(group.stream())?;
+
+            decorator::Value::Nested(
+                pairs
+                    .into_iter()
+                    .map(|pair| (pair.key, pair.value))
+                    .collect(),
+            )
+        }
+        // If this is `key,`, the key is plain, no value attached
+        else {
+            decorator::Value::None
         };
 
         Ok(KeyMaybeValue {
@@ -881,5 +908,151 @@ fn test_rename_all_to_case() {
             rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
             test.1
         );
+    }
+}
+
+#[cfg(test)]
+mod test_get_decorators {
+    use std::str::FromStr;
+
+    use cool_asserts::assert_matches;
+    use proc_macro2::TokenStream;
+    use syn::parse::Parser;
+    use typeshare_model::decorator::Value;
+
+    use super::*;
+
+    fn parse_attr(input: &str) -> Vec<Attribute> {
+        let tokens = TokenStream::from_str(input).expect("failed to create token stream");
+        let attr =
+            Parser::parse2(Attribute::parse_outer, tokens).expect("failed to parse attribute");
+
+        attr
+    }
+
+    #[test]
+    fn basic() {
+        let attr = parse_attr("#[typeshare(foo)]");
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("foo"), &[Value::None]);
+        assert_eq!(decorators.get_all("baz"), &[])
+    }
+
+    #[test]
+    fn several() {
+        let attr = parse_attr("#[typeshare(foo, int=10, string=\"foo\")]");
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("foo"), &[Value::None,]);
+        assert_eq!(decorators.get_all("int"), &[Value::Int(10)]);
+        assert_eq!(
+            decorators.get_all("string"),
+            &[Value::String(String::from("foo"))]
+        );
+        assert_eq!(decorators.get_all("baz"), &[])
+    }
+
+    #[test]
+    fn multi_key() {
+        let attr = parse_attr("#[typeshare(thing=10, foo, thing=\"hello\")]");
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("foo"), &[Value::None]);
+        assert_eq!(
+            decorators.get_all("thing"),
+            &[Value::Int(10), Value::String(String::from("hello"))]
+        )
+    }
+
+    #[test]
+    fn multiple_attributes() {
+        let attr = parse_attr(
+            "#[typeshare(foo, bar = \"baz\")]
+             #[typeshare(baz = 42, qux)]",
+        );
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("foo"), &[Value::None]);
+        assert_eq!(
+            decorators.get_all("bar"),
+            &[Value::String(String::from("baz"))]
+        );
+        assert_eq!(decorators.get_all("baz"), &[Value::Int(42)]);
+        assert_eq!(decorators.get_all("qux"), &[Value::None]);
+    }
+
+    #[test]
+    fn duplicate_keys_in_multiple_attributes() {
+        let attr = parse_attr(
+            "#[typeshare(foo = \"bar\", foo = 42)]
+             #[typeshare(foo)]",
+        );
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(
+            decorators.get_all("foo"),
+            &[
+                Value::String(String::from("bar")),
+                Value::Int(42),
+                Value::None
+            ]
+        );
+    }
+
+    // Regression test for an earlier breakage
+    #[test]
+    fn jvm_inline() {
+        let attr = parse_attr(
+            "#[typeshare(kotlin =\"JvmInline\", redacted)]
+             #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+             #[serde(rename_all = \"camelCase\")]",
+        );
+
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("redacted"), &[Value::None]);
+        assert_eq!(
+            decorators.get_all("kotlin"),
+            &[Value::String(String::from("JvmInline"))]
+        )
+    }
+
+    #[test]
+    fn nested() {
+        let attr = parse_attr("#[typeshare(a, b(c=1, d=2, d=3))]");
+
+        let decorators = get_decorators(&attr);
+
+        assert_eq!(decorators.get_all("a"), &[Value::None]);
+
+        let (inner,) = assert_matches!(decorators.get_all("b"), [
+            Value::Nested(inner) => inner,
+        ]);
+
+        assert_eq!(inner.get_all("c"), &[Value::Int(1)]);
+        assert_eq!(inner.get_all("d"), &[Value::Int(2), Value::Int(3)]);
+    }
+
+    #[test]
+    fn type_override() {
+        let attr = parse_attr(
+            "#[typeshare(typescript(type = \"string\"))]
+             #[typeshare(swift = \"Foo\", swift(type=\"NSString\"))]",
+        );
+
+        let decorators = get_decorators(&attr);
+
+        eprintln!("{decorators:#?}");
+
+        assert_eq!(
+            decorators.type_override_for_lang("swift").unwrap(),
+            "NSString"
+        );
+        assert_eq!(
+            decorators.type_override_for_lang("typescript").unwrap(),
+            "string"
+        );
+        assert_eq!(decorators.type_override_for_lang("kotlin"), None);
     }
 }

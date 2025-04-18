@@ -1,0 +1,14 @@
+[typescript]
+no-version-header = true
+
+[typescript.type_mappings]
+Url = "string"
+DateTime = "string"
+
+[kotlin]
+package = "com.agilebits.onepassword"
+no-version-header = true
+
+[kotlin.type_mappings]
+Url = "String"
+DateTime = "String"

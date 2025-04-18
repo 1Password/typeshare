@@ -24,6 +24,7 @@ use typeshare_model::prelude::{CrateName, TypeName};
 // Re-export this for the driver crate to use
 pub use typeshare_model::prelude::FilesMode;
 
+/// A set of parse errors from a specific file
 #[derive(Debug, Error)]
 pub struct FileParseErrors {
     pub path: PathBuf,
@@ -52,10 +53,18 @@ impl Display for FileParseErrors {
     }
 }
 
+/// A set of parse errors from a specific file
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum FileErrorKind {
+    /// We couldn't figure which crate this file belongs to, which we need in
+    /// mutli-file mode
     UnknownCrate,
+
+    /// There were parse errors
     ParseErrors(ParseErrorSet),
+
+    /// There was an i/o error reading the file
     ReadError(io::Error),
 }
 

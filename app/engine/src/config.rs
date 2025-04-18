@@ -151,7 +151,7 @@ fn find_configuration_file() -> Option<PathBuf> {
     }
 }
 
-pub fn load_language_config<'a: 'config, 'config, L: Language<'config>>(
+pub fn load_language_config<'a, 'config, L: Language<'config>>(
     config_file_entry: &'config toml::Table,
     cli_matches: &'config clap::ArgMatches,
     spec: &'a CliArgsSet,
@@ -164,7 +164,7 @@ pub fn load_language_config<'a: 'config, 'config, L: Language<'config>>(
     .context("error deserializing config")
 }
 
-pub fn load_language_config_from_file_and_args<'a: 'config, 'config, L: Language<'config>>(
+pub fn load_language_config_from_file_and_args<'a, 'config, L: Language<'config>>(
     config: &'config Config,
     cli_matches: &'config clap::ArgMatches,
     spec: &'a CliArgsSet,

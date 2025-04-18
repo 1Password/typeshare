@@ -11,9 +11,12 @@ use crate::parsed_data::{
 /// If we're in multifile mode, this enum contains the crate name for the
 /// specific file
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub enum FilesMode<T> {
     Single,
     Multi(T),
+    // We've had requests for java support, which means we'll need a
+    // 1-file-per-type mode
 }
 
 impl<T> FilesMode<T> {
@@ -61,7 +64,7 @@ It's also very common to implement:
 
 - `mapped_type`, to define certain types as having specialied handling in your
   lanugage.
-- `begin_type`, `end_type`, and `write_additional_files`, to add additional
+- `begin_file`, `end_file`, and `write_additional_files`, to add additional
   per-file or per-directory content to your output.
 
 If your language spells type names in an unusual way (here, defined as the C++
@@ -101,7 +104,7 @@ will contain that crate's types.
 let files = crate_names
     .iter()
     .map(|crate_name| {
-        let filename = language.output_file_for_type(crate_name);
+        let filename = language.output_filename_for_crate(crate_name);
         File::create(output_directory.join(filename))
     });
 }
@@ -200,10 +203,8 @@ pub trait Language<'config>: Sized {
 
     By default this returns `None` for all types.
     */
-    fn mapped_type(
-        &self,
-        #[expect(unused_variables)] type_name: &TypeName,
-    ) -> Option<Cow<'_, str>> {
+    fn mapped_type(&self, type_name: &TypeName) -> Option<Cow<'_, str>> {
+        let _ = type_name;
         None
     }
 
@@ -255,8 +256,9 @@ pub trait Language<'config>: Sized {
     fn format_simple_type(
         &self,
         base: &TypeName,
-        #[expect(unused_variables)] generic_context: &[TypeName],
+        generic_context: &[TypeName],
     ) -> anyhow::Result<String> {
+        let _ = generic_context;
         Ok(match self.mapped_type(base) {
             Some(mapped) => mapped.to_string(),
             None => base.to_string(),
@@ -338,11 +340,8 @@ pub trait Language<'config>: Sized {
 
     By default this does nothing.
     */
-    fn begin_file(
-        &self,
-        #[expect(unused_variables)] w: &mut impl Write,
-        #[expect(unused_variables)] mode: FilesMode<&CrateName>,
-    ) -> anyhow::Result<()> {
+    fn begin_file(&self, w: &mut impl Write, mode: FilesMode<&CrateName>) -> anyhow::Result<()> {
+        let _ = (w, mode);
         Ok(())
     }
 
@@ -375,11 +374,8 @@ pub trait Language<'config>: Sized {
 
     By default this does nothing.
     */
-    fn end_file(
-        &self,
-        #[expect(unused_variables)] w: &mut impl Write,
-        #[expect(unused_variables)] mode: FilesMode<&CrateName>,
-    ) -> anyhow::Result<()> {
+    fn end_file(&self, w: &mut impl Write, mode: FilesMode<&CrateName>) -> anyhow::Result<()> {
+        let _ = (w, mode);
         Ok(())
     }
 
@@ -562,7 +558,8 @@ pub trait Language<'config>: Sized {
     This is mostly a performance optimization. By default it returns `false`
     for all types.
     */
-    fn exclude_from_import_analysis(&self, #[expect(unused_variables)] name: &TypeName) -> bool {
+    fn exclude_from_import_analysis(&self, name: &TypeName) -> bool {
+        let _ = name;
         false
     }
 
@@ -581,9 +578,10 @@ pub trait Language<'config>: Sized {
     */
     fn write_additional_files<'a>(
         &self,
-        #[expect(unused_variables)] output_folder: &Path,
-        #[expect(unused_variables)] output_files: impl IntoIterator<Item = (&'a CrateName, &'a Path)>,
+        output_folder: &Path,
+        output_files: impl IntoIterator<Item = (&'a CrateName, &'a Path)>,
     ) -> anyhow::Result<()> {
+        let _ = (output_folder, output_files);
         Ok(())
     }
 }

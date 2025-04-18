@@ -5,6 +5,8 @@ members = [
 
   "app/langs/swift",
   "app/langs/typescript",
+  "app/langs/kotlin",
+
   "app/model",
   "app/engine",
   "app/driver",

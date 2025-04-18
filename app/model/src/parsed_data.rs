@@ -123,7 +123,7 @@ pub struct RustTypeAlias {
 }
 
 /// Rust field definition.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RustField {
     /// Identifier for the field.
     pub id: Id,
@@ -252,12 +252,7 @@ impl RustType {
 
     /// Check if the type is `Option<Option<T>>`
     pub fn is_double_optional(&self) -> bool {
-        match &self {
-            RustType::Special(SpecialRustType::Option(t)) => {
-                matches!(t.as_ref(), RustType::Special(SpecialRustType::Option(_)))
-            }
-            _ => false,
-        }
+        matches!(self, Self::Special(SpecialRustType::Option(inner)) if inner.is_optional())
     }
     /// Check if the type is `Vec<T>`
     pub fn is_vec(&self) -> bool {
@@ -648,5 +643,34 @@ mod test {
     fn reject_rooted_src() {
         let path = Path::new("/src/foo.rs");
         assert!(CrateName::find_crate_name(path).is_none());
+    }
+}
+
+#[cfg(test)]
+mod rust_type_api {
+    use super::*;
+
+    const INT: RustType = RustType::Special(SpecialRustType::I32);
+
+    fn make_option(inner: RustType) -> RustType {
+        RustType::Special(SpecialRustType::Option(Box::new(inner)))
+    }
+
+    #[test]
+    fn test_optional() {
+        let ty = make_option(INT);
+
+        assert!(ty.is_optional());
+        assert!(!ty.is_double_optional());
+        assert!(!ty.is_hash_map());
+    }
+
+    #[test]
+    fn test_double_optional() {
+        let ty = make_option(make_option(INT));
+
+        assert!(ty.is_optional());
+        assert!(ty.is_double_optional());
+        assert!(!ty.is_vec());
     }
 }

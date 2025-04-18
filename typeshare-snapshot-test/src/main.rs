@@ -1,5 +1,7 @@
+mod config;
 mod sorted_iter;
 
+use core::str;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet},
@@ -18,6 +20,7 @@ use indent_write::{indentable::Indentable, io::IndentWriter};
 use lazy_format::lazy_format;
 use similar::TextDiff;
 
+use crate::config::read_toml;
 use crate::sorted_iter::{EitherOrBoth, SortedPairsIter};
 
 /**
@@ -56,11 +59,6 @@ struct Args {
     /// binary is called `typeshare-{LANGUAGE}`.
     #[arg(short, long)]
     typeshare: Option<PathBuf>,
-
-    /// Path to the config file used by your typeshare call. Currently, all
-    /// snapshot tests must use an identical config.
-    #[arg(short, long)]
-    config: Option<PathBuf>,
 
     /// Name of the language for which we're performing a snapshot test.
     /// This is passed as `--language` to the underlying typeshare call, and
@@ -173,12 +171,16 @@ enum Report {
     OperationError {
         command: Vec<String>,
         error: anyhow::Error,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
     },
 
     /// There was a difference between the snapshot and the actual typeshare
     /// output
     TestFailure {
         diff: ReportDiff,
+        stdout: Vec<u8>,
+        stderr: Vec<u8>,
     },
 }
 
@@ -191,6 +193,14 @@ impl Report {
                 | Report::CommandError { .. }
         )
     }
+}
+
+fn write_captured_output(mut dest: impl io::Write, stdout: &[u8], stderr: &[u8]) -> io::Result<()> {
+    writeln!(dest, "--------captured stdout--------")?;
+    dest.write_all(stdout)?;
+    writeln!(dest, "\n--------captured stderr--------")?;
+    dest.write_all(stderr)?;
+    writeln!(dest, "\n-------------------------------")
 }
 
 impl Report {
@@ -208,22 +218,25 @@ impl Report {
                 writeln!(dest, "typeshare command exited nonzero")?;
                 writeln!(dest, "typeshare arguments: {:#?}", command)?;
 
-                writeln!(dest, "--------captured stdout--------")?;
-                dest.write_all(stdout)?;
-                writeln!(dest, "\n--------captured stderr--------")?;
-                dest.write_all(stderr)?;
-                writeln!(dest, "\n-------------------------------")
+                write_captured_output(dest, stdout, stderr)
             }
             Report::OperationError {
                 ref command,
                 ref error,
+                ref stdout,
+                ref stderr,
             } => {
                 writeln!(dest, "error in snapshot test {name}:")?;
                 let mut dest = IndentWriter::new("    ", dest);
                 writeln!(dest, "typeshare arguments: {:#?}", command)?;
+                write_captured_output(&mut dest, stdout, stderr)?;
                 writeln!(dest, "{error:?}")
             }
-            Report::TestFailure { ref diff } => match diff {
+            Report::TestFailure {
+                ref diff,
+                ref stdout,
+                ref stderr,
+            } => match diff {
                 ReportDiff::Directory(report) => {
                     writeln!(dest, "test failure in {name}:")?;
                     let mut dest = IndentWriter::new("    ", dest);
@@ -254,6 +267,7 @@ impl Report {
                     })
                 }
                 ReportDiff::File(diff) => {
+                    write_captured_output(IndentWriter::new("    ", &mut *dest), stdout, stderr)?;
                     let diff = diff.indented("|   ");
                     writeln!(dest, "test failure in {name}:\n{diff}")
                 }
@@ -416,7 +430,8 @@ fn snapshot_test(
     snapshot_directory: &Path,
     mode: Mode,
     typeshare: &Path,
-    config: Option<&Path>,
+    base_config: &toml::Table,
+    base_config_path: &Path,
     language: &str,
     suffix: &str,
     additional_arguments: &[String],
@@ -426,8 +441,15 @@ fn snapshot_test(
     // ephemerally; used as an input to a diff operation, or renamed to the
     // more permanent path when capturing a new snapshot.
     let output_path = snapshot_directory.join("TYPESHARE-TEMP-OUTPUT");
+    let merged_config_path = snapshot_directory.join("TYPESHARE-TEMP-CONFIG.toml");
     clear_item(&output_path);
-    let guard = TempFileGuard { path: &output_path };
+    clear_item(&merged_config_path);
+    let guard = (
+        TempFileGuard { path: &output_path },
+        TempFileGuard {
+            path: &merged_config_path,
+        },
+    );
 
     // Check if there exists a directory called `input`. If there does, we need
     // to treat it as a container of fake crates for multi-file output;
@@ -473,8 +495,39 @@ fn snapshot_test(
     let mut command = Command::new(typeshare);
     command.arg("--lang").arg(language);
 
-    if let Some(config) = config {
-        command.arg("--config").arg(config);
+    // Create a config file for this test by merging the test's config with
+    // the outer config
+    {
+        let local_config_path = snapshot_directory.join("typeshare.toml");
+        let local_config = config::read_toml(&local_config_path).with_context(|| {
+            format!(
+                "failed to read local typeshare config at '{}'",
+                local_config_path.display()
+            )
+        })?;
+
+        let path = match (base_config.is_empty(), local_config.is_empty()) {
+            (true, true) => None,
+            (false, true) => Some(base_config_path),
+            (true, false) => Some(local_config_path.as_path()),
+            (false, false) => {
+                // In this case, we need to create and write a new, merged
+                // config
+                let mut merged_config = base_config.clone();
+                config::merge_configs(&mut merged_config, local_config);
+                let merged_config = toml::to_string(&merged_config).expect(
+                    "merging a pair of toml documents together \
+                     should always make valid toml",
+                );
+                fs::write(&merged_config_path, &merged_config)
+                    .context("i/o error creating merged typeshare config")?;
+                Some(merged_config_path.as_path())
+            }
+        };
+
+        if let Some(path) = path {
+            command.arg("--config").arg(path);
+        }
     }
 
     if multi_file {
@@ -557,15 +610,22 @@ fn snapshot_test(
     // also means we don't need to call it `_guard`
     drop(guard);
 
-    Ok(operation_result
-        .map(|diff| match diff {
+    Ok(match operation_result {
+        Ok(diff) => match diff {
             None => Report::Success,
-            Some(diff) => Report::TestFailure { diff },
-        })
-        .unwrap_or_else(|error| Report::OperationError {
+            Some(diff) => Report::TestFailure {
+                diff,
+                stdout: out.stdout,
+                stderr: out.stderr,
+            },
+        },
+        Err(error) => Report::OperationError {
             command: command_args,
             error,
-        }))
+            stdout: out.stdout,
+            stderr: out.stderr,
+        },
+    })
 }
 
 fn main() -> anyhow::Result<()> {
@@ -590,6 +650,14 @@ fn main() -> anyhow::Result<()> {
         // We don't actually care about the process finishing successfully
         // or anything, only that it was possible to spawn it
         .wait();
+
+    let base_config_path = args.snapshots.join("typeshare.toml");
+    let base_config = read_toml(&base_config_path).with_context(|| {
+        format!(
+            "failed to load base config file at '{}'",
+            base_config_path.display()
+        )
+    })?;
 
     let snapshots_dir = fs::read_dir(&args.snapshots).with_context(|| {
         format!(
@@ -619,7 +687,7 @@ fn main() -> anyhow::Result<()> {
 
                     if meta.is_file() {
                         let report = match entry_name.as_str() {
-                            "README.md" | ".gitignore" => Report::Success,
+                            "README.md" | ".gitignore" | "typeshare.toml" => Report::Success,
                             _ => Report::Warning {
                                 message: "skipped (all snapshot tests are \
                                     directories; this is a file)",
@@ -633,7 +701,8 @@ fn main() -> anyhow::Result<()> {
                         &entry_path,
                         args.mode,
                         &typeshare_binary,
-                        args.config.as_deref(),
+                        &base_config,
+                        &base_config_path,
                         &args.language,
                         args.trimmed_suffix(),
                         &args.additional_args,

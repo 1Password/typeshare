@@ -18,6 +18,7 @@ itertools = { version = "0.14.0", default-features = false }
 proc-macro2 = { version = "1.0.94", default-features = false, features = [
     "span-locations",
 ] }
+lazy_format = "2"
 quote = { version = "1.0.38", default-features = false }
 rayon = "1.10.0"
 serde = { version = "1.0.217", default-features = false, features = ["derive"] }

@@ -88,15 +88,18 @@ pub fn add_lang_argument(command: clap::Command, languages: &[&'static str]) -> 
 /// Given a CliArgsSet for a language, use the name of the language and
 /// information about its configuration to populate a clap command with
 /// args specific to that language
-pub fn add_language_params_to_clap(command: clap::Command, args: &CliArgsSet) -> clap::Command {
+pub fn add_language_params_to_clap(
+    command: clap::Command,
+    language: &'static str,
+    args: &CliArgsSet,
+) -> clap::Command {
     if let Some(arg) = command
         .get_arguments()
-        .find(|arg| arg.get_id().as_str().starts_with(args.language()))
+        .find(|arg| arg.get_id().as_str().starts_with(language))
     {
         panic!(
             "existing argument {id:?} conflicts with language {language}",
             id = arg.get_id().as_str(),
-            language = args.language()
         )
     }
 

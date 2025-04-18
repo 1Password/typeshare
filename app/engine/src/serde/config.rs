@@ -50,7 +50,7 @@ impl<'a, 'config> ConfigDeserializer<'a, 'config> {
     }
 }
 
-impl<'a: 'de, 'de> de::Deserializer<'de> for ConfigDeserializer<'a, 'de> {
+impl<'a, 'de> de::Deserializer<'de> for ConfigDeserializer<'a, 'de> {
     type Error = ConfigDeserializeError;
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
@@ -106,9 +106,9 @@ struct ConfigMapAccess<'a, 'config, ArgsIter> {
     saved_value: Option<SavedValue<'config>>,
 }
 
-impl<'de, ArgsIter> de::MapAccess<'de> for ConfigMapAccess<'_, 'de, ArgsIter>
+impl<'a, 'de, ArgsIter> de::MapAccess<'de> for ConfigMapAccess<'a, 'de, ArgsIter>
 where
-    ArgsIter: Iterator<Item = ArgSpec<'de>>,
+    ArgsIter: Iterator<Item = ArgSpec<'a>>,
 {
     type Error = ConfigDeserializeError;
 

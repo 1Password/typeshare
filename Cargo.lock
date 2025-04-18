@@ -617,9 +617,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.19"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
+checksum = "cd87a5cdd6ffab733b2f74bc4fd7ee5fff6634124999ac278c35fc78c6120148"
 dependencies = [
  "serde",
  "serde_spanned",
@@ -638,9 +638,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.22"
+version = "0.22.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
+checksum = "17b4795ff5edd201c7cd6dca065ae59972ce77d1b80fa0a84d94950ece7d1474"
 dependencies = [
  "indexmap",
  "serde",
@@ -686,6 +686,7 @@ dependencies = [
  "ignore",
  "indent_write",
  "itertools 0.14.0",
+ "lazy_format",
  "proc-macro2",
  "quote",
  "rayon",
@@ -693,6 +694,20 @@ dependencies = [
  "syn",
  "thiserror",
  "toml",
+ "typeshare-model",
+]
+
+[[package]]
+name = "typeshare-kotlin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "indent_write",
+ "itertools 0.14.0",
+ "joinery",
+ "lazy_format",
+ "serde",
+ "thiserror",
  "typeshare-model",
 ]
 
@@ -717,6 +732,7 @@ dependencies = [
  "indent_write",
  "lazy_format",
  "similar",
+ "toml",
 ]
 
 [[package]]
@@ -743,6 +759,7 @@ name = "typeshare2-cli"
 version = "2.0.0"
 dependencies = [
  "typeshare-driver",
+ "typeshare-kotlin",
  "typeshare-typescript",
 ]
 
@@ -928,9 +945,9 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "winnow"
-version = "0.6.20"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
+checksum = "63d3fcd9bba44b03821e7d699eeee959f3126dcc4aa8e4ae18ec617c2a5cea10"
 dependencies = [
  "memchr",
 ]

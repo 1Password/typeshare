@@ -4,6 +4,7 @@ use anyhow::Context as _;
 use clap::{CommandFactory as _, FromArgMatches as _};
 use clap_complete::generate as generate_completions;
 use ignore::{types::TypesBuilder, WalkBuilder};
+use lazy_format::lazy_format;
 use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
 use crate::{
@@ -13,6 +14,7 @@ use crate::{
     },
     parser::{parse_input, parser_inputs, ParsedData},
     writer::write_output,
+    FileParseErrors,
 };
 
 pub struct PersonalizeClap {
@@ -22,8 +24,8 @@ pub struct PersonalizeClap {
     pub about: &'static str,
 }
 
-pub trait LanguageSet {
-    type LanguageMetas;
+pub trait LanguageSet<'config> {
+    type LanguageMetas: 'static;
 
     /// Each language has a set of configuration metadata, describing all
     /// of its configuration parameters. This metadata is used to populate
@@ -42,11 +44,11 @@ pub trait LanguageSet {
         metas: &Self::LanguageMetas,
     ) -> clap::Command;
 
-    fn execute_typeshare_for_language<'c, 'a: 'c>(
+    fn execute_typeshare_for_language(
         language: &str,
-        config: &'c config::Config,
-        args: &'c clap::ArgMatches,
-        metas: &'a Self::LanguageMetas,
+        config: &'config config::Config,
+        args: &'config clap::ArgMatches,
+        metas: &Self::LanguageMetas,
         data: HashMap<Option<CrateName>, ParsedData>,
         destination: &OutputLocation<'_>,
     ) -> anyhow::Result<()>;
@@ -78,9 +80,9 @@ macro_rules! language_set_for {
     };
 
     ([$($Language:ident)+]) => {
-        impl< $($Language,)*> LanguageSet for ($($Language,)*)
+        impl<'config, $($Language,)*> LanguageSet<'config> for ($($Language,)*)
             where $(
-                for<'config> $Language: Language<'config>,
+                $Language: Language<'config>,
             )*
         {
             type LanguageMetas = metas!([] $($Language)*);
@@ -105,17 +107,21 @@ macro_rules! language_set_for {
                 let ($($Language,)*) = metas;
 
                 $(
-                    let command = add_language_params_to_clap(command, $Language);
+                    let command = add_language_params_to_clap(
+                        command,
+                        <$Language as Language>::NAME,
+                        $Language
+                    );
                 )*
 
                 command
             }
 
-            fn execute_typeshare_for_language<'c, 'a: 'c>(
+            fn execute_typeshare_for_language(
                 language: &str,
-                config: &'c config::Config,
-                args: &'c clap::ArgMatches,
-                metas: &'a Self::LanguageMetas,
+                config: &'config config::Config,
+                args: &'config clap::ArgMatches,
+                metas: &Self::LanguageMetas,
                 data: HashMap<Option<CrateName>, ParsedData>,
                 destination: &OutputLocation<'_>,
             ) -> anyhow::Result<()> {
@@ -141,7 +147,7 @@ macro_rules! language_set_for {
     }
 }
 
-fn execute_typeshare_for_language<'config, 'a: 'config, L: Language<'config>>(
+fn execute_typeshare_for_language<'config, 'a, L: Language<'config>>(
     config: &'config config::Config,
     args: &'config clap::ArgMatches,
     meta: &'a CliArgsSet,
@@ -171,11 +177,18 @@ language_set_for! {
     M N O P
 }
 
-pub fn main_body<Languages>() -> anyhow::Result<()>
+/// This trait is used by the driver macro to unify the 'config lifetime
+/// across all of the language types. I'm open to suggesstions for getting
+/// rid of this.
+pub trait LanguageHelper {
+    type LanguageSet<'config>: LanguageSet<'config>;
+}
+
+pub fn main_body<Helper>() -> anyhow::Result<()>
 where
-    Languages: LanguageSet,
+    Helper: LanguageHelper,
 {
-    let language_metas = Languages::compute_language_metas()?;
+    let language_metas = Helper::LanguageSet::compute_language_metas()?;
     let command = StandardArgs::command();
 
     // let command = command
@@ -184,8 +197,8 @@ where
     //     .author(personalize.author)
     //     .about(personalize.about);
 
-    let command = Languages::add_lang_argument(command);
-    let command = Languages::add_language_specific_arguments(command, &language_metas);
+    let command = Helper::LanguageSet::add_lang_argument(command);
+    let command = Helper::LanguageSet::add_language_specific_arguments(command, &language_metas);
 
     // Parse command line arguments. Need to clone here because we
     // need to be able to generate completions later.
@@ -246,7 +259,13 @@ where
             FilesMode::Multi(())
         },
     )
-    .unwrap();
+    .map_err(|errors| {
+        // TODO: switch to miette
+        let errors = &errors;
+        let message = lazy_format!("{error}\n" for error in errors);
+        anyhow::anyhow!("{message}")
+    })
+    .context("error parsing input files")?;
 
     let destination = standard_args.output.location();
 
@@ -254,14 +273,12 @@ where
         .get_one("language")
         .expect("clap should guarantee that --lang is provided");
 
-    let out = Languages::execute_typeshare_for_language(
+    Helper::LanguageSet::execute_typeshare_for_language(
         &language,
         &config,
         &args,
         &language_metas,
         data,
         &destination,
-    );
-
-    out
+    )
 }

@@ -11,13 +11,23 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Config {
+    /// Mappings from Rust type names to Typescript type names
+    #[serde(default, alias = "type_mappings")]
+    type_mappings: HashMap<String, String>,
+
+    /// Whether or not to exclude the version header that normally appears at the top of generated code.
+    /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
+    #[serde(default)]
+    no_version_header: bool,
+}
+
 /// All information needed to generate Typescript type-code
 #[derive(Default)]
 pub struct TypeScript {
-    /// Mappings from Rust type names to Typescript type names
     pub type_mappings: HashMap<TypeName, TypeName>,
-    /// Whether or not to exclude the version header that normally appears at the top of generated code.
-    /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
 }
 
@@ -28,13 +38,6 @@ pub enum FormatTypeError {
 
     #[error("Can't have generic types as map keys in typescript")]
     GenericMapKey,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct Config {
-    type_mappings: HashMap<String, String>,
-    no_version_header: bool,
 }
 
 impl Language<'_> for TypeScript {
@@ -162,7 +165,7 @@ impl Language<'_> for TypeScript {
             "export type {}{} = {}{};\n",
             ty.id.renamed,
             (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.join(", ")))
+                .then(|| format!("<{}>", ty.generic_types.iter().join_with(", ")))
                 .unwrap_or_default(),
             r#type,
             ty.ty
@@ -181,7 +184,7 @@ impl Language<'_> for TypeScript {
             "export interface {}{} {{",
             rs.id.renamed,
             (!rs.generic_types.is_empty())
-                .then(|| format!("<{}>", rs.generic_types.join(", ")))
+                .then(|| format!("<{}>", rs.generic_types.iter().join_with(", ")))
                 .unwrap_or_default()
         )?;
 
@@ -198,7 +201,7 @@ impl Language<'_> for TypeScript {
         self.write_comments(w, 0, &e.shared().comments)?;
 
         let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
+            .then(|| format!("<{}>", e.shared().generic_types.iter().join_with(", ")))
             .unwrap_or_default();
 
         match e {
@@ -258,17 +261,14 @@ impl TypeScript {
         match e {
             // Write all the unit variants out (there can only be unit variants in
             // this case)
-            RustEnum::Unit {
-                shared,
-                unit_variants,
-            } => unit_variants.iter().try_for_each(|variant| {
+            RustEnum::Unit { unit_variants, .. } => unit_variants.iter().try_for_each(|variant| {
                 writeln!(w)?;
                 self.write_comments(w, 1, &variant.comments)?;
                 write!(
                     w,
                     "\t{} = {:?},",
-                    shared.id.original,
-                    &shared.id.renamed.as_str()
+                    variant.id.original,
+                    &variant.id.renamed.as_str()
                 )?;
                 Ok(())
             }),
@@ -278,8 +278,8 @@ impl TypeScript {
             RustEnum::Algebraic {
                 tag_key,
                 content_key,
-                shared,
                 variants,
+                ..
             } => variants.iter().try_for_each(|v| {
                 writeln!(w)?;
                 self.write_comments(w, 1, &v.shared().comments)?;
@@ -349,30 +349,35 @@ impl TypeScript {
         w: &mut dyn Write,
         field: &RustField,
         generic_types: &[TypeName],
-    ) -> io::Result<()> {
+    ) -> anyhow::Result<()> {
         self.write_comments(w, 1, &field.comments)?;
-        let ts_ty = self
-            .format_type(&field.ty, generic_types)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        let ty = match field.decorators.type_override_for_lang("typescript") {
+            Some(ty) => ty.to_owned(),
+            None => self
+                .format_type(&field.ty, generic_types)
+                .context("failed for format type")?,
+        };
 
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
-        let is_readonly = field
+
+        let readonly = match field
             .decorators
-            .get("typescript")
-            .map(|v| {
-                v.iter()
-                    .any(|dec| matches!(dec, Value::String(value) if value == "readonly"))
-            })
-            .unwrap_or(false);
+            .get_all("typescript")
+            .iter()
+            .any(|dec| matches!(dec, Value::String(value) if value == "readonly"))
+        {
+            true => "readonly ",
+            false => "",
+        };
+
         writeln!(
             w,
-            "\t{}{}{}: {}{};",
-            is_readonly.then_some("readonly ").unwrap_or_default(),
-            typescript_property_aware_rename(field.id.renamed.as_str()),
-            optional.then_some("?").unwrap_or_default(),
-            ts_ty,
-            double_optional.then_some(" | null").unwrap_or_default()
+            "\t{readonly}{name}{opt}: {ty}{double_opt};",
+            name = typescript_property_aware_rename(field.id.renamed.as_str()),
+            opt = if optional { "?" } else { "" },
+            double_opt = if double_optional { " | null" } else { "" },
         )?;
 
         Ok(())
@@ -383,7 +388,7 @@ impl TypeScript {
         w: &mut dyn Write,
         indent: usize,
         comments: &[String],
-    ) -> io::Result<()> {
+    ) -> anyhow::Result<()> {
         // Only attempt to write a comment if there are some, otherwise we're Ok()
         if !comments.is_empty() {
             let comment: String = {
