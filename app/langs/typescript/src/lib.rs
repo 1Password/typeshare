@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     /// Mappings from Rust type names to Typescript type names
@@ -25,7 +25,7 @@ pub struct Config {
 }
 
 /// All information needed to generate Typescript type-code
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct TypeScript {
     pub type_mappings: HashMap<TypeName, TypeName>,
     pub no_version_header: bool,

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, io::Write, path::Path};
+use std::{borrow::Cow, fmt::Debug, io::Write, path::Path};
 
 use anyhow::Context;
 use itertools::Itertools;
@@ -170,7 +170,7 @@ algorithms that compute import sets are being rewritten. The API presented
 here is stable, but output might be buggy while issues with import detection
 are resolved.
 */
-pub trait Language<'config>: Sized {
+pub trait Language<'config>: Sized + Sync + Debug {
     /**
     The configuration for this language. This configuration will be loaded
     from a config file and, where possible, from the command line, via

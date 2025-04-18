@@ -12,3 +12,10 @@ no-version-header = true
 [kotlin.type_mappings]
 Url = "String"
 DateTime = "String"
+
+[swift]
+no_version_header = true
+
+[swift.type_mappings]
+"Url" = "String"
+"DateTime" = "Date"

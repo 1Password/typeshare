@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 typeshare-typescript = { path = "../langs/typescript" }
 typeshare-kotlin = { path = "../langs/kotlin" }
+typeshare-swift = { path = "../langs/swift" }
 typeshare-driver = { path = "../driver" }
 
 [[bin]]

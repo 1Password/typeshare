@@ -59,6 +59,7 @@ pub fn write_multiple_files<'c>(
 ) -> anyhow::Result<()> {
     let mut output_files = Vec::with_capacity(crate_parsed_data.len());
 
+    // TODO: multithread this part
     for (crate_name, parsed_data) in crate_parsed_data {
         let file_path = output_folder.join(&lang.output_filename_for_crate(&crate_name));
 

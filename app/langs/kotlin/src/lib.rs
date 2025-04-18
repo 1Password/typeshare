@@ -21,7 +21,7 @@ enum Visibility {
     Private,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config<'config> {
     /// Name of the output kotlin package
@@ -42,6 +42,7 @@ pub struct Config<'config> {
     no_version_header: bool,
 }
 
+#[derive(Debug)]
 pub struct Kotlin<'config> {
     package: &'config str,
     prefix: &'config str,
