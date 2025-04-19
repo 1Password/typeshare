@@ -122,10 +122,9 @@ pub fn target_os_good(config: &Cfg, valid: &[&str]) -> bool {
         let outcome = config.test(&|pred| {
             if pred.key == "target_os" {
                 if let Some(value) = pred.value.as_deref() {
-                    return if valid.contains(&value) {
-                        Outcome::True
-                    } else {
-                        Outcome::False
+                    return match valid.contains(&value) {
+                        true => Outcome::True,
+                        false => Outcome::False,
                     };
                 }
             }
