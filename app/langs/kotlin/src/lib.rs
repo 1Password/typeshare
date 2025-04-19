@@ -71,7 +71,7 @@ impl Kotlin<'_> {
             .context("error writing comments")?;
 
         if requires_serial_name {
-            writeln!(w, "@SerialName(\"{}\")", &f.id.renamed)?;
+            writeln!(w, "@SerialName({:?})", &f.id.renamed.as_str())?;
         }
 
         let ty = match f.decorators.type_override_for_lang("kotlin") {
@@ -105,8 +105,13 @@ impl Kotlin<'_> {
                 for variant in unit_variants {
                     self.write_comments(w, &variant.comments)?;
 
-                    writeln!(w, "@SerialName(\"{}\")", &variant.id.renamed)?;
-                    writeln!(w, "{}(\"{}\"),", &variant.id.original, variant.id.renamed)?;
+                    writeln!(w, "@SerialName({:?})", &variant.id.renamed.as_str())?;
+                    writeln!(
+                        w,
+                        "{}({:?}),",
+                        &variant.id.original,
+                        variant.id.renamed.as_str()
+                    )?;
                 }
             }
             RustEnum::Algebraic {
@@ -469,8 +474,8 @@ impl<'config> Language<'config> for Kotlin<'config> {
                 writeln!(w, ") {{")?;
                 writeln!(
                     w,
-                    "\toverride fun toString(): String = \"{}\"",
-                    rs.id.renamed
+                    "\toverride fun toString(): String = {:?}",
+                    rs.id.renamed.as_str()
                 )?;
                 writeln!(w, "}}")?;
             } else {

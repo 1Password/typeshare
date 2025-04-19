@@ -4,7 +4,7 @@ mod sorted_iter;
 use core::str;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Display,
     fs,
     io::{self, Write as _, stderr},
@@ -76,6 +76,10 @@ struct Args {
     #[arg(short, long)]
     mode: Mode,
 
+    /// If given, only these paths will be targeted by `typeshare-snapshot-test`.
+    #[arg(short, long)]
+    include: Option<Vec<String>>,
+
     /// Any additional arguments to pass to the underlying `typeshare`
     /// binary. Make sure to use `--` to separate options passed to `typeshare`
     /// from options passed to `typeshare-snapshot-test`
@@ -99,6 +103,12 @@ impl Args {
             .as_deref()
             .map(Cow::Borrowed)
             .unwrap_or_else(|| Cow::Owned(PathBuf::from(format!("typeshare-{}", self.language))))
+    }
+
+    fn include_names(&self) -> Option<HashSet<&str>> {
+        self.include
+            .as_ref()
+            .map(|include| include.iter().map(|name| name.as_str()).collect())
     }
 }
 
@@ -151,6 +161,10 @@ impl Display for Stats {
 
 enum Report {
     Success,
+
+    /// Skip is the same as success, but it doesn't increment the stats counters.
+    /// Usually Warning is preferable.
+    Skip,
 
     /// Something intereting happened that we should tell the user about, but
     /// not enough to cause a nonzero exit
@@ -216,7 +230,7 @@ fn write_captured_output(mut dest: impl io::Write, stdout: &[u8], stderr: &[u8])
 impl Report {
     fn print_report(&self, name: &str, dest: &mut impl io::Write) -> io::Result<()> {
         match *self {
-            Report::Success => Ok(()),
+            Report::Success | Report::Skip => Ok(()),
             Report::Warning { ref message } => writeln!(dest, "warning from {name}: {message}\n"),
             Report::CommandError {
                 ref command,
@@ -641,6 +655,7 @@ fn snapshot_test(
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+
     let typeshare_binary = args.typeshare_binary();
 
     // First, do `typeshare --help`. We do this only so that we verify that
@@ -677,6 +692,12 @@ fn main() -> anyhow::Result<()> {
         )
     })?;
 
+    let include_names = args.include_names();
+    let include_names = include_names.as_ref();
+
+    // TODO: iterate the include names, instead of iterating the whole directory
+    // and filtering. Probably this involves pre-iterating the files.
+
     let reports: anyhow::Result<BTreeMap<String, Report>> = thread::scope(|s| {
         let threads: Vec<_> = snapshots_dir
             .map(|snapshot_dir| {
@@ -689,6 +710,12 @@ fn main() -> anyhow::Result<()> {
                     let entry_name = entry_name.to_string_lossy();
                     let entry_name = entry_name.into_owned();
 
+                    if let Some(names) = include_names {
+                        if !names.contains(entry_name.as_str()) {
+                            return Ok((entry_name, Report::Skip));
+                        }
+                    }
+
                     let meta = entry_path.metadata().with_context(|| {
                         format!(
                             "error reading snapshot directory '{}'",
@@ -698,7 +725,7 @@ fn main() -> anyhow::Result<()> {
 
                     if meta.is_file() {
                         let report = match entry_name.as_str() {
-                            "README.md" | ".gitignore" | "typeshare.toml" => Report::Success,
+                            "README.md" | ".gitignore" | "typeshare.toml" => Report::Skip,
                             _ => Report::Warning {
                                 message: "skipped (all snapshot tests are \
                                     directories; this is a file)",
@@ -743,6 +770,7 @@ fn main() -> anyhow::Result<()> {
             .expect("shouldn't be a problem writing to stderr");
 
         match report {
+            Report::Skip => {}
             Report::Success => stats.success += 1,
             Report::Warning { .. } => stats.warning += 1,
             Report::CommandError { .. }

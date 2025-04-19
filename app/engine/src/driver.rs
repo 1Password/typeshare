@@ -243,6 +243,10 @@ where
         types.select("rust");
 
         let mut overrides = OverrideBuilder::new("");
+        // We need this global match because an override, by default, rejects
+        // files. We need to *accept* all files, *except* those that are
+        // explicitly rejected by the subsequent lines.
+        overrides.add("**/*").unwrap();
         overrides.add("!**/tests/**").unwrap();
         overrides.add("!**/examples/**").unwrap();
         overrides.add("!**/benches/**").unwrap();
