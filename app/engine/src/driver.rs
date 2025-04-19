@@ -3,7 +3,11 @@ use std::{collections::HashMap, io};
 use anyhow::Context as _;
 use clap::{CommandFactory as _, FromArgMatches as _};
 use clap_complete::generate as generate_completions;
-use ignore::{types::TypesBuilder, WalkBuilder};
+use ignore::{
+    overrides::{self, OverrideBuilder},
+    types::TypesBuilder,
+    WalkBuilder,
+};
 use lazy_format::lazy_format;
 use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
@@ -238,8 +242,17 @@ where
         types.add("rust", "*.rs").unwrap();
         types.select("rust");
 
+        let mut overrides = OverrideBuilder::new("");
+        overrides.add("!**/tests/**").unwrap();
+        overrides.add("!**/examples/**").unwrap();
+        overrides.add("!**/benches/**").unwrap();
+        overrides.add("!build.rs").unwrap();
+        overrides.add("**/src/**").unwrap();
+        let overrides = overrides.build().unwrap();
+
         let mut walker_builder = WalkBuilder::new(first_dir);
         walker_builder.types(types.build().unwrap());
+        walker_builder.overrides(overrides);
         other_dirs.iter().for_each(|dir| {
             walker_builder.add(dir);
         });

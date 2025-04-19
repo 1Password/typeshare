@@ -15,7 +15,7 @@ use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 
 use typeshare_model::{
-    decorator::{self, DecoratorSet, Value},
+    decorator::{DecoratorSet, Value},
     prelude::*,
 };
 
@@ -132,12 +132,12 @@ pub struct Swift<'a> {
 
 impl Swift<'_> {
     fn write_comments(&self, w: &mut impl io::Write, comments: &[String]) -> io::Result<()> {
-        let mut prefixed = IndentWriter::new("/// ", w);
-
         comments
             .iter()
+            // Use .split to preserve empty trailing lines
+            .flat_map(|comment| comment.split('\n'))
             .map(|comment| comment.trim_end())
-            .try_for_each(|comment| writeln!(prefixed, "{comment}"))
+            .try_for_each(|comment| writeln!(w, "/// {comment}"))
     }
 
     fn write_enum_variants(
@@ -169,7 +169,7 @@ impl Swift<'_> {
                             w,
                             "\tcase {} = {:?}",
                             swift_keyword_aware_rename(&variant_name),
-                            &v.id.renamed
+                            &v.id.renamed.as_str()
                         )?;
                     }
                 }
@@ -359,7 +359,7 @@ impl Swift<'_> {
             .unique()
             .join(", ");
 
-        write!(
+        writeln!(
             w,
             "\n\
              /// () isn't codable, so we use this instead to represent Rust's unit type\n\
@@ -384,6 +384,15 @@ impl Swift<'_> {
             })
             .flat_map(|decorator| decorator.split(","))
             .map(|decorator| decorator.trim());
+
+        // Remove this line once we no longer need sorted output. The input
+        // to this function is totally deterministic (source order), so
+        // there should be no need to sort it.
+        let local_decorators = {
+            let mut dec = local_decorators.collect_vec();
+            dec.sort_unstable();
+            dec
+        };
 
         let extras = extras.iter().copied();
         let default = self.default_decorators.iter().copied();
@@ -412,6 +421,7 @@ impl Swift<'_> {
                 Value::String(s) => Some(s.as_str()),
                 _ => None,
             })
+            .flat_map(|constraints| constraints.split(","))
             .filter_map(|generic_constraint| {
                 let (name, constraints) = generic_constraint.split_once(":")?;
                 let constraints = constraints.split("&").map(|constraint| constraint.trim());
@@ -458,7 +468,11 @@ impl<'config> Language<'config> for Swift<'config> {
                 decorators.insert(0, "Codable");
                 decorators
             },
-            default_generic_constraints: config.default_generic_constraints,
+            default_generic_constraints: {
+                let mut constraints = config.default_generic_constraints;
+                constraints.insert("Codable");
+                constraints
+            },
             codablevoid_constraints: config.codablevoid_constraints,
             type_mappings: config.type_mappings,
             no_version_header: config.no_version_header,
@@ -671,7 +685,7 @@ impl<'config> Language<'config> for Swift<'config> {
 
                 writeln!(
                     w,
-                    "\tpublic let {fixed_name}: {ty}{}",
+                    "public let {fixed_name}: {ty}{}",
                     (f.has_default && !f.ty.is_optional())
                         .then_some("?")
                         .unwrap_or_default()
@@ -888,7 +902,9 @@ fn to_pascal_case(value: &str) -> String {
     let to_lowercase = {
         // Check if string is all uppercase, such as "URL" or "TOTP". In that case, we don't want
         // to preserve the cases.
-        value.chars().all(|c| c.is_uppercase())
+        // NOTE: this test should pass if there are letters here, which is
+        // why we do the inverted lowercase test
+        value.chars().all(|c| !c.is_lowercase())
     };
 
     for ch in value.chars() {
@@ -928,4 +944,37 @@ fn swift_keyword_aware_rename(name: &str) -> Cow<'_, str> {
 fn remove_dash_from_identifier(name: &str) -> String {
     // Dashes are not valid in identifiers, so we map them to underscores
     name.replace('-', "_")
+}
+
+#[cfg(test)]
+mod rename {
+    use super::*;
+
+    macro_rules! cases {
+        ($(
+            $name:ident : $original:literal => $pascal:literal, $camel:literal;
+        )+) => {
+            $(
+                #[test]
+                fn $name() {
+                    assert_eq!(to_pascal_case($original), $pascal);
+                    assert_eq!(to_camel_case($original), $camel);
+                }
+            )+
+        };
+    }
+
+    cases! {
+        basic: "hello_world" => "HelloWorld", "helloWorld";
+        all_lower: "amogus" => "Amogus", "amogus";
+    }
+
+    mod op_crypto_regression {
+        use super::*;
+
+        cases! {
+            rsaoaep: "RSAOAEP" => "Rsaoaep", "rsaoaep";
+            rsaoaep256: "RSAOAEP256" => "Rsaoaep256", "rsaoaep256";
+        }
+    }
 }

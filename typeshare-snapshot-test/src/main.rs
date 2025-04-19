@@ -196,11 +196,21 @@ impl Report {
 }
 
 fn write_captured_output(mut dest: impl io::Write, stdout: &[u8], stderr: &[u8]) -> io::Result<()> {
-    writeln!(dest, "--------captured stdout--------")?;
-    dest.write_all(stdout)?;
-    writeln!(dest, "\n--------captured stderr--------")?;
-    dest.write_all(stderr)?;
-    writeln!(dest, "\n-------------------------------")
+    let mut tail = false;
+    if !stdout.trim_ascii().is_empty() {
+        writeln!(dest, "--------captured stdout--------")?;
+        dest.write_all(stdout)?;
+        tail = true;
+    }
+    if !stderr.trim_ascii().is_empty() {
+        writeln!(dest, "\n--------captured stderr--------")?;
+        dest.write_all(stderr)?;
+        tail = true;
+    }
+    if tail {
+        writeln!(dest, "\n-------------------------------")?
+    }
+    Ok(())
 }
 
 impl Report {
@@ -267,9 +277,10 @@ impl Report {
                     })
                 }
                 ReportDiff::File(diff) => {
-                    write_captured_output(IndentWriter::new("    ", &mut *dest), stdout, stderr)?;
                     let diff = diff.indented("|   ");
-                    writeln!(dest, "test failure in {name}:\n{diff}")
+                    writeln!(dest, "test failure in {name}:")?;
+                    write_captured_output(&mut *dest, stdout, stderr)?;
+                    write!(dest, "{diff}\n")
                 }
             },
         }

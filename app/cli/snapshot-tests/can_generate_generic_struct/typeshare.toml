@@ -1,0 +1,3 @@
+[swift]
+prefix = "Core"
+codablevoid_constraints = ["Equatable"]

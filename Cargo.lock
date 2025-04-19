@@ -737,7 +737,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-swift"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "anyhow",
  "indent_write",
