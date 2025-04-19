@@ -238,11 +238,11 @@ impl RustType {
         }
     }
 
-    /// Get the ID (AKA name) of the type.
-    pub fn id(&self) -> &TypeName {
+    /// Get the ID (AKA name) of the type. Special types don't have an ID.
+    pub fn id(&self) -> Option<&TypeName> {
         match &self {
-            Self::Simple { id } | Self::Generic { id, .. } => id,
-            Self::Special(special) => special.id(),
+            Self::Simple { id } | Self::Generic { id, .. } => Some(id),
+            Self::Special(_) => None,
         }
     }
     /// Check if the type is `Option<T>`
@@ -278,12 +278,18 @@ impl RustType {
 
 impl SpecialRustType {
     /// Check if this type is equivalent to or contains `ty` in one of its generic parameters.
+    /// This only operates on "externally named" types; (that is, types that aren't primitives)
+    /// because it's used only to detect the presence of generics, or that a type is recursive,
+    /// or anything like that. It always returns false for things like ints and strings.
     pub fn contains_type(&self, ty: &TypeName) -> bool {
         match self {
             Self::Vec(rty) | Self::Array(rty, _) | Self::Slice(rty) | Self::Option(rty) => {
                 rty.contains_type(ty)
             }
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
+
+            // Comprehensive list to ensure this is updated if new types are
+            // added
             Self::Unit
             | Self::String
             | Self::Char
@@ -301,55 +307,7 @@ impl SpecialRustType {
             | Self::F32
             | Self::F64
             | Self::I54
-            | Self::U53 => ty == self.id(),
-        }
-    }
-
-    /// Returns the Rust identifier for this special type.
-    pub const fn id(&self) -> &'static TypeName {
-        // Helper macro to handle the tedium of repeating the `const` block
-        // in each match arm
-        macro_rules! match_block {
-            {
-                match $this:ident {
-                    $($pattern:pat => $out:literal,)*
-                }
-            } => {
-                match $this {
-                    $($pattern => const {&TypeName(Cow::Borrowed($out))},)*
-                }
-            }
-        }
-
-        // TODO: I suspect there are bugs related to strings like `[]` being
-        // returned from this function (non-identifier strings) but it seems
-        // to work fine so I'll leave it for now.
-        match_block! {
-            match self {
-                Self::Unit => "()",
-                Self::F64 => "f64",
-                Self::F32 => "f32",
-                Self::Vec(_) => "Vec",
-                Self::Array(_, _) => "[]",
-                Self::Slice(_) => "&[]",
-                Self::Option(_) => "Option",
-                Self::HashMap(_, _) => "HashMap",
-                Self::String => "String",
-                Self::Char => "char",
-                Self::Bool => "bool",
-                Self::I8 => "i8",
-                Self::I16 => "i16",
-                Self::I32 => "i32",
-                Self::I64 => "i64",
-                Self::U8 => "u8",
-                Self::U16 => "u16",
-                Self::U32 => "u32",
-                Self::U64 => "u64",
-                Self::ISize => "isize",
-                Self::USize => "usize",
-                Self::U53 => "U53",
-                Self::I54 => "I54",
-            }
+            | Self::U53 => false,
         }
     }
 

@@ -17,18 +17,21 @@ fn get_dependencies_from_type<'a>(
                     res.push(&id);
                     get_dependencies(tp, types, res, seen);
                     for parameter in parameters {
-                        let id = parameter.id();
-                        if let Some(&tp) = types.get(id) {
-                            if seen.insert(&id) {
-                                res.push(&id);
-                                get_dependencies(tp, types, res, seen);
-                                seen.remove(&id.clone());
+                        if let Some(id) = parameter.id() {
+                            if let Some(&tp) = types.get(id) {
+                                if seen.insert(&id) {
+                                    res.push(&id);
+                                    get_dependencies(tp, types, res, seen);
+                                    seen.remove(&id.clone());
+                                }
                             }
                         }
                     }
                     seen.remove(&id.clone());
                 }
             }
+
+            seen.remove(id);
         }
         RustType::Simple { id } => {
             if let Some(tp) = types.get(id) {
@@ -38,6 +41,8 @@ fn get_dependencies_from_type<'a>(
                     seen.remove(&id.clone());
                 }
             }
+
+            seen.remove(id);
         }
         RustType::Special(special) => match special {
             SpecialRustType::HashMap(kt, vt) => {
@@ -53,8 +58,6 @@ fn get_dependencies_from_type<'a>(
             _ => {}
         },
     };
-
-    seen.remove(tp.id());
 }
 
 fn get_enum_dependencies<'a>(

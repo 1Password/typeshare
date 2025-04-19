@@ -318,16 +318,26 @@ impl<'a> Iterator for ItemUseIter<'a> {
     }
 }
 
-/// Yield all the type names including nested generic types.
+/// Yield all the type names including nested generic types. This only yields
+/// "normal" type names, referring to user types or generics; it omits things
+/// like integers and so on.
 pub fn all_reference_type_names(ty: &RustType) -> impl Iterator<Item = &TypeName> + '_ {
     let mut type_stack = Vec::from([ty]);
 
-    iter::from_fn(move || match type_stack.pop() {
-        None => None,
-        Some(ty) => {
-            type_stack.extend(ty.parameters());
-            Some(ty.id())
-        }
+    iter::from_fn(move || loop {
+        break match type_stack.pop()? {
+            // Special types don't have referencable names of their own, but
+            // they do have parameters
+            RustType::Special(ty) => {
+                type_stack.extend(ty.parameters());
+                continue;
+            }
+            RustType::Generic { id, parameters } => {
+                type_stack.extend(parameters);
+                Some(id)
+            }
+            RustType::Simple { id } => Some(id),
+        };
     })
     .filter(|s| accept_type(s))
 }
