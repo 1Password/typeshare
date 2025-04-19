@@ -3,11 +3,7 @@ use std::{collections::HashMap, io};
 use anyhow::Context as _;
 use clap::{CommandFactory as _, FromArgMatches as _};
 use clap_complete::generate as generate_completions;
-use ignore::{
-    overrides::{self, OverrideBuilder},
-    types::TypesBuilder,
-    WalkBuilder,
-};
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use itertools::Itertools;
 use lazy_format::lazy_format;
 use typeshare_model::prelude::{CrateName, FilesMode, Language};
@@ -19,7 +15,6 @@ use crate::{
     },
     parser::{parse_input, parser_inputs, ParsedData},
     writer::write_output,
-    FileParseErrors,
 };
 
 pub struct PersonalizeClap {

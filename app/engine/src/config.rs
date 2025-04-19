@@ -1,11 +1,11 @@
-use anyhow::Context;
-use ignore::gitignore::Glob;
-use serde::{ser, Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
 };
+
+use anyhow::Context;
+use serde::{ser, Deserialize, Serialize};
 use typeshare_model::Language;
 
 use crate::serde::{args::ArgsSetSerializer, config::ConfigDeserializer, empty::EmptyDeserializer};
