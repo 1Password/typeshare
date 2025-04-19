@@ -149,7 +149,7 @@ fn get_dependencies<'a>(
 fn get_index(thing: BorrowedRustItem<'_>, things: &[BorrowedRustItem<'_>]) -> usize {
     things
         .iter()
-        .position(|r| *r == thing)
+        .position(|r| r.id() == thing.id())
         .expect("Unable to find thing in things!")
 }
 
@@ -195,15 +195,18 @@ fn toposort_impl(graph: &Vec<Vec<usize>>) -> Vec<usize> {
 }
 
 pub(crate) fn topsort(things: &mut [BorrowedRustItem<'_>]) {
-    let types = HashMap::from_iter(things.iter().map(|thing| {
-        let id = match thing {
-            BorrowedRustItem::Enum(e) => &e.shared().id.original,
-            BorrowedRustItem::Struct(strct) => &strct.id.original,
-            BorrowedRustItem::Alias(ta) => &ta.id.original,
-            BorrowedRustItem::Const(cnst) => &cnst.id.original,
-        };
-        (id, *thing)
-    }));
+    let types = things
+        .iter()
+        .map(|item| {
+            let id = match item {
+                BorrowedRustItem::Enum(e) => &e.shared().id.original,
+                BorrowedRustItem::Struct(strct) => &strct.id.original,
+                BorrowedRustItem::Alias(ta) => &ta.id.original,
+                BorrowedRustItem::Const(cnst) => &cnst.id.original,
+            };
+            (id, *item)
+        })
+        .collect();
 
     let dag: Vec<Vec<usize>> = things
         .iter()

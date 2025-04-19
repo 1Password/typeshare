@@ -67,7 +67,7 @@ impl PartialEq<&str> for CrateName {
 
 /// Identifier used in Rust structs, enums, and fields. It includes the
 /// `original` name and the `renamed` value after the transformation based on `serde` attributes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Id {
     /// The original identifier name
     pub original: TypeName,
@@ -88,7 +88,7 @@ impl std::fmt::Display for Id {
 }
 
 /// Rust struct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustStruct {
     /// The identifier for the struct.
     pub id: Id,
@@ -108,7 +108,7 @@ pub struct RustStruct {
 /// ```
 /// pub struct MasterPassword(String);
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustTypeAlias {
     /// The identifier for the alias.
     pub id: Id,
@@ -123,7 +123,7 @@ pub struct RustTypeAlias {
 }
 
 /// Rust field definition.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustField {
     /// Identifier for the field.
     pub id: Id,
@@ -141,7 +141,7 @@ pub struct RustField {
 }
 
 /// A named Rust type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum RustType {
     /// A type with generic parameters. Consists of a type ID + parameters that come
     /// after in angled brackets. Examples include:
@@ -172,7 +172,7 @@ pub enum RustType {
 }
 
 /// A special rust type that needs a manual type conversion
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum SpecialRustType {
     /// Represents `Vec<T>` from the standard library
@@ -344,7 +344,7 @@ impl SpecialRustType {
 }
 
 /// Parsed information about a Rust enum definition
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum RustEnum {
     /// A unit enum
     ///
@@ -404,7 +404,7 @@ impl RustEnum {
 }
 
 /// Enum information shared among different enum types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustEnumShared {
     /// The enum's ident
     pub id: Id,
@@ -423,7 +423,7 @@ pub struct RustEnumShared {
 }
 
 /// Parsed information about a Rust enum variant
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum RustEnumVariant {
     /// A unit variant
@@ -456,7 +456,7 @@ impl RustEnumVariant {
 }
 
 /// Variant information shared among different variant types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustEnumVariantShared {
     /// The variant's ident
     pub id: Id,
@@ -470,7 +470,7 @@ pub struct RustEnumVariantShared {
 /// ```
 /// pub const MY_CONST: &str = "constant value";
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RustConst {
     /// The identifier for the constant.
     pub id: Id,

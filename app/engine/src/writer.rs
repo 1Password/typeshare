@@ -143,7 +143,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
 #[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub enum BorrowedRustItem<'a> {
     /// A `struct` definition
     Struct(&'a RustStruct),
@@ -156,15 +156,14 @@ pub enum BorrowedRustItem<'a> {
 }
 
 impl BorrowedRustItem<'_> {
-    pub fn name(&self) -> &str {
-        match *self {
+    pub fn id(&self) -> &TypeName {
+        &match *self {
             BorrowedRustItem::Struct(item) => &item.id,
             BorrowedRustItem::Enum(item) => &item.shared().id,
             BorrowedRustItem::Alias(item) => &item.id,
             BorrowedRustItem::Const(item) => &item.id,
         }
         .original
-        .as_str()
     }
 }
 
@@ -205,7 +204,7 @@ fn generate_types<'c>(
     topsort(&mut items);
 
     for thing in &items {
-        let name = thing.name();
+        let name = thing.id();
 
         match thing {
             BorrowedRustItem::Enum(e) => lang

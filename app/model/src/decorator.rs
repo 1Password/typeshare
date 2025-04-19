@@ -3,7 +3,7 @@ use std::collections::HashMap;
 /// A decorator value can either be any literal (`ident = "foo"`), or absent
 /// entirely (`ident`).
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     /// The key was present as an attribute without an associated value.
     None,
@@ -15,7 +15,7 @@ pub enum Value {
 
 /// A set of decorators attached to something via the `#[typeshare]` attribute.
 /// Decorators can appear more than once, so each key includes one more values.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DecoratorSet {
     set: HashMap<String, Vec<Value>>,
 }
