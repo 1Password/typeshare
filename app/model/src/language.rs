@@ -169,6 +169,10 @@ NOTE: at this stage, multi-file output is still work-in-progress, as the
 algorithms that compute import sets are being rewritten. The API presented
 here is stable, but output might be buggy while issues with import detection
 are resolved.
+
+In the future, we hope to make mutli-file mode multithreaded, capable of
+writing multiple files concurrently from a shared `Language` instance.
+`Language` therefore has a `Sync` bound to keep this possibility available.
 */
 pub trait Language<'config>: Sized + Sync + Debug {
     /**
