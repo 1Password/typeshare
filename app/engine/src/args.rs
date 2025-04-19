@@ -56,6 +56,20 @@ pub struct StandardArgs {
 
     #[command(flatten)]
     pub output: Output,
+
+    /// If given, only fields / types / variants matching at least one of these
+    /// OSes (per `cfg(target_os)`) will be emitted. If any `--target-os`
+    /// arguments are passed, they will override ALL target OSes passed via
+    /// a config file.
+    ///
+    /// Generally, typeshare will err on the side of generating things. For
+    /// instance, given `--target-os=ios` and `cfg(any(target_os="android", test))`,
+    /// it WILL generate a type, because that type does exist on iOS in test
+    /// mode: there exists a configuration where that type exists on iOS.
+    ///
+    /// In the future typeshare may be able to consider other cfgs.
+    #[arg(long, num_args=1..)]
+    pub target_os: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Copy, clap::Subcommand)]

@@ -1,4 +1,5 @@
 use anyhow::Context;
+use ignore::gitignore::Glob;
 use serde::{ser, Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -13,20 +14,38 @@ pub use crate::serde::args::CliArgsSet;
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct GlobalConfig {
+    /// If present, only fields / variants / items that are accepted by at
+    /// least one of these os's will be emitted.
+    #[serde(default)]
+    pub target_os: Option<Vec<String>>,
+}
+
 /// A partially parsed typeshare config file.
 ///
 /// This contains a `toml::Table` for each language that was found in the config
 /// file. The `Config` type on the `Language` trait can be further deserialized
-/// from this toml table.
-#[derive(Debug, Clone, Default)]
+/// from this toml table. It also contains config that's specific to typeshare
+/// itself.
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Config {
     /// toml::Table doesn't have a const constructor, so there's not an easy
     /// way to make a long-lived empty table to deserialize from when the
     /// language is absent from the raw data. So we just put one here.
+    #[serde(skip)]
     empty: toml::Table,
 
     /// When we load the typeshare config file, we don't know precisely which
+    /// languages we're going to have yet. So we parse them into arbitrary
+    /// toml, keyed by language, which we will later deserialize into a
+    /// specific language's config type.
+    #[serde(flatten)]
     raw_data: BTreeMap<String, toml::Table>,
+
+    // GENERAL TYPESHARE CONFIG. THIS LIVES UNDER THE [typeshare] HEADER
+    #[serde(default)]
+    typeshare: GlobalConfig,
 }
 
 impl Config {
@@ -55,6 +74,10 @@ impl Config {
 
         // Ok(())
     }
+
+    pub fn global_config(&self) -> &GlobalConfig {
+        &self.typeshare
+    }
 }
 
 impl Serialize for Config {
@@ -63,18 +86,6 @@ impl Serialize for Config {
         S: ser::Serializer,
     {
         self.raw_data.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Config {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Deserialize::deserialize(deserializer).map(|raw_data| Self {
-            empty: toml::Table::new(),
-            raw_data,
-        })
     }
 }
 

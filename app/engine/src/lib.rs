@@ -4,6 +4,7 @@ pub mod driver;
 pub mod parser;
 mod rename;
 mod serde;
+mod target_os;
 mod topsort;
 mod type_parser;
 mod visitors;

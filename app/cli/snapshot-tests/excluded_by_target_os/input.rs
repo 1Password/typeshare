@@ -9,20 +9,19 @@ pub enum TestEnum {
     Variant1,
     #[cfg(target_os = "ios")]
     Variant2,
-    #[cfg(any(target_os = "ios", feature = "test"))]
+    #[cfg(any(target_os = "ios", target_os = "windows"))]
     Variant3,
     #[cfg(all(target_os = "ios", feature = "test"))]
     Variant4,
     #[cfg(target_os = "android")]
     Variant5,
-    #[cfg(target_os = "macos")]
     Variant7 {
         field1: String,
     },
     #[cfg(any(target_os = "android", target_os = "ios"))]
     Variant8,
     Variant9 {
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(target_os = "android"))]
         field1: String,
         field2: String,
     },
@@ -37,7 +36,7 @@ pub struct TestStruct;
 type TypeAlias = String;
 
 #[typeshare]
-#[cfg(any(target_os = "ios", feature = "test"))]
+#[cfg(target_os = "ios")]
 pub enum Test {}
 
 #[typeshare]

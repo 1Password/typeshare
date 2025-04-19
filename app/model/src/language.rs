@@ -466,7 +466,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
 
     This function will write out a pair of struct types resembling:
 
-    ```compile_fail
+    ```
     struct AnonymousStruct {
         field: String,
         another_field: bool,

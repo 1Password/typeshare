@@ -9,9 +9,12 @@ use std::{
     path::PathBuf,
 };
 use syn::{
-    ext::IdentExt, parse::Parser, punctuated::Punctuated, visit::Visit, Attribute, Expr, ExprGroup,
-    ExprLit, ExprParen, Fields, GenericParam, Ident, ItemConst, ItemEnum, ItemStruct, ItemType,
-    Lit, Meta, Token,
+    ext::IdentExt,
+    parse::{Parse, Parser},
+    punctuated::Punctuated,
+    visit::Visit,
+    Attribute, Expr, ExprGroup, ExprLit, ExprParen, Fields, GenericParam, Ident, ItemConst,
+    ItemEnum, ItemStruct, ItemType, Lit, Meta, Token,
 };
 
 use typeshare_model::{
@@ -21,6 +24,7 @@ use typeshare_model::{
 
 use crate::{
     rename::RenameExt,
+    target_os,
     type_parser::{parse_rust_type, parse_rust_type_from_string},
     visitors::TypeShareVisitor,
     FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
@@ -176,6 +180,7 @@ pub fn parse_input(
     inputs: Vec<ParserInput>,
     ignored_types: &[&str],
     mode: FilesMode<()>,
+    target_os: Option<&[&str]>,
 ) -> Result<HashMap<Option<CrateName>, ParsedData>, Vec<FileParseErrors>> {
     inputs
         .into_par_iter()
@@ -207,6 +212,7 @@ pub fn parse_input(
                     },
                     _ => panic!("unsupported mode {mode:?}; this is probably a typeshare bug"),
                 },
+                target_os,
             )
             .map_err(|err| {
                 FileParseErrors::new(
@@ -275,6 +281,7 @@ pub fn parse(
     source_code: &str,
     ignored_types: &[&str],
     file_mode: FilesMode<&CrateName>,
+    target_os: Option<&[&str]>,
 ) -> Result<Option<ParsedData>, ParseErrorSet> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
@@ -284,7 +291,7 @@ pub fn parse(
 
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(ignored_types, file_mode);
+    let mut import_visitor = TypeShareVisitor::new(ignored_types, file_mode, target_os);
     let file_contents = syn::parse_file(source_code)
         .map_err(|err| ParseError::new(&err.span(), ParseErrorKind::SynError(err)))?;
 
@@ -298,7 +305,10 @@ pub fn parse(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(
+    s: &ItemStruct,
+    valid_os: Option<&[&str]>,
+) -> Result<RustItem, ParseError> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -318,7 +328,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
     // is a temporary hack
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
-            id: get_ident(Some(&s.ident), &s.attrs, &None),
+            id: get_ident(Some(&s.ident), &s.attrs, None),
             ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
@@ -333,6 +343,10 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 .named
                 .iter()
                 .filter(|field| !is_skipped(&field.attrs))
+                .filter(|field| match valid_os {
+                    Some(valid) => check_target_os(&field.attrs, valid),
+                    None => true,
+                })
                 .map(|f| {
                     let decorators = get_decorators(&f.attrs);
 
@@ -348,7 +362,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                     let has_default = serde_default(&f.attrs);
 
                     Ok(RustField {
-                        id: get_ident(f.ident.as_ref(), &f.attrs, &serde_rename_all),
+                        id: get_ident(f.ident.as_ref(), &f.attrs, serde_rename_all.as_deref()),
                         ty,
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
@@ -358,7 +372,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
                 .collect::<Result<_, ParseError>>()?;
 
             RustItem::Struct(RustStruct {
-                id: get_ident(Some(&s.ident), &s.attrs, &None),
+                id: get_ident(Some(&s.ident), &s.attrs, None),
                 generic_types,
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
@@ -379,7 +393,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
             };
 
             RustItem::Alias(RustTypeAlias {
-                id: get_ident(Some(&s.ident), &s.attrs, &None),
+                id: get_ident(Some(&s.ident), &s.attrs, None),
                 ty: ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
@@ -388,7 +402,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
         }
         // Unit structs or `None`
         Fields::Unit => RustItem::Struct(RustStruct {
-            id: get_ident(Some(&s.ident), &s.attrs, &None),
+            id: get_ident(Some(&s.ident), &s.attrs, None),
             generic_types,
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
@@ -402,7 +416,7 @@ pub(crate) fn parse_struct(s: &ItemStruct) -> Result<RustItem, ParseError> {
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<RustItem, ParseError> {
     let generic_types = e
         .generics
         .params
@@ -420,7 +434,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     // is a temporary hack
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
-            id: get_ident(Some(&e.ident), &e.attrs, &None),
+            id: get_ident(Some(&e.ident), &e.attrs, None),
             ty: parse_rust_type_from_string(&ty)?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
@@ -440,7 +454,11 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
         .iter()
         // Filter out variants we've been told to skip
         .filter(|v| !is_skipped(&v.attrs))
-        .map(|v| parse_enum_variant(v, &serde_rename_all))
+        .filter(|field| match valid_os {
+            Some(valid) => check_target_os(&field.attrs, valid),
+            None => true,
+        })
+        .map(|v| parse_enum_variant(v, serde_rename_all.as_deref(), valid_os))
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
@@ -454,7 +472,7 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
     });
 
     let shared = RustEnumShared {
-        id: get_ident(Some(&e.ident), &e.attrs, &None),
+        id: get_ident(Some(&e.ident), &e.attrs, None),
         comments: parse_comment_attrs(&e.attrs),
         decorators,
         generic_types,
@@ -522,7 +540,8 @@ pub(crate) fn parse_enum(e: &ItemEnum) -> Result<RustItem, ParseError> {
 /// Parse an enum variant.
 fn parse_enum_variant(
     v: &syn::Variant,
-    enum_serde_rename_all: &Option<String>,
+    enum_serde_rename_all: Option<&str>,
+    valid_os: Option<&[&str]>,
 ) -> Result<RustEnumVariant, ParseError> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
@@ -559,6 +578,10 @@ fn parse_enum_variant(
                 .named
                 .iter()
                 .filter(|f| !is_skipped(&f.attrs))
+                .filter(|field| match valid_os {
+                    Some(valid) => check_target_os(&field.attrs, valid),
+                    None => true,
+                })
                 .map(|f| {
                     let decorators = get_decorators(&f.attrs);
 
@@ -570,7 +593,11 @@ fn parse_enum_variant(
                     let has_default = serde_default(&f.attrs);
 
                     Ok(RustField {
-                        id: get_ident(f.ident.as_ref(), &f.attrs, &variant_serde_rename_all),
+                        id: get_ident(
+                            f.ident.as_ref(),
+                            &f.attrs,
+                            variant_serde_rename_all.as_deref(),
+                        ),
                         ty: field_type,
                         comments: parse_comment_attrs(&f.attrs),
                         has_default,
@@ -604,7 +631,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         .collect();
 
     Ok(RustItem::Alias(RustTypeAlias {
-        id: get_ident(Some(&t.ident), &t.attrs, &None),
+        id: get_ident(Some(&t.ident), &t.attrs, None),
         ty,
         comments: parse_comment_attrs(&t.attrs),
         generic_types,
@@ -636,7 +663,7 @@ pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
     };
 
     Ok(RustItem::Const(RustConst {
-        id: get_ident(Some(&c.ident), &c.attrs, &None),
+        id: get_ident(Some(&c.ident), &c.attrs, None),
         ty,
         expr,
     }))
@@ -712,7 +739,7 @@ fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
     }
 }
 
-fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: &Option<String>) -> Id {
+fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: Option<&str>) -> Id {
     let original = ident.map_or("???".to_string(), |id| id.to_string().replace("r#", ""));
 
     let mut renamed = rename_all_to_case(original.clone(), rename_all);
@@ -727,12 +754,12 @@ fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: &Optio
     }
 }
 
-fn rename_all_to_case(original: String, case: &Option<String>) -> String {
+fn rename_all_to_case(original: String, case: Option<&str>) -> String {
     // TODO: we'd like to replace this with `heck`, but it's not clear that
     // we'd preserve backwards compatibility
     match case {
         None => original,
-        Some(value) => match value.as_str() {
+        Some(value) => match value {
             "lowercase" => original.to_lowercase(),
             "UPPERCASE" => original.to_uppercase(),
             "PascalCase" => original.to_pascal_case(),
@@ -805,6 +832,20 @@ fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
         .flatten()
         .map(|pair| (pair.key, pair.value))
         .collect()
+}
+
+/// Check if the thing tagged by these attributes (type, field, whatever) is
+/// accepted by at least one of the given valid OSes. This returns true for a
+/// given OS so long as it isn't explicitly rejected.
+pub fn check_target_os(attrs: &[Attribute], valid: &[&str]) -> bool {
+    attrs
+        .iter()
+        .filter_map(|attr| match attr.meta {
+            Meta::List(ref list) if list.path.is_ident("cfg") => Some(&list.tokens),
+            _ => None,
+        })
+        .filter_map(|cfg_tokens| target_os::Cfg::parse.parse2(cfg_tokens.clone()).ok())
+        .all(|cfg| target_os::target_os_good(&cfg, valid))
 }
 
 type KeyValueSeq = Punctuated<KeyMaybeValue, Token![,]>;
@@ -905,7 +946,7 @@ fn test_rename_all_to_case() {
 
     for test in tests {
         assert_eq!(
-            rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
+            rename_all_to_case(test_word.to_string(), Some(test.0)),
             test.1
         );
     }

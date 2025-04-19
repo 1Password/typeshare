@@ -8,6 +8,7 @@ use ignore::{
     types::TypesBuilder,
     WalkBuilder,
 };
+use itertools::Itertools;
 use lazy_format::lazy_format;
 use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
@@ -230,6 +231,14 @@ where
     // Load all of the language configurations
     let config = load_config(standard_args.config.as_deref())?;
 
+    let target_os = standard_args
+        .target_os
+        .as_ref()
+        .or_else(|| config.global_config().target_os.as_ref())
+        .map(|targets| targets.iter().map(|target| target.as_str()).collect_vec());
+
+    eprintln!("TARGET {target_os:?}");
+
     // Construct the directory walker that will produce the list of
     // files to typeshare
     let walker = {
@@ -275,6 +284,7 @@ where
         } else {
             FilesMode::Multi(())
         },
+        target_os.as_deref(),
     )
     .map_err(|errors| {
         // TODO: switch to miette

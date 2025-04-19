@@ -47,6 +47,13 @@ Afterwards, typeshare-snapshot-test will print a report and exit nonzero if
 anything went wrong. This could include snapshot test failures (if the output
 didn't match the output), nonzero exits from you `typeshare` binary, or any
 filesystem errors or layout issues in your tests.
+
+## Config
+
+If the snapshot tests directory includes a `typeshare.toml` file, it will be
+used for every test. If any individual directory includes a `typeshare.toml`,
+it will be used for that specific test; if both configs exist, they will be
+merged, and the merged version passed into typeshare.
  */
 #[derive(Parser)]
 struct Args {
@@ -69,7 +76,7 @@ struct Args {
     /// Suffix for the output file for this snapshot test. This should always
     /// be the typical suffix for your language (.go for golang, .ts for
     /// typescript, etc).
-    #[arg(long)]
+    #[arg(short, long)]
     suffix: String,
 
     /// Which mode to run (capture a new snapshot, or perform a snapshot test)
@@ -84,7 +91,6 @@ struct Args {
     /// binary. Make sure to use `--` to separate options passed to `typeshare`
     /// from options passed to `typeshare-snapshot-test`
     additional_args: Vec<String>,
-    // TODO: test selection
     // TODO: concurrency limiter
 }
 

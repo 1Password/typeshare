@@ -2,7 +2,7 @@
 
 use std::{collections::HashSet, iter, mem};
 
-use syn::{visit::Visit, ItemUse, UseTree};
+use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 use typeshare_model::{
     parsed_data::ImportedType,
     prelude::{CrateName, FilesMode, RustEnumVariant, RustType, TypeName},
@@ -10,7 +10,7 @@ use typeshare_model::{
 
 use crate::{
     parser::{
-        has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
+        self, has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
         ParsedData, RustItem,
     },
     ParseError, ParseErrorSet,
@@ -56,28 +56,31 @@ pub struct TypeShareVisitor<'a> {
     ignored_types: &'a [&'a str],
     mode: FilesMode<&'a CrateName>,
     errors: Vec<ParseError>,
+
+    // If present, only things that would exist under any of OSes are generated
+    // (as determined by `#[cfg(target_os=...)]`)
+    target_os: Option<&'a [&'a str]>,
 }
 
 impl<'a> TypeShareVisitor<'a> {
     /// Create an import visitor for a given crate name.
-    pub fn new(ignored_types: &'a [&'a str], mode: FilesMode<&'a CrateName>) -> Self {
+    pub fn new(
+        ignored_types: &'a [&'a str],
+        mode: FilesMode<&'a CrateName>,
+        target_os: Option<&'a [&'a str]>,
+    ) -> Self {
         Self {
             parsed_data: ParsedData::default(),
             ignored_types,
             mode,
             errors: Vec::new(),
+            target_os,
         }
     }
 
     /// Consume the visitor and return parsed data.
     pub fn parsed_data(mut self) -> Result<ParsedData, ParseErrorSet> {
-        ParseErrorSet::collect(mem::take(&mut self.errors)).map(|()| {
-            if self.multi_file() {
-                self.reconcile_referenced_types();
-            }
-
-            self.parsed_data
-        })
+        ParseErrorSet::collect(mem::take(&mut self.errors)).map(|()| self.parsed_data)
     }
 
     fn multi_file(&self) -> bool {
@@ -91,91 +94,11 @@ impl<'a> TypeShareVisitor<'a> {
         }
     }
 
-    /// After collecting all imports we now want to retain only those
-    /// that are referenced by the typeshared types.
-    fn reconcile_referenced_types(&mut self) {
-        // Build up a set of all the types that are referenced by
-        // the typeshared types we have parsed.
-        let mut all_references = HashSet::new();
-
-        // Structs
-        all_references.extend(
-            self.parsed_data
-                .structs
-                .iter()
-                .flat_map(|s| s.fields.iter())
-                .flat_map(|f| all_reference_type_names(&f.ty)),
-        );
-
-        // Enums
-        // for v in self
-        //     .parsed_data
-        //     .enums
-        //     .iter()
-        //     .flat_map(|e| e.shared().variants.iter())
-        // {
-        //     match v {
-        //         RustEnumVariant::Unit(_) => (),
-        //         RustEnumVariant::Tuple { ty, .. } => {
-        //             all_references.extend(all_reference_type_names(ty));
-        //         }
-        //         RustEnumVariant::AnonymousStruct { fields, .. } => {
-        //             all_references
-        //                 .extend(fields.iter().flat_map(|f| all_reference_type_names(&f.ty)));
-        //         }
-        //     }
-        // }
-
-        // Aliases
-        all_references.extend(
-            self.parsed_data
-                .aliases
-                .iter()
-                .flat_map(|alias| all_reference_type_names(&alias.ty)),
-        );
-
-        // Build a set of a all type names.
-        let local_types: HashSet<&TypeName> = self.parsed_data.all_type_names().collect();
-
-        // Lookup a type name against parsed imports.
-        let find_type = |name: &TypeName| {
-            let found = self
-                .parsed_data
-                .import_types
-                .iter()
-                .find(|imp| imp.type_name == *name)
-                .into_iter()
-                .next()
-                .cloned();
-
-            // if found.is_none() {
-            //     println!(
-            //         "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
-            //         self.parsed_data.crate_name,
-            //         self.file_path.as_os_str().to_str().unwrap_or_default()
-            //     );
-            // }
-
-            found
-        };
-
-        // Lookup all the references that are not defined locally. Subtract
-        // all local types defined in the module.
-        let mut diff = all_references
-            .difference(&local_types)
-            .copied()
-            .flat_map(find_type)
-            .collect::<HashSet<_>>();
-
-        // Move back the wildcard import types.
-        diff.extend(
-            self.parsed_data
-                .import_types
-                .drain()
-                .filter(|imp| imp.type_name == "*"),
-        );
-
-        self.parsed_data.import_types = diff;
+    fn target_os_good(&self, attrs: &[Attribute]) -> bool {
+        match self.target_os {
+            Some(valid) => parser::check_target_os(attrs, valid),
+            None => true,
+        }
     }
 }
 
@@ -256,8 +179,8 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        if has_typeshare_annotation(&i.attrs) {
-            self.collect_result(parse_struct(i));
+        if has_typeshare_annotation(&i.attrs) && self.target_os_good(&i.attrs) {
+            self.collect_result(parse_struct(i, self.target_os));
         }
 
         syn::visit::visit_item_struct(self, i);
@@ -265,8 +188,8 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        if has_typeshare_annotation(&i.attrs) {
-            self.collect_result(parse_enum(i));
+        if has_typeshare_annotation(&i.attrs) && self.target_os_good(&i.attrs) {
+            self.collect_result(parse_enum(i, self.target_os));
         }
 
         syn::visit::visit_item_enum(self, i);
@@ -274,7 +197,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
 
     /// Collect rust type aliases.
     fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
-        if has_typeshare_annotation(&i.attrs) {
+        if has_typeshare_annotation(&i.attrs) && self.target_os_good(&i.attrs) {
             self.collect_result(parse_type_alias(i));
         }
 
@@ -282,7 +205,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
     }
 
     fn visit_item_const(&mut self, i: &'ast syn::ItemConst) {
-        if has_typeshare_annotation(&i.attrs) {
+        if has_typeshare_annotation(&i.attrs) && self.target_os_good(&i.attrs) {
             self.collect_result(parse_const(i));
         }
 
