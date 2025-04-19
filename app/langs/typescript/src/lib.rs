@@ -366,7 +366,11 @@ impl TypeScript {
             .decorators
             .get_all("typescript")
             .iter()
-            .any(|dec| matches!(dec, Value::String(value) if value == "readonly"))
+            .filter_map(|dec| match dec {
+                Value::Nested(nested) => Some(nested),
+                _ => None,
+            })
+            .any(|dec| dec.any("readonly", |value| matches!(value, Value::None)))
         {
             true => "readonly ",
             false => "",
