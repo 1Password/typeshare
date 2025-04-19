@@ -33,6 +33,8 @@ pub struct Config {
     /// toml::Table doesn't have a const constructor, so there's not an easy
     /// way to make a long-lived empty table to deserialize from when the
     /// language is absent from the raw data. So we just put one here.
+    ///
+    /// This should literally always be empty.
     #[serde(skip)]
     empty: toml::Table,
 
@@ -43,7 +45,7 @@ pub struct Config {
     #[serde(flatten)]
     raw_data: BTreeMap<String, toml::Table>,
 
-    // GENERAL TYPESHARE CONFIG. THIS LIVES UNDER THE [typeshare] HEADER
+    // General config for typeshare, separate from any particular language
     #[serde(default)]
     typeshare: GlobalConfig,
 }

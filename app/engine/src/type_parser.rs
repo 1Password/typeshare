@@ -1,8 +1,13 @@
 use itertools::Itertools;
 use quote::ToTokens;
+use syn::Ident;
 use typeshare_model::prelude::{RustType, SpecialRustType, TypeName};
 
 use crate::{ParseError, ParseErrorKind, RustTypeParseError};
+
+pub fn type_name(ident: &Ident) -> TypeName {
+    TypeName::new_string(ident.to_string())
+}
 
 pub fn parse_rust_type(tokens: &syn::Type) -> Result<RustType, ParseError> {
     Ok(match tokens {
@@ -20,7 +25,7 @@ pub fn parse_rust_type(tokens: &syn::Type) -> Result<RustType, ParseError> {
         syn::Type::Reference(reference) => parse_rust_type(&reference.elem)?,
         syn::Type::Path(path) => {
             let segment = path.path.segments.iter().last().unwrap();
-            let id = TypeName::new(&segment.ident);
+            let id = type_name(&segment.ident);
             let parameters: Vec<RustType> = match &segment.arguments {
                 syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
                     let parameters: Result<Vec<RustType>, ParseError> = angle_bracketed_arguments

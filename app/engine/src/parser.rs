@@ -25,7 +25,7 @@ use typeshare_model::{
 use crate::{
     rename::RenameExt,
     target_os,
-    type_parser::{parse_rust_type, parse_rust_type_from_string},
+    type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
     visitors::TypeShareVisitor,
     FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
 };
@@ -316,7 +316,7 @@ pub(crate) fn parse_struct(
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
+            GenericParam::Type(type_param) => Some(type_name(&type_param.ident)),
             _ => None,
         })
         .collect();
@@ -422,7 +422,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<Rust
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
+            GenericParam::Type(type_param) => Some(type_name(&type_param.ident)),
             _ => None,
         })
         .collect();
@@ -442,7 +442,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<Rust
         }));
     }
 
-    let original_enum_ident = TypeName::new(&e.ident);
+    let original_enum_ident = type_name(&e.ident);
 
     // Grab the `#[serde(tag = "...", content = "...")]` values if they exist
     let maybe_tag_key = get_tag_key(&e.attrs);
@@ -625,7 +625,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
         .params
         .iter()
         .filter_map(|param| match param {
-            GenericParam::Type(type_param) => Some(TypeName::new(&type_param.ident)),
+            GenericParam::Type(type_param) => Some(type_name(&type_param.ident)),
             _ => None,
         })
         .collect();
@@ -985,7 +985,7 @@ mod test_get_decorators {
         let attr = parse_attr("#[typeshare(foo, int=10, string=\"foo\")]");
         let decorators = get_decorators(&attr);
 
-        assert_eq!(decorators.get_all("foo"), &[Value::None,]);
+        assert_eq!(decorators.get_all("foo"), &[Value::None]);
         assert_eq!(decorators.get_all("int"), &[Value::Int(10)]);
         assert_eq!(
             decorators.get_all("string"),

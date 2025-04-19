@@ -13,6 +13,7 @@ use crate::{
         self, has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
         ParsedData, RustItem,
     },
+    type_parser::type_name,
     ParseError, ParseErrorSet,
 };
 
@@ -287,7 +288,7 @@ impl<'a> Iterator for ItemUseIter<'a> {
                     self.use_tree.push(&path.tree);
                 }
                 syn::UseTree::Name(name) => {
-                    let type_name = TypeName::new(&name.ident);
+                    let type_name = type_name(&name.ident);
                     let base_crate = self.resolve_crate_name();
                     if accept_crate(&base_crate) && accept_type(&type_name) {
                         return Some(ImportedType {

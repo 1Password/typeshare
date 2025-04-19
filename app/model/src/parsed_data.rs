@@ -512,12 +512,6 @@ impl TypeName {
 
     #[inline]
     #[must_use]
-    pub fn new(ident: &proc_macro2::Ident) -> Self {
-        Self::new_string(ident.to_string())
-    }
-
-    #[inline]
-    #[must_use]
     pub fn new_string(ident: String) -> Self {
         Self(Cow::Owned(ident))
     }
