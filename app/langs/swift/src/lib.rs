@@ -605,7 +605,7 @@ impl<'config> Language<'config> for Swift<'config> {
         self.write_comments(w, &alias.comments)?;
 
         let swift_prefix = &self.prefix;
-        let type_name = format!("{}{}", swift_prefix, alias.id.renamed);
+        let type_name = format!("{}{}", swift_prefix, alias.id.original);
         let type_name = swift_keyword_aware_rename(&type_name);
 
         writeln!(
@@ -630,7 +630,7 @@ impl<'config> Language<'config> for Swift<'config> {
         writeln!(w)?;
         self.write_comments(w, &rs.comments)?;
 
-        let type_name = format!("{}{}", self.prefix, rs.id.renamed);
+        let type_name = format!("{}{}", self.prefix, rs.id.original);
         let type_name = swift_keyword_aware_rename(&type_name);
 
         // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
@@ -760,7 +760,7 @@ impl<'config> Language<'config> for Swift<'config> {
 
     fn write_enum(&self, w: &mut impl io::Write, e: &RustEnum) -> anyhow::Result<()> {
         let shared = e.shared();
-        let enum_name = format!("{}{}", self.prefix, shared.id.renamed);
+        let enum_name = format!("{}{}", self.prefix, shared.id.original);
         let enum_name = swift_keyword_aware_rename(&enum_name);
 
         let decs = self

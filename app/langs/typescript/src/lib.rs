@@ -163,7 +163,7 @@ impl Language<'_> for TypeScript {
         writeln!(
             w,
             "export type {}{} = {}{};\n",
-            ty.id.renamed,
+            ty.id.original,
             (!ty.generic_types.is_empty())
                 .then(|| format!("<{}>", ty.generic_types.iter().join_with(", ")))
                 .unwrap_or_default(),
@@ -182,7 +182,7 @@ impl Language<'_> for TypeScript {
         writeln!(
             w,
             "export interface {}{} {{",
-            rs.id.renamed,
+            rs.id.original,
             (!rs.generic_types.is_empty())
                 .then(|| format!("<{}>", rs.generic_types.iter().join_with(", ")))
                 .unwrap_or_default()
@@ -209,7 +209,7 @@ impl Language<'_> for TypeScript {
                 write!(
                     w,
                     "export enum {}{} {{",
-                    shared.id.renamed, generic_parameters
+                    shared.id.original, generic_parameters
                 )?;
 
                 self.write_enum_variants(w, e)?;
@@ -220,7 +220,7 @@ impl Language<'_> for TypeScript {
                 write!(
                     w,
                     "export type {}{} = ",
-                    shared.id.renamed, generic_parameters
+                    shared.id.original, generic_parameters
                 )?;
 
                 self.write_enum_variants(w, e)?;
@@ -245,7 +245,7 @@ impl Language<'_> for TypeScript {
         writeln!(
             w,
             "export const {ident}: {const_type} = {expr};",
-            ident = c.id.renamed.as_str().to_uppercase(),
+            ident = c.id.original.as_str().to_uppercase(),
         )?;
 
         Ok(())

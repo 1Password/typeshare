@@ -423,13 +423,13 @@ impl<'config> Language<'config> for Kotlin<'config> {
 
         if rs.fields.is_empty() {
             // If the struct has no fields, we can define it as an static object.
-            writeln!(w, "object {}{}\n", self.prefix, rs.id.renamed)?;
+            writeln!(w, "object {}{}\n", self.prefix, rs.id.original)?;
         } else {
             writeln!(
                 w,
                 "data class {}{}{} (",
                 self.prefix,
-                rs.id.renamed,
+                rs.id.original,
                 (!rs.generic_types.is_empty())
                     .then(|| format!("<{}>", rs.generic_types.join(", ")))
                     .unwrap_or_default()
@@ -490,7 +490,7 @@ impl<'config> Language<'config> for Kotlin<'config> {
     fn write_enum(&self, w: &mut impl io::Write, e: &RustEnum) -> anyhow::Result<()> {
         // Generate named types for any anonymous struct variants of this enum
         self.write_struct_types_for_enum_variants(w, e, &|variant_name| {
-            format!("{}{}Inner", &e.shared().id.renamed, variant_name)
+            format!("{}{}Inner", &e.shared().id.original, variant_name)
         })?;
 
         self.write_comments(w, &e.shared().comments)?;
@@ -506,7 +506,7 @@ impl<'config> Language<'config> for Kotlin<'config> {
                     w,
                     "enum class {}{}{}(val string: String) ",
                     self.prefix,
-                    &e.shared().id.renamed,
+                    &e.shared().id.original,
                     generic_parameters
                 )?;
             }
@@ -515,7 +515,7 @@ impl<'config> Language<'config> for Kotlin<'config> {
                     w,
                     "sealed class {}{}{} ",
                     self.prefix,
-                    &e.shared().id.renamed,
+                    &e.shared().id.original,
                     generic_parameters
                 )?;
             }
