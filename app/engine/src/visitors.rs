@@ -104,62 +104,6 @@ impl<'a> TypeShareVisitor<'a> {
 }
 
 impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
-    /// Find any reference types that are not part of
-    /// the `use` import statements.
-    fn visit_path(&mut self, p: &'ast syn::Path) {
-        // TODO: implement this as a part of import detection.
-        // TODO: paths are used in a lot of places; make sure that we only
-        // care about paths that are part of type definitions.
-
-        // if !self.multi_file() {
-        //     return;
-        // }
-
-        // let extract_root_and_types = |p: &syn::Path| {
-        //     // TODO: the first part here may not be a crate name but a module name defined
-        //     // in a use statement.
-        //     //
-        //     // Ex:
-        //     // use some_crate::some_module;
-        //     //
-        //     // struct SomeType {
-        //     //     field: some_module::RefType
-        //     // }
-        //     //
-        //     // vist_path would be after vist_item_use so we could retain imported module references
-        //     // and reconcile aftewards. visit_item_use would have to retain non type import types
-        //     // which it discards right now.
-        //     //
-        //     let crate_candidate = CrateName::new(p.segments.first()?.ident.to_string());
-        //     let type_candidate = TypeName::new(&p.segments.last()?.ident);
-
-        //     (accept_crate(&crate_candidate)
-        //         && accept_type(&type_candidate)
-        //         && !self.ignored_types.contains(&type_candidate.as_str())
-        //         && crate_candidate.as_str() != type_candidate.as_str())
-        //     .then(|| {
-        //         // resolve crate and super aliases into the crate name.
-        //         let base_crate = if crate_candidate == "crate"
-        //             || crate_candidate == "super"
-        //             || crate_candidate == "self"
-        //         {
-        //             self.parsed_data.crate_name.clone()
-        //         } else {
-        //             crate_candidate
-        //         };
-        //         ImportedType {
-        //             base_crate: CrateName::from(base_crate),
-        //             type_name: type_candidate,
-        //         }
-        //     })
-        // };
-
-        // if let Some(imported_type) = extract_root_and_types(p) {
-        //     self.parsed_data.import_types.insert(imported_type);
-        // }
-        // syn::visit::visit_path(self, p);
-    }
-
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
         // TODO: implement this as a part of import detection.
