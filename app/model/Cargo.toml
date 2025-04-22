@@ -10,5 +10,5 @@ readme = "README.md"
 
 [dependencies]
 anyhow = { version = "1.0.95", default-features = false }
-itertools = "0.13.0"
+itertools = "0.14.0"
 serde = { version = "1.0.217", default-features = false }
