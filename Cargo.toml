@@ -11,6 +11,7 @@ members = [
   "app/engine",
   "app/driver",
   "app/cli",
+
   "typeshare-snapshot-test",
 ]
 resolver = "2"
