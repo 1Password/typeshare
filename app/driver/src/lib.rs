@@ -1,5 +1,5 @@
 #[doc(hidden)]
-pub mod reexport {
+pub mod ඞ {
     pub use ::anyhow;
     pub use ::typeshare_engine as engine;
 }
@@ -14,16 +14,16 @@ macro_rules! type_lifetime_helper {
 #[macro_export]
 macro_rules! typeshare_binary {
     ($($Language:ident $(< $config:lifetime >)?),+ $(,)?) => {
-        fn main() -> $crate::reexport::anyhow::Result<()> {
+        fn main() -> $crate::ඞ::anyhow::Result<()> {
             struct Local;
 
-            impl $crate::reexport::engine::driver::LanguageHelper for Local {
+            impl $crate::ඞ::engine::driver::LanguageHelper for Local {
                 type LanguageSet<'config> = ($(
                     $crate::type_lifetime_helper! ('config, $Language $(<$config>)?),
                 )+);
             }
 
-            $crate::reexport::engine::driver::main_body::<Local>()
+            $crate::ඞ::engine::driver::main_body::<Local>()
         }
     };
 }
