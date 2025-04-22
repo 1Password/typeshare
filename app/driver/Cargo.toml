@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-driver"
-version = "1.1.2"
+version = "1.2.0"
 edition = "2021"
 
 description = "macro for trivially creating your own typeshare binaries"
@@ -11,4 +11,4 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.96"
 
-typeshare-engine = { version = "0.2.2", path = "../engine" }
+typeshare-engine = { version = "0.3.0", path = "../engine" }

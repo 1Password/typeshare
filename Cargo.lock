@@ -669,7 +669,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-driver"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "typeshare-engine",
@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-engine"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-kotlin"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "indent_write",
@@ -713,7 +713,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-model"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "itertools 0.13.0",
@@ -722,7 +722,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-snapshot-test"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -735,7 +735,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-swift"
-version = "1.13.2"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "indent_write",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-typescript"
-version = "0.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "itertools 0.14.0",

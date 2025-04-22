@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-swift"
-version = "1.13.2"
+version = "2.0.0"
 edition = "2024"
 
 [dependencies]
@@ -10,4 +10,4 @@ itertools = { version = "0.14.0" }
 joinery = "3.1.0"
 lazy_format = "2.0.3"
 serde = { version = "1.0.219", features = ["derive"] }
-typeshare-model = { path = "../../model" }
+typeshare-model = { path = "../../model", version = "2.0" }
