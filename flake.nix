@@ -29,6 +29,7 @@
             src = pkgs.lib.cleanSource ./.;
             cargoLock = { lockFile = ./Cargo.lock; };
             nativeBuildInputs = [ pkgs.installShellFiles ];
+            buildAndTestSubdir = "app/cli";
 
             postInstall = ''
               installShellCompletion --cmd typeshare2 \
@@ -51,14 +52,7 @@
             version = versionFromCargo ./typeshare-snapshot-test;
             src = pkgs.lib.cleanSource ./.;
             cargoLock = { lockFile = ./Cargo.lock; };
-            # nativeBuildInputs = [ pkgs.installShellFiles ];
-
-            # postInstall = ''
-            #   installShellCompletion --cmd typeshare2 \
-            #     --bash <($out/bin/typeshare2 completions bash) \
-            #     --fish <($out/bin/typeshare2 completions fish) \
-            #     --zsh <($out/bin/typeshare2 completions zsh)
-            # '';
+            buildAndTestSubdir = "typeshare-snapshot-test";
 
             meta = {
               description = "Snapshot testing tool for typeshare";
