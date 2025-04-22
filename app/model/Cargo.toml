@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-model"
-version = "2.0.0"
+version = "2.0.1"
 edition = "2024"
 
 description = "core definition of the typeshare Language trait for implementations"

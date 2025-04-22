@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "serde",
  "serde_json",
@@ -594,7 +594,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-model"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "itertools",
