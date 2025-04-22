@@ -26,7 +26,6 @@
           typeshare2 = pkgs.rustPlatform.buildRustPackage {
             pname = "typeshare2";
             version = versionFromCargo ./app/cli;
-            # version = (builtins.fromTOML (builtins.readFile ./app/cli/Cargo.toml)).package.version;
             src = pkgs.lib.cleanSource ./.;
             cargoLock = { lockFile = ./Cargo.lock; };
             nativeBuildInputs = [ pkgs.installShellFiles ];
