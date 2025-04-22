@@ -18,28 +18,59 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
+        versionFromCargo = path: (builtins.fromTOML (builtins.readFile (path + "/Cargo.toml"))).package.version;
+        license = let licenses = pkgs.lib.licenses; in [licenses.asl20 /* or */ licenses.mit ];
+        homepage = "https://github.com/1password/typeshare";
       in {
-        packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = "typeshare2";
-          version = (builtins.fromTOML (builtins.readFile ./app/cli/Cargo.toml)).package.version;
-          src = pkgs.lib.cleanSource ./.;
-          cargoLock = { lockFile = ./Cargo.lock; };
-          nativeBuildInputs = [ pkgs.installShellFiles ];
+        packages = rec {
+          typeshare2 = pkgs.rustPlatform.buildRustPackage {
+            pname = "typeshare2";
+            version = versionFromCargo ./app/cli;
+            # version = (builtins.fromTOML (builtins.readFile ./app/cli/Cargo.toml)).package.version;
+            src = pkgs.lib.cleanSource ./.;
+            cargoLock = { lockFile = ./Cargo.lock; };
+            nativeBuildInputs = [ pkgs.installShellFiles ];
 
-          postInstall = ''
-            installShellCompletion --cmd typeshare2 \
-              --bash <($out/bin/typeshare2 completions bash) \
-              --fish <($out/bin/typeshare2 completions fish) \
-              --zsh <($out/bin/typeshare2 completions zsh)
-          '';
+            postInstall = ''
+              installShellCompletion --cmd typeshare2 \
+                --bash <($out/bin/typeshare2 completions bash) \
+                --fish <($out/bin/typeshare2 completions fish) \
+                --zsh <($out/bin/typeshare2 completions zsh)
+            '';
 
-          meta = {
-            description = "Command Line Tool for generating language files with typeshare";
-            homepage = "https://github.com/1password/typeshare";
-            # TODO: restore this
-            # changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
-            license = let licenses = pkgs.lib.licenses; in [licenses.asl20 /* or */ licenses.mit ];
+            meta = {
+              description = "Command Line Tool for generating language files with typeshare";
+              inherit homepage;
+              # TODO: restore this
+              # changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
+              inherit license;
+            };
           };
+
+          typeshare-snapshot-test = pkgs.rustPlatform.buildRustPackage {
+            pname = "typeshare-snapshot-test";
+            version = versionFromCargo ./typeshare-snapshot-test;
+            src = pkgs.lib.cleanSource ./.;
+            cargoLock = { lockFile = ./Cargo.lock; };
+            # nativeBuildInputs = [ pkgs.installShellFiles ];
+
+            # postInstall = ''
+            #   installShellCompletion --cmd typeshare2 \
+            #     --bash <($out/bin/typeshare2 completions bash) \
+            #     --fish <($out/bin/typeshare2 completions fish) \
+            #     --zsh <($out/bin/typeshare2 completions zsh)
+            # '';
+
+            meta = {
+              description = "Snapshot testing tool for typeshare";
+              inherit homepage;
+              # TODO: restore this
+              # changelog = "https://github.com/1password/typeshare/blob/v${version}/CHANGELOG.md";
+              inherit license;
+            };
+          };
+
+          default = typeshare2;
         };
       }
     );
