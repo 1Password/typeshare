@@ -1,3 +1,3 @@
 # typeshare-model
 
-This crate is the base dependency for almost everything else. It includes especially the types and traits necessary for a single language implementation (that is, typeshare-swift could depend ONLY on typeshare-model). It can include utility functionality that might be necessary for a language implementation, but ideally not much in the way of major implementation stuff.
+This crate is the core dependency for all implementations of specific languages for typeshare. It defines the [`Language`](https://docs.rs/typeshare-model/latest/typeshare_model/trait.Language.html) trait, along with a handful of supporting types, which a language implementation must implement. Check out the official implementations for [Swift](../langs/swift/src/lib.rs), [Kotlin](../langs/kotlin/src/lib.rs), and [Typescript](../langs/typescript/src/lib.rs) for examples.

@@ -4,4 +4,4 @@ Typeshare is a tool for generating type definitions in other languages based on 
 
 Typeshare was originally developed as an internal tool at [1Password](1password.com), but has been released as an open-source crate that you can use and contribute to.
 
-This guide describes how to install and use Typeshare effectively.
+This guide describes how to install and use Typeshare effectively, or how to add your own languages.
