@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-driver"
-version = "1.2.1"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "typeshare-engine",
@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-engine"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
