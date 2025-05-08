@@ -5,7 +5,7 @@ use proc_macro2::{Delimiter, Group};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use syn::{
     ext::IdentExt,

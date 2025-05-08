@@ -73,7 +73,11 @@ macro_rules! typeshare_binary {
                 )+);
             }
 
-            $crate::ඞ::engine::driver::main_body::<Local>()
+            $crate::ඞ::engine::driver::main_body::<Local>(
+                $crate::ඞ::engine::args::PersonalizeClap::new()
+                    .name(env!("CARGO_PKG_NAME"))
+                    .version(env!("CARGO_PKG_VERSION")),
+            )
         }
     };
 }

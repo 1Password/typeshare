@@ -9,20 +9,16 @@ use lazy_format::lazy_format;
 use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
 use crate::{
-    args::{add_lang_argument, add_language_params_to_clap, Command, OutputLocation, StandardArgs},
+    args::{
+        self, add_lang_argument, add_language_params_to_clap, add_personalizations, Command,
+        OutputLocation, StandardArgs,
+    },
     config::{
         self, compute_args_set, load_config, load_language_config_from_file_and_args, CliArgsSet,
     },
     parser::{parse_input, parser_inputs, ParsedData},
     writer::write_output,
 };
-
-pub struct PersonalizeClap {
-    pub name: &'static str,
-    pub version: &'static str,
-    pub author: &'static str,
-    pub about: &'static str,
-}
 
 pub trait LanguageSet<'config> {
     type LanguageMetas: 'static;
@@ -184,18 +180,13 @@ pub trait LanguageHelper {
     type LanguageSet<'config>: LanguageSet<'config>;
 }
 
-pub fn main_body<Helper>() -> anyhow::Result<()>
+pub fn main_body<Helper>(personalizations: args::PersonalizeClap) -> anyhow::Result<()>
 where
     Helper: LanguageHelper,
 {
     let language_metas = Helper::LanguageSet::compute_language_metas()?;
     let command = StandardArgs::command();
-
-    // let command = command
-    //     .name(personalize.name)
-    //     .version(personalize.version)
-    //     .author(personalize.author)
-    //     .about(personalize.about);
+    let command = add_personalizations(command, personalizations);
 
     let command = Helper::LanguageSet::add_lang_argument(command);
     let command = Helper::LanguageSet::add_language_specific_arguments(command, &language_metas);
@@ -255,7 +246,7 @@ where
         overrides.add("!**/examples/**").unwrap();
         overrides.add("!**/benches/**").unwrap();
         overrides.add("!build.rs").unwrap();
-        overrides.add("**/src/**").unwrap();
+        overrides.add("**/src/**/*.rs").unwrap();
         let overrides = overrides.build().unwrap();
 
         let mut walker_builder = WalkBuilder::new(first_dir);

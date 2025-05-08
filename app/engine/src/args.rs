@@ -81,6 +81,88 @@ pub enum Command {
     },
 }
 
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct PersonalizeClap {
+    name: Option<&'static str>,
+    version: Option<&'static str>,
+    author: Option<&'static str>,
+    about: Option<&'static str>,
+}
+
+impl PersonalizeClap {
+    pub const fn new() -> Self {
+        Self {
+            name: None,
+            version: None,
+            author: None,
+            about: None,
+        }
+    }
+
+    pub const fn name(self, name: &'static str) -> Self {
+        Self {
+            name: Some(name),
+            ..self
+        }
+    }
+
+    pub const fn version(self, version: &'static str) -> Self {
+        Self {
+            version: Some(version),
+            ..self
+        }
+    }
+
+    pub const fn author(self, author: &'static str) -> Self {
+        Self {
+            author: Some(author),
+            ..self
+        }
+    }
+
+    pub const fn about(self, about: &'static str) -> Self {
+        Self {
+            about: Some(about),
+            ..self
+        }
+    }
+}
+
+pub fn add_personalizations(
+    command: clap::Command,
+    personalizations: PersonalizeClap,
+) -> clap::Command {
+    let command = command.arg(
+        clap::Arg::new("version")
+            .short('V')
+            .long("version")
+            .action(clap::ArgAction::Version),
+    );
+
+    let command = match personalizations.name {
+        Some(name) => command.name(name),
+        None => command,
+    };
+
+    let command = match personalizations.version {
+        Some(version) => command.version(version),
+        None => command,
+    };
+
+    let command = match personalizations.author {
+        Some(author) => command.author(author),
+        None => command,
+    };
+
+    let command = match personalizations.about {
+        Some(about) => command.about(about),
+        None => command,
+    };
+
+    command
+}
+
 /// Add a `--lang` argument to the command. This argument will be optional if
 /// there is only one language
 pub fn add_lang_argument(command: clap::Command, languages: &[&'static str]) -> clap::Command {
