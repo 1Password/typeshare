@@ -702,5 +702,5 @@ tests! {
         type_mappings: super::TYPESCRIPT_MAPPINGS.clone(),
     }
     ];
-
+    no_mangle: [swift, kotlin, scala, typescript, go];
 }
