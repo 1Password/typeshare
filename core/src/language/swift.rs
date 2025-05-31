@@ -258,7 +258,7 @@ impl Language for Swift {
                 .then(|| format!("<{}>", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
             self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                .map_err(std::io::Error::other)?
         )?;
 
         Ok(())
@@ -335,7 +335,7 @@ impl Language for Swift {
                 Some(type_override) => type_override.to_owned(),
                 None => self
                     .format_type(&f.ty, rs.generic_types.as_slice())
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                    .map_err(io::Error::other)?,
             };
 
             writeln!(
@@ -370,7 +370,7 @@ impl Language for Swift {
                 Some(type_override) => type_override.to_owned(),
                 None => self
                     .format_type(&f.ty, rs.generic_types.as_slice())
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                    .map_err(io::Error::other)?,
             };
 
             init_params.push(format!(
@@ -633,7 +633,7 @@ impl Swift {
                             let content_optional = ty.is_optional();
                             let case_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                                .map_err(io::Error::other)?;
                             write!(w, "({})", swift_keyword_aware_rename(&case_type))?;
 
                             if content_optional {

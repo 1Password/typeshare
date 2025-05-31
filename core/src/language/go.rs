@@ -196,7 +196,7 @@ impl Language for Go {
             "type {} {}\n",
             self.acronyms_to_uppercase(&ty.id.original),
             self.format_type(&ty.r#type, &[])
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                .map_err(std::io::Error::other)?
         )?;
 
         Ok(())
@@ -207,7 +207,7 @@ impl Language for Go {
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    .map_err(std::io::Error::other)?;
                 writeln!(
                     w,
                     "const {} {} = {}",
@@ -506,7 +506,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&field.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                .map_err(std::io::Error::other)?,
         };
 
         let go_type = self.acronyms_to_uppercase(&type_name);
