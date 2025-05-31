@@ -10,12 +10,12 @@ repository = "https://github.com/1Password/typeshare"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full", "visit"] }
-thiserror = "1"
-itertools = "0.12"
+thiserror = "2"
+itertools = "0.14"
 lazy_format = "2"
-joinery = "2"
-topological-sort = { version = "0.2.2"}
-convert_case = { version = "0.6.0"}
+joinery = "3.1"
+topological-sort = { version = "0.2.2" }
+convert_case = { version = "0.8" }
 log.workspace = true
 flexi_logger.workspace = true
 
