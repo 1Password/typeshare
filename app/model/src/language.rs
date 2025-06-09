@@ -537,6 +537,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
                         &e.shared().id.original,
                     )],
                     decorators: e.shared().decorators.clone(),
+                    is_anonymous: true,
                 },
             )
             .with_context(|| {

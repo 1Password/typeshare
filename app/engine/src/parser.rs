@@ -377,6 +377,7 @@ pub(crate) fn parse_struct(
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators,
+                is_anonymous: false,
             })
         }
         // Tuple structs
@@ -407,6 +408,7 @@ pub(crate) fn parse_struct(
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
             decorators,
+            is_anonymous: false,
         }),
     })
 }
