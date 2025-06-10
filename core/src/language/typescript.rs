@@ -95,9 +95,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
                 let formatted_type = self.format_type(rtype, generic_types)?;
                 Ok(format!(
                     "[{}]",
-                    std::iter::repeat(&formatted_type)
-                        .take(*len)
-                        .join_with(", ")
+                    std::iter::repeat_n(&formatted_type, *len).join_with(", ")
                 ))
             }
             SpecialRustType::Slice(rtype) => {
@@ -154,7 +152,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
 
         let r#type = self
             .format_type(&ty.r#type, ty.generic_types.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(io::Error::other)?;
 
         writeln!(
             w,
@@ -178,7 +176,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    .map_err(std::io::Error::other)?;
                 writeln!(
                     w,
                     "export const {}: {} = {};",
@@ -294,7 +292,7 @@ impl TypeScript {
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
                             .format_type(ty, e.shared().generic_types.as_slice())
-                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                            .map_err(io::Error::other)?;
                         write!(
                             w,
                             "\t| {{ {}: {:?}, {}{}: {} }}",
@@ -335,7 +333,7 @@ impl TypeScript {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&field.ty, generic_types)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                .map_err(io::Error::other)?,
         };
         if self.custom_translations(&ts_ty).is_some() {
             self.types_for_custom_json_translation

@@ -273,7 +273,7 @@ impl Language for Python {
     fn write_type_alias(&mut self, w: &mut dyn Write, ty: &RustTypeAlias) -> std::io::Result<()> {
         let r#type = self
             .format_type(&ty.r#type, ty.generic_types.as_slice())
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         writeln!(
             w,
@@ -295,7 +295,7 @@ impl Language for Python {
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    .map_err(std::io::Error::other)?;
                 writeln!(
                     w,
                     "{}: {} = {}",
@@ -446,7 +446,7 @@ impl Python {
         let not_optional_but_default = !field.ty.is_optional() && field.has_default;
         let python_type = self
             .format_type(&field.ty, generic_types)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
         let custom_translations = json_translation_for_type(&python_type);
@@ -671,7 +671,7 @@ impl Python {
                 } => {
                     let tuple_name = self
                         .format_type(ty, shared.generic_types.as_slice())
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                        .map_err(std::io::Error::other)?;
                     self.write_variant_class(
                         &variant_class_name,
                         tag_key,

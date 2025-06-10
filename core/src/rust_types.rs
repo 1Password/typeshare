@@ -345,7 +345,7 @@ impl TryFrom<&syn::Type> for RustType {
             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
-                let segment = path.path.segments.iter().last().unwrap();
+                let segment = path.path.segments.iter().next_back().unwrap();
                 let id = segment.ident.to_string();
                 let parameters: Vec<Self> = match &segment.arguments {
                     syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {

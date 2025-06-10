@@ -101,7 +101,7 @@ pub(crate) fn load_config(file_path: Option<&Path>) -> Result<Config, io::Error>
 
     if let Some(file_path) = file_path {
         let config_string = fs::read_to_string(file_path)?;
-        toml::from_str(&config_string).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        toml::from_str(&config_string).map_err(io::Error::other)
     } else {
         Ok(Config::default())
     }

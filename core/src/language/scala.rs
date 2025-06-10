@@ -151,7 +151,7 @@ impl Language for Scala {
                 .then(|| format!("[{}]", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
             self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                .map_err(std::io::Error::other)?
         )?;
 
         Ok(())
@@ -295,7 +295,7 @@ impl Scala {
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                                .map_err(std::io::Error::other)?;
                             write!(w, "{}: {}", content_key, variant_type)?;
                             write!(w, ")")?;
                         }
@@ -370,7 +370,7 @@ impl Scala {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&f.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                .map_err(std::io::Error::other)?,
         };
 
         write!(
