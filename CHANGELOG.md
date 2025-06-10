@@ -1,3 +1,7 @@
+# Version 1.13.3
+- Update dependencies
+- python support
+
 # Version 1.13.2
 - Fix binary name in --help --version so typeshare is the name and not typeshare-cli: [#214](https://github.com/1Password/typeshare/pull/214)
 
