@@ -567,8 +567,7 @@ fn get_custom_serializer(decorators: &DecoratorSet) -> Option<&str> {
         .iter()
         .find_map(|decorator| match decorator {
             Value::String(s) if s.starts_with("Serializer") => {
-                s.strip_prefix("Serializer(")
-                    .and_then(|s| s.strip_suffix(")"))
+                s.strip_prefix("Serializer(")?.strip_suffix(")")
             },
             _ => None,
         })
