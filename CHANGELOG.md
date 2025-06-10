@@ -1,3 +1,20 @@
+# Version 1.13.3
+- Use parallel walker instead of rayon by @darrell-roberts in https://github.com/1Password/typeshare/pull/216
+- Approach to handle serde(rename) references. by @darrell-roberts in https://github.com/1Password/typeshare/pull/210
+- Add Typeshare support for Python by @hculea in https://github.com/1Password/typeshare/pull/169
+- Make changes required for Go translation to support generics by @AndyTitu in https://github.com/1Password/typeshare/pull/221
+- Bump hashbrown version to resolve security alert by @charlespierce in https://github.com/1Password/typeshare/pull/223
+- fix typo by @darrell-roberts in https://github.com/1Password/typeshare/pull/227
+- Add const support for integer types by @edif2008 in https://github.com/1Password/typeshare/pull/218
+- Add support for byte translation by @MOmarMiraj in https://github.com/1Password/typeshare/pull/230
+- Update syn to 2.0.98 by @complexspaces in https://github.com/1Password/typeshare/pull/232
+- Fix writing enum values in Go by @edif2008 in https://github.com/1Password/typeshare/pull/233
+- Fix Bug in JS and Python Typesharing Custom Types by @MOmarMiraj in https://github.com/1Password/typeshare/pull/234
+- Update Reviver/Replacer functions in TS typeshare by @MOmarMiraj in https://github.com/1Password/typeshare/pull/235
+- Add support for DateTime field for Go, JS, Python  by @MOmarMiraj in https://github.com/1Password/typeshare/pull/236
+- Fix Equality Check Bug in typescript generator file by @harshils23 in https://github.com/1Password/typeshare/pull/242
+- Update for newer clippy lints by @darrell-roberts in https://github.com/1Password/typeshare/pull/252
+
 # Version 1.13.2
 - Fix binary name in --help --version so typeshare is the name and not typeshare-cli: [#214](https://github.com/1Password/typeshare/pull/214)
 
