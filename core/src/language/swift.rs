@@ -790,12 +790,12 @@ impl Swift {
             decs.push(CODABLE);
         }
 
-        format!("\n/// () isn't codable, so we use this instead to represent Rust's unit type\npublic struct CodableVoid: {} {{}}", decs.join(", "))
+        format!("\n/// () isn't codable, so we use this instead to represent Rust's unit type\npublic struct CodableVoid: {} {{}}\n", decs.join(", "))
     }
 
     /// Write the `CodableVoid` type.
     fn write_codable(&self, w: &mut dyn Write, output_string: &str) -> io::Result<()> {
-        writeln!(w, "{}", output_string)
+        write!(w, "{}", output_string)
     }
 
     /// Build the generic constraints output. This checks for the `swiftGenericConstraints` typeshare attribute and combines
