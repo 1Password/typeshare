@@ -25,10 +25,14 @@ mod python;
 mod scala;
 mod swift;
 mod typescript;
+mod c;
+mod cpp;
 
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use python::Python;
+pub use c::C;
+pub use cpp::Cpp;
 pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
@@ -103,6 +107,8 @@ pub enum SupportedLanguage {
     Swift,
     TypeScript,
     Python,
+    C,
+    Cpp,
 }
 
 impl SupportedLanguage {
@@ -121,6 +127,8 @@ impl SupportedLanguage {
             SupportedLanguage::Swift => "swift",
             SupportedLanguage::TypeScript => "ts",
             SupportedLanguage::Python => "py",
+            SupportedLanguage::C => "c",
+            SupportedLanguage::Cpp => "cpp",
         }
     }
 }

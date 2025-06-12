@@ -59,6 +59,8 @@ fn output_file_name(language_type: SupportedLanguage, crate_name: &CrateName) ->
         SupportedLanguage::Swift => pascal_case(),
         SupportedLanguage::TypeScript => snake_case(),
         SupportedLanguage::Python => snake_case(),
+        SupportedLanguage::C => snake_case(),
+        SupportedLanguage::Cpp => snake_case(),
     }
 }
 
