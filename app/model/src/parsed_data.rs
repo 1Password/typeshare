@@ -525,7 +525,6 @@ impl TypeName {
 
 impl AsRef<str> for TypeName {
     #[inline]
-    #[must_use]
     fn as_ref(&self) -> &str {
         self.as_str()
     }
@@ -533,7 +532,6 @@ impl AsRef<str> for TypeName {
 
 impl Borrow<str> for TypeName {
     #[inline]
-    #[must_use]
     fn borrow(&self) -> &str {
         self.as_str()
     }
@@ -548,7 +546,6 @@ impl fmt::Display for TypeName {
 
 impl PartialEq<str> for TypeName {
     #[inline]
-    #[must_use]
     fn eq(&self, other: &str) -> bool {
         self.as_str() == other
     }
@@ -556,7 +553,6 @@ impl PartialEq<str> for TypeName {
 
 impl PartialEq<&str> for TypeName {
     #[inline]
-    #[must_use]
     fn eq(&self, other: &&str) -> bool {
         self == *other
     }
