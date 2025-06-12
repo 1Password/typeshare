@@ -244,7 +244,7 @@ impl Swift<'_> {
                             let content_optional = ty.is_optional();
                             let case_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                                .map_err(io::Error::other)?;
                             write!(w, "({})", swift_keyword_aware_rename(&case_type))?;
 
                             if content_optional {
@@ -735,7 +735,7 @@ impl<'config> Language<'config> for Swift<'config> {
                 let w = &mut w;
 
                 if !rs.fields.is_empty() {
-                    write!(w, "\n")?;
+                    writeln!(w)?;
                 }
 
                 for f in &rs.fields {
@@ -799,7 +799,7 @@ impl<'config> Language<'config> for Swift<'config> {
 
         let coding_keys_info = self
             .write_enum_variants(w, e, make_anonymous_struct_name)
-            .with_context(|| format!("failed to write enum variants"))?;
+            .context("failed to write enum variants")?;
 
         if !coding_keys_info.coding_keys.is_empty() {
             writeln!(
@@ -934,7 +934,7 @@ fn to_camel_case(value: &str) -> String {
 }
 
 fn swift_keyword_aware_rename(name: &str) -> Cow<'_, str> {
-    if SWIFT_KEYWORDS.contains(&name.as_ref()) {
+    if SWIFT_KEYWORDS.contains(&name) {
         Cow::Owned(format!("`{name}`"))
     } else {
         Cow::Borrowed(name)

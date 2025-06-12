@@ -24,7 +24,7 @@ pub fn parse_rust_type(tokens: &syn::Type) -> Result<RustType, ParseError> {
         }
         syn::Type::Reference(reference) => parse_rust_type(&reference.elem)?,
         syn::Type::Path(path) => {
-            let segment = path.path.segments.iter().last().unwrap();
+            let segment = path.path.segments.iter().next_back().unwrap();
             let id = type_name(&segment.ident);
             let parameters: Vec<RustType> = match &segment.arguments {
                 syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {

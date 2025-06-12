@@ -61,17 +61,12 @@ pub fn write_multiple_files<'c>(
 
     // TODO: multithread this part
     for (crate_name, parsed_data) in crate_parsed_data {
-        let file_path = output_folder.join(&lang.output_filename_for_crate(&crate_name));
+        let file_path = output_folder.join(lang.output_filename_for_crate(crate_name));
 
         let mut output = Vec::new();
 
-        generate_types(
-            lang,
-            &mut output,
-            parsed_data,
-            FilesMode::Multi(&crate_name),
-        )
-        .with_context(|| format!("error generating typeshare types for crate {crate_name}"))?;
+        generate_types(lang, &mut output, parsed_data, FilesMode::Multi(crate_name))
+            .with_context(|| format!("error generating typeshare types for crate {crate_name}"))?;
 
         check_write_file(&file_path, output).with_context(|| {
             format!(
@@ -180,7 +175,7 @@ fn generate_types<'c>(
 
     if let FilesMode::Multi(crate_name) = mode {
         let all_types = HashMap::new();
-        lang.write_imports(out, crate_name, used_imports(&data, crate_name, &all_types))
+        lang.write_imports(out, crate_name, used_imports(data, crate_name, &all_types))
             .context("error writing imports")?;
     }
 

@@ -1,7 +1,7 @@
 //! Visitors to collect various items from the AST.
 
-use std::{collections::HashSet, iter, mem};
-
+use std::collections::HashSet;
+use std::{iter, mem};
 use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 use typeshare_model::{
     parsed_data::ImportedType,
@@ -118,7 +118,7 @@ impl<'a> TypeShareVisitor<'a> {
             match v {
                 RustEnumVariant::Unit(_) => (),
                 RustEnumVariant::Tuple { ty, .. } => {
-                    all_references.extend(all_reference_type_names(&ty));
+                    all_references.extend(all_reference_type_names(ty));
                 }
                 RustEnumVariant::AnonymousStruct { fields, .. } => {
                     all_references
@@ -145,7 +145,11 @@ impl<'a> TypeShareVisitor<'a> {
         );
 
         // Build a set of a all type names declared in this file
-        let local_types = (self.parsed_data.structs.iter().map(|s| &s.id.original))
+        let local_types = self
+            .parsed_data
+            .structs
+            .iter()
+            .map(|s| &s.id.original)
             .chain(
                 self.parsed_data
                     .enums
@@ -266,7 +270,7 @@ impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
         };
 
         self.parsed_data.import_types.extend(
-            parse_import(i, &crate_name)
+            parse_import(i, crate_name)
                 .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
         );
         syn::visit::visit_item_use(self, i);
@@ -450,8 +454,10 @@ mod test {
     use crate::visitors::ImportedType;
     use cool_asserts::assert_matches;
     use itertools::Itertools;
-    use syn::{visit::Visit, File};
-    use typeshare_model::prelude::{CrateName, FilesMode};
+    use syn::visit::Visit;
+    use syn::File;
+    use typeshare_model::prelude::CrateName;
+    use typeshare_model::FilesMode;
 
     #[test]
     fn test_parse_import_complex() {

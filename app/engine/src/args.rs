@@ -148,12 +148,10 @@ pub fn add_personalizations(
         None => command,
     };
 
-    let command = match personalizations.about {
+    match personalizations.about {
         Some(about) => command.about(about),
         None => command,
-    };
-
-    command
+    }
 }
 
 /// Add a `--lang` argument to the command. This argument will be optional if

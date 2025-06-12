@@ -300,7 +300,7 @@ impl Report {
                     let diff = diff.indented("|   ");
                     writeln!(dest, "test failure in {name}:")?;
                     write_captured_output(&mut *dest, stdout, stderr)?;
-                    write!(dest, "{diff}\n")
+                    writeln!(dest, "{diff}")
                 }
             },
         }
@@ -360,7 +360,7 @@ fn dir_diff(correct_path: &Path, test_path: &Path) -> anyhow::Result<DirDiffRepo
     let test_listing = file_listing(test_path)
         .with_context(|| format!("error reading contents of '{}'", test_path.display()))?;
 
-    let listings = SortedPairsIter::new(correct_listing.into_iter(), test_listing.into_iter());
+    let listings = SortedPairsIter::new(correct_listing, test_listing);
 
     thread::scope(|s| {
         let mut report = DirDiffReport::default();
@@ -515,12 +515,10 @@ fn snapshot_test(
 
     // Unless we are generating a new snapshot, the previous snapshot must
     // already exist
-    if !destination_path.exists() {
-        if matches!(mode, Mode::Regenerate | Mode::Test) {
-            return Ok(Report::Warning {
-                message: "skipped (no existing snapshot)",
-            });
-        }
+    if !destination_path.exists() && matches!(mode, Mode::Regenerate | Mode::Test) {
+        return Ok(Report::Warning {
+            message: "skipped (no existing snapshot)",
+        });
     }
 
     let mut command = Command::new(typeshare);
@@ -571,7 +569,7 @@ fn snapshot_test(
     if multi_file {
         command.arg(&mutli_file_input_dir)
     } else {
-        command.arg(&snapshot_directory)
+        command.arg(snapshot_directory)
     };
 
     command.args(additional_arguments);
@@ -772,7 +770,7 @@ fn main() -> anyhow::Result<()> {
 
     for (entry, report) in &reports {
         report
-            .print_report(&entry, &mut stderr)
+            .print_report(entry, &mut stderr)
             .expect("shouldn't be a problem writing to stderr");
 
         match report {

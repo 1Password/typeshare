@@ -13,14 +13,14 @@ fn get_dependencies_from_type<'a>(
     match tp {
         RustType::Generic { id, parameters } => {
             if let Some(&tp) = types.get(id) {
-                if seen.insert(&id) {
-                    res.push(&id);
+                if seen.insert(id) {
+                    res.push(id);
                     get_dependencies(tp, types, res, seen);
                     for parameter in parameters {
                         if let Some(id) = parameter.id() {
                             if let Some(&tp) = types.get(id) {
-                                if seen.insert(&id) {
-                                    res.push(&id);
+                                if seen.insert(id) {
+                                    res.push(id);
                                     get_dependencies(tp, types, res, seen);
                                     seen.remove(&id.clone());
                                 }
@@ -36,7 +36,7 @@ fn get_dependencies_from_type<'a>(
         RustType::Simple { id } => {
             if let Some(tp) = types.get(id) {
                 if seen.insert(id) {
-                    res.push(&id);
+                    res.push(id);
                     get_dependencies(*tp, types, res, seen);
                     seen.remove(&id.clone());
                 }
