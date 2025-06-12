@@ -63,9 +63,6 @@ pub struct ParsedData {
     pub consts: Vec<RustConst>,
 
     /// Imports used by this file
-    /// TODO: This is currently almost empty. Import computation was found to
-    /// be pretty broken during the migration to Typeshare 2, so that part
-    /// of multi-file output was stripped out to be restored later.
     pub import_types: HashSet<ImportedType>,
 }
 

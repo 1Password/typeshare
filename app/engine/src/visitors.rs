@@ -5,7 +5,7 @@ use std::{collections::HashSet, iter, mem};
 use syn::{visit::Visit, Attribute, ItemUse, UseTree};
 use typeshare_model::{
     parsed_data::ImportedType,
-    prelude::{CrateName, FilesMode, RustEnumVariant, RustType, TypeName},
+    prelude::{CrateName, FilesMode, RustEnum, RustEnumVariant, RustType, TypeName},
 };
 
 use crate::{
@@ -81,11 +81,10 @@ impl<'a> TypeShareVisitor<'a> {
 
     /// Consume the visitor and return parsed data.
     pub fn parsed_data(mut self) -> Result<ParsedData, ParseErrorSet> {
-        ParseErrorSet::collect(mem::take(&mut self.errors)).map(|()| self.parsed_data)
-    }
-
-    fn multi_file(&self) -> bool {
-        self.mode.is_multi()
+        ParseErrorSet::collect(mem::take(&mut self.errors)).map(|()| {
+            self.reconcile_referenced_types();
+            self.parsed_data
+        })
     }
 
     fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
@@ -93,6 +92,108 @@ impl<'a> TypeShareVisitor<'a> {
             Ok(data) => self.parsed_data.add(data),
             Err(error) => self.errors.push(error),
         }
+    }
+
+    /// After collecting all imports we now want to retain only those
+    /// that are referenced by the typeshared types.
+    fn reconcile_referenced_types(&mut self) {
+        // Build up a set of all the types that are referenced by
+        // the typeshared types we have parsed.
+        let mut all_references = HashSet::new();
+
+        // Structs
+        all_references.extend(
+            self.parsed_data
+                .structs
+                .iter()
+                .flat_map(|s| s.fields.iter())
+                .flat_map(|f| all_reference_type_names(&f.ty)),
+        );
+
+        // Enums
+        for v in self.parsed_data.enums.iter().flat_map(|e| match e {
+            RustEnum::Unit { .. } => &[],
+            RustEnum::Algebraic { variants, .. } => variants.as_slice(),
+        }) {
+            match v {
+                RustEnumVariant::Unit(_) => (),
+                RustEnumVariant::Tuple { ty, .. } => {
+                    all_references.extend(all_reference_type_names(&ty));
+                }
+                RustEnumVariant::AnonymousStruct { fields, .. } => {
+                    all_references
+                        .extend(fields.iter().flat_map(|f| all_reference_type_names(&f.ty)));
+                }
+                _ => {}
+            }
+        }
+
+        // Aliases
+        all_references.extend(
+            self.parsed_data
+                .aliases
+                .iter()
+                .flat_map(|alias| all_reference_type_names(&alias.ty)),
+        );
+
+        // Constants
+        all_references.extend(
+            self.parsed_data
+                .consts
+                .iter()
+                .flat_map(|c| all_reference_type_names(&c.ty)),
+        );
+
+        // Build a set of a all type names declared in this file
+        let local_types = (self.parsed_data.structs.iter().map(|s| &s.id.original))
+            .chain(
+                self.parsed_data
+                    .enums
+                    .iter()
+                    .map(|e| &e.shared().id.original),
+            )
+            .chain(self.parsed_data.aliases.iter().map(|a| &a.id.original))
+            .collect::<HashSet<_>>();
+
+        // Lookup a type name against parsed imports.
+        let find_type = |name: &TypeName| {
+            let found = self
+                .parsed_data
+                .import_types
+                .iter()
+                .find(|imp| imp.type_name == *name)
+                .into_iter()
+                .next()
+                .cloned();
+
+            // if found.is_none() {
+            //     debug!(
+            //         "Failed to lookup \"{name}\" in crate \"{}\" for file \"{}\"",
+            //         self.parsed_data.crate_name,
+            //         self.file_path.as_os_str().to_str().unwrap_or_default()
+            //     );
+            // }
+
+            found
+        };
+
+        // Lookup all the references that are not defined locally. Subtract
+        // all local types defined in the module.
+        let mut diff = all_references
+            .difference(&local_types)
+            .copied()
+            .flat_map(find_type)
+            .collect::<HashSet<_>>();
+
+        // Move back the wildcard import types.
+        diff.extend(
+            self.parsed_data
+                .import_types
+                .drain()
+                .filter(|imp| imp.type_name == "*"),
+        );
+
+        self.parsed_data.import_types = diff;
     }
 
     fn target_os_good(&self, attrs: &[Attribute]) -> bool {
@@ -104,22 +205,71 @@ impl<'a> TypeShareVisitor<'a> {
 }
 
 impl<'ast, 'a> Visit<'ast> for TypeShareVisitor<'a> {
+    /// Find any reference types that are not part of
+    /// the `use` import statements.
+    fn visit_path(&mut self, p: &'ast syn::Path) {
+        let FilesMode::Multi(crate_name) = self.mode else {
+            return;
+        };
+
+        let extract_root_and_types = |p: &syn::Path| {
+            // TODO: the first part here may not be a crate name but a module name defined
+            // in a use statement.
+            //
+            // Ex:
+            // use some_crate::some_module;
+            //
+            // struct SomeType {
+            //     field: some_module::RefType
+            // }
+            //
+            // visit_path would be after visit_item_use so we could retain imported module references
+            // and reconcile afterwards. visit_item_use would have to retain non type import types
+            // which it discards right now.
+            //
+            let crate_candidate = CrateName::new(p.segments.first()?.ident.to_string());
+            let type_candidate = TypeName::new_string(p.segments.last()?.ident.to_string());
+
+            (accept_crate(&crate_candidate)
+                && accept_type(&type_candidate)
+                && !self.ignored_types.contains(&type_candidate.as_str())
+                && p.segments.len() > 1)
+                .then(|| {
+                    // resolve crate and super aliases into the crate name.
+                    let base_crate = if crate_candidate == "crate"
+                        || crate_candidate == "super"
+                        || crate_candidate == "self"
+                    {
+                        crate_name
+                    } else {
+                        &crate_candidate
+                    };
+                    ImportedType {
+                        base_crate: base_crate.clone(),
+                        type_name: type_candidate,
+                    }
+                })
+        };
+
+        if let Some(imported_type) = extract_root_and_types(p) {
+            self.parsed_data.import_types.insert(imported_type);
+        }
+        syn::visit::visit_path(self, p);
+    }
+
     /// Collect referenced imports.
     fn visit_item_use(&mut self, i: &'ast ItemUse) {
         // TODO: implement this as a part of import detection.
         // TODO: make sure that use items in submodules are skipped
+        let FilesMode::Multi(crate_name) = self.mode else {
+            return;
+        };
 
-        // if !self.multi_file() {
-        //     return;
-        // }
-
-        // self.parsed_data.import_types.extend(
-        //     parse_import(i, &self.parsed_data.crate_name)
-        //         .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
-        // );
-
-        // pub use other_crate::TypeshareType;
-        // syn::visit::visit_item_use(self, i);
+        self.parsed_data.import_types.extend(
+            parse_import(i, &crate_name)
+                .filter(|imp| !self.ignored_types.contains(&imp.type_name.as_str())),
+        );
+        syn::visit::visit_item_use(self, i);
     }
 
     /// Collect rust structs.
@@ -445,94 +595,94 @@ mod test {
         );
     }
 
-    // #[test]
-    // fn test_path_visitor() {
-    //     let rust_code = "
-    //         use std::sync::Arc;
-    //         use quote::ToTokens;
-    //         use std::collections::BTreeSet;
-    //         use std::str::FromStr;
-    //         use std::{collections::HashMap, convert::TryFrom};
-    //         use some_crate::blah::*;
-    //         use crate::types::{MyType, MyEnum};
-    //         use super::some_module::{another_module::AnotherType, AnotherEnum};
+    #[test]
+    fn test_path_visitor() {
+        let rust_code = "
+            use std::sync::Arc;
+            use quote::ToTokens;
+            use std::collections::BTreeSet;
+            use std::str::FromStr;
+            use std::{collections::HashMap, convert::TryFrom};
+            use some_crate::blah::*;
+            use crate::types::{MyType, MyEnum};
+            use super::some_module::{another_module::AnotherType, AnotherEnum};
 
-    //         enum TestEnum {
-    //             Variant,
-    //             Another {
-    //                 field: Option<some_crate::module::Type>
-    //             }
-    //         }
+            enum TestEnum {
+                Variant,
+                Another {
+                    field: Option<some_crate::module::Type>
+                }
+            }
 
-    //         struct S {
-    //             f: crate::another::TypeName
-    //         }
-    //         ";
+            struct S {
+                f: crate::another::TypeName
+            }
+            ";
 
-    //     let file: File = syn::parse_str(rust_code).unwrap();
-    //     let crate_name = CrateName::new("my_crate".to_owned());
-    //     let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi(&crate_name));
-    //     visitor.visit_file(&file);
+        let file: File = syn::parse_str(rust_code).unwrap();
+        let crate_name = CrateName::new("my_crate".to_owned());
+        let mut visitor = TypeShareVisitor::new(&[], FilesMode::Multi(&crate_name), None);
+        visitor.visit_file(&file);
 
-    //     let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();
-    //     sorted_imports.sort_unstable_by(|lhs, rhs| {
-    //         Ord::cmp(lhs.base_crate.as_str(), rhs.base_crate.as_str())
-    //             .then_with(|| Ord::cmp(lhs.type_name.as_str(), rhs.type_name.as_str()))
-    //     });
+        let mut sorted_imports = visitor.parsed_data.import_types.into_iter().collect_vec();
+        sorted_imports.sort_unstable_by(|lhs, rhs| {
+            Ord::cmp(lhs.base_crate.as_str(), rhs.base_crate.as_str())
+                .then_with(|| Ord::cmp(lhs.type_name.as_str(), rhs.type_name.as_str()))
+        });
 
-    //     assert_matches!(
-    //         sorted_imports,
-    //         [
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             }  => {
-    //                 assert_eq!(base_crate, "my_crate");
-    //                 assert_eq!(type_name, "AnotherEnum");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             } => {
-    //                 assert_eq!(base_crate, "my_crate");
-    //                 assert_eq!(type_name, "AnotherType");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             }  => {
-    //                 assert_eq!(base_crate, "my_crate");
-    //                 assert_eq!(type_name, "MyEnum");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             } => {
-    //                 assert_eq!(base_crate, "my_crate");
-    //                 assert_eq!(type_name, "MyType");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             }  => {
-    //                 assert_eq!(base_crate, "my_crate");
-    //                 assert_eq!(type_name, "TypeName");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             } => {
-    //                 assert_eq!(base_crate, "some_crate");
-    //                 assert_eq!(type_name, "*");
-    //             },
-    //             ImportedType {
-    //                 base_crate,
-    //                 type_name,
-    //             }  => {
-    //                 assert_eq!(base_crate, "some_crate");
-    //                 assert_eq!(type_name, "Type");
-    //             },
-    //         ]
-    //     );
-    // }
+        assert_matches!(
+            sorted_imports,
+            [
+                ImportedType {
+                    base_crate,
+                    type_name,
+                }  => {
+                    assert_eq!(base_crate, "my_crate");
+                    assert_eq!(type_name, "AnotherEnum");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "my_crate");
+                    assert_eq!(type_name, "AnotherType");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                }  => {
+                    assert_eq!(base_crate, "my_crate");
+                    assert_eq!(type_name, "MyEnum");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "my_crate");
+                    assert_eq!(type_name, "MyType");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                }  => {
+                    assert_eq!(base_crate, "my_crate");
+                    assert_eq!(type_name, "TypeName");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                } => {
+                    assert_eq!(base_crate, "some_crate");
+                    assert_eq!(type_name, "*");
+                },
+                ImportedType {
+                    base_crate,
+                    type_name,
+                }  => {
+                    assert_eq!(base_crate, "some_crate");
+                    assert_eq!(type_name, "Type");
+                },
+            ]
+        );
+    }
 }
