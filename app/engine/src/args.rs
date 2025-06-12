@@ -133,13 +133,6 @@ pub fn add_personalizations(
     command: clap::Command,
     personalizations: PersonalizeClap,
 ) -> clap::Command {
-    let command = command.disable_version_flag(true).arg(
-        clap::Arg::new("version")
-            .short('V')
-            .long("version")
-            .action(clap::ArgAction::Version),
-    );
-
     let command = match personalizations.name {
         Some(name) => command.name(name),
         None => command,
