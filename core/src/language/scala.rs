@@ -1,8 +1,10 @@
 use super::{CrateTypes, Language};
 use crate::language::SupportedLanguage;
 use crate::parser::{remove_dash_from_identifier, ParsedData};
-use crate::rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias};
-use crate::rust_types::{RustType, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{
+    RustConst, RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
+    RustTypeFormatError, SpecialRustType,
+};
 use itertools::Itertools;
 use joinery::JoinableIterator;
 use lazy_format::lazy_format;
@@ -95,10 +97,9 @@ impl Language for Scala {
                 )
             }
             SpecialRustType::Unit => "Unit".into(),
-            SpecialRustType::String => "String".into(),
             // Char in Scala is 16 bits long, so we need to use String
-            SpecialRustType::Char => "String".into(),
             // https://docs.scala-lang.org/scala3/book/first-look-at-types.html#scalas-value-types
+            SpecialRustType::String | SpecialRustType::Char => "String".into(),
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),
             SpecialRustType::I32 => "Int".into(),
@@ -111,6 +112,12 @@ impl Language for Scala {
             SpecialRustType::Bool => "Boolean".into(),
             SpecialRustType::F32 => "Float".into(),
             SpecialRustType::F64 => "Double".into(),
+            // TODO: https://github.com/1Password/typeshare/issues/237
+            SpecialRustType::DateTime => {
+                return Err(RustTypeFormatError::UnsupportedSpecialType(
+                    special_ty.to_string(),
+                ))
+            }
             SpecialRustType::ISize | SpecialRustType::USize => {
                 panic!(
                     "Pointer-sized types require an explicit output type. \
@@ -150,10 +157,14 @@ impl Language for Scala {
                 .then(|| format!("[{}]", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
             self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                .map_err(std::io::Error::other)?
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
@@ -290,7 +301,7 @@ impl Scala {
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                                .map_err(std::io::Error::other)?;
                             write!(w, "{}: {}", content_key, variant_type)?;
                             write!(w, ")")?;
                         }
@@ -365,7 +376,7 @@ impl Scala {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&f.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                .map_err(std::io::Error::other)?,
         };
 
         write!(

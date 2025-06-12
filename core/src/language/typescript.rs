@@ -1,13 +1,15 @@
+use crate::RenameExt;
 use crate::{
     language::{Language, SupportedLanguage},
     parser::ParsedData,
     rust_types::{
-        RustEnum, RustEnumVariant, RustField, RustStruct, RustType, RustTypeAlias,
-        RustTypeFormatError, SpecialRustType,
+        RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
+        RustTypeAlias, RustTypeFormatError, SpecialRustType,
     },
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
+use std::collections::{BTreeMap, BTreeSet};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -23,6 +25,14 @@ pub struct TypeScript {
     /// Whether or not to exclude the version header that normally appears at the top of generated code.
     /// If you aren't generating a snapshot test, this setting can just be left as a default (false)
     pub no_version_header: bool,
+    /// Carries the unique set of types for custom json translation
+    pub types_for_custom_json_translation: BTreeMap<String, BTreeSet<String>>,
+}
+
+#[derive(Clone)]
+pub struct CustomJsonTranslationContent {
+    reviver: String,
+    replacer: String,
 }
 
 impl Language for TypeScript {
@@ -30,11 +40,53 @@ impl Language for TypeScript {
         &self.type_mappings
     }
 
+    fn end_file(&mut self, w: &mut dyn Write) -> std::io::Result<()> {
+        if !self.types_for_custom_json_translation.is_empty() {
+            let custom_translation_content = self
+                .types_for_custom_json_translation
+                .iter()
+                .filter_map(|(ts_type, ..)| self.custom_translations(ts_type))
+                .collect::<Vec<CustomJsonTranslationContent>>();
+            self.write_comments(w, 0, &["Custom JSON reviver and replacer functions for dynamic data transformation".to_owned(),
+            "ReviverFunc is used during JSON parsing to detect and transform specific data structures".to_owned(),
+            "ReplacerFunc is used during JSON serialization to modify certain values before stringifying.".to_owned(),
+            "These functions allow for flexible encoding and decoding of data, ensuring that complex types are properly handled when converting between TS objects and JSON".to_owned()])?;
+
+            return writeln!(
+                w,
+                r#"export const ReviverFunc = (key: string, value: unknown): unknown => {{
+    {}
+    return value;
+}};
+
+export const ReplacerFunc = (key: string, value: unknown): unknown => {{
+    {}
+    return value;
+}};"#,
+                custom_translation_content
+                    .iter()
+                    .map(|custom_json_translation| &custom_json_translation.reviver)
+                    .join("\n    "),
+                custom_translation_content
+                    .iter()
+                    .map(|custom_json_translation| &custom_json_translation.replacer)
+                    .join("\n    ")
+            );
+        }
+        Ok(())
+    }
     fn format_special_type(
         &mut self,
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(mapped) = self.type_mappings.get(&special_ty.to_string()) {
+            if self.custom_translations(mapped).is_some() {
+                self.types_for_custom_json_translation
+                    .insert(mapped.to_string(), BTreeSet::new());
+            }
+            return Ok(mapped.to_owned());
+        }
         match special_ty {
             SpecialRustType::Vec(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
@@ -43,9 +95,7 @@ impl Language for TypeScript {
                 let formatted_type = self.format_type(rtype, generic_types)?;
                 Ok(format!(
                     "[{}]",
-                    std::iter::repeat(&formatted_type)
-                        .take(*len)
-                        .join_with(", ")
+                    std::iter::repeat_n(&formatted_type, *len).join_with(", ")
                 ))
             }
             SpecialRustType::Slice(rtype) => {
@@ -64,6 +114,7 @@ impl Language for TypeScript {
                 self.format_type(rtype2, generic_types)?
             )),
             SpecialRustType::Unit => Ok("undefined".into()),
+            SpecialRustType::DateTime => Ok("Date".into()),
             SpecialRustType::String => Ok("string".into()),
             SpecialRustType::Char => Ok("string".into()),
             SpecialRustType::I8
@@ -107,7 +158,7 @@ impl Language for TypeScript {
 
         let r#type = self
             .format_type(&ty.r#type, ty.generic_types.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(io::Error::other)?;
 
         writeln!(
             w,
@@ -124,6 +175,23 @@ impl Language for TypeScript {
         )?;
 
         Ok(())
+    }
+
+    fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> io::Result<()> {
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(std::io::Error::other)?;
+                writeln!(
+                    w,
+                    "export const {}: {} = {};",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
+                    val
+                )
+            }
+        }
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> io::Result<()> {
@@ -230,7 +298,7 @@ impl TypeScript {
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
                             .format_type(ty, e.shared().generic_types.as_slice())
-                            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                            .map_err(io::Error::other)?;
                         write!(
                             w,
                             "\t| {{ {}: {:?}, {}{}: {} }}",
@@ -271,9 +339,17 @@ impl TypeScript {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&field.ty, generic_types)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+                .map_err(io::Error::other)?,
         };
-
+        if self.custom_translations(&ts_ty).is_some() {
+            self.types_for_custom_json_translation
+                .entry(ts_ty.clone())
+                .and_modify(|ids| {
+                    ids.insert(field.id.renamed.clone());
+                })
+                .or_default()
+                .insert(field.id.renamed.clone());
+        }
         let optional = field.ty.is_optional() || field.has_default;
         let double_optional = field.ty.is_double_optional();
         let is_readonly = field
@@ -321,6 +397,47 @@ impl TypeScript {
             writeln!(w, "{}", comment)?;
         }
         Ok(())
+    }
+
+    fn custom_translations(&self, ts_type: &str) -> Option<CustomJsonTranslationContent> {
+        let id = self
+            .types_for_custom_json_translation
+            .get(ts_type)
+            .filter(|ids| !ids.is_empty())
+            .map(|ids| {
+                format!(
+                    " && ({})",
+                    ids.iter()
+                        .map(|id| format!("key === \"{id}\""))
+                        .join(" || ")
+                )
+            });
+
+        let custom_translations = HashMap::from([(
+            "Uint8Array",
+            (
+                CustomJsonTranslationContent{
+                    reviver:     r#"if (Array.isArray(value) && value.every(v => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0)  {
+        return new Uint8Array(value);
+    }"#.to_owned(),
+                    replacer: r#"if (value instanceof Uint8Array) {
+        return Array.from(value);
+    }"#.to_owned()
+                }
+                    )),
+                    (
+                        "Date",
+                        CustomJsonTranslationContent{
+                            replacer: r#"if (value instanceof Date) {
+        return value.toISOString();
+    }"#.to_owned(),
+                            reviver: format!(r#"if (typeof value === "string" && /^\d{{4}}-\d{{2}}-\d{{2}}T\d{{2}}:\d{{2}}:\d{{2}}(\.\d+)?Z$/.test(value){}) {{
+        return new Date(value);
+    }}"#, id.unwrap_or_default())
+                        }
+                    )]);
+
+        custom_translations.get(ts_type).cloned()
     }
 }
 

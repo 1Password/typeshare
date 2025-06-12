@@ -1,7 +1,7 @@
 use crate::{
     parser::{ParseError, ParsedData},
     rust_types::{
-        Id, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
+        Id, RustConst, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
         RustTypeFormatError, SpecialRustType,
     },
     topsort::topsort,
@@ -21,12 +21,14 @@ use std::{
 
 mod go;
 mod kotlin;
+mod python;
 mod scala;
 mod swift;
 mod typescript;
 
 pub use go::Go;
 pub use kotlin::Kotlin;
+pub use python::Python;
 pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
@@ -88,7 +90,7 @@ pub type SortedCrateNames<'a> = &'a CrateName;
 /// A sorted type name ref.
 pub type SortedTypeNames<'a> = BTreeSet<&'a str>;
 
-/// Refence types by crate that are scoped for a given output module.
+/// Reference types by crate that are scoped for a given output module.
 pub type ScopedCrateTypes<'a> = BTreeMap<SortedCrateNames<'a>, SortedTypeNames<'a>>;
 
 /// All supported programming languages.
@@ -100,13 +102,14 @@ pub enum SupportedLanguage {
     Scala,
     Swift,
     TypeScript,
+    Python,
 }
 
 impl SupportedLanguage {
     /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript].into_iter()
+        [Go, Kotlin, Scala, Swift, TypeScript, Python].into_iter()
     }
 
     /// Get the file name extension for the supported language.
@@ -117,6 +120,7 @@ impl SupportedLanguage {
             SupportedLanguage::Scala => "scala",
             SupportedLanguage::Swift => "swift",
             SupportedLanguage::TypeScript => "ts",
+            SupportedLanguage::Python => "py",
         }
     }
 }
@@ -131,6 +135,7 @@ impl FromStr for SupportedLanguage {
             "scala" => Ok(Self::Scala),
             "swift" => Ok(Self::Swift),
             "typescript" => Ok(Self::TypeScript),
+            "python" => Ok(Self::Python),
             _ => Err(ParseError::UnsupportedLanguage(s.into())),
         }
     }
@@ -168,6 +173,7 @@ pub trait Language {
             structs,
             enums,
             aliases,
+            consts,
             ..
         } = data;
 
@@ -176,7 +182,8 @@ pub trait Language {
                 .into_iter()
                 .map(RustItem::Alias)
                 .chain(structs.into_iter().map(RustItem::Struct))
-                .chain(enums.into_iter().map(RustItem::Enum)),
+                .chain(enums.into_iter().map(RustItem::Enum))
+                .chain(consts.into_iter().map(RustItem::Const)),
         );
 
         topsort(&mut items);
@@ -186,6 +193,7 @@ pub trait Language {
                 RustItem::Enum(e) => self.write_enum(writable, e)?,
                 RustItem::Struct(s) => self.write_struct(writable, s)?,
                 RustItem::Alias(a) => self.write_type_alias(writable, a)?,
+                RustItem::Const(c) => self.write_const(writable, c)?,
             }
         }
 
@@ -294,6 +302,15 @@ pub trait Language {
         Ok(())
     }
 
+    /// Write a constant variable.
+    /// Example of a constant variable:
+    /// ```
+    /// const ANSWER_TO_EVERYTHING: u32 = 42;
+    /// ```
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        Ok(())
+    }
+
     /// Write a struct by converting it
     /// Example of a struct:
     /// ```ignore
@@ -337,7 +354,7 @@ pub trait Language {
     ///
     /// This function will write out:
     ///
-    /// ```compile_fail
+    /// ```rust
     /// /// Generated type representing the anonymous struct variant `<make_struct_name>` of the `AlgebraicEnum` rust enum
     /// /* the struct definition for whatever language */
     /// ```
@@ -379,6 +396,7 @@ pub trait Language {
                     id: Id {
                         original: struct_name.clone(),
                         renamed: struct_name.clone(),
+                        serde_rename: false
                     },
                     fields: fields.clone(),
                     generic_types,

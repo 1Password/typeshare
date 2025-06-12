@@ -20,9 +20,9 @@ type AnonymousStructWithRenameKebabCaseInner struct {
 }
 type AnonymousStructWithRenameTypes string
 const (
-	AnonymousStructWithRenameTypeVariantList AnonymousStructWithRenameTypes = "List"
-	AnonymousStructWithRenameTypeVariantLongFieldNames AnonymousStructWithRenameTypes = "LongFieldNames"
-	AnonymousStructWithRenameTypeVariantKebabCase AnonymousStructWithRenameTypes = "KebabCase"
+	AnonymousStructWithRenameTypeVariantList AnonymousStructWithRenameTypes = "list"
+	AnonymousStructWithRenameTypeVariantLongFieldNames AnonymousStructWithRenameTypes = "longFieldNames"
+	AnonymousStructWithRenameTypeVariantKebabCase AnonymousStructWithRenameTypes = "kebabCase"
 )
 type AnonymousStructWithRename struct{ 
 	Type AnonymousStructWithRenameTypes `json:"type"`

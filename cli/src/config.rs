@@ -1,6 +1,7 @@
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::{
+    borrow::Cow,
     collections::HashMap,
     env,
     fs::{self, OpenOptions},
@@ -9,6 +10,13 @@ use std::{
 };
 
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
+
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+#[cfg(feature = "python")]
+pub struct PythonParams {
+    pub type_mappings: HashMap<String, String>,
+}
 
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(default)]
@@ -33,7 +41,7 @@ pub struct SwiftParams {
     pub prefix: String,
     pub default_decorators: Vec<String>,
     pub default_generic_constraints: Vec<String>,
-    /// The contraints to apply to `CodableVoid`.
+    /// The constraints to apply to `CodableVoid`.
     pub codablevoid_constraints: Vec<String>,
     pub type_mappings: HashMap<String, String>,
 }
@@ -54,7 +62,7 @@ pub struct GoParams {
     pub type_mappings: HashMap<String, String>,
 }
 
-/// The paramters that are used to configure the behaviour of typeshare
+/// The parameters that are used to configure the behaviour of typeshare
 /// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 #[serde(default)]
@@ -63,14 +71,16 @@ pub(crate) struct Config {
     pub typescript: TypeScriptParams,
     pub kotlin: KotlinParams,
     pub scala: ScalaParams,
+    #[cfg(feature = "python")]
+    pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
     #[serde(skip)]
     pub target_os: Vec<String>,
 }
 
-pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::Result<()> {
-    let file_path = file_path.unwrap_or(DEFAULT_CONFIG_FILE_NAME);
+pub(crate) fn store_config(config: &Config, file_path: Option<&Path>) -> anyhow::Result<()> {
+    let file_path = file_path.unwrap_or(Path::new(DEFAULT_CONFIG_FILE_NAME));
     let config_output = toml::to_string_pretty(config).context("Failed to serialize to toml")?;
 
     // Fail if trying to overwrite an existing config file
@@ -84,17 +94,14 @@ pub(crate) fn store_config(config: &Config, file_path: Option<&str>) -> anyhow::
     Ok(())
 }
 
-pub(crate) fn load_config<P>(file_path: Option<P>) -> Result<Config, io::Error>
-where
-    PathBuf: From<P>,
-{
+pub(crate) fn load_config(file_path: Option<&Path>) -> Result<Config, io::Error> {
     let file_path = file_path
-        .map(PathBuf::from)
-        .or_else(find_configuration_file);
+        .map(Cow::Borrowed)
+        .or_else(|| find_configuration_file().map(Cow::Owned));
 
     if let Some(file_path) = file_path {
         let config_string = fs::read_to_string(file_path)?;
-        toml::from_str(&config_string).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+        toml::from_str(&config_string).map_err(io::Error::other)
     } else {
         Ok(Config::default())
     }
@@ -105,6 +112,8 @@ fn find_configuration_file() -> Option<PathBuf> {
     let mut path = env::current_dir().ok()?;
     let file = Path::new(DEFAULT_CONFIG_FILE_NAME);
 
+    // TODO: I want to use `path.ancestors` here but it would requiring
+    // allocating on every loop iteration and that makes me sad.
     loop {
         path.push(file);
 
@@ -130,7 +139,7 @@ mod test {
     #[test]
     fn to_string_and_back() {
         let path = config_file_path("mappings_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         toml::from_str::<Config>(&toml::to_string_pretty(&config).unwrap()).unwrap();
     }
@@ -138,7 +147,7 @@ mod test {
     #[test]
     fn default_test() {
         let path = config_file_path("default_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config, Config::default());
     }
@@ -146,7 +155,7 @@ mod test {
     #[test]
     fn empty_test() {
         let path = config_file_path("empty_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config, Config::default());
     }
@@ -154,12 +163,17 @@ mod test {
     #[test]
     fn mappings_test() {
         let path = config_file_path("mappings_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config.swift.type_mappings["DateTime"], "Date");
         assert_eq!(config.kotlin.type_mappings["DateTime"], "String");
         assert_eq!(config.scala.type_mappings["DateTime"], "String");
         assert_eq!(config.typescript.type_mappings["DateTime"], "string");
+        #[cfg(feature = "python")]
+        {
+            assert_eq!(config.python.type_mappings["Url"], "AnyUrl");
+            assert_eq!(config.python.type_mappings["DateTime"], "datetime");
+        }
         #[cfg(feature = "go")]
         assert_eq!(config.go.type_mappings["DateTime"], "string");
     }
@@ -167,7 +181,7 @@ mod test {
     #[test]
     fn decorators_test() {
         let path = config_file_path("decorators_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config.swift.default_decorators.len(), 1);
         assert_eq!(config.swift.default_decorators[0], "Sendable");
@@ -176,7 +190,7 @@ mod test {
     #[test]
     fn constraints_test() {
         let path = config_file_path("constraints_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config.swift.default_generic_constraints.len(), 1);
         assert_eq!(config.swift.default_generic_constraints[0], "Sendable");
@@ -185,7 +199,7 @@ mod test {
     #[test]
     fn swift_prefix_test() {
         let path = config_file_path("swift_prefix_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config.swift.prefix, "test");
     }
@@ -193,7 +207,7 @@ mod test {
     #[cfg(feature = "go")]
     fn go_package_test() {
         let path = config_file_path("go_config.toml");
-        let config = load_config(Some(path)).unwrap();
+        let config = load_config(Some(&path)).unwrap();
 
         assert_eq!(config.go.package, "testPackage");
     }

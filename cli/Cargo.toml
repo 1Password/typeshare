@@ -1,6 +1,6 @@
 [package]
 name = "typeshare-cli"
-version = "1.11.0"
+version = "1.13.3"
 edition = "2021"
 description = "Command Line Tool for generating language files with typeshare"
 license = "MIT OR Apache-2.0"
@@ -13,16 +13,22 @@ path = "src/main.rs"
 
 [features]
 go = []
+python = []
 
 [dependencies]
-clap = { version = "3", features = ["cargo"] }
-clap_complete_command = "0.3"
+clap = { version = "4.5", features = [
+  "cargo",
+  "derive",
+  "unicode",
+  "wrap_help",
+] }
 ignore = "0.4"
 once_cell = "1"
-rayon = "1.10"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
-typeshare-core = { path = "../core", version = "=1.11.0" }
+typeshare-core = { path = "../core", version = "=1.13.3" }
 log.workspace = true
 flexi_logger.workspace = true
 anyhow = "1"
+clap_complete = "4.5"
+crossbeam = "0.8"

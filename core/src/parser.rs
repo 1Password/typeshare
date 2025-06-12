@@ -1,10 +1,11 @@
 use crate::{
+    context::{ParseContext, ParseFileContext},
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
-        DecoratorMap, FieldDecorator, Id, RustEnum, RustEnumShared, RustEnumVariant,
-        RustEnumVariantShared, RustField, RustItem, RustStruct, RustType, RustTypeAlias,
-        RustTypeParseError,
+        DecoratorMap, FieldDecorator, Id, RustConst, RustConstExpr, RustEnum, RustEnumShared,
+        RustEnumVariant, RustEnumVariantShared, RustField, RustItem, RustStruct, RustType,
+        RustTypeAlias, RustTypeParseError, SpecialRustType,
     },
     target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
@@ -15,12 +16,12 @@ use proc_macro2::Ident;
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     convert::TryFrom,
-    path::PathBuf,
+    ops::AddAssign,
 };
 use syn::{
     ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemEnum, ItemStruct, ItemType, LitStr, Meta, MetaList,
-    MetaNameValue, Token,
+    ExprLit, Fields, GenericParam, ItemConst, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta,
+    MetaList, MetaNameValue, Token,
 };
 use thiserror::Error;
 
@@ -73,15 +74,19 @@ pub enum ParseError {
     SerdeTagRequired { enum_ident: String },
     #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
     SerdeContentRequired { enum_ident: String },
+    #[error("the expression assigned to this constant variable is not a numeric literal")]
+    RustConstExprInvalid,
+    #[error("you cannot use typeshare on a constant that is not a numeric literal")]
+    RustConstTypeInvalid,
     #[error("the serde flatten attribute is not currently supported")]
     SerdeFlattenNotAllowed,
+    #[error("IO error: {0}")]
+    IOError(String),
 }
 
 /// Error with it's related data.
 #[derive(Debug)]
 pub struct ErrorInfo {
-    /// The crate where this error occured.
-    pub crate_name: CrateName,
     /// The file name being parsed.
     pub file_name: String,
     /// The parse error.
@@ -92,11 +97,13 @@ pub struct ErrorInfo {
 #[derive(Default, Debug)]
 pub struct ParsedData {
     /// Structs defined in the source
-    pub structs: BTreeSet<RustStruct>,
+    pub structs: Vec<RustStruct>,
     /// Enums defined in the source
-    pub enums: BTreeSet<RustEnum>,
+    pub enums: Vec<RustEnum>,
     /// Type aliases defined in the source
-    pub aliases: BTreeSet<RustTypeAlias>,
+    pub aliases: Vec<RustTypeAlias>,
+    /// Constant variables defined in the source
+    pub consts: Vec<RustConst>,
     /// Imports used by this file
     pub import_types: HashSet<ImportedType>,
     /// Crate this belongs to.
@@ -111,6 +118,24 @@ pub struct ParsedData {
     pub multi_file: bool,
 }
 
+// The better abstraction here is Semigroup Monoid but such
+// traits don't exist in Rust. I'd rather have infix <>.
+impl AddAssign<ParsedData> for ParsedData {
+    fn add_assign(&mut self, mut rhs: ParsedData) {
+        self.structs.append(&mut rhs.structs);
+        self.enums.append(&mut rhs.enums);
+        self.aliases.append(&mut rhs.aliases);
+        self.consts.append(&mut rhs.consts);
+        self.import_types.extend(rhs.import_types);
+        self.type_names.extend(rhs.type_names);
+        self.errors.append(&mut rhs.errors);
+
+        self.file_name = rhs.file_name;
+        self.crate_name = rhs.crate_name;
+        self.multi_file = rhs.multi_file;
+    }
+}
+
 impl ParsedData {
     /// Create a new parsed data.
     pub fn new(crate_name: CrateName, file_name: String, multi_file: bool) -> Self {
@@ -122,33 +147,23 @@ impl ParsedData {
         }
     }
 
-    /// Add the parsed data from `other` to `self`.
-    pub fn add(&mut self, mut other: Self) {
-        self.structs.append(&mut other.structs);
-        self.enums.append(&mut other.enums);
-        self.aliases.append(&mut other.aliases);
-        self.import_types.extend(other.import_types);
-        self.type_names.extend(other.type_names);
-        self.errors.append(&mut other.errors);
-
-        self.file_name = other.file_name;
-        self.crate_name = other.crate_name;
-        self.multi_file = other.multi_file;
-    }
-
     pub(crate) fn push(&mut self, rust_thing: RustItem) {
         match rust_thing {
             RustItem::Struct(s) => {
                 self.type_names.insert(s.id.renamed.clone());
-                self.structs.insert(s);
+                self.structs.push(s);
             }
             RustItem::Enum(e) => {
                 self.type_names.insert(e.shared().id.renamed.clone());
-                self.enums.insert(e);
+                self.enums.push(e);
             }
             RustItem::Alias(a) => {
                 self.type_names.insert(a.id.renamed.clone());
-                self.aliases.insert(a);
+                self.aliases.push(a);
+            }
+            RustItem::Const(c) => {
+                self.type_names.insert(c.id.renamed.clone());
+                self.consts.push(c);
             }
         }
     }
@@ -158,38 +173,34 @@ impl ParsedData {
         self.structs.is_empty()
             && self.enums.is_empty()
             && self.aliases.is_empty()
+            && self.consts.is_empty()
             && self.errors.is_empty()
     }
 }
 
 /// Parse the given Rust source string into `ParsedData`.
 pub fn parse(
-    source_code: &str,
-    crate_name: CrateName,
-    file_name: String,
-    file_path: PathBuf,
-    ignored_types: &[&str],
-    mult_file: bool,
-    target_os: &[String],
+    parse_context: &ParseContext,
+    parse_file_context: ParseFileContext,
 ) -> Result<Option<ParsedData>, ParseError> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !source_code.contains("#[typeshare") {
+    if !parse_file_context.source_code.contains("#[typeshare") {
         return Ok(None);
     }
 
-    debug!("parsing {file_name}");
-    // Parse and process the input, ensuring we parse only items marked with
-    // `#[typeshare]`
-    let mut import_visitor = TypeShareVisitor::new(
+    let ParseFileContext {
+        source_code,
         crate_name,
         file_name,
         file_path,
-        ignored_types,
-        mult_file,
-        target_os,
-    );
-    import_visitor.visit_file(&syn::parse_file(source_code)?);
+    } = parse_file_context;
+
+    debug!("parsing {file_path:?}");
+    // Parse and process the input, ensuring we parse only items marked with
+    // `#[typeshare]`
+    let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);
+    import_visitor.visit_file(&syn::parse_file(&source_code)?);
 
     Ok(import_visitor.parsed_data())
 }
@@ -499,6 +510,67 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     }))
 }
 
+/// Parses a const variant.
+pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
+    let expr = parse_const_expr(&c.expr)?;
+
+    // serialized_as needs to be supported in case the user wants to use a different type
+    // for the constant variable in a different language
+    let ty = if let Some(ty) = get_serialized_as_type(&c.attrs) {
+        ty.parse()?
+    } else {
+        RustType::try_from(c.ty.as_ref())?
+    };
+
+    match &ty {
+        RustType::Special(SpecialRustType::HashMap(_, _))
+        | RustType::Special(SpecialRustType::Vec(_))
+        | RustType::Special(SpecialRustType::Option(_)) => {
+            return Err(ParseError::RustConstTypeInvalid);
+        }
+        RustType::Special(_) => (),
+        RustType::Simple { .. } => (),
+        _ => return Err(ParseError::RustConstTypeInvalid),
+    };
+
+    Ok(RustItem::Const(RustConst {
+        id: get_ident(Some(&c.ident), &c.attrs, &None),
+        r#type: ty,
+        expr,
+    }))
+}
+
+fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
+    struct ExprLitVisitor(pub Option<Result<RustConstExpr, ParseError>>);
+    impl Visit<'_> for ExprLitVisitor {
+        fn visit_expr_lit(&mut self, el: &ExprLit) {
+            if self.0.is_some() {
+                // should we throw an error instead of silently ignoring a second literal?
+                // or would this create false positives?
+                return;
+            }
+            let check_literal_type = || {
+                Ok(match &el.lit {
+                    Lit::Int(lit_int) => {
+                        let int: i128 = lit_int
+                            .base10_parse()
+                            .map_err(|_| ParseError::RustConstTypeInvalid)?;
+                        RustConstExpr::Int(int)
+                    }
+                    _ => return Err(ParseError::RustConstTypeInvalid),
+                })
+            };
+
+            self.0.replace(check_literal_type());
+        }
+    }
+    let mut expr_visitor = ExprLitVisitor(None);
+    syn::visit::visit_expr(&mut expr_visitor, e);
+    expr_visitor
+        .0
+        .unwrap_or(Err(ParseError::RustConstTypeInvalid))
+}
+
 // Helpers
 
 /// Checks the given attrs for `#[typeshare]`
@@ -561,11 +633,17 @@ fn get_ident(
 
     let mut renamed = rename_all_to_case(original.clone(), rename_all);
 
+    let mut renamed_via_serde_rename = false;
     if let Some(s) = serde_rename(attrs) {
         renamed = s;
+        renamed_via_serde_rename = true;
     }
 
-    Id { original, renamed }
+    Id {
+        original,
+        renamed,
+        serde_rename: renamed_via_serde_rename,
+    }
 }
 
 fn rename_all_to_case(original: String, case: &Option<String>) -> String {

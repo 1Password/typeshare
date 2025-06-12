@@ -12,9 +12,9 @@ type MoreOptionsBuiltInner struct {
 }
 type MoreOptionsTypes string
 const (
-	MoreOptionsTypeVariantNews MoreOptionsTypes = "News"
-	MoreOptionsTypeVariantExactly MoreOptionsTypes = "Exactly"
-	MoreOptionsTypeVariantBuilt MoreOptionsTypes = "Built"
+	MoreOptionsTypeVariantNews MoreOptionsTypes = "news"
+	MoreOptionsTypeVariantExactly MoreOptionsTypes = "exactly"
+	MoreOptionsTypeVariantBuilt MoreOptionsTypes = "built"
 )
 type MoreOptions struct{ 
 	Type MoreOptionsTypes `json:"type"`
@@ -94,9 +94,9 @@ func NewMoreOptionsTypeVariantBuilt(content *MoreOptionsBuiltInner) MoreOptions 
 
 type OptionsTypes string
 const (
-	OptionsTypeVariantRed OptionsTypes = "Red"
-	OptionsTypeVariantBanana OptionsTypes = "Banana"
-	OptionsTypeVariantVermont OptionsTypes = "Vermont"
+	OptionsTypeVariantRed OptionsTypes = "red"
+	OptionsTypeVariantBanana OptionsTypes = "banana"
+	OptionsTypeVariantVermont OptionsTypes = "vermont"
 )
 type Options struct{ 
 	Type OptionsTypes `json:"type"`

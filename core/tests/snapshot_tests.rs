@@ -3,14 +3,17 @@ use flexi_logger::DeferredNow;
 use log::Record;
 use once_cell::sync::Lazy;
 use std::{
-    collections::HashMap,
-    env,
+    collections::{BTreeMap, HashMap},
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Once,
 };
-use typeshare_core::language::Language;
+use typeshare_core::{
+    context::{ParseContext, ParseFileContext},
+    language::{CrateName, Language},
+    reconcile::reconcile_aliases,
+};
 
 static TESTS_FOLDER_PATH: Lazy<PathBuf> =
     Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
@@ -97,19 +100,29 @@ fn check(
     )?;
 
     let mut typeshare_output: Vec<u8> = Vec::new();
+    let parse_context = ParseContext {
+        target_os: target_os.iter().map(ToString::to_string).collect(),
+        ..Default::default()
+    };
+
     let parsed_data = typeshare_core::parser::parse(
-        &rust_input,
-        "default_crate".into(),
-        "file_name".into(),
-        "file_path".into(),
-        &[],
-        false,
-        &target_os
-            .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>(),
+        &parse_context,
+        ParseFileContext {
+            source_code: rust_input,
+            crate_name: "default_crate".into(),
+            file_name: "file_name".into(),
+            file_path: "file_path".into(),
+        },
     )?
     .unwrap();
+
+    let all_crates: CrateName = String::new().into();
+
+    let mut map = BTreeMap::from_iter([(all_crates.clone(), parsed_data)]);
+    reconcile_aliases(&mut map);
+
+    let parsed_data = map.remove(&all_crates).unwrap();
+
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 
     let typeshare_output = String::from_utf8(typeshare_output)?;
@@ -137,6 +150,9 @@ macro_rules! output_file_for_ident {
     };
     (go) => {
         "output.go"
+    };
+    (python) => {
+        "output.py"
     };
 }
 
@@ -185,6 +201,21 @@ macro_rules! language_instance {
     (kotlin {$($field:ident: $val:expr),* $(,)?}) => {
         #[allow(clippy::needless_update)]
         Box::new(typeshare_core::language::Kotlin {
+            no_version_header: true,
+            $($field: $val,)*
+            ..Default::default()
+        })
+    };
+
+	 // Default Python
+	 (python) => {
+        language_instance!(python { })
+    };
+
+    // python with configuration fields forwarded
+    (python {$($field:ident: $val:expr),* $(,)?}) => {
+        #[allow(clippy::needless_update)]
+        Box::new(typeshare_core::language::Python {
             no_version_header: true,
             $($field: $val,)*
             ..Default::default()
@@ -393,17 +424,36 @@ static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
 });
 
 static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("DateTime", "string")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "Uint8Array"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    [("Url", "string"), ("DateTime", "string")]
-        .iter()
-        .map(|(k, v)| (k.to_string(), v.to_string()))
-        .collect()
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "[]byte"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
+});
+
+static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    [
+        ("Url", "AnyUrl"),
+        ("DateTime", "datetime"),
+        ("Vec<u8>", "bytes"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
 });
 
 tests! {
@@ -421,7 +471,8 @@ tests! {
             module_name: "colorsModule".to_string(),
         },
         typescript,
-        go
+        go,
+        python
     ];
     can_generate_generic_enum: [
         swift {
@@ -438,7 +489,7 @@ tests! {
         },
         kotlin,
         scala,
-        typescript
+        typescript,
     ];
     can_generate_generic_type_alias: [
         swift {
@@ -448,7 +499,8 @@ tests! {
         scala,
         typescript
     ];
-    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go];
+    can_generate_const: [typescript, go, python];
+    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, python];
     can_generate_readonly_fields: [
         typescript
     ];
@@ -459,16 +511,17 @@ tests! {
         kotlin,
         scala,
         typescript,
-        go
+        go,
+        python
     ];
-    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go ];
+    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go, python ];
     can_generate_double_option_pattern: [
         typescript
     ];
     can_recognize_types_inside_modules: [
-        swift, kotlin, scala, typescript, go
+        swift, kotlin, scala, typescript, go, python
     ];
-    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go ];
+    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go, python ];
     test_algebraic_enum_case_name_support: [
         swift {
             prefix: "OP".to_string(),
@@ -482,16 +535,17 @@ tests! {
             module_name: "colorModule".to_string(),
         },
         typescript,
-        go
+        go,
+        python
     ];
-    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
-    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go ];
-    can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go];
-    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go];
-    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go];
-    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go];
-    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go];
-    test_generate_char: [swift, kotlin, scala, typescript, go];
+    can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
+    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
+    can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go, python];
+    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go, python];
+    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go, python];
+    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go, python];
+    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go, python];
+    test_generate_char: [swift, kotlin, scala, typescript, go, python];
     anonymous_struct_with_rename: [
         swift {
             prefix: "Core".to_string(),
@@ -499,15 +553,16 @@ tests! {
         kotlin,
         scala,
         typescript,
-        go
+        go,
+        python
     ];
     can_override_types: [swift, kotlin, scala, typescript, go];
     can_override_disallowed_types: [swift, kotlin, scala, typescript, go];
     can_override_pointer_sized_types: [swift, kotlin, scala, typescript, go];
 
     /// Structs
-    can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala,  go];
-    generate_types: [kotlin, swift, typescript, scala,  go];
+    can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala, go, python];
+    generate_types: [kotlin, swift, typescript, scala,  go, python];
     can_handle_serde_rename: [
         swift {
             prefix: "TypeShareX_".to_string(),
@@ -515,14 +570,15 @@ tests! {
         kotlin,
         scala,
         typescript,
-        go
+        go,
+        python
     ];
     // TODO: kotlin and typescript don't appear to support this yet
-    generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go];
+    generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go,python];
     test_default_decorators: [swift { default_decorators: vec!["Sendable".into(), "Identifiable".into()]}];
     test_default_generic_constraints: [swift { default_generic_constraints: typeshare_core::language::GenericConstraints::from_config(vec!["Sendable".into(), "Identifiable".into()]) }];
-    test_i54_u53_type: [swift, kotlin, scala,  typescript, go];
-    test_serde_default_struct: [swift, kotlin, scala,  typescript, go];
+    test_i54_u53_type: [swift, kotlin, scala,  typescript, go, python];
+    test_serde_default_struct: [swift, kotlin, scala,  typescript, go, python];
     test_serde_iso8601: [
         swift {
             prefix: String::new(),
@@ -544,6 +600,9 @@ tests! {
          go {
             type_mappings: super::GO_MAPPINGS.clone(),
         },
+        python {
+            type_mappings: super::PYTHON_MAPPINGS.clone(),
+        }
     ];
     test_serde_url: [
         swift {
@@ -567,10 +626,13 @@ tests! {
             type_mappings: super::GO_MAPPINGS.clone(),
             uppercase_acronyms: vec!["URL".to_string()],
         },
+        python{
+            type_mappings: super::PYTHON_MAPPINGS.clone()
+        }
     ];
-    test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
-    test_optional_type_alias: [swift, kotlin, scala, typescript, go];
-    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go ];
+    test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python ];
+    test_optional_type_alias: [swift, kotlin, scala, typescript, go, python];
+    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python ];
     test_serialized_as_tuple: [
         swift {
             prefix: "OP".to_string(),
@@ -581,32 +643,33 @@ tests! {
         go {
             uppercase_acronyms: vec!["ID".to_string()],
         },
+        python
     ];
-    can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go];
-    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go];
-    can_generate_unit_structs: [swift, kotlin, scala, typescript, go];
-    kebab_case_rename: [swift, kotlin, scala,  typescript, go];
+    can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go,python];
+    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python];
+    can_generate_unit_structs: [swift, kotlin, scala, typescript, go, python];
+    kebab_case_rename: [swift, kotlin, scala,  typescript, go, python];
 
     /// Globals get topologically sorted
-    orders_types: [swift, kotlin, go];
+    orders_types: [swift, kotlin, go, python];
 
     /// Other
-    use_correct_integer_types: [swift, kotlin, scala,  typescript, go];
+    use_correct_integer_types: [swift, kotlin, scala,  typescript, go, python];
     // Only swift supports generating types with keywords
     generate_types_with_keywords: [swift];
     // TODO: how is this different from generates_empty_structs_and_initializers?
-    use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go];
-    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go];
+    use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go, python];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go, python];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
-    serialize_field_as: [kotlin, swift, typescript, scala,  go];
-    serialize_type_alias: [kotlin, swift, typescript, scala,  go];
-    serialize_anonymous_field_as: [kotlin, swift, typescript, scala,  go];
-    smart_pointers: [kotlin, swift, typescript, scala, go];
-    recursive_enum_decorator: [kotlin, swift, typescript, scala,  go];
+    serialize_field_as: [kotlin, swift, typescript, scala,  go, python];
+    serialize_type_alias: [kotlin, swift, typescript, scala,  go, python];
+    serialize_anonymous_field_as: [kotlin, swift, typescript, scala, go, python];
+    smart_pointers: [kotlin, swift, typescript, scala, go, python];
+    recursive_enum_decorator: [kotlin, swift, typescript, scala, go, python];
 
     uppercase_go_acronyms: [
         go {
@@ -620,10 +683,26 @@ tests! {
         typescript,
         kotlin,
         scala,
-        go
+        go,
+        python
     ];
-    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go];
+    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go, python];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
-    excluded_by_target_os: [ swift, kotlin, scala, typescript, go ] target_os: ["android", "macos"];
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
+    serde_rename_references: [ swift, kotlin, scala, typescript, go ];
+    test_custom_serialize_deserialize_functions: [    go
+    {
+        type_mappings: super::GO_MAPPINGS.clone(),
+    },
+    python
+    {
+        type_mappings: super::PYTHON_MAPPINGS.clone(),
+    },
+    typescript
+    {
+        type_mappings: super::TYPESCRIPT_MAPPINGS.clone(),
+    }
+    ];
+    no_mangle: [swift, kotlin, scala, typescript, go];
 }

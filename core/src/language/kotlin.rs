@@ -4,7 +4,7 @@ use crate::parser::{remove_dash_from_identifier, DecoratorKind, ParsedData};
 use crate::rust_types::{RustTypeFormatError, SpecialRustType};
 use crate::{
     rename::RenameExt,
-    rust_types::{Id, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
+    rust_types::{Id, RustConst, RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
 };
 use itertools::Itertools;
 use joinery::JoinableIterator;
@@ -74,9 +74,8 @@ impl Language for Kotlin {
                 )
             }
             SpecialRustType::Unit => "Unit".into(),
-            SpecialRustType::String => "String".into(),
             // Char in Kotlin is 16 bits long, so we need to use String
-            SpecialRustType::Char => "String".into(),
+            SpecialRustType::String | SpecialRustType::Char => "String".into(),
             // https://kotlinlang.org/docs/basic-types.html#integer-types
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),
@@ -90,6 +89,12 @@ impl Language for Kotlin {
             SpecialRustType::Bool => "Boolean".into(),
             SpecialRustType::F32 => "Float".into(),
             SpecialRustType::F64 => "Double".into(),
+            // TODO: https://github.com/1Password/typeshare/issues/237
+            SpecialRustType::DateTime => {
+                return Err(RustTypeFormatError::UnsupportedSpecialType(
+                    special_ty.to_string(),
+                ))
+            }
             SpecialRustType::ISize | SpecialRustType::USize => {
                 panic!(
                     "Pointer-sized types require an explicit output type. \
@@ -136,6 +141,7 @@ impl Language for Kotlin {
                     id: Id {
                         original: String::from("value"),
                         renamed: String::from("value"),
+                        serde_rename: false,
                     },
                     ty: ty.r#type.clone(),
                     comments: vec![],
@@ -172,11 +178,15 @@ impl Language for Kotlin {
                     .then(|| format!("<{}>", ty.generic_types.join(", ")))
                     .unwrap_or_default(),
                 self.format_type(&ty.r#type, ty.generic_types.as_slice())
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                    .map_err(std::io::Error::other)?
             )?;
         }
 
         Ok(())
+    }
+
+    fn write_const(&mut self, _w: &mut dyn Write, _c: &RustConst) -> std::io::Result<()> {
+        todo!()
     }
 
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
@@ -362,7 +372,7 @@ impl Kotlin {
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                                .map_err(std::io::Error::other)?;
                             write!(w, "val {}: {}", content_key, variant_type)?;
                             write!(w, ")")?;
                         }
@@ -441,7 +451,7 @@ impl Kotlin {
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&f.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                .map_err(std::io::Error::other)?,
         };
 
         match visibility {

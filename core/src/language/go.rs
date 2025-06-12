@@ -3,13 +3,13 @@ use std::io::Write;
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustItem, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
     topsort::topsort,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use super::CrateTypes;
 
@@ -18,6 +18,8 @@ use super::CrateTypes;
 pub struct Go {
     /// Name of the Go package.
     pub package: String,
+    /// BTreeSet<PackageName>
+    pub imports: BTreeSet<String>,
     /// Conversions from Rust type names to Go type names.
     pub type_mappings: HashMap<String, String>,
     /// Abbreviations that should be fully uppercased to comply with Go's formatting rules.
@@ -58,6 +60,7 @@ impl Language for Go {
             structs,
             enums,
             aliases,
+            consts,
             ..
         } = data;
 
@@ -66,6 +69,7 @@ impl Language for Go {
             .map(RustItem::Alias)
             .chain(structs.into_iter().map(RustItem::Struct))
             .chain(enums.into_iter().map(RustItem::Enum))
+            .chain(consts.into_iter().map(RustItem::Const))
             .collect::<Vec<_>>();
 
         topsort(&mut items);
@@ -91,19 +95,25 @@ impl Language for Go {
             }
         }
 
+        let mut body: Vec<u8> = Vec::new();
         for thing in &items {
             match thing {
-                RustItem::Enum(e) => self.write_enum(w, e, &types_mapping_to_struct)?,
-                RustItem::Struct(s) => self.write_struct(w, s)?,
-                RustItem::Alias(a) => self.write_type_alias(w, a)?,
+                RustItem::Enum(e) => self.write_enum(&mut body, e, &types_mapping_to_struct)?,
+                RustItem::Struct(s) => self.write_struct(&mut body, s)?,
+                RustItem::Alias(a) => self.write_type_alias(&mut body, a)?,
+                RustItem::Const(c) => self.write_const(&mut body, c)?,
             }
         }
-
-        self.end_file(w)
+        self.write_all_imports(w)?;
+        w.write_all(&body)
     }
 
     fn type_map(&mut self) -> &HashMap<String, String> {
         &self.type_mappings
+    }
+
+    fn format_generic_parameters(&mut self, parameters: Vec<String>) -> String {
+        format!("[{}]", parameters.join(", "))
     }
 
     fn format_special_type(
@@ -111,6 +121,10 @@ impl Language for Go {
         special_ty: &SpecialRustType,
         generic_types: &[String],
     ) -> Result<String, RustTypeFormatError> {
+        if let Some(mapped) = self.type_map().get(&special_ty.to_string()) {
+            return Ok(mapped.to_owned());
+        };
+
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
             SpecialRustType::Array(rtype, len) => {
@@ -149,6 +163,10 @@ impl Language for Go {
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
+            SpecialRustType::DateTime => {
+                self.add_import("time");
+                "time.Time".into()
+            }
             SpecialRustType::ISize | SpecialRustType::USize => {
                 panic!(
                     "Pointer-sized types require an explicit output type. \
@@ -169,8 +187,7 @@ impl Language for Go {
             )?;
         }
         writeln!(w, "package {}", self.package)?;
-        writeln!(w)?;
-        writeln!(w, "import \"encoding/json\"")?;
+        self.add_import("encoding/json");
         writeln!(w)?;
         Ok(())
     }
@@ -183,18 +200,46 @@ impl Language for Go {
             "type {} {}\n",
             self.acronyms_to_uppercase(&ty.id.original),
             self.format_type(&ty.r#type, &[])
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                .map_err(std::io::Error::other)?
         )?;
 
         Ok(())
     }
 
+    fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
+        match c.expr {
+            RustConstExpr::Int(val) => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(std::io::Error::other)?;
+                writeln!(
+                    w,
+                    "const {} {} = {}",
+                    c.id.renamed.to_pascal_case(),
+                    const_type,
+                    val
+                )
+            }
+        }
+    }
+
     fn write_struct(&mut self, w: &mut dyn Write, rs: &RustStruct) -> std::io::Result<()> {
         write_comments(w, 0, &rs.comments)?;
+        // TODO: Support generic bounds: https://github.com/1Password/typeshare/issues/222
         writeln!(
             w,
-            "type {} struct {{",
-            self.acronyms_to_uppercase(&rs.id.renamed)
+            "type {}{} struct {{",
+            self.acronyms_to_uppercase(&rs.id.renamed),
+            (!rs.generic_types.is_empty())
+                .then(|| format!(
+                    "[{}]",
+                    rs.generic_types
+                        .iter()
+                        .map(|ty| format!("{} any", ty))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ))
+                .unwrap_or_default()
         )?;
 
         rs.fields
@@ -378,7 +423,7 @@ impl Go {
                         "\t{} {} = {:?}",
                         variant_type_const,
                         variant_key_type,
-                        &v.shared().id.original
+                        &v.shared().id.renamed
                     )?;
                 }
 
@@ -465,7 +510,7 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             Some(type_override) => type_override.to_owned(),
             None => self
                 .format_type(&field.ty, generic_types)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                .map_err(std::io::Error::other)?,
         };
 
         let go_type = self.acronyms_to_uppercase(&type_name);
@@ -500,6 +545,27 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             name
         };
         self.acronyms_to_uppercase(&name)
+    }
+
+    fn add_import(&mut self, name: &str) {
+        self.imports.insert(name.to_string());
+    }
+
+    fn write_all_imports(&self, w: &mut dyn Write) -> std::io::Result<()> {
+        let mut imports = self.imports.iter().cloned().collect::<Vec<String>>();
+        imports.sort();
+        match imports.as_slice() {
+            [] => return Ok(()),
+            [import] => writeln!(w, "import \"{import}\"")?,
+            _ => {
+                writeln!(w, "import (")?;
+                for import in imports {
+                    writeln!(w, "\t\"{import}\"")?;
+                }
+                writeln!(w, ")")?
+            }
+        }
+        writeln!(w)
     }
 }
 

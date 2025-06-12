@@ -1,5 +1,6 @@
 use quote::ToTokens;
 use std::collections::BTreeSet;
+use std::fmt::Display;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
@@ -21,6 +22,8 @@ pub struct Id {
     /// If there is no re-naming going on, this will be identical to
     /// `original`.
     pub renamed: String,
+    /// Was this renamed with `serde(rename = "newname")
+    pub serde_rename: bool,
 }
 
 impl std::fmt::Display for Id {
@@ -70,6 +73,36 @@ impl Ord for RustStruct {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.original.cmp(&other.id.original)
     }
+}
+
+/// Rust const variable.
+///
+/// Typeshare can only handle numeric and string constants.
+/// ```
+/// pub const MY_CONST: &str = "constant value";
+/// ```
+#[derive(Debug, Clone)]
+pub struct RustConst {
+    /// The identifier for the constant.
+    pub id: Id,
+    /// The type identifier that this constant is referring to.
+    pub r#type: RustType,
+    /// The expression that the constant contains.
+    pub expr: RustConstExpr,
+}
+
+impl PartialEq for RustConst {
+    fn eq(&self, other: &Self) -> bool {
+        self.id.original == other.id.original
+    }
+}
+
+/// A constant expression that can be shared via a constant variable across the typeshare
+/// boundary.
+#[derive(Debug, Clone)]
+pub enum RustConstExpr {
+    /// Expression represents an integer.
+    Int(i128),
 }
 
 /// Rust type alias.
@@ -179,6 +212,30 @@ pub enum RustType {
     },
 }
 
+impl Display for RustType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let rust_type = match &self {
+            RustType::Simple { id } => id,
+            RustType::Generic { id, parameters } => {
+                if parameters.is_empty() {
+                    id
+                } else {
+                    &format!(
+                        "{id}<{}>",
+                        parameters
+                            .iter()
+                            .map(|p| p.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            }
+            RustType::Special(ty) => &ty.to_string(),
+        };
+        write!(f, "{rust_type}")
+    }
+}
+
 /// A special rust type that needs a manual type conversion
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecialRustType {
@@ -192,6 +249,12 @@ pub enum SpecialRustType {
     HashMap(Box<RustType>, Box<RustType>),
     /// Represents `Option<T>` from the standard library
     Option(Box<RustType>),
+    /// Represents time::OffsetDateTime from time
+    /// We serialize/deserialize this to an UTC time specifically
+    /// encoded in the RFC3339 or ISO8601 format.
+    /// This should be used with serde's with tag when serializing/deserializing
+    /// like so #[serde(with = "time::serde::rfc3339")]
+    DateTime,
     /// Represents `()`
     Unit,
     /// Represents `String` from the standard library
@@ -230,6 +293,24 @@ pub enum SpecialRustType {
     U53,
 }
 
+impl Display for SpecialRustType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let special_type = match self {
+            SpecialRustType::Vec(rust_type) => format!("Vec<{rust_type}>"),
+            SpecialRustType::Array(rust_type, _) => format!("[{rust_type}]"),
+            SpecialRustType::Slice(rust_type) => format!("&[{rust_type}]"),
+            SpecialRustType::HashMap(rust_type, rust_type1) => {
+                format!("HashMap<{rust_type},{rust_type1}>")
+            }
+            SpecialRustType::Option(rust_type) => {
+                format!("Option<{}>", rust_type.id())
+            }
+            _ => self.id().to_string(),
+        };
+        write!(f, "{special_type}")
+    }
+}
+
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum RustTypeParseError {
@@ -264,7 +345,7 @@ impl TryFrom<&syn::Type> for RustType {
             syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
-                let segment = path.path.segments.iter().last().unwrap();
+                let segment = path.path.segments.iter().next_back().unwrap();
                 let id = segment.ident.to_string();
                 let parameters: Vec<Self> = match &segment.arguments {
                     syn::PathArguments::AngleBracketed(angle_bracketed_arguments) => {
@@ -294,6 +375,7 @@ impl TryFrom<&syn::Type> for RustType {
                             params.next().unwrap().into(),
                         ))
                     }
+                    "OffsetDateTime" => Self::Special(SpecialRustType::DateTime),
                     "str" | "String" => Self::Special(SpecialRustType::String),
                     // These smart pointers can be treated as their inner type since serde can handle it
                     // See impls of serde::Deserialize
@@ -462,6 +544,8 @@ pub enum RustTypeFormatError {
     GenericsForbiddenInGo(String),
     #[error("Generic type `{0}` cannot be used as a map key in Typescript")]
     GenericKeyForbiddenInTS(String),
+    #[error("The special type `{0}` is not supported in this language")]
+    UnsupportedSpecialType(String),
 }
 
 impl SpecialRustType {
@@ -474,6 +558,7 @@ impl SpecialRustType {
             Self::HashMap(rty1, rty2) => rty1.contains_type(ty) || rty2.contains_type(ty),
             Self::Unit
             | Self::String
+            | Self::DateTime
             | Self::Char
             | Self::I8
             | Self::I16
@@ -504,6 +589,7 @@ impl SpecialRustType {
             Self::Slice(_) => "&[]",
             Self::Option(_) => "Option",
             Self::HashMap(_, _) => "HashMap",
+            Self::DateTime => "OffsetDateTime",
             Self::String => "String",
             Self::Char => "char",
             Self::Bool => "bool",
@@ -521,6 +607,7 @@ impl SpecialRustType {
             Self::I54 => "I54",
         }
     }
+
     /// Iterate over the generic parameters for this type. Returns an empty iterator
     /// if there are none.
     pub fn parameters(&self) -> Box<dyn Iterator<Item = &RustType> + '_> {
@@ -533,6 +620,7 @@ impl SpecialRustType {
             }
             Self::Unit
             | Self::String
+            | Self::DateTime
             | Self::Char
             | Self::I8
             | Self::I16
@@ -697,4 +785,6 @@ pub enum RustItem {
     Enum(RustEnum),
     /// A `type` definition or newtype struct.
     Alias(RustTypeAlias),
+    /// A `const` definition
+    Const(RustConst),
 }
