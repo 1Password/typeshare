@@ -206,8 +206,6 @@ impl Language for Swift {
             SpecialRustType::U8 => "UInt8".into(),
             SpecialRustType::I16 => "Int16".into(),
             SpecialRustType::U16 => "UInt16".into(),
-            SpecialRustType::USize => "UInt".into(),
-            SpecialRustType::ISize => "Int".into(),
             SpecialRustType::I32 => "Int32".into(),
             SpecialRustType::U32 => "UInt32".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "Int64".into(),
@@ -215,6 +213,12 @@ impl Language for Swift {
             SpecialRustType::Bool => "Bool".into(),
             SpecialRustType::F32 => "Float".into(),
             SpecialRustType::F64 => "Double".into(),
+            SpecialRustType::ISize | SpecialRustType::USize => {
+                panic!(
+                    "Pointer-sized types require an explicit output type. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-pointer-sized-types for more information."
+                )
+            }
         })
     }
 

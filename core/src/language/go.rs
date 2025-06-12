@@ -142,15 +142,19 @@ impl Language for Go {
             | SpecialRustType::U8
             | SpecialRustType::U16
             | SpecialRustType::I32
-            | SpecialRustType::I16
-            | SpecialRustType::ISize
-            | SpecialRustType::USize => "int".into(),
+            | SpecialRustType::I16 => "int".into(),
             SpecialRustType::U32 => "uint32".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "int64".into(),
             SpecialRustType::U53 | SpecialRustType::U64 => "uint64".into(),
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),
+            SpecialRustType::ISize | SpecialRustType::USize => {
+                panic!(
+                    "Pointer-sized types require an explicit output type. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-pointer-sized-types for more information."
+                )
+            }
         })
     }
 

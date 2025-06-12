@@ -21,7 +21,7 @@ enum MyEnum {
 
 ## Annotation arguments
 
-We can add arguments to the `#[typeshare]` annotation to modify the generated definitions. 
+We can add arguments to the `#[typeshare]` annotation to modify the generated definitions.
 
 ### Decorators
 
@@ -157,6 +157,39 @@ struct MyStruct {
 struct MyStruct {
     #[typeshare(typescript(type = "number"))]
     my_field: u64
+}
+```
+
+### Special Note on Pointer-Sized Types
+
+The default behavior for pointer-sized integer types (e.g. `isize` and `usize`)
+is to panic, regardless of target language. The reasoning behind this is that
+pointer-sized types may be different sizes based on platform. One can still use
+pointer-sized types by using a Typeshare attribute to override the type for the
+target language. For example:
+
+**Basic Override**
+```rust
+struct MyStruct {
+	#[typeshare(kotlin(type = "ULong"))]
+	my_field: usize
+}
+```
+
+**Conditional Compilation Based on Platform**
+```rust
+#[cfg(target_pointer_width = "64")]
+#[typeshare]
+struct PointerSizedType {
+    #[typeshare(kotlin(type = "ULong"))]
+    unsigned: usize,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[typeshare]
+struct PointerSizedType {
+    #[typeshare(kotlin(type = "UInt"))]
+    unsigned: usize,
 }
 ```
 
