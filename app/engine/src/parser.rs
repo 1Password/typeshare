@@ -5,7 +5,7 @@ use proc_macro2::{Delimiter, Group};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     collections::{hash_map::Entry, HashMap, HashSet},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use syn::{
     ext::IdentExt,
@@ -52,12 +52,16 @@ pub enum RustItem {
 pub struct ParsedData {
     /// Structs defined in the source
     pub structs: Vec<RustStruct>,
+
     /// Enums defined in the source
     pub enums: Vec<RustEnum>,
+
     /// Type aliases defined in the source
     pub aliases: Vec<RustTypeAlias>,
+
     /// Constant variables defined in the source
     pub consts: Vec<RustConst>,
+
     /// Imports used by this file
     /// TODO: This is currently almost empty. Import computation was found to
     /// be pretty broken during the migration to Typeshare 2, so that part
