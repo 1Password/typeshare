@@ -152,7 +152,7 @@ fn execute_typeshare_for_language<'config, 'a, L: Language<'config>>(
 ) -> anyhow::Result<()> {
     let name = L::NAME;
 
-    let config = load_language_config_from_file_and_args::<L>(&config, &args, meta)
+    let config = load_language_config_from_file_and_args::<L>(config, args, meta)
         .with_context(|| format!("failed to load configuration for language {name}"))?;
 
     let language_implementation = <L>::new_from_config(config)
@@ -287,7 +287,7 @@ where
         .expect("clap should guarantee that --lang is provided");
 
     Helper::LanguageSet::execute_typeshare_for_language(
-        &language,
+        language,
         &config,
         &args,
         &language_metas,

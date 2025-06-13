@@ -102,6 +102,8 @@ pub struct RustStruct {
     pub comments: Vec<String>,
     /// Attributes that exist for this struct.
     pub decorators: DecoratorSet,
+    /// If the struct is generated from an anonymous enum variant
+    pub is_anonymous: bool,
 }
 
 /// Rust type alias.

@@ -152,7 +152,7 @@ impl Kotlin<'_> {
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
-                                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                                .map_err(io::Error::other)?;
                             write!(w, "val {}: {}", content_key, variant_type)?;
                             write!(w, ")")?;
                         }
@@ -410,7 +410,7 @@ impl<'config> Language<'config> for Kotlin<'config> {
                     .then(|| format!("<{}>", alias.generic_types.join(", ")))
                     .unwrap_or_default(),
                 self.format_type(&alias.ty, alias.generic_types.as_slice())
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?
+                    .map_err(std::io::Error::other)?
             )?;
         }
 
@@ -419,7 +419,16 @@ impl<'config> Language<'config> for Kotlin<'config> {
 
     fn write_struct(&self, w: &mut impl io::Write, rs: &RustStruct) -> anyhow::Result<()> {
         self.write_comments(w, &rs.comments)?;
-        writeln!(w, "@Serializable")?;
+
+        if !rs.is_anonymous {
+            if let Some(serializer) = get_custom_serializer(&rs.decorators) {
+                writeln!(w, "@Serializable(with = {}::class)", serializer)?;
+            } else {
+                writeln!(w, "@Serializable")?;
+            }
+        } else {
+            writeln!(w, "@Serializable")?;
+        }
 
         if rs.fields.is_empty() {
             // If the struct has no fields, we can define it as an static object.
@@ -445,7 +454,7 @@ impl<'config> Language<'config> for Kotlin<'config> {
                 let requires_serial_name = rs
                     .fields
                     .iter()
-                    .any(|f| f.id.renamed.as_str().contains(|c: char| c == '-'));
+                    .any(|f| f.id.renamed.as_str().contains('-'));
 
                 if let Some((last, elements)) = rs.fields.split_last() {
                     for f in elements.iter() {
@@ -494,7 +503,11 @@ impl<'config> Language<'config> for Kotlin<'config> {
         })?;
 
         self.write_comments(w, &e.shared().comments)?;
-        writeln!(w, "@Serializable")?;
+        if let Some(serializer) = get_custom_serializer(&e.shared().decorators) {
+            writeln!(w, "@Serializable(with = {}::class)", serializer)?;
+        } else {
+            writeln!(w, "@Serializable")?;
+        }
 
         let generic_parameters = (!e.shared().generic_types.is_empty())
             .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
@@ -547,6 +560,18 @@ fn is_inline(decorators: &DecoratorSet) -> bool {
         Value::String(s) => s == "JvmInline",
         _ => false,
     })
+}
+
+fn get_custom_serializer(decorators: &DecoratorSet) -> Option<&str> {
+    decorators
+        .get_all("kotlin")
+        .iter()
+        .find_map(|decorator| match decorator {
+            Value::String(s) if s.starts_with("Serializer") => {
+                s.strip_prefix("Serializer(")?.strip_suffix(")")
+            }
+            _ => None,
+        })
 }
 
 fn to_pascal_case(value: &str) -> String {

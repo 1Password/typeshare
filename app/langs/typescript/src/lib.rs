@@ -80,9 +80,7 @@ impl Language<'_> for TypeScript {
                 let formatted_type = self.format_type(rtype, generic_context)?;
                 Ok(format!(
                     "[{}]",
-                    std::iter::repeat(&formatted_type)
-                        .take(*len)
-                        .join_with(", ")
+                    std::iter::repeat_n(&formatted_type, *len).join_with(", ")
                 ))
             }
             // We add optionality above the type formatting level
@@ -158,7 +156,7 @@ impl Language<'_> for TypeScript {
 
         let r#type = self
             .format_type(&ty.ty, ty.generic_types.as_slice())
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(io::Error::other)?;
 
         writeln!(
             w,
@@ -238,9 +236,7 @@ impl Language<'_> for TypeScript {
             ref expr => anyhow::bail!("unsupported const value '{expr:?}'"),
         };
 
-        let const_type = self
-            .format_type(&c.ty, &[])
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let const_type = self.format_type(&c.ty, &[]).map_err(io::Error::other)?;
 
         writeln!(
             w,

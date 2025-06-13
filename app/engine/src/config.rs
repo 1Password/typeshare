@@ -170,8 +170,8 @@ pub fn load_language_config<'a, 'config, L: Language<'config>>(
     spec: &'a CliArgsSet,
 ) -> anyhow::Result<L::Config> {
     L::Config::deserialize(ConfigDeserializer::new(
-        &config_file_entry,
-        &cli_matches,
+        config_file_entry,
+        cli_matches,
         spec,
     ))
     .context("error deserializing config")

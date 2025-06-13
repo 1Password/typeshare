@@ -329,7 +329,7 @@ pub(crate) fn parse_struct(
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&s.ident), &s.attrs, None),
-            ty: parse_rust_type_from_string(&ty)?,
+            ty: parse_rust_type_from_string(ty)?,
             comments: parse_comment_attrs(&s.attrs),
             generic_types,
             decorators,
@@ -351,7 +351,7 @@ pub(crate) fn parse_struct(
                     let decorators = get_decorators(&f.attrs);
 
                     let ty = match get_serialized_as_type(&decorators) {
-                        Some(ty) => parse_rust_type_from_string(&ty)?,
+                        Some(ty) => parse_rust_type_from_string(ty)?,
                         None => parse_rust_type(&f.ty)?,
                     };
 
@@ -377,6 +377,7 @@ pub(crate) fn parse_struct(
                 fields,
                 comments: parse_comment_attrs(&s.attrs),
                 decorators,
+                is_anonymous: false,
             })
         }
         // Tuple structs
@@ -388,13 +389,13 @@ pub(crate) fn parse_struct(
             let field_decorators = get_decorators(&field.attrs);
 
             let ty = match get_serialized_as_type(&field_decorators) {
-                Some(ty) => parse_rust_type_from_string(&ty)?,
+                Some(ty) => parse_rust_type_from_string(ty)?,
                 None => parse_rust_type(&field.ty)?,
             };
 
             RustItem::Alias(RustTypeAlias {
                 id: get_ident(Some(&s.ident), &s.attrs, None),
-                ty: ty,
+                ty,
                 comments: parse_comment_attrs(&s.attrs),
                 generic_types,
                 decorators,
@@ -407,6 +408,7 @@ pub(crate) fn parse_struct(
             fields: vec![],
             comments: parse_comment_attrs(&s.attrs),
             decorators,
+            is_anonymous: false,
         }),
     })
 }
@@ -435,7 +437,7 @@ pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<Rust
     if let Some(ty) = get_serialized_as_type(&decorators) {
         return Ok(RustItem::Alias(RustTypeAlias {
             id: get_ident(Some(&e.ident), &e.attrs, None),
-            ty: parse_rust_type_from_string(&ty)?,
+            ty: parse_rust_type_from_string(ty)?,
             comments: parse_comment_attrs(&e.attrs),
             generic_types,
             decorators,
@@ -567,7 +569,7 @@ fn parse_enum_variant(
             let decorators = get_decorators(&field.attrs);
 
             let ty = match get_serialized_as_type(&decorators) {
-                Some(ty) => parse_rust_type_from_string(&ty)?,
+                Some(ty) => parse_rust_type_from_string(ty)?,
                 None => parse_rust_type(&field.ty)?,
             };
 
@@ -586,7 +588,7 @@ fn parse_enum_variant(
                     let decorators = get_decorators(&f.attrs);
 
                     let field_type = match get_serialized_as_type(&decorators) {
-                        Some(ty) => parse_rust_type_from_string(&ty)?,
+                        Some(ty) => parse_rust_type_from_string(ty)?,
                         None => parse_rust_type(&f.ty)?,
                     };
 
@@ -616,7 +618,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
     let decorators = get_decorators(&t.attrs);
 
     let ty = match get_serialized_as_type(&decorators) {
-        Some(ty) => parse_rust_type_from_string(&ty)?,
+        Some(ty) => parse_rust_type_from_string(ty)?,
         None => parse_rust_type(&t.ty)?,
     };
 
@@ -965,10 +967,8 @@ mod test_get_decorators {
 
     fn parse_attr(input: &str) -> Vec<Attribute> {
         let tokens = TokenStream::from_str(input).expect("failed to create token stream");
-        let attr =
-            Parser::parse2(Attribute::parse_outer, tokens).expect("failed to parse attribute");
 
-        attr
+        Parser::parse2(Attribute::parse_outer, tokens).expect("failed to parse attribute")
     }
 
     #[test]
