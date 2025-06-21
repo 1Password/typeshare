@@ -171,8 +171,8 @@ target language. For example:
 **Basic Override**
 ```rust
 struct MyStruct {
-	#[typeshare(kotlin(type = "ULong"))]
-	my_field: usize
+		#[typeshare(kotlin(type = "ULong"))]
+		my_field: usize
 }
 ```
 
