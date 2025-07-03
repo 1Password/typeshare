@@ -343,9 +343,7 @@ impl Language for Swift {
                 "\tpublic let {}: {}{}",
                 remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                 case_type,
-                (f.has_default && !f.ty.is_optional())
-                    .then_some("?")
-                    .unwrap_or_default()
+                if f.has_default && !f.ty.is_optional() { "?" } else { Default::default() }
             )?;
         }
 
@@ -377,9 +375,7 @@ impl Language for Swift {
                 "{}: {}{}",
                 remove_dash_from_identifier(&f.id.renamed),
                 swift_ty,
-                (f.has_default && !f.ty.is_optional())
-                    .then_some("?")
-                    .unwrap_or_default()
+                if f.has_default && !f.ty.is_optional() { "?" } else { Default::default() }
             ));
         }
 
@@ -593,7 +589,7 @@ impl Swift {
                         {
                             // If the name starts with a digit just add an underscore
                             // to the front and make it valid
-                            variant_name = format!("_{}", variant_name);
+                            variant_name = format!("_{variant_name}");
                         }
 
                         variant_name
@@ -795,7 +791,7 @@ impl Swift {
 
     /// Write the `CodableVoid` type.
     fn write_codable(&self, w: &mut dyn Write, output_string: &str) -> io::Result<()> {
-        writeln!(w, "{}", output_string)
+        writeln!(w, "{output_string}")
     }
 
     /// Build the generic constraints output. This checks for the `swiftGenericConstraints` typeshare attribute and combines

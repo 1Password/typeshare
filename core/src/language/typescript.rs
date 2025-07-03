@@ -162,10 +162,8 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
                 .then(|| format!("<{}>", ty.generic_types.join(", ")))
                 .unwrap_or_default(),
             r#type,
-            ty.r#type
-                .is_optional()
-                .then_some(" | undefined")
-                .unwrap_or_default(),
+            if ty.r#type
+                .is_optional() { " | undefined" } else { Default::default() },
         )?;
 
         Ok(())
@@ -299,7 +297,7 @@ impl TypeScript {
                             tag_key,
                             shared.id.renamed,
                             content_key,
-                            ty.is_optional().then_some("?").unwrap_or_default(),
+                            if ty.is_optional() { "?" } else { Default::default() },
                             r#type
                         )
                     }
@@ -354,11 +352,11 @@ impl TypeScript {
         writeln!(
             w,
             "\t{}{}{}: {}{};",
-            is_readonly.then_some("readonly ").unwrap_or_default(),
+            if is_readonly { "readonly " } else { Default::default() },
             typescript_property_aware_rename(&field.id.renamed),
-            optional.then_some("?").unwrap_or_default(),
+            if optional { "?" } else { Default::default() },
             ts_ty,
-            double_optional.then_some(" | null").unwrap_or_default()
+            if double_optional { " | null" } else { Default::default() }
         )?;
 
         Ok(())
@@ -378,17 +376,15 @@ impl TypeScript {
                 if comments.len() == 1 {
                     format!("{}/** {} */", tab_indent, comments.first().unwrap())
                 } else {
-                    let joined_comments = comments.join(&format!("\n{} * ", tab_indent));
+                    let joined_comments = comments.join(&format!("\n{tab_indent} * "));
                     format!(
-                        "{tab}/**
-{tab} * {comment}
-{tab} */",
-                        tab = tab_indent,
-                        comment = joined_comments
+                        "{tab_indent}/**
+{tab_indent} * {joined_comments}
+{tab_indent} */"
                     )
                 }
             };
-            writeln!(w, "{}", comment)?;
+            writeln!(w, "{comment}")?;
         }
         Ok(())
     }
@@ -437,7 +433,7 @@ impl TypeScript {
 
 fn typescript_property_aware_rename(name: &str) -> String {
     if name.chars().any(|c| c == '-') {
-        return format!("{:?}", name);
+        return format!("{name:?}");
     }
     name.to_string()
 }

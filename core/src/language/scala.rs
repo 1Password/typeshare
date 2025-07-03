@@ -133,7 +133,7 @@ impl Language for Scala {
         match self.package.rsplit_once('.') {
             None => {}
             Some((parent, _last)) => {
-                writeln!(w, "package {}", parent)?;
+                writeln!(w, "package {parent}")?;
                 writeln!(w)?;
             }
         };
@@ -274,7 +274,7 @@ impl Scala {
                         {
                             // If the name starts with a digit just add an underscore
                             // to the front and make it valid
-                            variant_name = format!("_{}", variant_name);
+                            variant_name = format!("_{variant_name}");
                         }
 
                         variant_name
@@ -282,7 +282,7 @@ impl Scala {
 
                     match v {
                         RustEnumVariant::Unit(_) => {
-                            write!(w, "\tcase object {}", variant_name)?;
+                            write!(w, "\tcase object {variant_name}")?;
                         }
                         RustEnumVariant::Tuple { ty, .. } => {
                             write!(
@@ -296,7 +296,7 @@ impl Scala {
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
                                 .map_err(std::io::Error::other)?;
-                            write!(w, "{}: {}", content_key, variant_type)?;
+                            write!(w, "{content_key}: {variant_type}")?;
                             write!(w, ")")?;
                         }
                         RustEnumVariant::AnonymousStruct { shared, fields } => {
@@ -349,7 +349,7 @@ impl Scala {
                             .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
                             .unwrap_or_default()
                     )?;
-                    writeln!(w, "\t\tval serialName: String = {}", printed_value)?;
+                    writeln!(w, "\t\tval serialName: String = {printed_value}")?;
                     writeln!(w, "\t}}")?;
                 }
             }
@@ -410,7 +410,7 @@ impl Scala {
         match self.package.rsplit_once('.') {
             None => {}
             Some((_parent, last)) => {
-                writeln!(w, "package object {} {{", last)?;
+                writeln!(w, "package object {last} {{")?;
                 writeln!(w)?;
             }
         };
@@ -421,7 +421,7 @@ impl Scala {
         match self.package.rsplit_once('.') {
             None => {}
             Some((_parent, last)) => {
-                writeln!(w, "package {} {{", last)?;
+                writeln!(w, "package {last} {{")?;
                 writeln!(w)?;
             }
         };

@@ -49,8 +49,7 @@ mod blocklisted_types {
     pub struct Foo {{
         pub bar: {ty},
     }}
-    "##,
-            ty = ty
+    "##
         );
 
         let mut out: Vec<u8> = Vec::new();

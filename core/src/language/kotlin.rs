@@ -332,7 +332,7 @@ impl Kotlin {
                     let printed_value = format!(r##""{}""##, &v.shared().id.renamed);
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(w, "\t@Serializable")?;
-                    writeln!(w, "\t@SerialName({})", printed_value)?;
+                    writeln!(w, "\t@SerialName({printed_value})")?;
 
                     let variant_name = {
                         let mut variant_name = v.shared().id.original.to_pascal_case();
@@ -345,7 +345,7 @@ impl Kotlin {
                         {
                             // If the name starts with a digit just add an underscore
                             // to the front and make it valid
-                            variant_name = format!("_{}", variant_name);
+                            variant_name = format!("_{variant_name}");
                         }
 
                         variant_name
@@ -353,7 +353,7 @@ impl Kotlin {
 
                     match v {
                         RustEnumVariant::Unit(_) => {
-                            write!(w, "\tobject {}", variant_name)?;
+                            write!(w, "\tobject {variant_name}")?;
                         }
                         RustEnumVariant::Tuple { ty, .. } => {
                             write!(
@@ -367,7 +367,7 @@ impl Kotlin {
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
                                 .map_err(std::io::Error::other)?;
-                            write!(w, "val {}: {}", content_key, variant_type)?;
+                            write!(w, "val {content_key}: {variant_type}")?;
                             write!(w, ")")?;
                         }
                         RustEnumVariant::AnonymousStruct { shared, fields } => {
