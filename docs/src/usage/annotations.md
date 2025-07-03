@@ -21,7 +21,7 @@ enum MyEnum {
 
 ## Annotation arguments
 
-We can add arguments to the `#[typeshare]` annotation to modify the generated definitions. 
+We can add arguments to the `#[typeshare]` annotation to modify the generated definitions.
 
 ### Decorators
 
@@ -103,6 +103,95 @@ This would generate the following Kotlin code:
 typealias Options = String
 ```
 
+### Override Type for a Field
+
+You can also use language-specific arguments to tell Typeshare to treat
+a field as a type in a particular output language. For example,
+```rust
+#[typeshare]
+struct MyStruct {
+    #[typeshare(typescript(type = "0 | 1"))]
+    oneOrZero: u8,
+}
+```
+would generate the following Typescript code:
+```typescript
+export interface MyStruct {
+	oneOrZero: 0 | 1;
+}
+```
+The `type` argument is supported for all output languages, however Typescript
+also supports the optional `readonly` argument (e.g. `typescript(readonly, type= "0 | 1")`)
+to make the output property readonly.
+
+### Special Note on 64 Bit Integer Types
+
+The default behavior for 64 bit integer types when outputting TypeScript is to
+panic. The reasoning behind this is that in JavaScript runtimes integers are not
+sufficient to fully represent the set of all 64 bit integers, that is,
+`Number.MIN_SAFE_INTEGER` and `Number.MAX_SAFE_INTEGER` are less in magnitude
+than `i64::MIN` and `u64::MAX`, respectively. There are a few ways one can still
+use 64 bit integer types, however, and a Typeshare attribute to override the
+field type can be applied to accommodate the particular approach one chooses to
+take. Here are a few examples:
+
+**Serializing 64 bit integer fields to strings using `serde(with = ...)`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "string"))]
+    #[serde(with = "my_string_serde_impl")]
+    my_field: u64
+}
+```
+
+**Using a third-party JSON parser that provides support for larger integer types via `bigint`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "bigint"))]
+    my_field: u64
+}
+```
+
+**Throwing all caution to the wind and just using `number`**
+```rust
+struct MyStruct {
+    #[typeshare(typescript(type = "number"))]
+    my_field: u64
+}
+```
+
+### Special Note on Pointer-Sized Types
+
+The default behavior for pointer-sized integer types (e.g. `isize` and `usize`)
+is to panic, regardless of target language. The reasoning behind this is that
+pointer-sized types may be different sizes based on platform. One can still use
+pointer-sized types by using a Typeshare attribute to override the type for the
+target language. For example:
+
+**Basic Override**
+```rust
+struct MyStruct {
+    #[typeshare(kotlin(type = "ULong"))]
+    my_field: usize
+}
+```
+
+**Conditional Compilation Based on Platform**
+```rust
+#[cfg(target_pointer_width = "64")]
+#[typeshare]
+struct PointerSizedType {
+    #[typeshare(kotlin(type = "ULong"))]
+    unsigned: usize,
+}
+
+#[cfg(target_pointer_width = "32")]
+#[typeshare]
+struct PointerSizedType {
+    #[typeshare(kotlin(type = "UInt"))]
+    unsigned: usize,
+}
+```
 
 
 ## The `#[serde]` Attribute

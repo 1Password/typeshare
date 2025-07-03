@@ -387,13 +387,14 @@ impl TryFrom<&syn::Type> for RustType {
                     "u16" => Self::Special(SpecialRustType::U16),
                     "u32" => Self::Special(SpecialRustType::U32),
                     "U53" => Self::Special(SpecialRustType::U53),
-                    "u64" | "i64" | "usize" | "isize" => {
-                        return Err(RustTypeParseError::UnsupportedType(vec![id]))
-                    }
+                    "u64" => Self::Special(SpecialRustType::U64),
+                    "usize" => Self::Special(SpecialRustType::USize),
                     "i8" => Self::Special(SpecialRustType::I8),
                     "i16" => Self::Special(SpecialRustType::I16),
                     "i32" => Self::Special(SpecialRustType::I32),
                     "I54" => Self::Special(SpecialRustType::I54),
+                    "i64" => Self::Special(SpecialRustType::I64),
+                    "isize" => Self::Special(SpecialRustType::ISize),
                     "f32" => Self::Special(SpecialRustType::F32),
                     "f64" => Self::Special(SpecialRustType::F64),
                     _ => {

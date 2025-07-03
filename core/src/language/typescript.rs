@@ -128,11 +128,17 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             | SpecialRustType::F32
             | SpecialRustType::F64 => Ok("number".into()),
             SpecialRustType::Bool => Ok("boolean".into()),
-            SpecialRustType::U64
-            | SpecialRustType::I64
-            | SpecialRustType::ISize
-            | SpecialRustType::USize => {
-                panic!("64 bit types not allowed in Typeshare")
+            SpecialRustType::U64 | SpecialRustType::I64 => {
+                panic!(
+                    "64 bit integer types require an explicit output type for TypeScript. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-64-bit-integer-types for more information."
+                )
+            }
+            SpecialRustType::ISize | SpecialRustType::USize => {
+                panic!(
+                    "Pointer-sized types require an explicit output type. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-pointer-sized-types for more information."
+                )
             }
         }
     }

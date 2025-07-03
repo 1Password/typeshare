@@ -102,12 +102,12 @@ impl Language for Scala {
             SpecialRustType::String | SpecialRustType::Char => "String".into(),
             SpecialRustType::I8 => "Byte".into(),
             SpecialRustType::I16 => "Short".into(),
-            SpecialRustType::ISize | SpecialRustType::I32 => "Int".into(),
+            SpecialRustType::I32 => "Int".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "Long".into(),
             // Scala does not support unsigned integers, so upcast it to the closest one
             SpecialRustType::U8 => "UByte".into(),
             SpecialRustType::U16 => "UShort".into(),
-            SpecialRustType::USize | SpecialRustType::U32 => "UInt".into(),
+            SpecialRustType::U32 => "UInt".into(),
             SpecialRustType::U53 | SpecialRustType::U64 => "ULong".into(),
             SpecialRustType::Bool => "Boolean".into(),
             SpecialRustType::F32 => "Float".into(),
@@ -117,6 +117,12 @@ impl Language for Scala {
                 return Err(RustTypeFormatError::UnsupportedSpecialType(
                     special_ty.to_string(),
                 ))
+            }
+            SpecialRustType::ISize | SpecialRustType::USize => {
+                panic!(
+                    "Pointer-sized types require an explicit output type. \
+                    See: https://1password.github.io/typeshare/usage/annotations.html#special-note-on-pointer-sized-types for more information."
+                )
             }
         })
     }
