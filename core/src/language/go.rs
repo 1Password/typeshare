@@ -226,16 +226,18 @@ impl Language for Go {
             w,
             "type {}{} struct {{",
             self.acronyms_to_uppercase(&rs.id.renamed),
-            (!rs.generic_types.is_empty())
-                .then(|| format!(
+            if !rs.generic_types.is_empty() {
+                format!(
                     "[{}]",
                     rs.generic_types
                         .iter()
                         .map(|ty| format!("{ty} any"))
                         .collect::<Vec<String>>()
                         .join(", ")
-                ))
-                .unwrap_or_default()
+                )
+            } else {
+                Default::default()
+            }
         )?;
 
         rs.fields
@@ -343,9 +345,7 @@ impl Go {
                         self.acronyms_to_uppercase(&tag_key.to_string().to_pascal_case()),
                         variant_name
                     );
-                    decoding_cases.push(format!(
-                        "\tcase {variant_type_const}:\n"
-                    ));
+                    decoding_cases.push(format!("\tcase {variant_type_const}:\n"));
 
                     if let Some(variant_type) = variant_type {
                         let (variant_pointer, variant_deref, variant_ref) =
@@ -496,7 +496,11 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             w,
             "\t{} {}{} `json:\"{}{}\"`",
             self.format_field_name(field.id.original.to_string(), true),
-            if field.has_default && !field.ty.is_optional() { "*" } else { Default::default() },
+            if field.has_default && !field.ty.is_optional() {
+                "*"
+            } else {
+                Default::default()
+            },
             go_type,
             renamed_id,
             option_symbol(is_optional),

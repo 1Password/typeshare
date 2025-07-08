@@ -147,9 +147,11 @@ impl Language for Scala {
             w,
             "type {}{} = {}\n",
             ty.id.original,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("[{}]", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("[{}]", ty.generic_types.join(", "))
+            } else {
+                Default::default()
+            },
             self.format_type(&ty.r#type, ty.generic_types.as_slice())
                 .map_err(std::io::Error::other)?
         )?;
@@ -169,9 +171,11 @@ impl Language for Scala {
                 w,
                 "case class {}{} (",
                 rs.id.renamed,
-                (!rs.generic_types.is_empty())
-                    .then(|| format!("[{}]", rs.generic_types.join(", ")))
-                    .unwrap_or_default()
+                if !rs.generic_types.is_empty() {
+                    format!("[{}]", rs.generic_types.join(", "))
+                } else {
+                    Default::default()
+                }
             )?;
 
             if let Some((last, elements)) = rs.fields.split_last() {
@@ -197,9 +201,11 @@ impl Language for Scala {
 
         self.write_comments(w, 0, &e.shared().comments)?;
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("[{}]", e.shared().generic_types.join(", "))
+        } else {
+            Default::default()
+        };
 
         match e {
             RustEnum::Unit(shared) => {
@@ -284,14 +290,17 @@ impl Scala {
                         RustEnumVariant::Unit(_) => {
                             write!(w, "\tcase object {variant_name}")?;
                         }
+
                         RustEnumVariant::Tuple { ty, .. } => {
                             write!(
                                 w,
                                 "\tcase class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("[{}]", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
@@ -304,9 +313,11 @@ impl Scala {
                                 w,
                                 "\tcase class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("[{}]", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
 
                             // Builds the list of generic types (e.g [T, U, V]), by digging
@@ -345,9 +356,11 @@ impl Scala {
                         w,
                         " extends {}{} {{",
                         e.shared().id.original,
-                        (!e.shared().generic_types.is_empty())
-                            .then(|| format!("[{}]", e.shared().generic_types.join(", ")))
-                            .unwrap_or_default()
+                        if !e.shared().generic_types.is_empty() {
+                            format!("[{}]", e.shared().generic_types.join(", "))
+                        } else {
+                            Default::default()
+                        }
                     )?;
                     writeln!(w, "\t\tval serialName: String = {printed_value}")?;
                     writeln!(w, "\t}}")?;

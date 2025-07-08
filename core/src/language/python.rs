@@ -178,9 +178,11 @@ impl Language for Python {
             Ok(format!(
                 "{}{}",
                 self.format_simple_type(base, generic_types)?,
-                (!parameters.is_empty())
-                    .then(|| format!("[{}]", parameters.join(", ")))
-                    .unwrap_or_default()
+                if !parameters.is_empty() {
+                    format!("[{}]", parameters.join(", "))
+                } else {
+                    Default::default()
+                }
             ))
         }
     }
@@ -279,9 +281,11 @@ impl Language for Python {
             w,
             "{}{} = {}\n",
             ty.id.renamed,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("[{}]", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("[{}]", ty.generic_types.join(", "))
+            } else {
+                Default::default()
+            },
             r#type,
         )?;
 

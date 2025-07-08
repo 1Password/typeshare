@@ -256,7 +256,11 @@ pub trait Language {
             Ok(format!(
                 "{}{}",
                 self.format_simple_type(base, generic_types)?,
-                if !parameters.is_empty() { self.format_generic_parameters(parameters) } else { Default::default() }
+                if !parameters.is_empty() {
+                    self.format_generic_parameters(parameters)
+                } else {
+                    Default::default()
+                }
             ))
         }
     }

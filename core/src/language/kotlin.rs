@@ -168,9 +168,11 @@ impl Language for Kotlin {
                 w,
                 "typealias {}{} = {}\n",
                 type_name,
-                (!ty.generic_types.is_empty())
-                    .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                    .unwrap_or_default(),
+                if !ty.generic_types.is_empty() {
+                    format!("<{}>", ty.generic_types.join(", "))
+                } else {
+                    Default::default()
+                },
                 self.format_type(&ty.r#type, ty.generic_types.as_slice())
                     .map_err(std::io::Error::other)?
             )?;
@@ -196,9 +198,11 @@ impl Language for Kotlin {
                 "data class {}{}{} (",
                 self.prefix,
                 rs.id.renamed,
-                (!rs.generic_types.is_empty())
-                    .then(|| format!("<{}>", rs.generic_types.join(", ")))
-                    .unwrap_or_default()
+                if !rs.generic_types.is_empty() {
+                    format!("<{}>", rs.generic_types.join(", "))
+                } else {
+                    Default::default()
+                }
             )?;
 
             // Use @SerialName when writing the struct
@@ -253,9 +257,11 @@ impl Language for Kotlin {
         self.write_comments(w, 0, &e.shared().comments)?;
         writeln!(w, "@Serializable")?;
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("<{}>", e.shared().generic_types.join(", "))
+        } else {
+            Default::default()
+        };
 
         match e {
             RustEnum::Unit(..) => {
@@ -360,9 +366,11 @@ impl Kotlin {
                                 w,
                                 "\tdata class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
@@ -375,9 +383,11 @@ impl Kotlin {
                                 w,
                                 "\tdata class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
 
                             // Builds the list of generic types (e.g [T, U, V]), by digging
@@ -418,9 +428,11 @@ impl Kotlin {
                         ": {}{}{}()",
                         self.prefix,
                         e.shared().id.original,
-                        (!e.shared().generic_types.is_empty())
-                            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                            .unwrap_or_default()
+                        if !e.shared().generic_types.is_empty() {
+                            format!("<{}>", e.shared().generic_types.join(", "))
+                        } else {
+                            Default::default()
+                        }
                     )?;
                 }
             }

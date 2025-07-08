@@ -254,9 +254,11 @@ impl Language for Swift {
             w,
             "public typealias {}{} = {}",
             type_name,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("<{}>", ty.generic_types.join(", "))
+            } else {
+                Default::default()
+            },
             self.format_type(&ty.r#type, ty.generic_types.as_slice())
                 .map_err(std::io::Error::other)?
         )?;
@@ -302,9 +304,11 @@ impl Language for Swift {
         writeln!(
             w,
             "public struct {type_name}{}: {} {{",
-            (!rs.generic_types.is_empty())
-                .then(|| format!("<{generic_names_and_constraints}>",))
-                .unwrap_or_default(),
+            if !rs.generic_types.is_empty() {
+                format!("<{generic_names_and_constraints}>",)
+            } else {
+                Default::default()
+            },
             decs
         )?;
 
@@ -343,7 +347,11 @@ impl Language for Swift {
                 "\tpublic let {}: {}{}",
                 remove_dash_from_identifier(swift_keyword_aware_rename(&f.id.renamed).as_ref()),
                 case_type,
-                if f.has_default && !f.ty.is_optional() { "?" } else { Default::default() }
+                if f.has_default && !f.ty.is_optional() {
+                    "?"
+                } else {
+                    Default::default()
+                }
             )?;
         }
 
@@ -375,7 +383,11 @@ impl Language for Swift {
                 "{}: {}{}",
                 remove_dash_from_identifier(&f.id.renamed),
                 swift_ty,
-                if f.has_default && !f.ty.is_optional() { "?" } else { Default::default() }
+                if f.has_default && !f.ty.is_optional() {
+                    "?"
+                } else {
+                    Default::default()
+                }
             ));
         }
 
@@ -450,9 +462,11 @@ impl Language for Swift {
         writeln!(
             w,
             "public {indirect}enum {enum_name}{}: {} {{",
-            (!e.shared().generic_types.is_empty())
-                .then(|| format!("<{generic_names_and_constraints}>",))
-                .unwrap_or_default(),
+            if !e.shared().generic_types.is_empty() {
+                format!("<{generic_names_and_constraints}>",)
+            } else {
+                Default::default()
+            },
             decs
         )?;
 
