@@ -226,16 +226,18 @@ impl Language for Go {
             w,
             "type {}{} struct {{",
             self.acronyms_to_uppercase(&rs.id.renamed),
-            (!rs.generic_types.is_empty())
-                .then(|| format!(
+            if !rs.generic_types.is_empty() {
+                format!(
                     "[{}]",
                     rs.generic_types
                         .iter()
-                        .map(|ty| format!("{} any", ty))
+                        .map(|ty| format!("{ty} any"))
                         .collect::<Vec<String>>()
                         .join(", ")
-                ))
-                .unwrap_or_default()
+                )
+            } else {
+                Default::default()
+            }
         )?;
 
         rs.fields
@@ -319,7 +321,7 @@ impl Go {
                     self.acronyms_to_uppercase(tag_key).to_pascal_case()
                 );
 
-                writeln!(w, "type {} string", variant_key_type)?;
+                writeln!(w, "type {variant_key_type} string")?;
                 writeln!(w, "const (")?;
 
                 let mut decoding_cases = Vec::new();
@@ -343,10 +345,7 @@ impl Go {
                         self.acronyms_to_uppercase(&tag_key.to_string().to_pascal_case()),
                         variant_name
                     );
-                    decoding_cases.push(format!(
-                        "\tcase {variant_type_const}:\n",
-                        variant_type_const = variant_type_const
-                    ));
+                    decoding_cases.push(format!("\tcase {variant_type_const}:\n"));
 
                     if let Some(variant_type) = variant_type {
                         let (variant_pointer, variant_deref, variant_ref) =
@@ -361,25 +360,15 @@ impl Go {
 
                         decoding_cases.push(format!(
                             "\t\tvar res {formatted_variant_type}
-\t\t{short_name}.{content_field} = &res
+\t\t{struct_short_name}.{content_field} = &res
 ",
-                            formatted_variant_type = formatted_variant_type,
-                            short_name = struct_short_name,
-                            content_field = content_field,
                         ));
                         variant_accessors.push(format!(
-                            r#"func ({short_name} {full_name}) {variant_name}() {variant_pointer}{formatted_variant_type} {{
-	res, _ := {short_name}.{content_field}.(*{formatted_variant_type})
+                            r#"func ({struct_short_name} {struct_name}) {variant_name}() {variant_pointer}{formatted_variant_type} {{
+	res, _ := {struct_short_name}.{content_field}.(*{formatted_variant_type})
 	return {variant_deref}res
 }}
 "#,
-                            short_name = struct_short_name,
-                            full_name = struct_name,
-                            variant_name = variant_name,
-                            variant_pointer = variant_pointer,
-                            variant_deref = variant_deref,
-                            formatted_variant_type = formatted_variant_type,
-                            content_field = content_field,
                         ));
                         variant_constructors.push(format!(
                             r#"func New{variant_type_const}(content {variant_pointer}{formatted_variant_type}) {struct_name} {{
@@ -389,13 +378,6 @@ impl Go {
     }}
 }}
 "#,
-                            struct_name = struct_name,
-                            tag_field = tag_field,
-                            variant_type_const = variant_type_const,
-                            variant_pointer = variant_pointer,
-                            formatted_variant_type = formatted_variant_type,
-                            variant_ref = variant_ref,
-                            content_field = content_field,
                         ));
                     } else {
                         decoding_cases.push("\t\treturn nil\n".to_string());
@@ -407,9 +389,6 @@ impl Go {
     }}
 }}
 "#,
-                            struct_name = struct_name,
-                            tag_field = tag_field,
-                            variant_type_const = variant_type_const,
                         ));
                     }
 
@@ -425,7 +404,7 @@ impl Go {
 
                 writeln!(w, ")")?;
 
-                writeln!(w, "type {} struct{{ ", struct_name)?;
+                writeln!(w, "type {struct_name} struct{{ ")?;
                 writeln!(
                     w,
                     "\t{} {} `json:{:?}`",
@@ -433,7 +412,7 @@ impl Go {
                     variant_key_type,
                     tag_key,
                 )?;
-                writeln!(w, "\t{} interface{{}}", content_field)?;
+                writeln!(w, "\t{content_field} interface{{}}")?;
                 writeln!(w, "}}")?;
 
                 writeln!(
@@ -517,9 +496,11 @@ func ({short_name} {full_name}) MarshalJSON() ([]byte, error) {{
             w,
             "\t{} {}{} `json:\"{}{}\"`",
             self.format_field_name(field.id.original.to_string(), true),
-            (field.has_default && !field.ty.is_optional())
-                .then_some("*")
-                .unwrap_or_default(),
+            if field.has_default && !field.ty.is_optional() {
+                "*"
+            } else {
+                Default::default()
+            },
             go_type,
             renamed_id,
             option_symbol(is_optional),

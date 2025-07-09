@@ -178,9 +178,11 @@ impl Language for Python {
             Ok(format!(
                 "{}{}",
                 self.format_simple_type(base, generic_types)?,
-                (!parameters.is_empty())
-                    .then(|| format!("[{}]", parameters.join(", ")))
-                    .unwrap_or_default()
+                if !parameters.is_empty() {
+                    format!("[{}]", parameters.join(", "))
+                } else {
+                    Default::default()
+                }
             ))
         }
     }
@@ -279,9 +281,11 @@ impl Language for Python {
             w,
             "{}{} = {}\n",
             ty.id.renamed,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("[{}]", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("[{}]", ty.generic_types.join(", "))
+            } else {
+                Default::default()
+            },
             r#type,
         )?;
 
@@ -508,19 +512,19 @@ impl Python {
                         indent = indent,
                         indented_comments = comments
                             .iter()
-                            .map(|v| format!("{}{}", indent, v))
+                            .map(|v| format!("{indent}{v}"))
                             .collect::<Vec<String>>()
                             .join("\n"),
                     )
                 } else {
                     comments
                         .iter()
-                        .map(|v| format!("{}# {}", indent, v))
+                        .map(|v| format!("{indent}# {v}"))
                         .collect::<Vec<String>>()
                         .join("\n")
                 }
             };
-            writeln!(w, "{}", comment)?;
+            writeln!(w, "{comment}")?;
         }
         Ok(())
     }
@@ -540,7 +544,7 @@ impl Python {
         type_var_names.sort();
         let type_vars: Vec<String> = type_var_names
             .iter()
-            .map(|name| format!("{} = TypeVar(\"{}\")", name, name))
+            .map(|name| format!("{name} = TypeVar(\"{name}\")"))
             .collect();
         let mut imports = vec![];
         for (import_module, identifiers) in &self.imports {
@@ -588,12 +592,12 @@ impl Python {
             w,
             "    {content_key}{}{}",
             if let Some(content_type) = content_type {
-                format!(": {}", content_type)
+                format!(": {content_type}")
             } else {
                 "".to_string()
             },
             if let Some(content_value) = content_value {
-                format!(" = {}", content_value)
+                format!(" = {content_value}")
             } else {
                 "".to_string()
             }
@@ -630,7 +634,7 @@ impl Python {
         let enum_type_class_name = format!("{}Types", shared.id.renamed);
         self.add_import("enum".to_string(), "Enum".to_string());
         // write "types" class: a union of all the enum variants
-        writeln!(w, "class {}(str, Enum):", enum_type_class_name)?;
+        writeln!(w, "class {enum_type_class_name}(str, Enum):")?;
         writeln!(
             w,
             "{}",
@@ -737,7 +741,7 @@ fn get_python_keywords() -> &'static HashSet<String> {
 fn python_property_aware_rename(name: &str) -> String {
     let snake_name = name.to_case(Case::Snake);
     match get_python_keywords().contains(&snake_name) {
-        true => format!("{}_", name),
+        true => format!("{name}_"),
         false => snake_name,
     }
 }

@@ -280,7 +280,7 @@ mod tests {
         let value: I54 = 125.into();
 
         // Right-aligned, include the + sign, width=8,
-        assert_eq!(format!("{:>+8}", value), "    +125");
+        assert_eq!(format!("{value:>+8}"), "    +125");
     }
 
     #[test]

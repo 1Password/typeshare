@@ -158,14 +158,17 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             w,
             "export type {}{} = {}{};\n",
             ty.id.renamed,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("<{}>", ty.generic_types.join(", "))
+            } else {
+                Default::default()
+            },
             r#type,
-            ty.r#type
-                .is_optional()
-                .then_some(" | undefined")
-                .unwrap_or_default(),
+            if ty.r#type.is_optional() {
+                " | undefined"
+            } else {
+                Default::default()
+            },
         )?;
 
         Ok(())
@@ -194,9 +197,11 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             w,
             "export interface {}{} {{",
             rs.id.renamed,
-            (!rs.generic_types.is_empty())
-                .then(|| format!("<{}>", rs.generic_types.join(", ")))
-                .unwrap_or_default()
+            if !rs.generic_types.is_empty() {
+                format!("<{}>", rs.generic_types.join(", "))
+            } else {
+                Default::default()
+            }
         )?;
 
         rs.fields
@@ -209,9 +214,11 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
     fn write_enum(&mut self, w: &mut dyn Write, e: &RustEnum) -> io::Result<()> {
         self.write_comments(w, 0, &e.shared().comments)?;
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("<{}>", e.shared().generic_types.join(", "))
+        } else {
+            Default::default()
+        };
 
         match e {
             RustEnum::Unit(shared) => {
@@ -299,7 +306,11 @@ impl TypeScript {
                             tag_key,
                             shared.id.renamed,
                             content_key,
-                            ty.is_optional().then_some("?").unwrap_or_default(),
+                            if ty.is_optional() {
+                                "?"
+                            } else {
+                                Default::default()
+                            },
                             r#type
                         )
                     }
@@ -354,11 +365,19 @@ impl TypeScript {
         writeln!(
             w,
             "\t{}{}{}: {}{};",
-            is_readonly.then_some("readonly ").unwrap_or_default(),
+            if is_readonly {
+                "readonly "
+            } else {
+                Default::default()
+            },
             typescript_property_aware_rename(&field.id.renamed),
-            optional.then_some("?").unwrap_or_default(),
+            if optional { "?" } else { Default::default() },
             ts_ty,
-            double_optional.then_some(" | null").unwrap_or_default()
+            if double_optional {
+                " | null"
+            } else {
+                Default::default()
+            }
         )?;
 
         Ok(())
@@ -378,17 +397,15 @@ impl TypeScript {
                 if comments.len() == 1 {
                     format!("{}/** {} */", tab_indent, comments.first().unwrap())
                 } else {
-                    let joined_comments = comments.join(&format!("\n{} * ", tab_indent));
+                    let joined_comments = comments.join(&format!("\n{tab_indent} * "));
                     format!(
-                        "{tab}/**
-{tab} * {comment}
-{tab} */",
-                        tab = tab_indent,
-                        comment = joined_comments
+                        "{tab_indent}/**
+{tab_indent} * {joined_comments}
+{tab_indent} */"
                     )
                 }
             };
-            writeln!(w, "{}", comment)?;
+            writeln!(w, "{comment}")?;
         }
         Ok(())
     }
@@ -437,7 +454,7 @@ impl TypeScript {
 
 fn typescript_property_aware_rename(name: &str) -> String {
     if name.chars().any(|c| c == '-') {
-        return format!("{:?}", name);
+        return format!("{name:?}");
     }
     name.to_string()
 }

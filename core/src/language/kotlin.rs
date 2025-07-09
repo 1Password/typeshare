@@ -168,9 +168,11 @@ impl Language for Kotlin {
                 w,
                 "typealias {}{} = {}\n",
                 type_name,
-                (!ty.generic_types.is_empty())
-                    .then(|| format!("<{}>", ty.generic_types.join(", ")))
-                    .unwrap_or_default(),
+                if !ty.generic_types.is_empty() {
+                    format!("<{}>", ty.generic_types.join(", "))
+                } else {
+                    Default::default()
+                },
                 self.format_type(&ty.r#type, ty.generic_types.as_slice())
                     .map_err(std::io::Error::other)?
             )?;
@@ -196,9 +198,11 @@ impl Language for Kotlin {
                 "data class {}{}{} (",
                 self.prefix,
                 rs.id.renamed,
-                (!rs.generic_types.is_empty())
-                    .then(|| format!("<{}>", rs.generic_types.join(", ")))
-                    .unwrap_or_default()
+                if !rs.generic_types.is_empty() {
+                    format!("<{}>", rs.generic_types.join(", "))
+                } else {
+                    Default::default()
+                }
             )?;
 
             // Use @SerialName when writing the struct
@@ -253,9 +257,11 @@ impl Language for Kotlin {
         self.write_comments(w, 0, &e.shared().comments)?;
         writeln!(w, "@Serializable")?;
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("<{}>", e.shared().generic_types.join(", "))
+        } else {
+            Default::default()
+        };
 
         match e {
             RustEnum::Unit(..) => {
@@ -332,7 +338,7 @@ impl Kotlin {
                     let printed_value = format!(r##""{}""##, &v.shared().id.renamed);
                     self.write_comments(w, 1, &v.shared().comments)?;
                     writeln!(w, "\t@Serializable")?;
-                    writeln!(w, "\t@SerialName({})", printed_value)?;
+                    writeln!(w, "\t@SerialName({printed_value})")?;
 
                     let variant_name = {
                         let mut variant_name = v.shared().id.original.to_pascal_case();
@@ -345,7 +351,7 @@ impl Kotlin {
                         {
                             // If the name starts with a digit just add an underscore
                             // to the front and make it valid
-                            variant_name = format!("_{}", variant_name);
+                            variant_name = format!("_{variant_name}");
                         }
 
                         variant_name
@@ -353,21 +359,23 @@ impl Kotlin {
 
                     match v {
                         RustEnumVariant::Unit(_) => {
-                            write!(w, "\tobject {}", variant_name)?;
+                            write!(w, "\tobject {variant_name}")?;
                         }
                         RustEnumVariant::Tuple { ty, .. } => {
                             write!(
                                 w,
                                 "\tdata class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
                                 .map_err(std::io::Error::other)?;
-                            write!(w, "val {}: {}", content_key, variant_type)?;
+                            write!(w, "val {content_key}: {variant_type}")?;
                             write!(w, ")")?;
                         }
                         RustEnumVariant::AnonymousStruct { shared, fields } => {
@@ -375,9 +383,11 @@ impl Kotlin {
                                 w,
                                 "\tdata class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    Default::default()
+                                }
                             )?;
 
                             // Builds the list of generic types (e.g [T, U, V]), by digging
@@ -418,9 +428,11 @@ impl Kotlin {
                         ": {}{}{}()",
                         self.prefix,
                         e.shared().id.original,
-                        (!e.shared().generic_types.is_empty())
-                            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                            .unwrap_or_default()
+                        if !e.shared().generic_types.is_empty() {
+                            format!("<{}>", e.shared().generic_types.join(", "))
+                        } else {
+                            Default::default()
+                        }
                     )?;
                 }
             }
