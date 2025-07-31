@@ -175,7 +175,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
     }
 
     fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> io::Result<()> {
-        match c.expr {
+        match &c.expr {
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
@@ -186,6 +186,19 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
                     c.id.renamed.to_snake_case().to_uppercase(),
                     const_type,
                     val
+                )
+            }
+            RustConstExpr::String { value, is_raw } => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(std::io::Error::other)?;
+                let literal = make_typescript_string_literal(value, *is_raw);
+                writeln!(
+                    w,
+                    "export const {}: {} = {};",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
+                    literal,
                 )
             }
         }
@@ -457,4 +470,89 @@ fn typescript_property_aware_rename(name: &str) -> String {
         return format!("{name:?}");
     }
     name.to_string()
+}
+
+fn make_typescript_string_literal(value: &str, is_raw: bool) -> String {
+    /// Escape a non-raw segment so that when placed inside a backtick template literal
+    /// it produces exactly `value` (no interpolation, preserves backslashes, backticks, etc).
+    fn escape_non_raw_segment(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut chars = s.chars().peekable();
+        while let Some(c) = chars.next() {
+            match c {
+                '\\' => out.push_str(r"\\"),
+                '\0' => out.push_str(r"\u0000"),
+                '`' => out.push_str(r"\`"),
+                '$' => {
+                    // Lookahead for `{` to escape interpolation start
+                    if matches!(chars.peek(), Some('{')) {
+                        out.push_str(r"\${");
+                        chars.next(); // Consume '{'
+                    } else {
+                        out.push('$');
+                    }
+                }
+                _ => out.push(c),
+            }
+        }
+        out
+    }
+
+    /// For raw segments: prevent interpolation (`${ ... }`) by escaping the `$`.
+    fn escape_raw_segment(s: &str) -> String {
+        s.replace("${", r"\${")
+    }
+
+    /// Handle the odd-number-of-trailing-backslashes issue for a raw segment.
+    /// Returns one or two pieces: the main String.raw`` piece, and optionally a separate '\\' literal.
+    fn format_raw_segment_parts(s: &str) -> Vec<String> {
+        let escaped = escape_raw_segment(s);
+
+        // Count trailing backslashes in the escaped segment
+        let mut num_trailing_backslashes = 0;
+        for &byte in escaped.as_bytes().iter().rev() {
+            if byte == b'\\' {
+                num_trailing_backslashes += 1;
+            } else {
+                break;
+            }
+        }
+
+        let mut parts = Vec::new();
+        if num_trailing_backslashes % 2 == 1 {
+            // Strip one backslash so the template literal doesn't end with an unescaped backslash.
+            let trimmed = &escaped[..escaped.len() - 1];
+            parts.push(format!("String.raw`{trimmed}`"));
+            // Append the stripped backslash as a normal string literal.
+            parts.push(r"'\\'".to_string());
+        } else {
+            parts.push(format!("String.raw`{escaped}`"));
+        }
+        parts
+    }
+
+    if is_raw {
+        // Split on backtick to avoid embedding unescaped backticks.
+        let split: Vec<&str> = value.split('`').collect();
+        let mut pieces: Vec<String> = Vec::new();
+
+        for (i, segment) in split.iter().enumerate() {
+            let mut seg_parts = format_raw_segment_parts(segment);
+            pieces.append(&mut seg_parts);
+            if i != split.len() - 1 {
+                // Insert a literal backtick between raw pieces
+                pieces.push("'`'".to_string());
+            }
+        }
+
+        if pieces.is_empty() {
+            "String.raw``".to_string()
+        } else {
+            pieces.join(" + ")
+        }
+    } else {
+        // Non-raw: single template literal, escape backticks, backslashes, and interpolation.
+        let escaped = escape_non_raw_segment(value);
+        format!("`{}`", escaped)
+    }
 }

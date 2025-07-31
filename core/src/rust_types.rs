@@ -103,6 +103,10 @@ impl PartialEq for RustConst {
 pub enum RustConstExpr {
     /// Expression represents an integer.
     Int(i128),
+    String {
+        value: String,
+        is_raw: bool,
+    },
 }
 
 /// Rust type alias.
