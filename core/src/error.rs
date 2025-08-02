@@ -7,9 +7,9 @@ use thiserror::Error;
 /// Wrapper for a parse error which includes a span.
 pub struct ParseErrorWithSpan {
     /// Parse error
-    pub error: ParseError,
+    error: ParseError,
     /// Span
-    pub span: Span,
+    span: Span,
 }
 
 impl std::error::Error for ParseErrorWithSpan {}

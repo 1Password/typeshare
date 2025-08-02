@@ -24,7 +24,7 @@ pub fn process_input(
             file_path: "file_path".into(),
         },
     )
-    .map_err(|err| err.error)?
+    .map_err(|err| anyhow!("Failed to parse {err}"))?
     .unwrap();
 
     if !parsed_data.errors.is_empty() {
