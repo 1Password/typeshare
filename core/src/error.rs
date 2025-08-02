@@ -18,7 +18,7 @@ impl std::fmt::Display for ParseErrorWithSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}, line {}, column {}",
+            "{}, on line {} and column {}",
             self.error,
             self.span.start().line,
             self.span.start().column

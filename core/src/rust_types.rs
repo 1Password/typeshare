@@ -317,7 +317,7 @@ impl Display for SpecialRustType {
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum RustTypeParseError {
-    #[error("Unsupported type: {}", .0.iter().join(","))]
+    #[error("Unsupported type: \"{}\"", .0.iter().join(","))]
     UnsupportedType(Vec<String>),
     #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
     UnexpectedToken(String),
