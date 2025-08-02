@@ -1,15 +1,18 @@
 //! Source file parsing.
+use anyhow::anyhow;
 use anyhow::Context;
 use crossbeam::channel::bounded;
 use ignore::{DirEntry, WalkBuilder, WalkState};
+use std::borrow::Cow;
 use std::{
     collections::{BTreeMap, HashMap},
     mem, thread,
 };
 use typeshare_core::{
     context::{ParseContext, ParseFileContext},
+    error::ParseErrorWithSpan,
     language::{CrateName, CrateTypes, SupportedLanguage, SINGLE_FILE_CRATE_NAME},
-    parser::{ParseError, ParsedData},
+    parser::ParsedData,
     RenameExt,
 };
 
@@ -80,23 +83,49 @@ pub fn all_types(file_mappings: &mut BTreeMap<CrateName, ParsedData>) -> CrateTy
         )
 }
 
+#[derive(Debug)]
+enum ParseDirError {
+    IO(String),
+    ParseError(ParseErrorWithSpan),
+}
+
+impl From<ParseErrorWithSpan> for ParseDirError {
+    fn from(value: ParseErrorWithSpan) -> Self {
+        Self::ParseError(value)
+    }
+}
+
+impl std::error::Error for ParseDirError {}
+
+impl std::fmt::Display for ParseDirError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match &self {
+            ParseDirError::IO(s) => Cow::Borrowed(s),
+            ParseDirError::ParseError(parse_error_with_span) => {
+                Cow::Owned(parse_error_with_span.to_string())
+            }
+        };
+        write!(f, "{s}")
+    }
+}
+
 fn parse_dir_entry(
     parse_context: &ParseContext,
     language_type: SupportedLanguage,
     dir_entry: &DirEntry,
-) -> Result<Option<ParsedData>, ParseError> {
+) -> Result<Option<ParsedData>, ParseDirError> {
     if dir_entry.path().is_dir() {
         return Ok(None);
     }
 
     let Some(parse_file_context) =
         parse_file_context(parse_context.multi_file, language_type, dir_entry)
-            .map_err(|err| ParseError::IOError(err.to_string()))?
+            .map_err(|err| ParseDirError::IO(err.to_string()))?
     else {
         return Ok(None);
     };
 
-    typeshare_core::parser::parse(parse_context, parse_file_context)
+    typeshare_core::parser::parse(parse_context, parse_file_context).map_err(Into::into)
 }
 
 /// Use parallel builder to walk all source directories concurrently.
@@ -126,7 +155,7 @@ pub fn parallel_parse(
         Box::new(move |result| {
             let result = result.context("Failed traversing").and_then(|dir_entry| {
                 parse_dir_entry(parse_context, language_type, &dir_entry)
-                    .with_context(|| format!("Parsing failed: {:?}", dir_entry.path()))
+                    .map_err(|err| anyhow!("Parsing failed: {:?},  {err}", dir_entry.path()))
             });
             match result {
                 Ok(Some(parsed_data)) => {

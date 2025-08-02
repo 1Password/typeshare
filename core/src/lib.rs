@@ -3,6 +3,7 @@
 use thiserror::Error;
 
 pub mod context;
+pub mod error;
 /// Implementations for each language converter
 pub mod language;
 /// Parsing Rust code into a format the `language` modules can understand
@@ -21,7 +22,7 @@ pub use rename::RenameExt;
 #[allow(missing_docs)]
 pub enum ProcessInputError {
     #[error("a parsing error occurred: {0}")]
-    ParseError(#[from] parser::ParseError),
+    ParseError(#[from] error::ParseError),
     #[error("a type generation error occurred: {0}")]
     IoError(#[from] std::io::Error),
 }

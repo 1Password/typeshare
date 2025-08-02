@@ -1,11 +1,14 @@
+use itertools::Itertools;
 use quote::ToTokens;
 use std::collections::BTreeSet;
 use std::fmt::Display;
 use std::str::FromStr;
 use std::{collections::HashMap, convert::TryFrom};
+use syn::spanned::Spanned;
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
+use crate::error::{rust_type_parse_err, ParseErrorWithSpan};
 use crate::language::SupportedLanguage;
 use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
@@ -314,7 +317,7 @@ impl Display for SpecialRustType {
 #[derive(Debug, Error)]
 #[allow(missing_docs)]
 pub enum RustTypeParseError {
-    #[error("{0:?}")]
+    #[error("Unsupported type: {}", .0.iter().join(","))]
     UnsupportedType(Vec<String>),
     #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
     UnexpectedToken(String),
@@ -325,24 +328,30 @@ pub enum RustTypeParseError {
 }
 
 impl FromStr for RustType {
-    type Err = RustTypeParseError;
+    type Err = ParseErrorWithSpan;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let syn_type =
-            syn::parse_str(s).map_err(|_| RustTypeParseError::UnsupportedType(vec![]))?;
+        let syn_type = syn::parse_str(s).map_err(|err| {
+            rust_type_parse_err(RustTypeParseError::UnsupportedType(Vec::new()), err.span())
+        })?;
         Self::try_from(&syn_type)
     }
 }
 
 impl TryFrom<&syn::Type> for RustType {
-    type Error = RustTypeParseError;
+    type Error = ParseErrorWithSpan;
 
     fn try_from(ty: &syn::Type) -> Result<Self, Self::Error> {
         Ok(match ty {
             syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
                 Self::Special(SpecialRustType::Unit)
             }
-            syn::Type::Tuple(_) => return Err(RustTypeParseError::UnexpectedParameterizedTuple),
+            syn::Type::Tuple(tt) => {
+                return Err(rust_type_parse_err(
+                    RustTypeParseError::UnexpectedParameterizedTuple,
+                    tt.span(),
+                ));
+            }
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
                 let segment = path.path.segments.iter().next_back().unwrap();
@@ -388,7 +397,11 @@ impl TryFrom<&syn::Type> for RustType {
                     "u32" => Self::Special(SpecialRustType::U32),
                     "U53" => Self::Special(SpecialRustType::U53),
                     "u64" | "i64" | "usize" | "isize" => {
-                        return Err(RustTypeParseError::UnsupportedType(vec![id]))
+                        let span = path.span();
+                        return Err(rust_type_parse_err(
+                            RustTypeParseError::UnsupportedType(vec![id]),
+                            span,
+                        ));
                     }
                     "i8" => Self::Special(SpecialRustType::I8),
                     "i16" => Self::Special(SpecialRustType::I16),
@@ -415,9 +428,10 @@ impl TryFrom<&syn::Type> for RustType {
                 ..
             }) => Self::Special(SpecialRustType::Array(
                 Self::try_from(elem.as_ref())?.into(),
-                count
-                    .base10_parse()
-                    .map_err(RustTypeParseError::NumericLiteral)?,
+                count.base10_parse().map_err(|err| {
+                    let span = err.span();
+                    rust_type_parse_err(RustTypeParseError::NumericLiteral(err), span)
+                })?,
             )),
             syn::Type::Slice(TypeSlice {
                 bracket_token: _,
@@ -425,9 +439,10 @@ impl TryFrom<&syn::Type> for RustType {
             }) => Self::Special(SpecialRustType::Slice(
                 Self::try_from(elem.as_ref())?.into(),
             )),
-            _ => {
-                return Err(RustTypeParseError::UnexpectedToken(
-                    ty.to_token_stream().to_string(),
+            ty => {
+                return Err(rust_type_parse_err(
+                    RustTypeParseError::UnexpectedToken(ty.to_token_stream().to_string()),
+                    ty.span(),
                 ))
             }
         })

@@ -1,5 +1,6 @@
 use crate::{
-    parser::{ParseError, ParsedData},
+    error::ParseError,
+    parser::ParsedData,
     rust_types::{
         Id, RustConst, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
         RustTypeFormatError, SpecialRustType,
