@@ -61,7 +61,7 @@ mod blocklisted_types {
         .unwrap_err();
         assert_eq!(
             error.to_string(),
-            format!("Failed to parse a rust type: Unsupported type: \"{blocklisted_type}\", on line 5 and column {column}")
+            format!("Failed to parse a Rust type: Unsupported type: \"{blocklisted_type}\", on line 5 and column {column}")
         );
     }
 

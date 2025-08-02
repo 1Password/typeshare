@@ -32,7 +32,7 @@ impl std::fmt::Display for ParseErrorWithSpan {
 pub enum ParseError {
     #[error("{0}")]
     SynError(#[from] syn::Error),
-    #[error("Failed to parse a rust type: {0}")]
+    #[error("Failed to parse a Rust type: {0}")]
     RustTypeParseError(#[from] RustTypeParseError),
     #[error("Unsupported language encountered: {0}")]
     UnsupportedLanguage(String),
