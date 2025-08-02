@@ -121,17 +121,7 @@ fn check(
     })?
     .unwrap();
 
-    let all_crates: CrateName = String::new().into()
-        
-        
-        
-        
-        
-        
-        
-        
-        
-;
+    let all_crates: CrateName = String::new().into();
 
     let mut map = BTreeMap::from_iter([(all_crates.clone(), parsed_data)]);
     reconcile_aliases(&mut map);
