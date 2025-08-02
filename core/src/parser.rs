@@ -167,10 +167,8 @@ pub fn parse(
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);
     import_visitor.visit_file(&syn::parse_file(&source_code).map_err(|err| {
-        ParseErrorWithSpan {
-            span: err.span(),
-            error: ParseError::from(err),
-        }
+        let span = err.span();
+        ParseError::from(err).with_span(span)
     })?);
 
     Ok(import_visitor.parsed_data())
@@ -227,13 +225,9 @@ pub(crate) fn parse_struct(
                         RustType::try_from(&f.ty)?
                     };
 
-                    if serde_flatten(&f.attrs) {
-                        let span = f.span();
-                        return Err(ParseErrorWithSpan {
-                            error: ParseError::SerdeFlattenNotAllowed,
-                            span,
-                        });
-                    }
+                    ParseError::ensure(!serde_flatten(&f.attrs), || {
+                        ParseError::SerdeFlattenNotAllowed.with_span(f.span())
+                    })?;
 
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
@@ -260,11 +254,7 @@ pub(crate) fn parse_struct(
         // Tuple structs
         Fields::Unnamed(f) => {
             if f.unnamed.len() > 1 {
-                let span = f.span();
-                return Err(ParseErrorWithSpan {
-                    error: ParseError::ComplexTupleStruct,
-                    span,
-                });
+                return Err(ParseError::ComplexTupleStruct.with_span(f.span()));
             }
             let f = &f.unnamed[0];
 
@@ -373,22 +363,16 @@ pub(crate) fn parse_enum(
     {
         // All enum variants are unit-type
         if maybe_tag_key.is_some() {
-            let span = e.span();
-            return Err(ParseErrorWithSpan {
-                error: ParseError::SerdeTagNotAllowed {
-                    enum_ident: original_enum_ident,
-                },
-                span,
-            });
+            return Err(ParseError::SerdeTagNotAllowed {
+                enum_ident: original_enum_ident,
+            }
+            .with_span(e.span()));
         }
         if maybe_content_key.is_some() {
-            let span = e.span();
-            return Err(ParseErrorWithSpan {
-                error: ParseError::SerdeContentNotAllowed {
-                    enum_ident: original_enum_ident,
-                },
-                span,
-            });
+            return Err(ParseError::SerdeContentNotAllowed {
+                enum_ident: original_enum_ident,
+            }
+            .with_span(e.span()));
         }
 
         Ok(RustItem::Enum(RustEnum::Unit(shared)))
@@ -396,22 +380,16 @@ pub(crate) fn parse_enum(
         // At least one enum variant is either a tuple or an anonymous struct
 
         let tag_key = maybe_tag_key.ok_or_else(|| {
-            let span = e.span();
-            ParseErrorWithSpan {
-                error: ParseError::SerdeTagRequired {
-                    enum_ident: original_enum_ident.clone(),
-                },
-                span,
+            ParseError::SerdeTagRequired {
+                enum_ident: original_enum_ident.clone(),
             }
+            .with_span(e.span())
         })?;
         let content_key = maybe_content_key.ok_or_else(|| {
-            let span = e.span();
-            ParseErrorWithSpan {
-                error: ParseError::SerdeContentRequired {
-                    enum_ident: original_enum_ident.clone(),
-                },
-                span,
+            ParseError::SerdeContentRequired {
+                enum_ident: original_enum_ident.clone(),
             }
+            .with_span(e.span())
         })?;
 
         Ok(RustItem::Enum(RustEnum::Algebraic {
@@ -444,11 +422,9 @@ fn parse_enum_variant(
         syn::Fields::Unit => Ok(RustEnumVariant::Unit(shared)),
         syn::Fields::Unnamed(associated_type) => {
             if associated_type.unnamed.len() > 1 {
-                let span = associated_type.span();
-                return Err(ParseErrorWithSpan {
-                    error: ParseError::MultipleUnnamedAssociatedTypes,
-                    span,
-                });
+                return Err(
+                    ParseError::MultipleUnnamedAssociatedTypes.with_span(associated_type.span())
+                );
             }
 
             let first_field = associated_type.unnamed.first().unwrap();
@@ -535,20 +511,12 @@ pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseErrorWithSpan>
         RustType::Special(SpecialRustType::HashMap(_, _))
         | RustType::Special(SpecialRustType::Vec(_))
         | RustType::Special(SpecialRustType::Option(_)) => {
-            let span = c.span();
-            return Err(ParseErrorWithSpan {
-                error: ParseError::RustConstTypeInvalid,
-                span,
-            });
+            return Err(ParseError::RustConstTypeInvalid.with_span(c.span()));
         }
         RustType::Special(_) => (),
         RustType::Simple { .. } => (),
         _ => {
-            let span = c.span();
-            return Err(ParseErrorWithSpan {
-                error: ParseError::RustConstTypeInvalid,
-                span,
-            });
+            return Err(ParseError::RustConstTypeInvalid.with_span(c.span()));
         }
     };
 
@@ -581,22 +549,14 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseErrorWithSpan> {
             };
 
             self.0
-                .replace(check_literal_type().map_err(|err| ParseErrorWithSpan {
-                    error: err,
-                    span: el.span(),
-                }));
+                .replace(check_literal_type().map_err(|err| err.with_span(el.span())));
         }
     }
     let mut expr_visitor = ExprLitVisitor(None);
     syn::visit::visit_expr(&mut expr_visitor, e);
-    expr_visitor.0.ok_or_else(|| {
-        let span = e.span();
-
-        ParseErrorWithSpan {
-            error: ParseError::RustConstTypeInvalid,
-            span,
-        }
-    })?
+    expr_visitor
+        .0
+        .ok_or_else(|| ParseError::RustConstTypeInvalid.with_span(e.span()))?
 }
 
 // Helpers

@@ -8,7 +8,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
-use crate::error::{rust_type_parse_err, ParseErrorWithSpan};
+use crate::error::ParseErrorWithSpan;
 use crate::language::SupportedLanguage;
 use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
@@ -331,9 +331,8 @@ impl FromStr for RustType {
     type Err = ParseErrorWithSpan;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let syn_type = syn::parse_str(s).map_err(|err| {
-            rust_type_parse_err(RustTypeParseError::UnsupportedType(Vec::new()), err.span())
-        })?;
+        let syn_type = syn::parse_str(s)
+            .map_err(|err| RustTypeParseError::UnsupportedType(Vec::new()).with_span(err.span()))?;
         Self::try_from(&syn_type)
     }
 }
@@ -347,10 +346,7 @@ impl TryFrom<&syn::Type> for RustType {
                 Self::Special(SpecialRustType::Unit)
             }
             syn::Type::Tuple(tt) => {
-                return Err(rust_type_parse_err(
-                    RustTypeParseError::UnexpectedParameterizedTuple,
-                    tt.span(),
-                ));
+                return Err(RustTypeParseError::UnexpectedParameterizedTuple.with_span(tt.span()))
             }
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
@@ -397,11 +393,9 @@ impl TryFrom<&syn::Type> for RustType {
                     "u32" => Self::Special(SpecialRustType::U32),
                     "U53" => Self::Special(SpecialRustType::U53),
                     "u64" | "i64" | "usize" | "isize" => {
-                        let span = path.span();
-                        return Err(rust_type_parse_err(
-                            RustTypeParseError::UnsupportedType(vec![id]),
-                            span,
-                        ));
+                        return Err(
+                            RustTypeParseError::UnsupportedType(vec![id]).with_span(path.span())
+                        );
                     }
                     "i8" => Self::Special(SpecialRustType::I8),
                     "i16" => Self::Special(SpecialRustType::I16),
@@ -430,7 +424,7 @@ impl TryFrom<&syn::Type> for RustType {
                 Self::try_from(elem.as_ref())?.into(),
                 count.base10_parse().map_err(|err| {
                     let span = err.span();
-                    rust_type_parse_err(RustTypeParseError::NumericLiteral(err), span)
+                    RustTypeParseError::NumericLiteral(err).with_span(span)
                 })?,
             )),
             syn::Type::Slice(TypeSlice {
@@ -440,10 +434,10 @@ impl TryFrom<&syn::Type> for RustType {
                 Self::try_from(elem.as_ref())?.into(),
             )),
             ty => {
-                return Err(rust_type_parse_err(
-                    RustTypeParseError::UnexpectedToken(ty.to_token_stream().to_string()),
-                    ty.span(),
-                ))
+                return Err(
+                    RustTypeParseError::UnexpectedToken(ty.to_token_stream().to_string())
+                        .with_span(ty.span()),
+                )
             }
         })
     }
