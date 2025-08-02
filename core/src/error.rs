@@ -1,11 +1,15 @@
+//! Error types for parsing.
 use proc_macro2::Span;
 use thiserror::Error;
 
 use crate::rust_types::RustTypeParseError;
 
 #[derive(Debug)]
+/// Wrapper for a parse error which includes a span.
 pub struct ParseErrorWithSpan {
+    /// Parse error
     pub error: ParseError,
+    /// Span
     pub span: Span,
 }
 
@@ -57,6 +61,7 @@ pub enum ParseError {
     IOError(String),
 }
 
+/// Convert a [`RustTypeParseError`] into a [`ParseErrorWithSpan`].
 pub fn rust_type_parse_err(err: RustTypeParseError, span: Span) -> ParseErrorWithSpan {
     ParseErrorWithSpan {
         error: ParseError::RustTypeParseError(err),
