@@ -85,3 +85,11 @@ impl ParseError {
         ParseErrorWithSpan { error: self, span }
     }
 }
+
+#[derive(Debug, Error)]
+/// Errors during file generation.
+pub enum GenerationError {
+    /// The post generation step failed.
+    #[error("Post generation failed: {0}")]
+    PostGeneration(String),
+}

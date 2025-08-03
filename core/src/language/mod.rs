@@ -1,5 +1,5 @@
 use crate::{
-    error::ParseError,
+    error::{GenerationError, ParseError},
     parser::ParsedData,
     rust_types::{
         Id, RustConst, RustEnum, RustEnumVariant, RustItem, RustStruct, RustType, RustTypeAlias,
@@ -7,7 +7,6 @@ use crate::{
     },
     topsort::topsort,
     visitors::ImportedType,
-    GenerationError,
 };
 use itertools::Itertools;
 use log::warn;

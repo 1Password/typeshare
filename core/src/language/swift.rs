@@ -1,4 +1,5 @@
 use crate::{
+    error::GenerationError,
     language::{Language, SupportedLanguage},
     parser::{remove_dash_from_identifier, DecoratorKind, ParsedData},
     rename::RenameExt,
@@ -6,7 +7,6 @@ use crate::{
         DecoratorMap, RustConst, RustEnum, RustEnumVariant, RustStruct, RustTypeAlias,
         RustTypeFormatError, SpecialRustType,
     },
-    GenerationError,
 };
 use itertools::{Either, Itertools};
 use joinery::JoinableIterator;
