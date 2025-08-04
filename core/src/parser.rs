@@ -1,11 +1,12 @@
 use crate::{
     context::{ParseContext, ParseFileContext},
+    error::{ParseError, ParseErrorWithSpan, WithSpan as _},
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
         DecoratorMap, FieldDecorator, Id, RustConst, RustConstExpr, RustEnum, RustEnumShared,
         RustEnumVariant, RustEnumVariantShared, RustField, RustItem, RustStruct, RustType,
-        RustTypeAlias, RustTypeParseError, SpecialRustType,
+        RustTypeAlias, SpecialRustType,
     },
     target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
@@ -19,11 +20,10 @@ use std::{
     ops::AddAssign,
 };
 use syn::{
-    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, visit::Visit, Attribute, Expr,
-    ExprLit, Fields, GenericParam, ItemConst, ItemEnum, ItemStruct, ItemType, Lit, LitStr, Meta,
-    MetaList, MetaNameValue, Token,
+    ext::IdentExt, parse::ParseBuffer, punctuated::Punctuated, spanned::Spanned as _, visit::Visit,
+    Attribute, Expr, ExprLit, Fields, GenericParam, ItemConst, ItemEnum, ItemStruct, ItemType, Lit,
+    LitStr, Meta, MetaList, MetaNameValue, Token,
 };
-use thiserror::Error;
 
 const TYPESHARE: &str = "typeshare";
 const SERDE: &str = "serde";
@@ -50,47 +50,13 @@ impl DecoratorKind {
     }
 }
 
-/// Errors that can occur while parsing Rust source input.
-#[derive(Debug, Error)]
-#[allow(missing_docs)]
-pub enum ParseError {
-    #[error("{0}")]
-    SynError(#[from] syn::Error),
-    #[error("failed to parse a rust type: {0}")]
-    RustTypeParseError(#[from] RustTypeParseError),
-    #[error("unsupported language encountered: {0}")]
-    UnsupportedLanguage(String),
-    #[error("unsupported type encountered: {0}")]
-    UnsupportedType(String),
-    #[error("tuple structs with more than one field are currently unsupported")]
-    ComplexTupleStruct,
-    #[error("multiple unnamed associated types are not currently supported")]
-    MultipleUnnamedAssociatedTypes,
-    #[error("the serde tag attribute is not supported for non-algebraic enums: {enum_ident}")]
-    SerdeTagNotAllowed { enum_ident: String },
-    #[error("the serde content attribute is not supported for non-algebraic enums: {enum_ident}")]
-    SerdeContentNotAllowed { enum_ident: String },
-    #[error("serde tag attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-    SerdeTagRequired { enum_ident: String },
-    #[error("serde content attribute needs to be specified for algebraic enum {enum_ident}. e.g. #[serde(tag = \"type\", content = \"content\")]")]
-    SerdeContentRequired { enum_ident: String },
-    #[error("the expression assigned to this constant variable is not a numeric literal")]
-    RustConstExprInvalid,
-    #[error("you cannot use typeshare on a constant that is not a numeric literal")]
-    RustConstTypeInvalid,
-    #[error("the serde flatten attribute is not currently supported")]
-    SerdeFlattenNotAllowed,
-    #[error("IO error: {0}")]
-    IOError(String),
-}
-
 /// Error with it's related data.
 #[derive(Debug)]
 pub struct ErrorInfo {
     /// The file name being parsed.
     pub file_name: String,
     /// The parse error.
-    pub error: ParseError,
+    pub error: String,
 }
 
 /// The results of parsing Rust source input.
@@ -182,7 +148,7 @@ impl ParsedData {
 pub fn parse(
     parse_context: &ParseContext,
     parse_file_context: ParseFileContext,
-) -> Result<Option<ParsedData>, ParseError> {
+) -> Result<Option<ParsedData>, ParseErrorWithSpan> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
     if !parse_file_context.source_code.contains("#[typeshare") {
@@ -200,7 +166,10 @@ pub fn parse(
     // Parse and process the input, ensuring we parse only items marked with
     // `#[typeshare]`
     let mut import_visitor = TypeShareVisitor::new(parse_context, crate_name, file_name, file_path);
-    import_visitor.visit_file(&syn::parse_file(&source_code)?);
+    import_visitor.visit_file(&syn::parse_file(&source_code).map_err(|err| {
+        let span = err.span();
+        ParseError::from(err).with_span(span)
+    })?);
 
     Ok(import_visitor.parsed_data())
 }
@@ -210,7 +179,10 @@ pub fn parse(
 ///
 /// This function can currently return something other than a struct, which is a
 /// hack.
-pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_struct(
+    s: &ItemStruct,
+    target_os: &[String],
+) -> Result<RustItem, ParseErrorWithSpan> {
     let serde_rename_all = serde_rename_all(&s.attrs);
 
     let generic_types = s
@@ -254,9 +226,8 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
                     };
 
                     if serde_flatten(&f.attrs) {
-                        return Err(ParseError::SerdeFlattenNotAllowed);
+                        return Err(ParseError::SerdeFlattenNotAllowed.with_span(f.span()));
                     }
-
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
 
@@ -268,7 +239,7 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
                         decorators,
                     })
                 })
-                .collect::<Result<_, ParseError>>()?;
+                .collect::<Result<_, ParseErrorWithSpan>>()?;
 
             RustItem::Struct(RustStruct {
                 id: get_ident(Some(&s.ident), &s.attrs, &None),
@@ -282,7 +253,7 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
         // Tuple structs
         Fields::Unnamed(f) => {
             if f.unnamed.len() > 1 {
-                return Err(ParseError::ComplexTupleStruct);
+                return Err(ParseError::ComplexTupleStruct.with_span(f.span()));
             }
             let f = &f.unnamed[0];
 
@@ -318,7 +289,10 @@ pub(crate) fn parse_struct(s: &ItemStruct, target_os: &[String]) -> Result<RustI
 ///
 /// This function can currently return something other than an enum, which is a
 /// hack.
-pub(crate) fn parse_enum(e: &ItemEnum, target_os: &[String]) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_enum(
+    e: &ItemEnum,
+    target_os: &[String],
+) -> Result<RustItem, ParseErrorWithSpan> {
     let generic_types = e
         .generics
         .params
@@ -390,23 +364,31 @@ pub(crate) fn parse_enum(e: &ItemEnum, target_os: &[String]) -> Result<RustItem,
         if maybe_tag_key.is_some() {
             return Err(ParseError::SerdeTagNotAllowed {
                 enum_ident: original_enum_ident,
-            });
+            }
+            .with_span(e.span()));
         }
         if maybe_content_key.is_some() {
             return Err(ParseError::SerdeContentNotAllowed {
                 enum_ident: original_enum_ident,
-            });
+            }
+            .with_span(e.span()));
         }
 
         Ok(RustItem::Enum(RustEnum::Unit(shared)))
     } else {
         // At least one enum variant is either a tuple or an anonymous struct
 
-        let tag_key = maybe_tag_key.ok_or_else(|| ParseError::SerdeTagRequired {
-            enum_ident: original_enum_ident.clone(),
+        let tag_key = maybe_tag_key.ok_or_else(|| {
+            ParseError::SerdeTagRequired {
+                enum_ident: original_enum_ident.clone(),
+            }
+            .with_span(e.span())
         })?;
-        let content_key = maybe_content_key.ok_or_else(|| ParseError::SerdeContentRequired {
-            enum_ident: original_enum_ident.clone(),
+        let content_key = maybe_content_key.ok_or_else(|| {
+            ParseError::SerdeContentRequired {
+                enum_ident: original_enum_ident.clone(),
+            }
+            .with_span(e.span())
         })?;
 
         Ok(RustItem::Enum(RustEnum::Algebraic {
@@ -422,7 +404,7 @@ fn parse_enum_variant(
     v: &syn::Variant,
     enum_serde_rename_all: &Option<String>,
     target_os: &[String],
-) -> Result<RustEnumVariant, ParseError> {
+) -> Result<RustEnumVariant, ParseErrorWithSpan> {
     let shared = RustEnumVariantShared {
         id: get_ident(Some(&v.ident), &v.attrs, enum_serde_rename_all),
         comments: parse_comment_attrs(&v.attrs),
@@ -439,7 +421,9 @@ fn parse_enum_variant(
         syn::Fields::Unit => Ok(RustEnumVariant::Unit(shared)),
         syn::Fields::Unnamed(associated_type) => {
             if associated_type.unnamed.len() > 1 {
-                return Err(ParseError::MultipleUnnamedAssociatedTypes);
+                return Err(
+                    ParseError::MultipleUnnamedAssociatedTypes.with_span(associated_type.span())
+                );
             }
 
             let first_field = associated_type.unnamed.first().unwrap();
@@ -475,7 +459,7 @@ fn parse_enum_variant(
                         decorators,
                     })
                 })
-                .collect::<Result<Vec<_>, ParseError>>()?,
+                .collect::<Result<Vec<_>, ParseErrorWithSpan>>()?,
             shared,
         }),
     }
@@ -483,7 +467,7 @@ fn parse_enum_variant(
 
 /// Parses a type alias into a definition that more succinctly represents what
 /// typeshare needs to generate code for other languages.
-pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseErrorWithSpan> {
     let ty = if let Some(ty) = get_serialized_as_type(&t.attrs) {
         ty.parse()?
     } else {
@@ -511,7 +495,7 @@ pub(crate) fn parse_type_alias(t: &ItemType) -> Result<RustItem, ParseError> {
 }
 
 /// Parses a const variant.
-pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
+pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseErrorWithSpan> {
     let expr = parse_const_expr(&c.expr)?;
 
     // serialized_as needs to be supported in case the user wants to use a different type
@@ -526,11 +510,13 @@ pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
         RustType::Special(SpecialRustType::HashMap(_, _))
         | RustType::Special(SpecialRustType::Vec(_))
         | RustType::Special(SpecialRustType::Option(_)) => {
-            return Err(ParseError::RustConstTypeInvalid);
+            return Err(ParseError::RustConstTypeInvalid.with_span(c.span()));
         }
         RustType::Special(_) => (),
         RustType::Simple { .. } => (),
-        _ => return Err(ParseError::RustConstTypeInvalid),
+        _ => {
+            return Err(ParseError::RustConstTypeInvalid.with_span(c.span()));
+        }
     };
 
     Ok(RustItem::Const(RustConst {
@@ -540,8 +526,8 @@ pub(crate) fn parse_const(c: &ItemConst) -> Result<RustItem, ParseError> {
     }))
 }
 
-fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
-    struct ExprLitVisitor(pub Option<Result<RustConstExpr, ParseError>>);
+fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseErrorWithSpan> {
+    struct ExprLitVisitor(pub Option<Result<RustConstExpr, ParseErrorWithSpan>>);
     impl Visit<'_> for ExprLitVisitor {
         fn visit_expr_lit(&mut self, el: &ExprLit) {
             if self.0.is_some() {
@@ -561,14 +547,15 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
                 })
             };
 
-            self.0.replace(check_literal_type());
+            self.0
+                .replace(check_literal_type().map_err(|err| err.with_span(el.span())));
         }
     }
     let mut expr_visitor = ExprLitVisitor(None);
     syn::visit::visit_expr(&mut expr_visitor, e);
     expr_visitor
         .0
-        .unwrap_or(Err(ParseError::RustConstTypeInvalid))
+        .ok_or_else(|| ParseError::RustConstTypeInvalid.with_span(e.span()))?
 }
 
 // Helpers

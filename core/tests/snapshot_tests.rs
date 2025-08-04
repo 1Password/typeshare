@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use anyhow::Context;
 use flexi_logger::DeferredNow;
 use log::Record;
@@ -83,7 +84,7 @@ fn load_file(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
 /// folder if they do not exist.
 fn check(
     test_name: &str,
-    file_name: impl AsRef<Path>,
+    file_name: impl AsRef<Path> + std::fmt::Debug,
     mut lang: Box<dyn Language>,
     target_os: &[&str],
 ) -> Result<(), anyhow::Error> {
@@ -110,10 +111,14 @@ fn check(
         ParseFileContext {
             source_code: rust_input,
             crate_name: "default_crate".into(),
-            file_name: "file_name".into(),
-            file_path: "file_path".into(),
+            file_name: file_name.as_ref().to_string_lossy().to_string(),
+            file_path: file_name.as_ref().into(),
         },
-    )?
+    )
+    .map_err(|err| anyhow!("Parsing failed: {:?},  {err}", file_name))
+    .inspect_err(|err| {
+        eprintln!("Error: {err}");
+    })?
     .unwrap();
 
     let all_crates: CrateName = String::new().into();
@@ -122,6 +127,13 @@ fn check(
     reconcile_aliases(&mut map);
 
     let parsed_data = map.remove(&all_crates).unwrap();
+
+    if !parsed_data.errors.is_empty() {
+        for error in &parsed_data.errors {
+            eprintln!("Parsing failed: {error:?}");
+        }
+        panic!("Errors during parsing");
+    }
 
     lang.generate_types(&mut typeshare_output, &HashMap::new(), parsed_data)?;
 

@@ -7,7 +7,7 @@ description = "The code generator used by Typeshare's command line tool"
 repository = "https://github.com/1Password/typeshare"
 
 [dependencies]
-proc-macro2 = "1"
+proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 syn = { version = "2", features = ["full", "visit"] }
 thiserror = "2"

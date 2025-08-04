@@ -138,7 +138,10 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
 
     check_parse_errors(&parsed_data)?;
 
-    info!("typeshare started writing generated types");
+    info!(
+        "typeshare started writing {} generated types",
+        parsed_data.len()
+    );
 
     write_generated(destination, lang.as_mut(), parsed_data, import_candidates)?;
 

@@ -1,10 +1,11 @@
 //! Visitors to collect various items from the AST.
 use crate::{
     context::ParseContext,
+    error::ParseErrorWithSpan,
     language::CrateName,
     parser::{
         has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
-        ErrorInfo, ParseError, ParsedData,
+        ErrorInfo, ParsedData,
     },
     rust_types::{RustEnumVariant, RustItem},
     target_os_check::accept_target_os,
@@ -83,12 +84,12 @@ impl<'a> TypeShareVisitor<'a> {
     }
 
     #[inline]
-    fn collect_result(&mut self, result: Result<RustItem, ParseError>) {
+    fn collect_result(&mut self, result: Result<RustItem, ParseErrorWithSpan>) {
         match result {
             Ok(data) => self.parsed_data.push(data),
             Err(error) => self.parsed_data.errors.push(ErrorInfo {
                 file_name: self.file_path.to_string_lossy().into_owned(),
-                error,
+                error: error.to_string(),
             }),
         }
     }
