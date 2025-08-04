@@ -60,28 +60,21 @@ pub enum ParseError {
     IOError(String),
 }
 
-impl RustTypeParseError {
-    /// Convert a [`RustTypeParseError`] into a [`ParseErrorWithSpan`].
-    pub fn with_span(self, span: Span) -> ParseErrorWithSpan {
+/// Parse error types that can capture a span and convert
+/// into the top level [ParseErrorWithSpan] type.
+pub trait WithSpan {
+    /// Convert [Self] into a [`ParserErrorWithSpan`].
+    fn with_span(self, span: Span) -> ParseErrorWithSpan;
+}
+
+impl WithSpan for RustTypeParseError {
+    fn with_span(self, span: Span) -> ParseErrorWithSpan {
         ParseError::RustTypeParseError(self).with_span(span)
     }
 }
 
-impl ParseError {
-    /// If a condition is not met then call the error function.
-    pub fn ensure(
-        cond: bool,
-        mut f: impl FnMut() -> ParseErrorWithSpan,
-    ) -> Result<(), ParseErrorWithSpan> {
-        if !cond {
-            Err(f())
-        } else {
-            Ok(())
-        }
-    }
-
-    /// Convert a [`ParseError`] into a [`ParseErrorWithSpan`].
-    pub fn with_span(self, span: Span) -> ParseErrorWithSpan {
+impl WithSpan for ParseError {
+    fn with_span(self, span: Span) -> ParseErrorWithSpan {
         ParseErrorWithSpan { error: self, span }
     }
 }

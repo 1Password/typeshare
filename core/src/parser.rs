@@ -1,6 +1,6 @@
 use crate::{
     context::{ParseContext, ParseFileContext},
-    error::{ParseError, ParseErrorWithSpan},
+    error::{ParseError, ParseErrorWithSpan, WithSpan as _},
     language::{CrateName, SupportedLanguage},
     rename::RenameExt,
     rust_types::{
@@ -225,10 +225,9 @@ pub(crate) fn parse_struct(
                         RustType::try_from(&f.ty)?
                     };
 
-                    ParseError::ensure(!serde_flatten(&f.attrs), || {
-                        ParseError::SerdeFlattenNotAllowed.with_span(f.span())
-                    })?;
-
+                    if serde_flatten(&f.attrs) {
+                        return Err(ParseError::SerdeFlattenNotAllowed.with_span(f.span()));
+                    }
                     let has_default = serde_default(&f.attrs);
                     let decorators = get_field_decorators(&f.attrs);
 

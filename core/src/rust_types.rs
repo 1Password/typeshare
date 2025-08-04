@@ -7,7 +7,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
-use crate::error::{ParseErrorWithSpan, RustTypeParseError};
+use crate::error::{ParseErrorWithSpan, RustTypeParseError, WithSpan as _};
 use crate::language::SupportedLanguage;
 use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
