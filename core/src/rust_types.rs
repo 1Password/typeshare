@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use quote::ToTokens;
 use std::collections::BTreeSet;
 use std::fmt::Display;
@@ -8,7 +7,7 @@ use syn::spanned::Spanned;
 use syn::{Expr, ExprLit, Lit, TypeArray, TypeSlice};
 use thiserror::Error;
 
-use crate::error::ParseErrorWithSpan;
+use crate::error::{ParseErrorWithSpan, RustTypeParseError};
 use crate::language::SupportedLanguage;
 use crate::parser::DecoratorKind;
 use crate::visitors::accept_type;
@@ -312,19 +311,6 @@ impl Display for SpecialRustType {
         };
         write!(f, "{special_type}")
     }
-}
-
-#[derive(Debug, Error)]
-#[allow(missing_docs)]
-pub enum RustTypeParseError {
-    #[error("Unsupported type: \"{}\"", .0.iter().join(","))]
-    UnsupportedType(Vec<String>),
-    #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
-    UnexpectedToken(String),
-    #[error("Tuples are not allowed in typeshare types")]
-    UnexpectedParameterizedTuple,
-    #[error("Could not parse numeric literal")]
-    NumericLiteral(syn::parse::Error),
 }
 
 impl FromStr for RustType {

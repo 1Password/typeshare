@@ -1,5 +1,5 @@
 //! Error types for parsing.
-use crate::rust_types::RustTypeParseError;
+use itertools::Itertools as _;
 use proc_macro2::Span;
 use thiserror::Error;
 
@@ -92,4 +92,17 @@ pub enum GenerationError {
     /// The post generation step failed.
     #[error("Post generation failed: {0}")]
     PostGeneration(String),
+}
+
+#[derive(Debug, Error)]
+#[allow(missing_docs)]
+pub enum RustTypeParseError {
+    #[error("Unsupported type: \"{}\"", .0.iter().join(","))]
+    UnsupportedType(Vec<String>),
+    #[error("Unexpected token when parsing type: `{0}`. This is an internal error, please ping a typeshare developer to resolve this problem.")]
+    UnexpectedToken(String),
+    #[error("Tuples are not allowed in typeshare types")]
+    UnexpectedParameterizedTuple,
+    #[error("Could not parse numeric literal")]
+    NumericLiteral(syn::parse::Error),
 }

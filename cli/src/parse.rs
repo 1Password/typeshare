@@ -3,7 +3,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use crossbeam::channel::bounded;
 use ignore::{DirEntry, WalkBuilder, WalkState};
-use std::borrow::Cow;
 use std::{
     collections::{BTreeMap, HashMap},
     mem, thread,
@@ -99,13 +98,12 @@ impl std::error::Error for ParseDirError {}
 
 impl std::fmt::Display for ParseDirError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match &self {
-            ParseDirError::IO(s) => Cow::Borrowed(s),
+        match &self {
+            ParseDirError::IO(s) => f.write_str(s),
             ParseDirError::ParseError(parse_error_with_span) => {
-                Cow::Owned(parse_error_with_span.to_string())
+                write!(f, "{parse_error_with_span}")
             }
-        };
-        write!(f, "{s}")
+        }
     }
 }
 
