@@ -203,7 +203,7 @@ impl Language for Go {
     }
 
     fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
-        match c.expr {
+        match &c.expr {
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
@@ -214,6 +214,19 @@ impl Language for Go {
                     c.id.renamed.to_pascal_case(),
                     const_type,
                     val
+                )
+            }
+            RustConstExpr::String { value, is_raw } => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(std::io::Error::other)?;
+                let literal = make_go_string_literal(value, *is_raw);
+                writeln!(
+                    w,
+                    "const {} {} = {}",
+                    c.id.renamed.to_pascal_case(),
+                    const_type,
+                    literal,
                 )
             }
         }
@@ -577,6 +590,55 @@ fn convert_acronyms_to_uppercase(uppercase_acronyms: Vec<String>, name: &str) ->
         }
     }
     res
+}
+
+fn make_go_string_literal(value: &str, is_raw: bool) -> String {
+    /// Escape for Go interpreted string literal (double-quoted).
+    fn escape_interpreted(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        for c in s.chars() {
+            match c {
+                // Replace supported (recognizable) escape sequences + escape double quotes
+                '\\' => out.push_str(r"\\"),
+                '"' => out.push_str(r#"\""#),
+                '\n' => out.push_str(r"\n"),
+                '\r' => out.push_str(r"\r"),
+                '\t' => out.push_str(r"\t"),
+                '\x07' => out.push_str(r"\a"),
+                '\x08' => out.push_str(r"\b"),
+                '\x0c' => out.push_str(r"\f"),
+                '\x0b' => out.push_str(r"\v"),
+                c if (c as u32) < 0x20 => {
+                    // Other control characters
+                    out.push_str(&format!(r"\x{:02x}", c as u32));
+                }
+                _ => out.push(c),
+            }
+        }
+        format!(r#""{out}""#)
+    }
+
+    if is_raw {
+        // Raw string literal using backticks. Backticks inside the string literal are handled with concatenation.
+        let split: Vec<&str> = value.split('`').collect();
+        let mut pieces: Vec<String> = Vec::new();
+        for (i, segment) in split.iter().enumerate() {
+            pieces.push(format!("`{}`", segment));
+            if i != split.len() - 1 {
+                // Insert a literal backtick between raw pieces
+                pieces.push(r#""`""#.to_string());
+            }
+        }
+
+        if pieces.is_empty() {
+            "``".to_string()
+        } else {
+            pieces.join(" + ")
+        }
+    } else {
+        // Interpreted string: escape the input and return
+        escape_interpreted(value)
+    }
 }
 
 mod test {
