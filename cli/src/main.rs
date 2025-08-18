@@ -236,6 +236,8 @@ fn language(
         SupportedLanguage::Python => {
             panic!("python support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
+        SupportedLanguage::C => Box::new(C::default()),
+        SupportedLanguage::Cpp => Box::new(Cpp::default()),
     }
 }
 

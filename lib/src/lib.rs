@@ -9,3 +9,6 @@ pub use integer::{usize_from_u53_saturated, I54, U53};
 // TODO: Expose and use this module's functionality.
 #[allow(dead_code)]
 mod json_date;
+
+#[cfg(test)]
+mod c_cpp_test;
