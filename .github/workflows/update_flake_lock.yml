@@ -1,0 +1,26 @@
+name: "Check for updates to Nix flake.lock file"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # runs weekly on Sunday at midnight
+
+jobs:
+  nix-flake-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/determinate-nix-action@v3
+      - uses: DeterminateSystems/update-flake-lock@main
+        with:
+          pr-title: "Update flake.lock file with latest versions"
+          pr-labels: |
+            dependencies
+            automated
+          git-author-name: ${{ secrets.OP_BOT_COMMIT_NAME }}
+          git-author-email: ${{ secrets.OP_BOT_COMMIT_EMAIL }}
+          git-committer-name: ${{ secrets.OP_BOT_COMMIT_NAME }}
+          git-committer-email: ${{ secrets.OP_BOT_COMMIT_EMAIL }}
+          sign-commits: true
+          gpg-private-key: ${{ secrets.OP_BOT_GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.OP_BOT_GPG_PASSPHRASE }}
