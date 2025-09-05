@@ -12,6 +12,8 @@ pub enum AvailableLanguage {
     Go,
     #[cfg(feature = "python")]
     Python,
+    C,
+    Cpp,
 }
 
 #[derive(clap::Parser)]
