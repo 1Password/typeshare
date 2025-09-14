@@ -2,13 +2,12 @@ use anyhow::anyhow;
 use anyhow::Context;
 use flexi_logger::DeferredNow;
 use log::Record;
-use once_cell::sync::Lazy;
 use std::{
     collections::{BTreeMap, HashMap},
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Once,
+    sync::{LazyLock, Once},
 };
 use typeshare_core::{
     context::{ParseContext, ParseFileContext},
@@ -16,8 +15,8 @@ use typeshare_core::{
     reconcile::reconcile_aliases,
 };
 
-static TESTS_FOLDER_PATH: Lazy<PathBuf> =
-    Lazy::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
+static TESTS_FOLDER_PATH: LazyLock<PathBuf> =
+    LazyLock::new(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/tests"));
 
 static INIT: Once = Once::new();
 
@@ -414,28 +413,28 @@ macro_rules! tests {
     )*};
 }
 
-static KOTLIN_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static KOTLIN_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [("Url", "String"), ("DateTime", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
-static SCALA_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static SCALA_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [("Url", "String"), ("DateTime", "String")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
-static SWIFT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static SWIFT_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [("Url", "String"), ("DateTime", "Date")]
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 });
 
-static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static TYPESCRIPT_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [
         ("Url", "string"),
         ("DateTime", "string"),
@@ -446,7 +445,7 @@ static TYPESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     .collect()
 });
 
-static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static GO_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [
         ("Url", "string"),
         ("DateTime", "string"),
@@ -457,7 +456,7 @@ static GO_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     .collect()
 });
 
-static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+static PYTHON_MAPPINGS: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     [
         ("Url", "AnyUrl"),
         ("DateTime", "datetime"),
