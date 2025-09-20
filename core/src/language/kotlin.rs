@@ -95,6 +95,7 @@ impl Language for Kotlin {
                     special_ty.to_string(),
                 ))
             }
+            SpecialRustType::U128 => "BigInteger".into(),
         })
     }
 

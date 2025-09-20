@@ -16,6 +16,7 @@ lazy_format = "2"
 joinery = "3.1"
 topological-sort = { version = "0.2.2" }
 convert_case = { version = "0.8" }
+toml = "0.9"
 log.workspace = true
 flexi_logger.workspace = true
 

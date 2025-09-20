@@ -87,16 +87,26 @@ jobs:
         include:
         - os: ubuntu-20.04
           dist-args: --artifacts=global
+          target: ''
           install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
-        - os: macos-11
-          dist-args: --artifacts=local --target=aarch64-apple-darwin --target=x86_64-apple-darwin
-          install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
+        # Since we don't have a macos-11 runner, we will build manually on mac and upload
+        # - os: macos-11
+        #   dist-args: --artifacts=local --target=aarch64-apple-darwin --target=x86_64-apple-darwin
+        #   target: 'aarch64-apple-darwin x86_64-apple-darwin'
+        #   install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
         - os: ubuntu-20.04
           dist-args: --artifacts=local --target=x86_64-unknown-linux-gnu
+          target: 'x86_64-unknown-linux-gnu'
           install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
-        - os: windows-2019
-          dist-args: --artifacts=local --target=x86_64-pc-windows-msvc
-          install-dist: irm  https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.ps1 | iex
+        - os: ubuntu-20.04
+          dist-args: --artifacts=local --target=aarch64-unknown-linux-gnu
+          target: 'aarch64-unknown-linux-gnu'
+          install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh  
+        # We don't care for windows right now
+        # - os: windows-2019
+        #   dist-args: --artifacts=local --target=x86_64-pc-windows-msvc
+        #   target: 'x86_64-pc-windows-msvc'
+        #   install-dist: irm  https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.ps1 | iex
 
     runs-on: ${{ matrix.os }}
     env:
@@ -108,22 +118,13 @@ jobs:
       - name: Install cargo-dist
         run: ${{ matrix.install-dist }}
       - name: Run cargo-dist
+        if: ${{ matrix.target != '' }}
         # This logic is a bit janky because it's trying to be a polyglot between
         # powershell and bash since this will run on windows, macos, and linux!
         # The two platforms don't agree on how to talk about env vars but they
         # do agree on 'cat' and '$()' so we use that to marshal values between commands.
         run: |
-          # Actually do builds and make zips and whatnot
-          cargo dist build --tag=${{ github.ref_name }} --output-format=json ${{ matrix.dist-args }} > dist-manifest.json
-          echo "dist ran successfully"
-          cat dist-manifest.json
-
-          # Parse out what we just built and upload it to the Github Release™
-          cat dist-manifest.json | jq --raw-output ".artifacts[]?.path | select( . != null )" > uploads.txt
-          echo "uploading..."
-          cat uploads.txt
-          gh release upload ${{ github.ref_name }} $(cat uploads.txt)
-          echo "uploaded!"
+          scripts/build.sh --target "${{ matrix.target }}" --version "${{ github.ref_name }}"
 
   # Mark the Github Release™ as a non-draft now that everything has succeeded!
   publish-release:

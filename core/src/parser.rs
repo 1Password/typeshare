@@ -378,18 +378,8 @@ pub(crate) fn parse_enum(
     } else {
         // At least one enum variant is either a tuple or an anonymous struct
 
-        let tag_key = maybe_tag_key.ok_or_else(|| {
-            ParseError::SerdeTagRequired {
-                enum_ident: original_enum_ident.clone(),
-            }
-            .with_span(e.span())
-        })?;
-        let content_key = maybe_content_key.ok_or_else(|| {
-            ParseError::SerdeContentRequired {
-                enum_ident: original_enum_ident.clone(),
-            }
-            .with_span(e.span())
-        })?;
+        let tag_key = maybe_tag_key.unwrap_or_default();
+        let content_key = maybe_content_key.unwrap_or_default();
 
         Ok(RustItem::Enum(RustEnum::Algebraic {
             tag_key,

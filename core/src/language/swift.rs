@@ -221,6 +221,7 @@ impl Language for Swift {
                     special_ty.to_string(),
                 ))
             }
+            SpecialRustType::U128 => "UInt128".into(),
         })
     }
 

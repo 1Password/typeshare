@@ -162,6 +162,7 @@ impl Language for Go {
             SpecialRustType::U32 => "uint32".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "int64".into(),
             SpecialRustType::U53 | SpecialRustType::U64 => "uint64".into(),
+            SpecialRustType::U128 => "uint128".into(),
             SpecialRustType::Bool => "bool".into(),
             SpecialRustType::F32 => "float32".into(),
             SpecialRustType::F64 => "float64".into(),

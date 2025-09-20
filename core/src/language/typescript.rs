@@ -131,9 +131,8 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             SpecialRustType::U64
             | SpecialRustType::I64
             | SpecialRustType::ISize
-            | SpecialRustType::USize => {
-                panic!("64 bit types not allowed in Typeshare")
-            }
+            | SpecialRustType::U128
+            | SpecialRustType::USize => Ok("number".into()),
         }
     }
 
@@ -254,7 +253,7 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
         imports: ScopedCrateTypes<'_>,
     ) -> std::io::Result<()> {
         for (path, ty) in imports {
-            write!(w, "import {{ ")?;
+            write!(w, "import type {{ ")?;
             let ty_list = ty.iter().join(", ");
             write!(w, "{ty_list}")?;
             writeln!(w, " }} from \"./{path}\";")?;
@@ -291,36 +290,63 @@ impl TypeScript {
                 writeln!(w)?;
                 self.write_comments(w, 1, &v.shared().comments)?;
                 match v {
-                    RustEnumVariant::Unit(shared) => write!(
-                        w,
-                        "\t| {{ {}: {:?}, {}?: undefined }}",
-                        tag_key, shared.id.renamed, content_key
-                    ),
+                    RustEnumVariant::Unit(shared) => {
+                        if !tag_key.is_empty() {
+                            if !content_key.is_empty() {
+                                write!(
+                                    w,
+                                    "\t| {{ {}: {:?}, {}?: undefined }}",
+                                    tag_key, shared.id.renamed, content_key
+                                )
+                            } else {
+                                write!(w, "\t| {{ {}: {:?} }}", tag_key, shared.id.renamed)
+                            }
+                        } else {
+                            write!(w, "\t| {:?}", shared.id.renamed)
+                        }
+                    }
                     RustEnumVariant::Tuple { ty, shared } => {
                         let r#type = self
                             .format_type(ty, e.shared().generic_types.as_slice())
-                            .map_err(io::Error::other)?;
-                        write!(
-                            w,
-                            "\t| {{ {}: {:?}, {}{}: {} }}",
-                            tag_key,
-                            shared.id.renamed,
-                            content_key,
-                            if ty.is_optional() {
-                                "?"
+                            .map_err(std::io::Error::other)?;
+                        if !tag_key.is_empty() {
+                            if !content_key.is_empty() {
+                                write!(
+                                    w,
+                                    "\t| {{ {}: {:?}, {}{}: {} }}",
+                                    tag_key,
+                                    shared.id.renamed,
+                                    content_key,
+                                    if ty.is_optional() { "?" } else { Default::default() },
+                                    r#type
+                                )
                             } else {
-                                Default::default()
-                            },
-                            r#type
-                        )
+                                panic!("Tuple variants must have a content key if they have a tag key: {:?}", shared.id.original)
+                            }
+                        } else {
+                            write!(
+                                w,
+                                "\t| {{ {:?}{}: {} }}",
+                                shared.id.renamed,
+                                if ty.is_optional() { "?" } else { Default::default() },
+                                r#type
+                            )
+                        }
                     }
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
-                        writeln!(
-                            w,
-                            "\t| {{ {}: {:?}, {}: {{",
-                            tag_key, shared.id.renamed, content_key
-                        )?;
-
+                        if !tag_key.is_empty() {
+                            if !content_key.is_empty() {
+                                writeln!(
+                                    w,
+                                    "\t| {{ {}: {:?}, {}: {{",
+                                    tag_key, shared.id.renamed, content_key
+                                )?;
+                            } else {
+                                panic!("Struct variants must have a content key if they have a tag key: {:?}", shared.id.original)
+                            }
+                        } else {
+                            writeln!(w, "\t| {{ {:?}: {{", shared.id.renamed)?;
+                        }
                         fields.iter().try_for_each(|f| {
                             self.write_field(w, f, e.shared().generic_types.as_slice())
                         })?;

@@ -275,33 +275,36 @@ impl<'ast> Visit<'ast> for TypeShareVisitor<'_> {
 
     /// Collect rust structs.
     fn visit_item_struct(&mut self, i: &'ast syn::ItemStruct) {
-        debug!("Visiting {}", i.ident);
+        debug!("Visiting item {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
             self.collect_result(parse_struct(i, &self.parse_context.target_os));
         }
-
+        debug!("Visited item {}", i.ident);
         syn::visit::visit_item_struct(self, i);
     }
 
     /// Collect rust enums.
     fn visit_item_enum(&mut self, i: &'ast syn::ItemEnum) {
-        debug!("Visiting {}", i.ident);
+        debug!("Visiting enum {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
             self.collect_result(parse_enum(i, &self.parse_context.target_os));
         }
+        debug!("Visited enum {}", i.ident);
 
         syn::visit::visit_item_enum(self, i);
     }
 
     /// Collect rust type aliases.
     fn visit_item_type(&mut self, i: &'ast syn::ItemType) {
-        debug!("Visiting {}", i.ident);
+        debug!("Visiting type {}", i.ident);
         if has_typeshare_annotation(&i.attrs) && self.target_os_accepted(&i.attrs) {
             debug!("\tParsing {}", i.ident);
             self.collect_result(parse_type_alias(i));
+            debug!("\tParsed {}", i.ident);
         }
+        debug!("Visited type {}", i.ident);
 
         syn::visit::visit_item_type(self, i);
     }
@@ -329,9 +332,11 @@ impl<'ast> Visit<'ast> for TypeShareVisitor<'_> {
     // }
 
     fn visit_file(&mut self, i: &'ast syn::File) {
+        debug!("Visiting file {}", self.parsed_data.file_name);
         if self.target_os_accepted(&i.attrs) {
             syn::visit::visit_file(self, i);
         }
+        debug!("Visited file {}", self.parsed_data.file_name);
     }
 }
 

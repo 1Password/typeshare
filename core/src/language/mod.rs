@@ -9,11 +9,12 @@ use crate::{
     visitors::ImportedType,
 };
 use itertools::Itertools;
-use log::warn;
+use log::{debug, warn};
 use proc_macro2::Ident;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fmt::Display,
+    fs,
     io::Write,
     path::Path,
     str::FromStr,
@@ -63,13 +64,184 @@ impl CrateName {
     pub fn find_crate_name(path: &Path) -> Option<Self> {
         let file_name_to_crate_name = |file_name: &str| file_name.replace('-', "_");
 
-        path.iter()
-            .rev()
-            .skip_while(|p| *p != "src")
-            .nth(1)
-            .and_then(|s| s.to_str())
-            .map(file_name_to_crate_name)
-            .map(CrateName::from)
+        debug!("Attempting to find crate name for path: {:?}", path);
+
+        // First, find the git repository root to limit our search scope
+        let git_root = Self::find_git_root(path);
+        if let Some(ref root) = git_root {
+            debug!("Found git repository root at: {:?}", root);
+        } else {
+            debug!("No git repository root found");
+        }
+
+        // First try to find crate name from path structure within git boundary
+        let from_path =
+            Self::find_crate_name_from_path_within_git(path, git_root.as_deref()).map(|name| {
+                debug!("Found crate name from path structure: {}", name);
+                CrateName::from(file_name_to_crate_name(&name).as_str())
+            });
+
+        if let Some(crate_name) = from_path {
+            return Some(crate_name);
+        }
+
+        debug!("No src directory found in path, trying Cargo.toml fallback");
+        // If that fails, try to read from Cargo.toml within git boundary
+        let from_cargo =
+            Self::find_crate_name_from_cargo_toml_within_git(path, git_root.as_deref());
+        if let Some(ref crate_name) = from_cargo {
+            debug!("Found crate name from Cargo.toml: {}", crate_name.as_str());
+        } else {
+            debug!("No crate name found from Cargo.toml");
+        }
+        from_cargo
+    }
+
+    /// Find the git repository root by walking up directories looking for .git
+    fn find_git_root(path: &Path) -> Option<std::path::PathBuf> {
+        let mut current_path = if path.is_file() {
+            path.parent()?.to_path_buf()
+        } else {
+            path.to_path_buf()
+        };
+
+        loop {
+            let git_dir = current_path.join(".git");
+            if git_dir.exists() {
+                debug!("Found .git directory at: {:?}", current_path);
+                return Some(current_path);
+            }
+
+            // Move up one directory
+            if let Some(parent) = current_path.parent() {
+                current_path = parent.to_path_buf();
+            } else {
+                break;
+            }
+        }
+
+        None
+    }
+
+    /// Find crate name from path structure, but only within git repository boundaries
+    fn find_crate_name_from_path_within_git(
+        path: &Path,
+        git_root: Option<&Path>,
+    ) -> Option<String> {
+        // Collect path components, but only those within the git repository
+        let path_to_search = if let Some(git_root) = git_root {
+            // Strip the git root from the path for searching
+            path.strip_prefix(git_root).unwrap_or(path)
+        } else {
+            path
+        };
+
+        debug!(
+            "Searching for 'src' directory in path relative to git root: {:?}",
+            path_to_search
+        );
+
+        let path_components: Vec<_> = path_to_search.iter().collect();
+
+        // Look for "src" in the path components (now within git boundary)
+        for (i, component) in path_components.iter().enumerate().rev() {
+            if component == &"src" && i > 0 {
+                // Found "src", get the directory name before it
+                if let Some(parent_name) = path_components[i - 1].to_str() {
+                    debug!(
+                        "Found 'src' at position {}, parent directory: {}",
+                        i, parent_name
+                    );
+                    return Some(parent_name.to_string());
+                }
+            }
+        }
+
+        debug!("No 'src' directory found in git-bounded path");
+        None
+    }
+
+    /// Find crate name from Cargo.toml, but only within git repository boundaries
+    fn find_crate_name_from_cargo_toml_within_git(
+        path: &Path,
+        git_root: Option<&Path>,
+    ) -> Option<Self> {
+        let mut current_path = if path.is_file() {
+            path.parent()?.to_path_buf()
+        } else {
+            path.to_path_buf()
+        };
+
+        // Walk up the directory tree looking for Cargo.toml, but stop at git root
+        loop {
+            let cargo_toml = current_path.join("Cargo.toml");
+            debug!("Checking for Cargo.toml at: {:?}", cargo_toml);
+
+            if cargo_toml.exists() {
+                debug!("Found Cargo.toml at: {:?}", cargo_toml);
+                if let Ok(content) = fs::read_to_string(&cargo_toml) {
+                    if let Some(crate_name) = Self::extract_name_from_cargo_toml(&content) {
+                        debug!(
+                            "Successfully extracted crate name from Cargo.toml: {}",
+                            crate_name.as_str()
+                        );
+                        return Some(crate_name);
+                    } else {
+                        debug!("Failed to extract crate name from Cargo.toml content");
+                    }
+                } else {
+                    debug!("Failed to read Cargo.toml file");
+                }
+            }
+
+            // Move up one directory, but stop at git root
+            if let Some(parent) = current_path.parent() {
+                // If we have a git root, don't go past it
+                if let Some(git_root) = git_root {
+                    if parent < git_root {
+                        debug!("Reached git repository boundary, stopping Cargo.toml search");
+                        break;
+                    }
+                }
+                current_path = parent.to_path_buf();
+            } else {
+                debug!("Reached filesystem root, stopping search");
+                break;
+            }
+        }
+
+        None
+    }
+
+    /// Extract the name field from a Cargo.toml content string using proper TOML parsing.
+    fn extract_name_from_cargo_toml(content: &str) -> Option<Self> {
+        use std::collections::HashMap;
+
+        debug!("Parsing Cargo.toml content for package name");
+
+        match toml::from_str::<HashMap<String, toml::Value>>(content) {
+            Ok(parsed) => {
+                if let Some(package) = parsed.get("package") {
+                    if let Some(name_value) = package.get("name") {
+                        if let Some(name) = name_value.as_str() {
+                            let file_name_to_crate_name =
+                                |file_name: &str| file_name.replace('-', "_");
+                            debug!("Found package name in TOML: {}", name);
+                            return Some(CrateName::from(file_name_to_crate_name(name).as_str()));
+                        }
+                    } else {
+                        debug!("No 'name' field found in [package] section");
+                    }
+                } else {
+                    debug!("No [package] section found in TOML");
+                }
+            }
+            Err(e) => {
+                debug!("Failed to parse TOML content: {}", e);
+            }
+        }
+
+        None
     }
 }
 

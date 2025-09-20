@@ -256,6 +256,7 @@ impl Language for Python {
             | SpecialRustType::U53
             | SpecialRustType::U64
             | SpecialRustType::I64
+            | SpecialRustType::U128
             | SpecialRustType::ISize
             | SpecialRustType::USize => Ok("int".into()),
             SpecialRustType::F32 | SpecialRustType::F64 => Ok("float".into()),

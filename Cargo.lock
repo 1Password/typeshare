@@ -764,6 +764,7 @@ dependencies = [
  "quote",
  "syn",
  "thiserror",
+ "toml",
  "topological-sort",
 ]
 

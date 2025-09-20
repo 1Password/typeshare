@@ -118,6 +118,7 @@ impl Language for Scala {
                     special_ty.to_string(),
                 ))
             }
+            SpecialRustType::U128 => "BigInt".into(),
         })
     }
 
