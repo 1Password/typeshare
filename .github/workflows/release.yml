@@ -85,20 +85,20 @@ jobs:
       matrix:
         # For these target platforms
         include:
-        - os: ubuntu-20.04
-          dist-args: --artifacts=global
-          target: ''
-          install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
+        # - os: ubuntu-latest
+        #   dist-args: --artifacts=global
+        #   target: ''
+        #   install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
         # Since we don't have a macos-11 runner, we will build manually on mac and upload
         # - os: macos-11
         #   dist-args: --artifacts=local --target=aarch64-apple-darwin --target=x86_64-apple-darwin
         #   target: 'aarch64-apple-darwin x86_64-apple-darwin'
         #   install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
-        - os: ubuntu-20.04
+        - os: ubuntu-latest
           dist-args: --artifacts=local --target=x86_64-unknown-linux-gnu
           target: 'x86_64-unknown-linux-gnu'
           install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh
-        - os: ubuntu-20.04
+        - os: ubuntu-latest
           dist-args: --artifacts=local --target=aarch64-unknown-linux-gnu
           target: 'aarch64-unknown-linux-gnu'
           install-dist: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.0.4/cargo-dist-v0.0.4-installer.sh | sh  
