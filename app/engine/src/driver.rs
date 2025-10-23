@@ -3,6 +3,7 @@ use std::{collections::HashMap, io};
 use anyhow::Context as _;
 use clap::{CommandFactory as _, FromArgMatches as _};
 use clap_complete::generate as generate_completions;
+use flexi_logger::AdaptiveFormat;
 use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
 use itertools::Itertools;
 use lazy_format::lazy_format;
@@ -184,6 +185,11 @@ pub fn main_body<Helper>(personalizations: args::PersonalizeClap) -> anyhow::Res
 where
     Helper: LanguageHelper,
 {
+    flexi_logger::Logger::try_with_env_or_str("info")?
+        .adaptive_format_for_stderr(AdaptiveFormat::Opt)
+        .adaptive_format_for_stdout(AdaptiveFormat::Opt)
+        .start()?;
+
     let language_metas = Helper::LanguageSet::compute_language_metas()?;
     let command = StandardArgs::command();
     let command = add_personalizations(command, personalizations);

@@ -1,6 +1,7 @@
 //! Source file parsing.
 use ignore::Walk;
 use itertools::Itertools;
+use log::debug;
 use proc_macro2::{Delimiter, Group};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -185,6 +186,7 @@ pub fn parse_input(
     inputs
         .into_par_iter()
         .map(|parser_input| {
+            debug!("Parsing file {:?}", parser_input.file_path);
             // Performance nit: we don't need to clone in the error case;
             // map_err is taking unconditional ownership unnecessarily
             let content = std::fs::read_to_string(&parser_input.file_path).map_err(|err| {
@@ -285,7 +287,8 @@ pub fn parse(
 ) -> Result<Option<ParsedData>, ParseErrorSet> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !source_code.contains("#[typeshare") {
+    if !source_code.contains("typeshare") {
+        debug!("No typeshare found in file");
         return Ok(None);
     }
 
@@ -296,7 +299,6 @@ pub fn parse(
         .map_err(|err| ParseError::new(&err.span(), ParseErrorKind::SynError(err)))?;
 
     import_visitor.visit_file(&file_contents);
-
     import_visitor.parsed_data().map(Some)
 }
 
@@ -690,12 +692,16 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
 
 // Helpers
 
-/// Checks the given attrs for `#[typeshare]`
+/// Checks the given attrs for `#[typeshare]` or `#[cfg_attr(<cond>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
+    let check_cfg_attr = |attr| {
+        get_meta_items(attr, "cfg_attr").iter().any(|item| {
+            matches!(item, Meta::Path(path) if path.segments.iter().any(|segment| segment.ident == TYPESHARE))
+        })
+    };
     attrs
         .iter()
-        .flat_map(|attr| attr.path().segments.clone())
-        .any(|segment| segment.ident == TYPESHARE)
+        .any(|attr| attr.path().is_ident(TYPESHARE) || check_cfg_attr(attr))
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -1095,5 +1101,11 @@ mod test_get_decorators {
             "string"
         );
         assert_eq!(decorators.type_override_for_lang("kotlin"), None);
+    }
+
+    #[test]
+    fn test_cfg_attr() {
+        let attr = parse_attr(r#"#[cfg_attr(feature = "typeshare", typeshare)]"#);
+        assert!(has_typeshare_annotation(&attr));
     }
 }
