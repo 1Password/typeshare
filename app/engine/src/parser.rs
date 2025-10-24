@@ -978,24 +978,14 @@ fn test_rename_all_to_case() {
 
 #[cfg(test)]
 mod test_get_decorators {
-    use std::str::FromStr;
-
     use cool_asserts::assert_matches;
-    use proc_macro2::TokenStream;
-    use syn::parse::Parser;
     use typeshare_model::decorator::Value;
 
     use super::*;
 
-    fn parse_attr(input: &str) -> Vec<Attribute> {
-        let tokens = TokenStream::from_str(input).expect("failed to create token stream");
-
-        Parser::parse2(Attribute::parse_outer, tokens).expect("failed to parse attribute")
-    }
-
     #[test]
     fn basic() {
-        let attr = parse_attr("#[typeshare(foo)]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(foo)]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1004,7 +994,7 @@ mod test_get_decorators {
 
     #[test]
     fn several() {
-        let attr = parse_attr("#[typeshare(foo, int=10, string=\"foo\")]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(foo, int=10, string="foo")]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1018,7 +1008,7 @@ mod test_get_decorators {
 
     #[test]
     fn multi_key() {
-        let attr = parse_attr("#[typeshare(thing=10, foo, thing=\"hello\")]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(thing=10, foo, thing="hello")]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1030,10 +1020,10 @@ mod test_get_decorators {
 
     #[test]
     fn multiple_attributes() {
-        let attr = parse_attr(
-            "#[typeshare(foo, bar = \"baz\")]
-             #[typeshare(baz = 42, qux)]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(foo, bar = "baz")]
+            #[typeshare(baz = 42, qux)]
+        };
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1047,10 +1037,10 @@ mod test_get_decorators {
 
     #[test]
     fn duplicate_keys_in_multiple_attributes() {
-        let attr = parse_attr(
-            "#[typeshare(foo = \"bar\", foo = 42)]
-             #[typeshare(foo)]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(foo = "bar", foo = 42)]
+            #[typeshare(foo)]
+        };
         let decorators = get_decorators(&attr);
 
         assert_eq!(
@@ -1066,11 +1056,11 @@ mod test_get_decorators {
     // Regression test for an earlier breakage
     #[test]
     fn jvm_inline() {
-        let attr = parse_attr(
-            "#[typeshare(kotlin =\"JvmInline\", redacted)]
-             #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-             #[serde(rename_all = \"camelCase\")]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(kotlin ="JvmInline", redacted)]
+            #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+            #[serde(rename_all = "camelCase")]
+        };
 
         let decorators = get_decorators(&attr);
 
@@ -1083,7 +1073,7 @@ mod test_get_decorators {
 
     #[test]
     fn nested() {
-        let attr = parse_attr("#[typeshare(a, b(c=1, d=2, d=3))]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(a, b(c=1, d=2, d=3))]);
 
         let decorators = get_decorators(&attr);
 
@@ -1099,15 +1089,12 @@ mod test_get_decorators {
 
     #[test]
     fn type_override() {
-        let attr = parse_attr(
-            "#[typeshare(typescript(type = \"string\"))]
-             #[typeshare(swift = \"Foo\", swift(type=\"NSString\"))]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(typescript(type = "string"))]
+            #[typeshare(swift = "Foo", swift(type="NSString"))]
+        };
 
         let decorators = get_decorators(&attr);
-        dbg!(&decorators);
-
-        eprintln!("{decorators:#?}");
 
         assert_eq!(
             decorators.type_override_for_lang("swift").unwrap(),
@@ -1122,15 +1109,15 @@ mod test_get_decorators {
 
     #[test]
     fn test_cfg_attr() {
-        let attr: Attribute = syn::parse_quote! {
+        let attr: Vec<Attribute> = syn::parse_quote! {
             #[cfg_attr(feature = "typeshare-support", typeshare)]
         };
-        assert!(has_typeshare_annotation(&[attr]));
+        assert!(has_typeshare_annotation(&attr));
     }
 
     #[test]
     fn test_cfg_attr_with_nvps() {
-        let attr: Attribute = syn::parse_quote! {
+        let attrs: Vec<Attribute> = syn::parse_quote! {
             #[cfg_attr(
                 feature = "typeshare-support",
                 typeshare(
@@ -1138,37 +1125,22 @@ mod test_get_decorators {
                     swiftGenericConstraints = "R: Equatable & Hashable"
                 )
             )]
+
         };
 
-        let attrs = [attr];
-
         assert!(has_typeshare_annotation(&attrs));
-
         let decorators = get_decorators(&attrs);
-        dbg!(&decorators);
+        eprintln!("{decorators:#?}");
 
         assert_eq!(
-            decorators
-                .type_override_for_lang("swift")
-                .expect("No swift decorators"),
-            "Equatable, Hashable"
+            decorators.get_all("swift"),
+            &[Value::String("Equatable, Hashable".into())]
         );
 
-        // let swift_decorators = decorators
-        //     .get(&DecoratorKind::Swift)
-        //     .expect("No swift decorators");
-        // let swift_constraints = decorators
-        //     .get(&DecoratorKind::SwiftGenericConstraints)
-        //     .expect("No swift generic constraints");
-
-        // assert_eq!(
-        //     swift_decorators,
-        //     &BTreeSet::from_iter(["Equatable".into(), "Hashable".into()])
-        // );
-        // assert_eq!(
-        //     swift_constraints,
-        //     &BTreeSet::from_iter(["R: Equatable & Hashable".into()])
-        // );
+        assert_eq!(
+            decorators.get_all("swiftGenericConstraints"),
+            &[Value::String("R: Equatable & Hashable".into())]
+        );
     }
 
     #[test]
@@ -1180,7 +1152,8 @@ mod test_get_decorators {
         let attrs = [attr];
 
         assert!(has_typeshare_annotation(&attrs));
-        // assert!(is_redacted(&attrs));
+        let decorators = get_decorators(&attrs);
+        assert!(decorators.is_redacted());
     }
 
     #[test]
@@ -1196,8 +1169,7 @@ mod test_get_decorators {
             panic!("Not a struct");
         };
 
-        dbg!(rust_struct);
-        // assert!(rust_struct.is_redacted);
+        assert!(rust_struct.decorators.is_redacted());
     }
 
     #[test]
@@ -1212,10 +1184,12 @@ mod test_get_decorators {
         let attrs = [attr];
         assert!(has_typeshare_annotation(&attrs));
         let decorators = get_decorators(&attrs);
-        dbg!(decorators);
-        // let kotlin_decorator = decorators
-        //     .get(&DecoratorKind::Kotlin)
-        //     .expect("No kotlin decorator");
-        // assert_eq!(kotlin_decorator, &BTreeSet::from_iter(["JvmInline".into()]));
+
+        assert_eq!(
+            decorators.get_all("kotlin"),
+            &[Value::String("JvmInline".into())]
+        );
+
+        assert!(decorators.is_redacted());
     }
 }
