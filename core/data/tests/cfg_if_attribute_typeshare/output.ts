@@ -1,5 +1,7 @@
 export type Bytes = number[];
 
+export type TestStruct3 = string;
+
 /**
  * Example of a type that is conditionally typeshared
  * based on a feature "typeshare-support". This does not
@@ -14,9 +16,5 @@ export interface TestStruct1 {
 export interface TestStruct2<R> {
 	field1: string;
 	field2: R;
-}
-
-export interface TestStruct3 {
-	field_1: string;
 }
 

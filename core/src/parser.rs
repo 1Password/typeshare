@@ -861,21 +861,26 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         .flat_map(|attr| get_meta_items(attr, "cfg_attr"))
         .flat_map(|meta| match meta {
             Meta::List(nvp) if nvp.path.is_ident(TYPESHARE) => nvp
-                .parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
+                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .ok(),
             _ => None,
         })
         .flat_map(|nvps| nvps.into_iter());
 
-    for nvp in nvps {
+    for meta in nvps {
         for kind in decorator_kinds {
-            if nvp.path.is_ident(kind.as_str()) {
-                if let Some(val) = expr_to_string(&nvp.value) {
-                    decorator_map
-                        .entry(kind)
-                        .or_default()
-                        .extend(val.split(',').map(|s| s.trim().to_string()));
+            match &meta {
+                Meta::NameValue(meta_name_value)
+                    if meta_name_value.path.is_ident(kind.as_str()) =>
+                {
+                    if let Some(val) = expr_to_string(&meta_name_value.value) {
+                        decorator_map
+                            .entry(kind)
+                            .or_default()
+                            .extend(val.split(',').map(|s| s.trim().to_string()));
+                    }
                 }
+                _ => {}
             }
         }
     }
@@ -1001,5 +1006,23 @@ mod test {
             panic!("Not a struct");
         };
         assert!(rust_struct.is_redacted);
+    }
+
+    #[test]
+    fn test_kotlin_decorators() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(kotlin = "JvmInline", redacted)
+            )]
+        };
+
+        let attrs = [attr];
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+        let kotlin_decorator = decorators
+            .get(&DecoratorKind::Kotlin)
+            .expect("No kotlin decorator");
+        assert_eq!(kotlin_decorator, &BTreeSet::from_iter(["JvmInline".into()]));
     }
 }

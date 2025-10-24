@@ -27,7 +27,8 @@ pub struct TestStruct2<R> {
     field_2: R,
 }
 
-#[cfg_attr(feature = "typeshare-support", typeshare(redacted))]
-pub struct TestStruct3 {
-    field_1: String,
-}
+#[cfg_attr(
+    feature = "typeshare-support",
+    typeshare(kotlin = "JvmInline", redacted)
+)]
+pub struct TestStruct3(String);

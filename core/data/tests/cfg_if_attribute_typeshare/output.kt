@@ -5,6 +5,16 @@ import kotlinx.serialization.SerialName
 
 typealias Bytes = List<UByte>
 
+@Serializable
+@JvmInline
+value class TestStruct3(
+	private val value: String
+) {
+	fun unwrap() = value
+
+	override fun toString(): String = "***"
+}
+
 /// Example of a type that is conditionally typeshared
 /// based on a feature "typeshare-support". This does not
 /// conditionally typeshare but allows a conditionally
@@ -20,11 +30,4 @@ data class TestStruct2<R> (
 	val field1: String,
 	val field2: R
 )
-
-@Serializable
-data class TestStruct3 (
-	val field_1: String
-) {
-	override fun toString(): String = "TestStruct3"
-}
 
