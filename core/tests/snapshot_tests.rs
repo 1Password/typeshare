@@ -715,4 +715,5 @@ tests! {
     }
     ];
     no_mangle: [swift, kotlin, scala, typescript, go];
+    cfg_if_attribute_typeshare: [swift, kotlin, typescript];
 }

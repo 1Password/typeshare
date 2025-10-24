@@ -151,7 +151,7 @@ pub fn parse(
 ) -> Result<Option<ParsedData>, ParseErrorWithSpan> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !parse_file_context.source_code.contains("#[typeshare") {
+    if !parse_file_context.source_code.contains("typeshare") {
         return Ok(None);
     }
 
@@ -560,12 +560,21 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseErrorWithSpan> {
 
 // Helpers
 
-/// Checks the given attrs for `#[typeshare]`
+/// Checks the given attrs for `#[typeshare]` or within `#[cfg_attr(<condition>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
+    let check_cfg_attr = |attr| {
+        get_meta_items(attr, "cfg_attr").any(|item| match item {
+            Meta::Path(path) => path
+                .segments
+                .iter()
+                .any(|segment| segment.ident == TYPESHARE),
+            Meta::List(meta_list) => meta_list.path.is_ident(TYPESHARE),
+            Meta::NameValue(_meta_name_value) => false,
+        })
+    };
     attrs
         .iter()
-        .flat_map(|attr| attr.path().segments.clone())
-        .any(|segment| segment.ident == TYPESHARE)
+        .any(|attr| attr.path().is_ident(TYPESHARE) || check_cfg_attr(attr))
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -681,9 +690,21 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
 
 // `#[typeshare(redacted)]`
 fn is_redacted(attrs: &[syn::Attribute]) -> bool {
+    let check_cfg_attr = |attr| {
+        get_meta_items(attr, "cfg_attr").any(|item| match item {
+            Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
+                .parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)
+                .map(|parsed| parsed.iter().any(|ident| ident == "redacted"))
+                .unwrap_or(false),
+
+            _ => false,
+        })
+    };
+
     attrs.iter().any(|attr| {
         get_meta_items(attr, TYPESHARE)
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
+            || check_cfg_attr(attr)
     })
 }
 
@@ -814,6 +835,12 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
     let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
+    let decorator_kinds = [
+        DecoratorKind::Swift,
+        DecoratorKind::SwiftGenericConstraints,
+        DecoratorKind::Kotlin,
+    ];
+
     for decorator_kind in [
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
@@ -824,6 +851,31 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
                 .entry(decorator_kind)
                 .or_default()
                 .extend(value.split(',').map(|s| s.trim().to_string()));
+        }
+    }
+
+    // Check cfg_attr.
+    let nvps = attrs
+        .iter()
+        .flat_map(|attr| get_meta_items(attr, "cfg_attr"))
+        .flat_map(|meta| match meta {
+            Meta::List(nvp) if nvp.path.is_ident(TYPESHARE) => nvp
+                .parse_args_with(Punctuated::<MetaNameValue, Token![,]>::parse_terminated)
+                .ok(),
+            _ => None,
+        })
+        .flat_map(|nvps| nvps.into_iter());
+
+    for nvp in nvps {
+        for kind in decorator_kinds {
+            if nvp.path.is_ident(kind.as_str()) {
+                if let Some(val) = expr_to_string(&nvp.value) {
+                    decorator_map
+                        .entry(kind)
+                        .or_default()
+                        .extend(val.split(',').map(|s| s.trim().to_string()));
+                }
+            }
         }
     }
 
@@ -844,26 +896,90 @@ pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
     name.replace('-', "_")
 }
 
-#[test]
-fn test_rename_all_to_case() {
-    let test_word = "test_case";
+#[cfg(test)]
+mod test {
+    use crate::parser::{
+        get_decorators, has_typeshare_annotation, is_redacted, rename_all_to_case, DecoratorKind,
+    };
+    use std::collections::BTreeSet;
+    use syn::Attribute;
 
-    let tests = [
-        ("lowercase", "test_case"),
-        ("UPPERCASE", "TEST_CASE"),
-        ("PascalCase", "TestCase"),
-        ("camelCase", "testCase"),
-        ("snake_case", "test_case"),
-        ("SCREAMING_SNAKE_CASE", "TEST_CASE"),
-        ("kebab-case", "test-case"),
-        ("SCREAMING-KEBAB-CASE", "TEST-CASE"),
-        ("invalid case", "test_case"),
-    ];
+    #[test]
+    fn test_rename_all_to_case() {
+        let test_word = "test_case";
 
-    for test in tests {
+        let tests = [
+            ("lowercase", "test_case"),
+            ("UPPERCASE", "TEST_CASE"),
+            ("PascalCase", "TestCase"),
+            ("camelCase", "testCase"),
+            ("snake_case", "test_case"),
+            ("SCREAMING_SNAKE_CASE", "TEST_CASE"),
+            ("kebab-case", "test-case"),
+            ("SCREAMING-KEBAB-CASE", "TEST-CASE"),
+            ("invalid case", "test_case"),
+        ];
+
+        for test in tests {
+            assert_eq!(
+                rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
+                test.1
+            );
+        }
+    }
+
+    #[test]
+    fn test_cfg_attr() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+        };
+        assert!(has_typeshare_annotation(&[attr]));
+    }
+
+    #[test]
+    fn test_cfg_attr_with_nvps() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(
+                    swift = "Equatable, Hashable",
+                    swiftGenericConstraints = "R: Equatable & Hashable"
+                )
+            )]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+
+        let decorators = get_decorators(&attrs);
+
+        let swift_decorators = decorators
+            .get(&DecoratorKind::Swift)
+            .expect("No swift decorators");
+        let swift_constraints = decorators
+            .get(&DecoratorKind::SwiftGenericConstraints)
+            .expect("No swift generic constraints");
+
         assert_eq!(
-            rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
-            test.1
+            swift_decorators,
+            &BTreeSet::from_iter(["Equatable".into(), "Hashable".into()])
         );
+        assert_eq!(
+            swift_constraints,
+            &BTreeSet::from_iter(["R: Equatable & Hashable".into()])
+        );
+    }
+
+    #[test]
+    fn test_cfg_attr_redacted() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted))]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+        assert!(is_redacted(&attrs));
     }
 }
