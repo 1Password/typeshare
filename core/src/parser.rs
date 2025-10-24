@@ -714,27 +714,29 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
     typeshare_skip || !accept_target_os(attrs, target_os)
 }
 
+/// Find the ident within a typeshare meta list within a cfg_attr. For
+/// example, find "redacted" for typeshare as `#[cfg_attr(feature = "something", typeshare(redacted))]`
+fn has_typeshare_ident_within_cfg_attr(attr: &Attribute, ident: &str) -> bool {
+    get_meta_items(attr, "cfg_attr").any(|item| match item {
+        Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            .map(|metas| {
+                metas
+                    .into_iter()
+                    .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident(ident)))
+            })
+            .unwrap_or(false),
+
+        _ => false,
+    })
+}
+
 // `#[typeshare(redacted)]`
 fn is_redacted(attrs: &[syn::Attribute]) -> bool {
-    let check_cfg_attr = |attr| {
-        get_meta_items(attr, "cfg_attr").any(|item| match item {
-            Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
-                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-                .map(|metas| {
-                    metas
-                        .into_iter()
-                        .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident("redacted")))
-                })
-                .unwrap_or(false),
-
-            _ => false,
-        })
-    };
-
     attrs.iter().any(|attr| {
         get_meta_items(attr, TYPESHARE)
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
-            || check_cfg_attr(attr)
+            || has_typeshare_ident_within_cfg_attr(attr, "redacted")
     })
 }
 
