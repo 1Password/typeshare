@@ -693,8 +693,12 @@ fn is_redacted(attrs: &[syn::Attribute]) -> bool {
     let check_cfg_attr = |attr| {
         get_meta_items(attr, "cfg_attr").any(|item| match item {
             Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
-                .parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)
-                .map(|parsed| parsed.iter().any(|ident| ident == "redacted"))
+                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .map(|metas| {
+                    metas
+                        .into_iter()
+                        .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident("redacted")))
+                })
                 .unwrap_or(false),
 
             _ => false,
@@ -898,11 +902,15 @@ pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::{
-        get_decorators, has_typeshare_annotation, is_redacted, rename_all_to_case, DecoratorKind,
+    use crate::{
+        parser::{
+            get_decorators, has_typeshare_annotation, is_redacted, parse_struct,
+            rename_all_to_case, DecoratorKind,
+        },
+        rust_types::RustItem,
     };
     use std::collections::BTreeSet;
-    use syn::Attribute;
+    use syn::{Attribute, ItemStruct};
 
     #[test]
     fn test_rename_all_to_case() {
@@ -981,5 +989,20 @@ mod test {
 
         assert!(has_typeshare_annotation(&attrs));
         assert!(is_redacted(&attrs));
+    }
+
+    #[test]
+    fn test_item_struct_redacted_list() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted, kotlin = "JvmInline"))]
+            pub struct Secret(String);
+        };
+
+        let RustItem::Alias(rust_struct) =
+            parse_struct(&item_struct, &[]).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+        assert!(rust_struct.is_redacted);
     }
 }
