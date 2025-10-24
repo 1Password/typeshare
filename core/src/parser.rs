@@ -41,7 +41,7 @@ pub enum DecoratorKind {
 
 impl DecoratorKind {
     /// This decorator as a str.
-    fn as_str(&self) -> &str {
+    fn as_str(&self) -> &'static str {
         match self {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
@@ -845,17 +845,14 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         DecoratorKind::Kotlin,
     ];
 
-    for decorator_kind in [
-        DecoratorKind::Swift,
-        DecoratorKind::SwiftGenericConstraints,
-        DecoratorKind::Kotlin,
-    ] {
-        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
-            decorator_map
-                .entry(decorator_kind)
-                .or_default()
-                .extend(value.split(',').map(|s| s.trim().to_string()));
-        }
+    for (decorator_kind, value) in decorator_kinds.into_iter().flat_map(|decorator_kind| {
+        get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE)
+            .map(move |value| (decorator_kind, value))
+    }) {
+        decorator_map
+            .entry(decorator_kind)
+            .or_default()
+            .extend(value.split(',').map(|s| s.trim().to_string()));
     }
 
     // Check cfg_attr.
