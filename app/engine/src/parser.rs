@@ -695,8 +695,13 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
 /// Checks the given attrs for `#[typeshare]` or `#[cfg_attr(<cond>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
     let check_cfg_attr = |attr| {
-        get_meta_items(attr, "cfg_attr").iter().any(|item| {
-            matches!(item, Meta::Path(path) if path.segments.iter().any(|segment| segment.ident == TYPESHARE))
+        get_meta_items(attr, "cfg_attr").any(|item| match item {
+            Meta::Path(path) => path
+                .segments
+                .iter()
+                .any(|segment| segment.ident == TYPESHARE),
+            Meta::List(meta_list) => meta_list.path.is_ident(TYPESHARE),
+            Meta::NameValue(_meta_name_value) => false,
         })
     };
     attrs
@@ -723,7 +728,6 @@ pub(crate) fn get_name_value_meta_items<'a>(
 ) -> impl Iterator<Item = String> + 'a {
     attrs.iter().flat_map(move |attr| {
         get_meta_items(attr, ident)
-            .iter()
             .filter_map(|arg| match arg {
                 Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
                     expr_to_string(&name_value.value)
@@ -735,16 +739,16 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
-fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
-    if attr.path().is_ident(ident) {
-        attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .iter()
-            .flat_map(|meta| meta.iter())
-            .cloned()
-            .collect()
-    } else {
-        Vec::default()
-    }
+fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
+    attr.path()
+        .is_ident(ident)
+        .then(|| {
+            attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .into_iter()
+                .flat_map(|punctuated| punctuated.into_iter())
+        })
+        .into_iter()
+        .flatten()
 }
 
 fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: Option<&str>) -> Id {
@@ -803,7 +807,6 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .into_iter()
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     })
@@ -812,7 +815,6 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .iter()
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
 }
@@ -831,13 +833,27 @@ fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
 fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
     attrs
         .iter()
-        .flat_map(|attr| match attr.meta {
-            Meta::List(ref meta) => Some(meta),
+        .filter_map(|attr| match attr.meta {
+            Meta::List(ref meta_list) => Some(meta_list),
             Meta::Path(_) | Meta::NameValue(_) => None,
         })
-        .filter(|meta| meta.path.is_ident(TYPESHARE))
-        .filter_map(|meta| meta.parse_args_with(KeyValueSeq::parse_terminated).ok())
+        .filter(|meta_list| meta_list.path.is_ident(TYPESHARE))
+        .filter_map(|meta_list| {
+            meta_list
+                .parse_args_with(KeyValueSeq::parse_terminated)
+                .ok()
+        })
         .flatten()
+        .chain(attrs.iter().flat_map(move |attr| {
+            get_meta_items(attr, "cfg_attr")
+                .filter_map(|meta| match meta {
+                    Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
+                        .parse_args_with(KeyValueSeq::parse_terminated)
+                        .ok(),
+                    _ => None,
+                })
+                .flatten()
+        }))
         .map(|pair| (pair.key, pair.value))
         .collect()
 }
@@ -1089,6 +1105,7 @@ mod test_get_decorators {
         );
 
         let decorators = get_decorators(&attr);
+        dbg!(&decorators);
 
         eprintln!("{decorators:#?}");
 
@@ -1105,7 +1122,100 @@ mod test_get_decorators {
 
     #[test]
     fn test_cfg_attr() {
-        let attr = parse_attr(r#"#[cfg_attr(feature = "typeshare", typeshare)]"#);
-        assert!(has_typeshare_annotation(&attr));
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+        };
+        assert!(has_typeshare_annotation(&[attr]));
+    }
+
+    #[test]
+    fn test_cfg_attr_with_nvps() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(
+                    swift = "Equatable, Hashable",
+                    swiftGenericConstraints = "R: Equatable & Hashable"
+                )
+            )]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+
+        let decorators = get_decorators(&attrs);
+        dbg!(&decorators);
+
+        assert_eq!(
+            decorators
+                .type_override_for_lang("swift")
+                .expect("No swift decorators"),
+            "Equatable, Hashable"
+        );
+
+        // let swift_decorators = decorators
+        //     .get(&DecoratorKind::Swift)
+        //     .expect("No swift decorators");
+        // let swift_constraints = decorators
+        //     .get(&DecoratorKind::SwiftGenericConstraints)
+        //     .expect("No swift generic constraints");
+
+        // assert_eq!(
+        //     swift_decorators,
+        //     &BTreeSet::from_iter(["Equatable".into(), "Hashable".into()])
+        // );
+        // assert_eq!(
+        //     swift_constraints,
+        //     &BTreeSet::from_iter(["R: Equatable & Hashable".into()])
+        // );
+    }
+
+    #[test]
+    fn test_cfg_attr_redacted() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted))]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+        // assert!(is_redacted(&attrs));
+    }
+
+    #[test]
+    fn test_item_struct_redacted_list() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted, kotlin = "JvmInline"))]
+            pub struct Secret(String);
+        };
+
+        let RustItem::Alias(rust_struct) =
+            parse_struct(&item_struct, None).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+
+        dbg!(rust_struct);
+        // assert!(rust_struct.is_redacted);
+    }
+
+    #[test]
+    fn test_kotlin_decorators() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(kotlin = "JvmInline", redacted)
+            )]
+        };
+
+        let attrs = [attr];
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+        dbg!(decorators);
+        // let kotlin_decorator = decorators
+        //     .get(&DecoratorKind::Kotlin)
+        //     .expect("No kotlin decorator");
+        // assert_eq!(kotlin_decorator, &BTreeSet::from_iter(["JvmInline".into()]));
     }
 }
