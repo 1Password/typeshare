@@ -11,7 +11,6 @@ use crate::{
     target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
 };
-use itertools::Either;
 use log::debug;
 use proc_macro2::Ident;
 use std::{
@@ -589,7 +588,7 @@ pub(crate) fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String
     get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
 }
 
-pub(crate) fn get_name_value_meta_items<'a>(
+fn get_name_value_meta_items<'a>(
     attrs: &'a [syn::Attribute],
     name: &'a str,
     ident: &'static str,
@@ -602,22 +601,49 @@ pub(crate) fn get_name_value_meta_items<'a>(
                 }
                 _ => None,
             })
-            .collect::<Vec<_>>()
+            .chain(
+                // If we are searching for typeshare attributes then we'll look into cfg_att as well.
+                (ident == TYPESHARE)
+                    .then(|| {
+                        attrs.iter().flat_map(move |attr| {
+                            get_meta_items(attr, "cfg_attr")
+                                .filter_map(|meta| match meta {
+                                    Meta::List(list) if list.path.is_ident(TYPESHARE) => list
+                                        .parse_args_with(
+                                            Punctuated::<Meta, Token![,]>::parse_terminated,
+                                        )
+                                        .ok(),
+                                    _ => None,
+                                })
+                                .flatten()
+                                .filter_map(|meta| match &meta {
+                                    Meta::NameValue(meta_name_value)
+                                        if meta_name_value.path.is_ident(name) =>
+                                    {
+                                        expr_to_string(&meta_name_value.value)
+                                    }
+                                    _ => None,
+                                })
+                        })
+                    })
+                    .into_iter()
+                    .flatten(),
+            )
     })
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
 #[inline(always)]
 pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
-    if attr.path().is_ident(ident) {
-        Either::Left(
+    attr.path()
+        .is_ident(ident)
+        .then(|| {
             attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .into_iter()
-                .flat_map(|punctuated| punctuated.into_iter()),
-        )
-    } else {
-        Either::Right(std::iter::empty())
-    }
+                .flat_map(|punctuated| punctuated.into_iter())
+        })
+        .into_iter()
+        .flatten()
 }
 
 fn get_ident(
@@ -853,36 +879,6 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
             .entry(decorator_kind)
             .or_default()
             .extend(value.split(',').map(|s| s.trim().to_string()));
-    }
-
-    // Check cfg_attr.
-    let nvps = attrs
-        .iter()
-        .flat_map(|attr| get_meta_items(attr, "cfg_attr"))
-        .flat_map(|meta| match meta {
-            Meta::List(nvp) if nvp.path.is_ident(TYPESHARE) => nvp
-                .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-                .ok(),
-            _ => None,
-        })
-        .flat_map(|nvps| nvps.into_iter());
-
-    for meta in nvps {
-        for kind in decorator_kinds {
-            match &meta {
-                Meta::NameValue(meta_name_value)
-                    if meta_name_value.path.is_ident(kind.as_str()) =>
-                {
-                    if let Some(val) = expr_to_string(&meta_name_value.value) {
-                        decorator_map
-                            .entry(kind)
-                            .or_default()
-                            .extend(val.split(',').map(|s| s.trim().to_string()));
-                    }
-                }
-                _ => {}
-            }
-        }
     }
 
     decorator_map
