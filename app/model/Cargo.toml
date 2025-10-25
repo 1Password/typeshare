@@ -9,6 +9,6 @@ repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
 [dependencies]
-anyhow = { version = "1.0.95", default-features = false }
+anyhow.workspace = true
 itertools = "0.14.0"
 serde = { version = "1.0.217", default-features = false }

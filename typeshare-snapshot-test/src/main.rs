@@ -2,7 +2,16 @@
 mod config;
 mod sorted_iter;
 
+use crate::{
+    config::read_toml,
+    sorted_iter::{EitherOrBoth, SortedPairsIter},
+};
+use anyhow::Context;
+use clap::Parser;
 use core::str;
+use indent_write::{indentable::Indentable, io::IndentWriter};
+use lazy_format::lazy_format;
+use similar::TextDiff;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -14,15 +23,6 @@ use std::{
     process::{Command, Stdio, exit},
     thread,
 };
-
-use anyhow::Context;
-use clap::Parser;
-use indent_write::{indentable::Indentable, io::IndentWriter};
-use lazy_format::lazy_format;
-use similar::TextDiff;
-
-use crate::config::read_toml;
-use crate::sorted_iter::{EitherOrBoth, SortedPairsIter};
 
 /**
 Utility for capturing and running snapshot tests for your implementation of
@@ -63,7 +63,7 @@ struct Args {
     /// identified by the name of that directory.
     snapshots: PathBuf,
 
-    /// name or path to your typeshare binary. If ommitted, we assume the
+    /// name or path to your typeshare binary. If omitted, we assume the
     /// binary is called `typeshare-{LANGUAGE}`.
     #[arg(short, long)]
     typeshare: Option<PathBuf>,
@@ -173,7 +173,7 @@ enum Report {
     /// Usually Warning is preferable.
     Skip,
 
-    /// Something intereting happened that we should tell the user about, but
+    /// Something interesting happened that we should tell the user about, but
     /// not enough to cause a nonzero exit
     Warning {
         // Feel free to switch this to a String or Cow<str> if need be
@@ -238,7 +238,7 @@ impl Report {
     fn print_report(&self, name: &str, dest: &mut impl io::Write) -> io::Result<()> {
         match *self {
             Report::Success | Report::Skip => Ok(()),
-            Report::Warning { ref message } => writeln!(dest, "warning from {name}: {message}\n"),
+            Report::Warning { ref message } => writeln!(dest, "warning from {name}: {message}"),
             Report::CommandError {
                 ref command,
                 ref stdout,

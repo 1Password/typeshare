@@ -9,7 +9,7 @@ repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.95"
+anyhow.workspace = true
 clap = { version = "4.5", features = ["std", "derive", "string"] }
 clap_complete = "4.5.32"
 ignore = "0.4.23"

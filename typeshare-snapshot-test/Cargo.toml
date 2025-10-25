@@ -9,7 +9,7 @@ repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.97"
+anyhow.workspace = true
 clap = { version = "4.5.35", features = ["derive", "unicode", "wrap_help"] }
 indent_write = "2.2.0"
 lazy_format = "2.0.3"
