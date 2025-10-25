@@ -8,7 +8,7 @@ use crate::parsed_data::{
     SpecialRustType, TypeName,
 };
 
-/// If we're in multifile mode, this enum contains the crate name for the
+/// If we're in multi-file mode, this enum contains the crate name for the
 /// specific file
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
@@ -32,6 +32,7 @@ impl<T> FilesMode<T> {
     }
 }
 
+#[expect(clippy::doc_lazy_continuation)]
 /**
 *The* trait you need to implement in order to have your own implementation of
 typeshare. The whole world revolves around this trait.
@@ -62,8 +63,8 @@ they're defaulted.
 
 It's also very common to implement:
 
-- `mapped_type`, to define certain types as having specialied handling in your
-  lanugage.
+- `mapped_type`, to define certain types as having specialized handling in your
+  language.
 - `begin_file`, `end_file`, and `write_additional_files`, to add additional
   per-file or per-directory content to your output.
 
@@ -81,8 +82,7 @@ in what order. For these examples, we're assuming a hypothetical implementation
 for Kotlin, which means that there must be `impl Language<'_> for Kotlin`
 somewhere.
 
-1. The language's config is loaded from the config file and command line
-arguments:
+1. The language's config is loaded from the config file and command line arguments:
 
 ```ignore
 let config = Kotlin::Config::deserialize(config_file)?;

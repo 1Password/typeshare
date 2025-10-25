@@ -63,8 +63,8 @@ impl Config {
     // serializing the config type into a toml table
     pub fn store_config_for_language<T: Serialize>(
         &mut self,
-        language: &str,
-        config: &T,
+        _language: &str,
+        _config: &T,
     ) -> anyhow::Result<()> {
         todo!()
         // self.raw_data.insert(

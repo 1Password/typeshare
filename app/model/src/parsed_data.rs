@@ -30,7 +30,7 @@ impl CrateName {
 
     /// Extract the crate name from a give path to a rust source file. This is
     /// defined as the name of the directory one level above the `src` directory
-    /// that cotains this source file, with any `-` replaced with `_`.
+    /// that contains this source file, with any `-` replaced with `_`.
     pub fn find_crate_name(path: &Path) -> Option<Self> {
         path.ancestors()
             // Only consider paths that contain normal stuff. If there's a
@@ -150,6 +150,7 @@ pub enum RustType {
     /// - `SomeStruct<String>`
     /// - `SomeEnum<u32>`
     /// - `SomeTypeAlias<(), &str>`
+    ///
     /// However, there are some generic types that are considered to be _special_. These
     /// include `Vec<T>` `HashMap<K, V>`, and `Option<T>`, which are part of `SpecialRustType` instead
     /// of `RustType::Generic`.

@@ -457,6 +457,7 @@ fn clear_item(path: &Path) {
     let _ = fs::remove_dir_all(path);
 }
 
+#[expect(clippy::too_many_arguments)]
 fn snapshot_test(
     snapshot_directory: &Path,
     mode: Mode,
