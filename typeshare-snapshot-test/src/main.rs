@@ -714,10 +714,10 @@ fn main() -> anyhow::Result<()> {
                     let entry_name = entry_name.to_string_lossy();
                     let entry_name = entry_name.into_owned();
 
-                    if let Some(names) = include_names {
-                        if !names.contains(entry_name.as_str()) {
-                            return Ok((entry_name, Report::Skip));
-                        }
+                    if let Some(names) = include_names
+                        && !names.contains(entry_name.as_str())
+                    {
+                        return Ok((entry_name, Report::Skip));
                     }
 
                     let meta = entry_path.metadata().with_context(|| {

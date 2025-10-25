@@ -32,6 +32,7 @@ use crate::{
 
 const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
+const CFG_ATTR: &str = "cfg_attr";
 
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
@@ -695,7 +696,7 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
 /// Checks the given attrs for `#[typeshare]` or `#[cfg_attr(<cond>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
     let check_cfg_attr = |attr| {
-        get_meta_items(attr, "cfg_attr").any(|item| match item {
+        get_meta_items(attr, CFG_ATTR).any(|item| match item {
             Meta::Path(path) => path
                 .segments
                 .iter()
@@ -845,7 +846,7 @@ fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
         })
         .flatten()
         .chain(attrs.iter().flat_map(move |attr| {
-            get_meta_items(attr, "cfg_attr")
+            get_meta_items(attr, CFG_ATTR)
                 .filter_map(|meta| match meta {
                     Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
                         .parse_args_with(KeyValueSeq::parse_terminated)
@@ -1125,7 +1126,6 @@ mod test_get_decorators {
                     swiftGenericConstraints = "R: Equatable & Hashable"
                 )
             )]
-
         };
 
         assert!(has_typeshare_annotation(&attrs));
