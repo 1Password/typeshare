@@ -1,3 +1,4 @@
+//! Parsing of `target_os` attributes
 use proc_macro2::{Delimiter, Group, TokenStream};
 use syn::{parse::Parser, punctuated::Punctuated, Ident, LitStr, Token};
 

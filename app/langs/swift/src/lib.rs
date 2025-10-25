@@ -889,7 +889,7 @@ impl<'config> Language<'config> for Swift<'config> {
         if self.should_emit_codable_void.load(Ordering::Relaxed) {
             let mut content = Vec::new();
             self.write_codable_void(&mut content)
-                .expect("write to vec is infallbile");
+                .expect("write to vec is infallible");
 
             let path = output_folder.join("Codable.swift");
 

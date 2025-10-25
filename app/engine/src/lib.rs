@@ -2,6 +2,7 @@
 pub mod args;
 pub mod config;
 pub mod driver;
+mod iter_util;
 pub mod parser;
 mod rename;
 mod serde;
@@ -63,7 +64,7 @@ impl Display for FileParseErrors {
 #[non_exhaustive]
 pub enum FileErrorKind {
     /// We couldn't figure which crate this file belongs to, which we need in
-    /// mutli-file mode
+    /// multi-file mode
     UnknownCrate,
 
     /// There were parse errors
@@ -76,13 +77,13 @@ pub enum FileErrorKind {
 impl Display for FileErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FileErrorKind::UnknownCrate => f.write_str("unknown crate in mutli-file mode"),
+            FileErrorKind::UnknownCrate => f.write_str("unknown crate in multi-file mode"),
             FileErrorKind::ParseErrors(parse_error_set) => parse_error_set.fmt(f),
             FileErrorKind::ReadError(error) => write!(f, "i/o error: {error}"),
         }
     }
 }
-/// A group of parse errors from a single file. Guaranteed to be non-emtpy.
+/// A group of parse errors from a single file. Guaranteed to be non-empty.
 #[derive(Debug)]
 pub struct ParseErrorSet {
     errors: Vec<ParseError>,

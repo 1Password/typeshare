@@ -1,10 +1,9 @@
 //! Command line argument parsing.
+use serde::ser;
 use std::{
     collections::HashMap,
     fmt::{self, Display, Write},
 };
-
-use serde::ser;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ArgType {

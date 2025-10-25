@@ -1,6 +1,6 @@
-use std::{marker::PhantomData, str};
-
+//! Toml deserialization.
 use serde::de;
+use std::{marker::PhantomData, str};
 
 /// Borrowing deserializer for a `toml::Value`
 pub struct ValueDeserializer<'a, E> {

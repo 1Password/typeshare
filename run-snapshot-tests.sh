@@ -31,3 +31,5 @@ for lang in "${!languages[@]}"; do
         exit $status
     fi
 done
+
+printf "All snapshot tests have passed\n"

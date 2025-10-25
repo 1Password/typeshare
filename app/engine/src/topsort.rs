@@ -1,8 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
-use typeshare_model::prelude::*;
-
+//! Top sort of rust types.
 use crate::writer::BorrowedRustItem;
+use std::collections::{HashMap, HashSet};
+use typeshare_model::prelude::*;
 
 fn get_dependencies_from_type<'a>(
     tp: &'a RustType,

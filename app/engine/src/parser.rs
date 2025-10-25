@@ -1,5 +1,6 @@
 //! Source file parsing.
 use crate::{
+    iter_util::IterExt as _,
     rename::RenameExt,
     target_os,
     type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
@@ -278,7 +279,7 @@ pub fn parse_input(
         )
 }
 
-/// Check if we have not parsed any relavent typehsared types.
+/// Check if we have not parsed any relevant typeshared types.
 fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
     parsed_data.enums.is_empty()
         && parsed_data.aliases.is_empty()
@@ -474,14 +475,21 @@ pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<Rust
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
-    let is_recursive = variants.iter().any(|v| match v {
-        RustEnumVariant::Unit(_) => false,
-        RustEnumVariant::Tuple { ty, .. } => ty.contains_type(&original_enum_ident),
-        RustEnumVariant::AnonymousStruct { fields, .. } => fields
-            .iter()
-            .any(|f| f.ty.contains_type(&original_enum_ident)),
-        _ => panic!("unrecgonized enum type"),
-    });
+    let is_recursive = variants.iter().try_any(|v| {
+        Ok(match v {
+            RustEnumVariant::Unit(_) => false,
+            RustEnumVariant::Tuple { ty, .. } => ty.contains_type(&original_enum_ident),
+            RustEnumVariant::AnonymousStruct { fields, .. } => fields
+                .iter()
+                .any(|f| f.ty.contains_type(&original_enum_ident)),
+            _ => {
+                return Err(ParseError::new(
+                    &e,
+                    ParseErrorKind::UnsupportedType("Unsupported enum type".into()),
+                ))
+            }
+        })
+    })?;
 
     let shared = RustEnumShared {
         id: get_ident(Some(&e.ident), &e.attrs, None),

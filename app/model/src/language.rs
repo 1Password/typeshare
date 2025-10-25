@@ -122,7 +122,7 @@ name.
 language.begin_file(&mut file, mode)
 ```
 
-5. In mutli-file mode only, we call `write_imports` with a list of all the
+5. In multi-file mode only, we call `write_imports` with a list of all the
 types that are being imported from other typeshare'd crates. This allows the
 language to emit appropriate import statements for its own language.
 
@@ -131,7 +131,7 @@ language to emit appropriate import statements for its own language.
 language.write_imports(&mut file, crate_name, computed_imports)
 ```
 
-6. For EACE typeshared item in being typeshared, we call `write_enum`,
+6. For EACH typeshared item in being typeshared, we call `write_enum`,
 `write_struct`, `write_type_alias`, or `write_const`, as appropriate.
 
 ```ignore
@@ -142,12 +142,12 @@ language.write_enum(&mut file, parsed_enum);
 6a. In your implementations of these methods, we recommend that you call
 `format_type` for the fields of these types. `format_type` will in turn call
 `format_simple_type`, `format_generic_type`, or `format_special_type`, as
-appropriate; usually it is only necessary for you to implmenent
+appropriate; usually it is only necessary for you to implement
 `format_special_type` yourself, and use the default implementations for the
 others. The `format_*` methods will otherwise never be called by typeshare.
 
 6b. If your language doesn't natively support data-containing enums, we
-recommand that you call `write_types_for_anonymous_structs` in your
+recommend that you call `write_types_for_anonymous_structs` in your
 implementation of `write_enum`; this will call `write_struct` for each variant
 of the enum.
 
@@ -173,7 +173,7 @@ algorithms that compute import sets are being rewritten. The API presented
 here is stable, but output might be buggy while issues with import detection
 are resolved.
 
-In the future, we hope to make mutli-file mode multithreaded, capable of
+In the future, we hope to make multi-file mode multithreaded, capable of
 writing multiple files concurrently from a shared `Language` instance.
 `Language` therefore has a `Sync` bound to keep this possibility available.
 */
@@ -184,7 +184,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
     `serde`.
 
     It is important that this type include `#[serde(default)]` or something
-    equivelent, so that a config can be loaded with default setting even
+    equivalent, so that a config can be loaded with default setting even
     if this language isn't present in the config file.
 
     The `serialize` implementation for this type should NOT skip keys, if
@@ -330,7 +330,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
 
     /**
     Format a special type. This will handle things like arrays, primitives,
-    options, and so on. Every lanugage has different spellings for these types,
+    options, and so on. Every language has different spellings for these types,
     so this is one of the key methods that a language implementation needs to
     deal with.
     */
@@ -561,7 +561,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
     unconditionally excluded from cross-file import analysis. Usually this will
     be the types in `mapped_types`, since those are types with special behavior
     (for instance, a datetime date provided as a standard type by your
-    langauge).
+    language).
 
     This is mostly a performance optimization. By default it returns `false`
     for all types.
