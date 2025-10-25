@@ -1,3 +1,4 @@
+//! Binary to generate or run snapshot tests.
 mod config;
 mod sorted_iter;
 

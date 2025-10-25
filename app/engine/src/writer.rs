@@ -1,3 +1,4 @@
+//! Single or multi-file writer for generated typeshared types.
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
@@ -10,6 +11,7 @@ use typeshare_model::prelude::*;
 
 use crate::{args::OutputLocation, parser::ParsedData, topsort::topsort};
 
+/// Writes the generated typeshared types to the file system.
 pub fn write_output<'c>(
     lang: &impl Language<'c>,
     crate_parsed_data: HashMap<Option<CrateName>, ParsedData>,
@@ -151,6 +153,7 @@ pub enum BorrowedRustItem<'a> {
 }
 
 impl BorrowedRustItem<'_> {
+    /// Typename identifier
     pub fn id(&self) -> &TypeName {
         &match *self {
             BorrowedRustItem::Struct(item) => &item.id,

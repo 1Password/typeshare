@@ -1,4 +1,11 @@
 //! Source file parsing.
+use crate::{
+    rename::RenameExt,
+    target_os,
+    type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
+    visitors::TypeShareVisitor,
+    FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
+};
 use ignore::Walk;
 use itertools::Itertools;
 use log::debug;
@@ -16,18 +23,9 @@ use syn::{
     Attribute, Expr, ExprGroup, ExprLit, ExprParen, Fields, GenericParam, Ident, ItemConst,
     ItemEnum, ItemStruct, ItemType, Lit, Meta, Token,
 };
-
 use typeshare_model::{
     decorator::{self, DecoratorSet},
     prelude::*,
-};
-
-use crate::{
-    rename::RenameExt,
-    target_os,
-    type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
-    visitors::TypeShareVisitor,
-    FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
 };
 
 const SERDE: &str = "serde";
@@ -69,6 +67,7 @@ pub struct ParsedData {
 }
 
 impl ParsedData {
+    /// Merge one parsed data with this one.
     pub fn merge(&mut self, other: Self) {
         self.structs.extend(other.structs);
         self.enums.extend(other.enums);
@@ -77,6 +76,7 @@ impl ParsedData {
         self.import_types.extend(other.import_types);
     }
 
+    /// Add a rust item.
     pub fn add(&mut self, item: RustItem) {
         match item {
             RustItem::Struct(rust_struct) => self.structs.push(rust_struct),
@@ -86,6 +86,7 @@ impl ParsedData {
         }
     }
 
+    /// Yield TypeName's
     pub fn all_type_names(&self) -> impl Iterator<Item = &'_ TypeName> + use<'_> {
         let s = self.structs.iter().map(|s| &s.id.renamed);
         let e = self.enums.iter().map(|e| &e.shared().id.renamed);
@@ -96,6 +97,7 @@ impl ParsedData {
         s.chain(e).chain(a)
     }
 
+    /// Sort parsed data.
     pub fn sort_contents(&mut self) {
         self.structs
             .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));

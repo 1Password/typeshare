@@ -1,3 +1,4 @@
+//! Data model representation of parsed typeshare types and meta-data.
 use std::{
     borrow::{Borrow, Cow},
     cmp::Ord,
@@ -19,6 +20,7 @@ impl Display for CrateName {
 }
 
 impl CrateName {
+    /// Create a new CrateName.
     pub const fn new(name: String) -> Self {
         Self(name)
     }
@@ -509,18 +511,21 @@ pub struct TypeName(Cow<'static, str>);
 impl TypeName {
     #[inline]
     #[must_use]
+    /// View as a string slice
     pub fn as_str(&self) -> &str {
         self.0.as_ref()
     }
 
     #[inline]
     #[must_use]
+    /// Create a TypeName from an String
     pub fn new_string(ident: String) -> Self {
         Self(Cow::Owned(ident))
     }
 
     #[inline]
     #[must_use]
+    /// Create a TypeName from an String slice
     pub const fn new_static(ident: &'static str) -> Self {
         Self(Cow::Borrowed(ident))
     }

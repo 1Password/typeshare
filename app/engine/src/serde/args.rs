@@ -1,3 +1,4 @@
+//! Command line argument parsing.
 use std::{
     collections::HashMap,
     fmt::{self, Display, Write},
@@ -26,6 +27,7 @@ pub struct CliArgsSet {
 }
 
 impl CliArgsSet {
+    /// Iterator of ArgSpec
     pub fn iter(&self) -> impl Iterator<Item = ArgSpec<'_>> + '_ {
         self.args
             .iter()
@@ -36,6 +38,7 @@ impl CliArgsSet {
             })
     }
 
+    /// Checks if arguments has provided key.
     pub fn contains_key(&self, key: &str) -> bool {
         self.args.contains_key(key)
     }

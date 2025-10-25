@@ -1,16 +1,17 @@
+//! Code generation for Typescript
+use anyhow::Context;
+use itertools::Itertools;
+use joinery::JoinableIterator;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::HashMap,
     io::{self, Write},
 };
-
-use anyhow::Context;
-use itertools::Itertools;
-use joinery::JoinableIterator;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};
 
+/// Typescript language config
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
@@ -27,15 +28,20 @@ pub struct Config {
 /// All information needed to generate Typescript type-code
 #[derive(Default, Debug)]
 pub struct TypeScript {
+    /// Type mappings
     pub type_mappings: HashMap<TypeName, TypeName>,
+    /// No version header
     pub no_version_header: bool,
 }
 
+/// Format type error
 #[derive(Debug, Clone, Error)]
 pub enum FormatTypeError {
+    /// Large integer
     #[error("Can't have 64-bit or larger integers in typescript")]
     LargeInteger,
 
+    /// Generic key map
     #[error("Can't have generic types as map keys in typescript")]
     GenericMapKey,
 }

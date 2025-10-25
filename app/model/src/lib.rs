@@ -11,6 +11,7 @@ pub mod parsed_data;
 pub use language::*;
 
 pub mod prelude {
+    //! Default exports when importing from prelude.
     pub use crate::language::{FilesMode, Language};
     pub use crate::parsed_data::{
         CrateName, Id, ImportedType, RustConst, RustConstExpr, RustEnum, RustEnumShared,

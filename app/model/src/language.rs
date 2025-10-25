@@ -1,25 +1,27 @@
-use std::{borrow::Cow, fmt::Debug, io::Write, path::Path};
-
-use anyhow::Context;
-use itertools::Itertools;
-
+//! Module for language generation.
 use crate::parsed_data::{
     CrateName, Id, RustConst, RustEnum, RustEnumVariant, RustStruct, RustType, RustTypeAlias,
     SpecialRustType, TypeName,
 };
+use anyhow::Context;
+use itertools::Itertools;
+use std::{borrow::Cow, fmt::Debug, io::Write, path::Path};
 
 /// If we're in multi-file mode, this enum contains the crate name for the
 /// specific file
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub enum FilesMode<T> {
+    /// Single file mode
     Single,
+    /// Multi-file mode
     Multi(T),
     // We've had requests for java support, which means we'll need a
     // 1-file-per-type mode
 }
 
 impl<T> FilesMode<T> {
+    /// Apply function.
     pub fn map<U>(self, op: impl FnOnce(T) -> U) -> FilesMode<U> {
         match self {
             FilesMode::Single => FilesMode::Single,
@@ -27,6 +29,7 @@ impl<T> FilesMode<T> {
         }
     }
 
+    /// Is multi-file mode enabled.
     pub fn is_multi(&self) -> bool {
         matches!(*self, Self::Multi(_))
     }

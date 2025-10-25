@@ -1,3 +1,10 @@
+//! Code generation for Swift
+use anyhow::Context;
+use indent_write::io::IndentWriter;
+use itertools::Itertools;
+use joinery::{Joinable, JoinableIterator};
+use lazy_format::lazy_format;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
@@ -6,20 +13,12 @@ use std::{
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
-
-use anyhow::Context;
-use indent_write::io::IndentWriter;
-use itertools::Itertools;
-use joinery::{Joinable, JoinableIterator};
-use lazy_format::lazy_format;
-use serde::{Deserialize, Serialize};
-
 use typeshare_model::{
     decorator::{DecoratorSet, Value},
     prelude::*,
 };
 
-// Keywords taken from https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html
+/// Keywords taken from https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html
 const SWIFT_KEYWORDS: &[&str] = &[
     "associatedtype",
     "class",
@@ -86,6 +85,7 @@ struct CodingKeysInfo {
     coding_keys: Vec<String>,
 }
 
+/// Configuration
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config<'a> {
     /// The prefix to apply to all swift types
@@ -115,6 +115,7 @@ pub struct Config<'a> {
     no_version_header: bool,
 }
 
+/// Swift language
 #[derive(Debug)]
 pub struct Swift<'a> {
     prefix: &'a str,

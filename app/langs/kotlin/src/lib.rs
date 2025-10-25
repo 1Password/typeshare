@@ -1,16 +1,15 @@
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    io::{self, Write as _},
-};
-
+//! Code generation for Kotlin
 use anyhow::Context;
 use indent_write::io::IndentWriter;
 use itertools::Itertools as _;
 use joinery::JoinableIterator as _;
 use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
-
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    io::{self, Write as _},
+};
 use typeshare_model::{
     decorator::{DecoratorSet, Value},
     prelude::*,
@@ -21,6 +20,7 @@ enum Visibility {
     Private,
 }
 
+/// Kotlin config
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config<'config> {
@@ -42,6 +42,7 @@ pub struct Config<'config> {
     no_version_header: bool,
 }
 
+/// Kotlin language
 #[derive(Debug)]
 pub struct Kotlin<'config> {
     package: &'config str,

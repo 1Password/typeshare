@@ -1,19 +1,19 @@
+//! Configuration data.
+pub use crate::serde::args::CliArgsSet;
+use crate::serde::{args::ArgsSetSerializer, config::ConfigDeserializer, empty::EmptyDeserializer};
+use anyhow::Context;
+use serde::{ser, Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
 };
-
-use anyhow::Context;
-use serde::{ser, Deserialize, Serialize};
 use typeshare_model::Language;
 
-use crate::serde::{args::ArgsSetSerializer, config::ConfigDeserializer, empty::EmptyDeserializer};
-
-pub use crate::serde::args::CliArgsSet;
-
+/// Default configuration file name.
 const DEFAULT_CONFIG_FILE_NAME: &str = "typeshare.toml";
 
+/// Global application configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct GlobalConfig {
     /// If present, only fields / variants / items that are accepted by at
@@ -59,8 +59,8 @@ impl Config {
         self.raw_data.get(language).unwrap_or(&self.empty)
     }
 
-    // Store a config for a language, overriding the existing one, by
-    // serializing the config type into a toml table
+    /// Store a config for a language, overriding the existing one, by
+    /// serializing the config type into a toml table
     pub fn store_config_for_language<T: Serialize>(
         &mut self,
         _language: &str,
@@ -77,6 +77,7 @@ impl Config {
         // Ok(())
     }
 
+    /// Get global configuration
     pub fn global_config(&self) -> &GlobalConfig {
         &self.typeshare
     }
@@ -91,6 +92,7 @@ impl Serialize for Config {
     }
 }
 
+/// Parse and compute command line arguments.
 pub fn compute_args_set<'a, L: Language<'a>>() -> anyhow::Result<CliArgsSet> {
     let empty_config = L::Config::deserialize(EmptyDeserializer).context(
         "failed to create empty config; \
@@ -119,6 +121,7 @@ pub fn compute_args_set<'a, L: Language<'a>>() -> anyhow::Result<CliArgsSet> {
 //     Ok(())
 // }
 
+/// Load configuration from disk.
 pub fn load_config(file_path: Option<&Path>) -> anyhow::Result<Config> {
     let file_path_buf;
 
@@ -164,6 +167,7 @@ fn find_configuration_file() -> Option<PathBuf> {
     }
 }
 
+/// Load a language configuration.
 pub fn load_language_config<'a, 'config, L: Language<'config>>(
     config_file_entry: &'config toml::Table,
     cli_matches: &'config clap::ArgMatches,
@@ -177,6 +181,7 @@ pub fn load_language_config<'a, 'config, L: Language<'config>>(
     .context("error deserializing config")
 }
 
+/// Load a language configuration using file and arguments.
 pub fn load_language_config_from_file_and_args<'a, 'config, L: Language<'config>>(
     config: &'config Config,
     cli_matches: &'config clap::ArgMatches,

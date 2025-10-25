@@ -1,3 +1,4 @@
+//! Module for parsing and representing attribute decorators.
 use std::collections::HashMap;
 
 /// A decorator value can either be any literal (`ident = "foo"`), or absent
@@ -7,9 +8,13 @@ use std::collections::HashMap;
 pub enum Value {
     /// The key was present as an attribute without an associated value.
     None,
+    /// A bool
     Bool(bool),
+    /// A String
     String(String),
+    /// An unsigned 32-bit integer
     Int(u32),
+    /// A nested decorator set.
     Nested(DecoratorSet),
 }
 

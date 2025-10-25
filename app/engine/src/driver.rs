@@ -1,3 +1,4 @@
+//! Program runner.
 use std::{collections::HashMap, io};
 
 use anyhow::Context as _;
@@ -21,7 +22,9 @@ use crate::{
     writer::write_output,
 };
 
+/// Language set.
 pub trait LanguageSet<'config> {
+    /// Language meta-data.
     type LanguageMetas: 'static;
 
     /// Each language has a set of configuration metadata, describing all
@@ -41,6 +44,7 @@ pub trait LanguageSet<'config> {
         metas: &Self::LanguageMetas,
     ) -> clap::Command;
 
+    /// Run typeshare for provided language output.
     fn execute_typeshare_for_language(
         language: &str,
         config: &'config config::Config,
@@ -175,12 +179,14 @@ language_set_for! {
 }
 
 /// This trait is used by the driver macro to unify the 'config lifetime
-/// across all of the language types. I'm open to suggesstions for getting
+/// across all of the language types. I'm open to suggestions for getting
 /// rid of this.
 pub trait LanguageHelper {
+    /// Language set for this language helper.
     type LanguageSet<'config>: LanguageSet<'config>;
 }
 
+/// The "main" function for running typeshare.
 pub fn main_body<Helper>(personalizations: args::PersonalizeClap) -> anyhow::Result<()>
 where
     Helper: LanguageHelper,
