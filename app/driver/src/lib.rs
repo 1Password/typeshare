@@ -64,7 +64,7 @@ details and an example.
 #[macro_export]
 macro_rules! typeshare_binary {
     ($($Language:ident $(< $config:lifetime >)?),+ $(,)?) => {
-        fn main() -> $crate::ඞ::anyhow::Result<()> {
+        fn main() {
             struct Local;
 
             impl $crate::ඞ::engine::driver::LanguageHelper for Local {
@@ -73,11 +73,14 @@ macro_rules! typeshare_binary {
                 )+);
             }
 
-            $crate::ඞ::engine::driver::main_body::<Local>(
+            if let Err(err) = $crate::ඞ::engine::driver::main_body::<Local>(
                 $crate::ඞ::engine::args::PersonalizeClap::new()
                     .name(env!("CARGO_PKG_NAME"))
                     .version(env!("CARGO_PKG_VERSION")),
-            )
+            ) {
+                log::error!("Typeshare failed: {err}");
+                log::error!("{}", err.root_cause());
+            }
         }
     };
 }

@@ -1,15 +1,14 @@
 //! Single or multi-file writer for generated typeshared types.
+use crate::{args::OutputLocation, parser::ParsedData, topsort::topsort};
+use anyhow::Context;
+use itertools::Itertools;
+use log::{info, warn};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
-
-use anyhow::Context;
-use itertools::Itertools;
 use typeshare_model::prelude::*;
-
-use crate::{args::OutputLocation, parser::ParsedData, topsort::topsort};
 
 /// Writes the generated typeshared types to the file system.
 pub fn write_output<'c>(
@@ -117,7 +116,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
             // avoid writing the file to leave the mtime intact
             // for tools which might use it to know when to
             // rebuild.
-            eprintln!("Skipping writing to {outfile:?} no changes");
+            info!("Skipping writing to {outfile:?} no changes");
             return Ok(());
         }
         _ => {}
@@ -133,6 +132,7 @@ fn check_write_file(outfile: &PathBuf, output: Vec<u8>) -> anyhow::Result<()> {
         }
 
         fs::write(outfile, output).context("failed to write output")?;
+        info!("Wrote to {}", outfile.to_string_lossy());
     }
     Ok(())
 }
@@ -224,7 +224,7 @@ fn generate_types<'c>(
         .context("error writing file trailer")
 }
 
-/// Lookup any refeferences to other typeshared types in order to build
+/// Lookup any references to other typeshared types in order to build
 /// a list of imports for the generated module.
 fn used_imports<'a, 'b: 'a>(
     data: &'b ParsedData,
@@ -247,7 +247,7 @@ fn used_imports<'a, 'b: 'a>(
             })
             .next()
         {
-            println!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
+            warn!("Warning: Using {crate_name} as module for {ty} which is not in referenced crate {}", referenced_import.base_crate);
             used.entry(crate_name).or_default().insert(ty);
         } else {
             // println!("Could not lookup reference {referenced_import:?}");

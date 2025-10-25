@@ -1,15 +1,4 @@
 //! Program runner.
-use std::{collections::HashMap, io};
-
-use anyhow::Context as _;
-use clap::{CommandFactory as _, FromArgMatches as _};
-use clap_complete::generate as generate_completions;
-use flexi_logger::AdaptiveFormat;
-use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
-use itertools::Itertools;
-use lazy_format::lazy_format;
-use typeshare_model::prelude::{CrateName, FilesMode, Language};
-
 use crate::{
     args::{
         self, add_lang_argument, add_language_params_to_clap, add_personalizations, Command,
@@ -21,6 +10,16 @@ use crate::{
     parser::{parse_input, parser_inputs, ParsedData},
     writer::write_output,
 };
+use anyhow::Context as _;
+use clap::{CommandFactory as _, FromArgMatches as _};
+use clap_complete::generate as generate_completions;
+use flexi_logger::AdaptiveFormat;
+use ignore::{overrides::OverrideBuilder, types::TypesBuilder, WalkBuilder};
+use itertools::Itertools;
+use lazy_format::lazy_format;
+use log::{debug, info};
+use std::{collections::HashMap, io};
+use typeshare_model::prelude::{CrateName, FilesMode, Language};
 
 /// Language set.
 pub trait LanguageSet<'config> {
@@ -166,6 +165,7 @@ fn execute_typeshare_for_language<'config, 'a, L: Language<'config>>(
     write_output(&language_implementation, data, destination)
         .with_context(|| format!("failed to generate typeshared code for language {name}"))?;
 
+    info!("Finished writing generated types");
     Ok(())
 }
 
@@ -192,8 +192,8 @@ where
     Helper: LanguageHelper,
 {
     flexi_logger::Logger::try_with_env_or_str("info")?
-        .adaptive_format_for_stderr(AdaptiveFormat::Opt)
-        .adaptive_format_for_stdout(AdaptiveFormat::Opt)
+        .adaptive_format_for_stderr(AdaptiveFormat::Default)
+        .adaptive_format_for_stdout(AdaptiveFormat::Default)
         .start()?;
 
     let language_metas = Helper::LanguageSet::compute_language_metas()?;
@@ -235,7 +235,17 @@ where
         .or_else(|| config.global_config().target_os.as_ref())
         .map(|targets| targets.iter().map(|target| target.as_str()).collect_vec());
 
-    eprintln!("TARGET {target_os:?}");
+    debug!("TARGET {target_os:?}");
+
+    info!(
+        "Running typeshare using directories: \"{}\"",
+        standard_args
+            .directories
+            .as_slice()
+            .iter()
+            .map(|p| p.to_string_lossy())
+            .join(",")
+    );
 
     // Construct the directory walker that will produce the list of
     // files to typeshare
@@ -291,6 +301,11 @@ where
         anyhow::anyhow!("{message}")
     })
     .context("error parsing input files")?;
+
+    info!(
+        "Parsed {} typeshare types",
+        data.iter().map(|d| d.1.total_parsed_types()).sum::<usize>()
+    );
 
     let destination = standard_args.output.location();
 

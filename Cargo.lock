@@ -259,23 +259,16 @@ checksum = "52051878f80a721bb68ebfbc930e07b65ba72f2da88968ea5c06fd6ca3d3a127"
 
 [[package]]
 name = "flexi_logger"
-version = "0.28.5"
+version = "0.31.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca927478b3747ba47f98af6ba0ac0daea4f12d12f55e9104071b3dc00276310"
+checksum = "31e5335674a3a259527f97e9176a3767dcc9b220b8e29d643daeb2d6c72caf8b"
 dependencies = [
  "chrono",
- "glob",
  "log",
  "nu-ansi-term",
  "regex",
- "thiserror 1.0.69",
+ "thiserror",
 ]
-
-[[package]]
-name = "glob"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "globset"
@@ -635,31 +628,11 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52"
-dependencies = [
- "thiserror-impl 1.0.69",
-]
-
-[[package]]
-name = "thiserror"
 version = "2.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567b8a2dae586314f7be2a752ec7474332959c6460e02bde30d702a66d488708"
 dependencies = [
- "thiserror-impl 2.0.12",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.69"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "thiserror-impl",
 ]
 
 [[package]]
@@ -729,6 +702,7 @@ name = "typeshare-driver"
 version = "1.3.0"
 dependencies = [
  "anyhow",
+ "log",
  "typeshare-engine",
 ]
 
@@ -751,7 +725,7 @@ dependencies = [
  "rayon",
  "serde",
  "syn",
- "thiserror 2.0.12",
+ "thiserror",
  "toml",
  "typeshare-model",
 ]
@@ -766,7 +740,7 @@ dependencies = [
  "joinery",
  "lazy_format",
  "serde",
- "thiserror 2.0.12",
+ "thiserror",
  "typeshare-model",
 ]
 
@@ -813,7 +787,7 @@ dependencies = [
  "itertools",
  "joinery",
  "serde",
- "thiserror 2.0.12",
+ "thiserror",
  "typeshare-model",
 ]
 
@@ -821,6 +795,7 @@ dependencies = [
 name = "typeshare2-cli"
 version = "2.0.0"
 dependencies = [
+ "log",
  "typeshare-driver",
  "typeshare-kotlin",
  "typeshare-swift",

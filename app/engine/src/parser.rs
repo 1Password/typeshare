@@ -112,6 +112,11 @@ impl ParsedData {
         self.consts
             .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
     }
+
+    /// Get the total amount of parsed types
+    pub fn total_parsed_types(&self) -> usize {
+        self.aliases.len() + self.consts.len() + self.structs.len() + self.enums.len()
+    }
 }
 
 /// Input data for parsing each source file.
