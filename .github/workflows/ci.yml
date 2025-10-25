@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - main
+      - typeshare2
 
 name: CI
 
