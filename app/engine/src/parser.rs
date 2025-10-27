@@ -1207,4 +1207,30 @@ mod test_get_decorators {
 
         assert!(decorators.is_redacted());
     }
+
+    #[test]
+    fn test_field_decorator_cfg_attr() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+            pub struct Test {
+                #[cfg_attr(feature = "typeshare-support", typeshare(serialized_as = "i54"))]
+                pub field_1: i64
+            }
+        };
+
+        let RustItem::Struct(rust_struct) =
+            parse_struct(&item_struct, None).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+
+        let field_decorators = &rust_struct.fields[0].decorators;
+
+        let value = field_decorators
+            .get_all("serialized_as")
+            .first()
+            .expect("No serialized_as decorator");
+
+        assert_eq!(value, &Value::String("i54".into()));
+    }
 }

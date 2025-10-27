@@ -1,10 +1,23 @@
 #!/bin/bash
+
 # This bash script will run all our snapshot tests using the
 # new snapshot test runner. The test runner only runs for a
 # single output language so this script loops through all the
 # supported languages. The test runner requires a pre-built
 # typeshare binary to run, so this script starts by building
 # a release profile of the binary.
+
+# Check bash version.
+/bin/bash --version | head -n 1 | awk '{
+    if ($4 < "4") {
+        print "Bash 4+ is required. Your version is", $4;
+        exit(1);
+    }
+}'
+if [ $? -ne 0 ]; then
+    printf "Not running snapshot tests\n"
+    exit 1
+fi
 
 # Test runner.
 TEST="cargo run --release --bin typeshare-snapshot-test --"
