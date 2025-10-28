@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This bash script will run all our snapshot tests using the
 # new snapshot test runner. The test runner only runs for a
@@ -8,7 +8,7 @@
 # a release profile of the binary.
 
 # Check bash version.
-/bin/bash --version | head -n 1 | awk '{
+/usr/bin/env bash --version | head -n 1 | awk '{
     if ($4 < "4") {
         print "Bash 4+ is required. Your version is", $4;
         exit(1);
