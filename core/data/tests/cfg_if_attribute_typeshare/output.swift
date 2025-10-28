@@ -26,3 +26,11 @@ public struct TestStruct2<R: Codable & Equatable & Hashable>: Codable, Equatable
 		self.field2 = field2
 	}
 }
+
+public struct TestStruct4: Codable {
+	public let field: Int64
+
+	public init(field: Int64) {
+		self.field = field
+	}
+}

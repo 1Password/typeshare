@@ -32,3 +32,9 @@ pub struct TestStruct2<R> {
     typeshare(kotlin = "JvmInline", redacted)
 )]
 pub struct TestStruct3(String);
+
+#[cfg_attr(feature = "typeshare-support", typeshare)]
+pub struct TestStruct4 {
+    #[cfg_attr(feature = "typeshare-support", typeshare(serialized_as = "I54"))]
+    pub field: i64,
+}

@@ -18,3 +18,7 @@ export interface TestStruct2<R> {
 	field2: R;
 }
 
+export interface TestStruct4 {
+	field: number;
+}
+

@@ -31,3 +31,8 @@ data class TestStruct2<R> (
 	val field2: R
 )
 
+@Serializable
+data class TestStruct4 (
+	val field: Long
+)
+
