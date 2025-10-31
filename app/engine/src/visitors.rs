@@ -1,13 +1,4 @@
 //! Visitors to collect various items from the AST.
-
-use std::collections::HashSet;
-use std::{iter, mem};
-use syn::{visit::Visit, Attribute, ItemUse, UseTree};
-use typeshare_model::{
-    parsed_data::ImportedType,
-    prelude::{CrateName, FilesMode, RustEnum, RustEnumVariant, RustType, TypeName},
-};
-
 use crate::{
     parser::{
         self, has_typeshare_annotation, parse_const, parse_enum, parse_struct, parse_type_alias,
@@ -15,6 +6,12 @@ use crate::{
     },
     type_parser::type_name,
     ParseError, ParseErrorSet,
+};
+use std::{collections::HashSet, iter, mem};
+use syn::{visit::Visit, Attribute, ItemUse, UseTree};
+use typeshare_model::{
+    parsed_data::ImportedType,
+    prelude::{CrateName, FilesMode, RustEnum, RustEnumVariant, RustType, TypeName},
 };
 
 /// List of some popular crate names that we can ignore

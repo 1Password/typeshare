@@ -1,12 +1,11 @@
+//! Deserialization for configuration.
+use super::args::{ArgSpec, ArgType, CliArgsSet};
+use itertools::Itertools;
+use serde::de::{self, value::BorrowedStrDeserializer};
 use std::{
     ffi::{OsStr, OsString},
     str::FromStr,
 };
-
-use itertools::Itertools;
-use serde::de::{self, value::BorrowedStrDeserializer};
-
-use super::args::{ArgSpec, ArgType, CliArgsSet};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigDeserializeError {

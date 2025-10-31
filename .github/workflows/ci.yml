@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - main
+      - typeshare2
 
 name: CI
 
@@ -24,7 +25,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: rustup run ${{ matrix.rust }} cargo check
 
-
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -39,8 +39,8 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
       - run: rustup run ${{ matrix.rust }} cargo test --all-features
+      - run: ./run-snapshot-tests.sh
 
-  
   check-deterministic:
     name: Ensure Deterministic Output
     runs-on: ubuntu-latest
@@ -60,7 +60,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: rustup toolchain install ${{ matrix.rust }}
       - run: just --justfile tests/justfile determinism
-    
 
   fmt:
     name: Rustfmt
@@ -77,7 +76,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           components: rustfmt
       - run: rustup run ${{ matrix.rust }} cargo fmt --all -- --check
-
 
   clippy:
     name: Clippy

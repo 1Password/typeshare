@@ -9,6 +9,7 @@ repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.96"
+anyhow.workspace = true
+log.workspace = true
 
 typeshare-engine = { version = "0.4.0", path = "../engine" }

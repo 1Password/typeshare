@@ -1,6 +1,15 @@
 //! Source file parsing.
+use crate::{
+    iter_util::IterExt as _,
+    rename::RenameExt,
+    target_os,
+    type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
+    visitors::TypeShareVisitor,
+    FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
+};
 use ignore::Walk;
 use itertools::Itertools;
+use log::debug;
 use proc_macro2::{Delimiter, Group};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -15,22 +24,14 @@ use syn::{
     Attribute, Expr, ExprGroup, ExprLit, ExprParen, Fields, GenericParam, Ident, ItemConst,
     ItemEnum, ItemStruct, ItemType, Lit, Meta, Token,
 };
-
 use typeshare_model::{
     decorator::{self, DecoratorSet},
     prelude::*,
 };
 
-use crate::{
-    rename::RenameExt,
-    target_os,
-    type_parser::{parse_rust_type, parse_rust_type_from_string, type_name},
-    visitors::TypeShareVisitor,
-    FileParseErrors, ParseError, ParseErrorKind, ParseErrorSet,
-};
-
 const SERDE: &str = "serde";
 const TYPESHARE: &str = "typeshare";
+const CFG_ATTR: &str = "cfg_attr";
 
 /// An enum that encapsulates units of code generation for Typeshare.
 /// Analogous to `syn::Item`, even though our variants are more limited.
@@ -67,6 +68,7 @@ pub struct ParsedData {
 }
 
 impl ParsedData {
+    /// Merge one parsed data with this one.
     pub fn merge(&mut self, other: Self) {
         self.structs.extend(other.structs);
         self.enums.extend(other.enums);
@@ -75,6 +77,7 @@ impl ParsedData {
         self.import_types.extend(other.import_types);
     }
 
+    /// Add a rust item.
     pub fn add(&mut self, item: RustItem) {
         match item {
             RustItem::Struct(rust_struct) => self.structs.push(rust_struct),
@@ -84,6 +87,7 @@ impl ParsedData {
         }
     }
 
+    /// Yield TypeName's
     pub fn all_type_names(&self) -> impl Iterator<Item = &'_ TypeName> + use<'_> {
         let s = self.structs.iter().map(|s| &s.id.renamed);
         let e = self.enums.iter().map(|e| &e.shared().id.renamed);
@@ -94,6 +98,7 @@ impl ParsedData {
         s.chain(e).chain(a)
     }
 
+    /// Sort parsed data.
     pub fn sort_contents(&mut self) {
         self.structs
             .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
@@ -107,6 +112,11 @@ impl ParsedData {
 
         self.consts
             .sort_unstable_by(|lhs, rhs| Ord::cmp(&lhs.id.original, &rhs.id.original));
+    }
+
+    /// Get the total amount of parsed types
+    pub fn total_parsed_types(&self) -> usize {
+        self.aliases.len() + self.consts.len() + self.structs.len() + self.enums.len()
     }
 }
 
@@ -185,6 +195,7 @@ pub fn parse_input(
     inputs
         .into_par_iter()
         .map(|parser_input| {
+            debug!("Parsing file {:?}", parser_input.file_path);
             // Performance nit: we don't need to clone in the error case;
             // map_err is taking unconditional ownership unnecessarily
             let content = std::fs::read_to_string(&parser_input.file_path).map_err(|err| {
@@ -268,7 +279,7 @@ pub fn parse_input(
         )
 }
 
-/// Check if we have not parsed any relavent typehsared types.
+/// Check if we have not parsed any relevant typeshared types.
 fn is_parsed_data_empty(parsed_data: &ParsedData) -> bool {
     parsed_data.enums.is_empty()
         && parsed_data.aliases.is_empty()
@@ -285,7 +296,8 @@ pub fn parse(
 ) -> Result<Option<ParsedData>, ParseErrorSet> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !source_code.contains("#[typeshare") {
+    if !source_code.contains("typeshare") {
+        debug!("No typeshare found in file");
         return Ok(None);
     }
 
@@ -296,7 +308,6 @@ pub fn parse(
         .map_err(|err| ParseError::new(&err.span(), ParseErrorKind::SynError(err)))?;
 
     import_visitor.visit_file(&file_contents);
-
     import_visitor.parsed_data().map(Some)
 }
 
@@ -464,14 +475,21 @@ pub(crate) fn parse_enum(e: &ItemEnum, valid_os: Option<&[&str]>) -> Result<Rust
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check if the enum references itself recursively in any of its variants
-    let is_recursive = variants.iter().any(|v| match v {
-        RustEnumVariant::Unit(_) => false,
-        RustEnumVariant::Tuple { ty, .. } => ty.contains_type(&original_enum_ident),
-        RustEnumVariant::AnonymousStruct { fields, .. } => fields
-            .iter()
-            .any(|f| f.ty.contains_type(&original_enum_ident)),
-        _ => panic!("unrecgonized enum type"),
-    });
+    let is_recursive = variants.iter().try_any(|v| {
+        Ok(match v {
+            RustEnumVariant::Unit(_) => false,
+            RustEnumVariant::Tuple { ty, .. } => ty.contains_type(&original_enum_ident),
+            RustEnumVariant::AnonymousStruct { fields, .. } => fields
+                .iter()
+                .any(|f| f.ty.contains_type(&original_enum_ident)),
+            _ => {
+                return Err(ParseError::new(
+                    &e,
+                    ParseErrorKind::UnsupportedType("Unsupported enum type".into()),
+                ))
+            }
+        })
+    })?;
 
     let shared = RustEnumShared {
         id: get_ident(Some(&e.ident), &e.attrs, None),
@@ -690,12 +708,21 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseError> {
 
 // Helpers
 
-/// Checks the given attrs for `#[typeshare]`
+/// Checks the given attrs for `#[typeshare]` or `#[cfg_attr(<cond>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
+    let check_cfg_attr = |attr| {
+        get_meta_items(attr, CFG_ATTR).any(|item| match item {
+            Meta::Path(path) => path
+                .segments
+                .iter()
+                .any(|segment| segment.ident == TYPESHARE),
+            Meta::List(meta_list) => meta_list.path.is_ident(TYPESHARE),
+            Meta::NameValue(_meta_name_value) => false,
+        })
+    };
     attrs
         .iter()
-        .flat_map(|attr| attr.path().segments.clone())
-        .any(|segment| segment.ident == TYPESHARE)
+        .any(|attr| attr.path().is_ident(TYPESHARE) || check_cfg_attr(attr))
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -717,7 +744,6 @@ pub(crate) fn get_name_value_meta_items<'a>(
 ) -> impl Iterator<Item = String> + 'a {
     attrs.iter().flat_map(move |attr| {
         get_meta_items(attr, ident)
-            .iter()
             .filter_map(|arg| match arg {
                 Meta::NameValue(name_value) if name_value.path.is_ident(name) => {
                     expr_to_string(&name_value.value)
@@ -729,16 +755,16 @@ pub(crate) fn get_name_value_meta_items<'a>(
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
-fn get_meta_items(attr: &syn::Attribute, ident: &str) -> Vec<Meta> {
-    if attr.path().is_ident(ident) {
-        attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
-            .iter()
-            .flat_map(|meta| meta.iter())
-            .cloned()
-            .collect()
-    } else {
-        Vec::default()
-    }
+fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
+    attr.path()
+        .is_ident(ident)
+        .then(|| {
+            attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+                .into_iter()
+                .flat_map(|punctuated| punctuated.into_iter())
+        })
+        .into_iter()
+        .flatten()
 }
 
 fn get_ident(ident: Option<&Ident>, attrs: &[syn::Attribute], rename_all: Option<&str>) -> Id {
@@ -797,7 +823,6 @@ fn parse_comment_attrs(attrs: &[Attribute]) -> Vec<String> {
 fn is_skipped(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .into_iter()
             .chain(get_meta_items(attr, TYPESHARE))
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("skip")))
     })
@@ -806,7 +831,6 @@ fn is_skipped(attrs: &[syn::Attribute]) -> bool {
 fn serde_attr(attrs: &[syn::Attribute], ident: &str) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, SERDE)
-            .iter()
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident(ident)))
     })
 }
@@ -825,13 +849,27 @@ fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
 fn get_decorators(attrs: &[Attribute]) -> DecoratorSet {
     attrs
         .iter()
-        .flat_map(|attr| match attr.meta {
-            Meta::List(ref meta) => Some(meta),
+        .filter_map(|attr| match attr.meta {
+            Meta::List(ref meta_list) => Some(meta_list),
             Meta::Path(_) | Meta::NameValue(_) => None,
         })
-        .filter(|meta| meta.path.is_ident(TYPESHARE))
-        .filter_map(|meta| meta.parse_args_with(KeyValueSeq::parse_terminated).ok())
+        .filter(|meta_list| meta_list.path.is_ident(TYPESHARE))
+        .filter_map(|meta_list| {
+            meta_list
+                .parse_args_with(KeyValueSeq::parse_terminated)
+                .ok()
+        })
         .flatten()
+        .chain(attrs.iter().flat_map(move |attr| {
+            get_meta_items(attr, CFG_ATTR)
+                .filter_map(|meta| match meta {
+                    Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
+                        .parse_args_with(KeyValueSeq::parse_terminated)
+                        .ok(),
+                    _ => None,
+                })
+                .flatten()
+        }))
         .map(|pair| (pair.key, pair.value))
         .collect()
 }
@@ -956,24 +994,14 @@ fn test_rename_all_to_case() {
 
 #[cfg(test)]
 mod test_get_decorators {
-    use std::str::FromStr;
-
     use cool_asserts::assert_matches;
-    use proc_macro2::TokenStream;
-    use syn::parse::Parser;
     use typeshare_model::decorator::Value;
 
     use super::*;
 
-    fn parse_attr(input: &str) -> Vec<Attribute> {
-        let tokens = TokenStream::from_str(input).expect("failed to create token stream");
-
-        Parser::parse2(Attribute::parse_outer, tokens).expect("failed to parse attribute")
-    }
-
     #[test]
     fn basic() {
-        let attr = parse_attr("#[typeshare(foo)]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(foo)]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -982,7 +1010,7 @@ mod test_get_decorators {
 
     #[test]
     fn several() {
-        let attr = parse_attr("#[typeshare(foo, int=10, string=\"foo\")]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(foo, int=10, string="foo")]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -996,7 +1024,7 @@ mod test_get_decorators {
 
     #[test]
     fn multi_key() {
-        let attr = parse_attr("#[typeshare(thing=10, foo, thing=\"hello\")]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(thing=10, foo, thing="hello")]);
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1008,10 +1036,10 @@ mod test_get_decorators {
 
     #[test]
     fn multiple_attributes() {
-        let attr = parse_attr(
-            "#[typeshare(foo, bar = \"baz\")]
-             #[typeshare(baz = 42, qux)]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(foo, bar = "baz")]
+            #[typeshare(baz = 42, qux)]
+        };
         let decorators = get_decorators(&attr);
 
         assert_eq!(decorators.get_all("foo"), &[Value::None]);
@@ -1025,10 +1053,10 @@ mod test_get_decorators {
 
     #[test]
     fn duplicate_keys_in_multiple_attributes() {
-        let attr = parse_attr(
-            "#[typeshare(foo = \"bar\", foo = 42)]
-             #[typeshare(foo)]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(foo = "bar", foo = 42)]
+            #[typeshare(foo)]
+        };
         let decorators = get_decorators(&attr);
 
         assert_eq!(
@@ -1044,11 +1072,11 @@ mod test_get_decorators {
     // Regression test for an earlier breakage
     #[test]
     fn jvm_inline() {
-        let attr = parse_attr(
-            "#[typeshare(kotlin =\"JvmInline\", redacted)]
-             #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-             #[serde(rename_all = \"camelCase\")]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(kotlin ="JvmInline", redacted)]
+            #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+            #[serde(rename_all = "camelCase")]
+        };
 
         let decorators = get_decorators(&attr);
 
@@ -1061,7 +1089,7 @@ mod test_get_decorators {
 
     #[test]
     fn nested() {
-        let attr = parse_attr("#[typeshare(a, b(c=1, d=2, d=3))]");
+        let attr: Vec<Attribute> = syn::parse_quote!(#[typeshare(a, b(c=1, d=2, d=3))]);
 
         let decorators = get_decorators(&attr);
 
@@ -1077,14 +1105,12 @@ mod test_get_decorators {
 
     #[test]
     fn type_override() {
-        let attr = parse_attr(
-            "#[typeshare(typescript(type = \"string\"))]
-             #[typeshare(swift = \"Foo\", swift(type=\"NSString\"))]",
-        );
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[typeshare(typescript(type = "string"))]
+            #[typeshare(swift = "Foo", swift(type="NSString"))]
+        };
 
         let decorators = get_decorators(&attr);
-
-        eprintln!("{decorators:#?}");
 
         assert_eq!(
             decorators.type_override_for_lang("swift").unwrap(),
@@ -1095,5 +1121,116 @@ mod test_get_decorators {
             "string"
         );
         assert_eq!(decorators.type_override_for_lang("kotlin"), None);
+    }
+
+    #[test]
+    fn test_cfg_attr() {
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+        };
+        assert!(has_typeshare_annotation(&attr));
+    }
+
+    #[test]
+    fn test_cfg_attr_with_nvps() {
+        let attrs: Vec<Attribute> = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(
+                    swift = "Equatable, Hashable",
+                    swiftGenericConstraints = "R: Equatable & Hashable"
+                )
+            )]
+        };
+
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+        eprintln!("{decorators:#?}");
+
+        assert_eq!(
+            decorators.get_all("swift"),
+            &[Value::String("Equatable, Hashable".into())]
+        );
+
+        assert_eq!(
+            decorators.get_all("swiftGenericConstraints"),
+            &[Value::String("R: Equatable & Hashable".into())]
+        );
+    }
+
+    #[test]
+    fn test_cfg_attr_redacted() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted))]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+        assert!(decorators.is_redacted());
+    }
+
+    #[test]
+    fn test_item_struct_redacted_list() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted, kotlin = "JvmInline"))]
+            pub struct Secret(String);
+        };
+
+        let RustItem::Alias(rust_struct) =
+            parse_struct(&item_struct, None).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+
+        assert!(rust_struct.decorators.is_redacted());
+    }
+
+    #[test]
+    fn test_kotlin_decorators() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(kotlin = "JvmInline", redacted)
+            )]
+        };
+
+        let attrs = [attr];
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+
+        assert_eq!(
+            decorators.get_all("kotlin"),
+            &[Value::String("JvmInline".into())]
+        );
+
+        assert!(decorators.is_redacted());
+    }
+
+    #[test]
+    fn test_field_decorator_cfg_attr() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+            pub struct Test {
+                #[cfg_attr(feature = "typeshare-support", typeshare(serialized_as = "i54"))]
+                pub field_1: i64
+            }
+        };
+
+        let RustItem::Struct(rust_struct) =
+            parse_struct(&item_struct, None).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+
+        let field_decorators = &rust_struct.fields[0].decorators;
+
+        let value = field_decorators
+            .get_all("serialized_as")
+            .first()
+            .expect("No serialized_as decorator");
+
+        assert_eq!(value, &Value::String("i54".into()));
     }
 }

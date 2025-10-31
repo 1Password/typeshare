@@ -9,28 +9,37 @@ repository = "https://github.com/1Password/typeshare"
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.95"
+anyhow.workspace = true
 clap = { version = "4.5", features = ["std", "derive", "string"] }
 clap_complete = "4.5.32"
 ignore = "0.4.23"
 indent_write = "2.2.0"
 itertools = "0.14.0"
 proc-macro2 = { version = "1.0.94", default-features = false, features = [
-    "span-locations",
+  "span-locations",
 ] }
 lazy_format = "2"
 quote = { version = "1.0.38", default-features = false }
 rayon = "1.10.0"
 serde = { version = "1.0.217", default-features = false, features = ["derive"] }
 syn = { version = "2.0.96", features = [
-    "full",
-    "visit",
-    "printing",
-    "parsing",
+  "full",
+  "visit",
+  "printing",
+  "parsing",
 ] }
 thiserror = "2.0.11"
 toml = "0.8.19"
 typeshare-model = { path = "../model", version = "2.0" }
+flexi_logger.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 cool_asserts = "2.0.3"
+syn = { version = "2.0.96", features = [
+  "full",
+  "visit",
+  "printing",
+  "parsing",
+  "extra-traits",
+] }

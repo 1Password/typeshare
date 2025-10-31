@@ -1,6 +1,8 @@
+//! Typeshare parser and writer
 pub mod args;
 pub mod config;
 pub mod driver;
+mod iter_util;
 pub mod parser;
 mod rename;
 mod serde;
@@ -10,14 +12,13 @@ mod type_parser;
 mod visitors;
 pub mod writer;
 
+use indent_write::fmt::IndentWriter;
+use proc_macro2::LineColumn;
 use std::{
     fmt::{self, Display, Write},
     io,
     path::PathBuf,
 };
-
-use indent_write::fmt::IndentWriter;
-use proc_macro2::LineColumn;
 use syn::spanned::Spanned;
 use thiserror::Error;
 use typeshare_model::prelude::{CrateName, TypeName};
@@ -28,12 +29,16 @@ pub use typeshare_model::prelude::FilesMode;
 /// A set of parse errors from a specific file
 #[derive(Debug, Error)]
 pub struct FileParseErrors {
+    /// File path
     pub path: PathBuf,
+    /// Name of crate being parsed
     pub crate_name: Option<CrateName>,
+    /// Error kind
     pub kind: FileErrorKind,
 }
 
 impl FileParseErrors {
+    /// Create a new file parse errors set.
     pub fn new(path: PathBuf, crate_name: Option<CrateName>, kind: FileErrorKind) -> Self {
         Self {
             path,
@@ -59,7 +64,7 @@ impl Display for FileParseErrors {
 #[non_exhaustive]
 pub enum FileErrorKind {
     /// We couldn't figure which crate this file belongs to, which we need in
-    /// mutli-file mode
+    /// multi-file mode
     UnknownCrate,
 
     /// There were parse errors
@@ -72,19 +77,20 @@ pub enum FileErrorKind {
 impl Display for FileErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FileErrorKind::UnknownCrate => f.write_str("unknown crate in mutli-file mode"),
+            FileErrorKind::UnknownCrate => f.write_str("unknown crate in multi-file mode"),
             FileErrorKind::ParseErrors(parse_error_set) => parse_error_set.fmt(f),
             FileErrorKind::ReadError(error) => write!(f, "i/o error: {error}"),
         }
     }
 }
-/// A group of parse errors from a single file. Guaranteed to be non-emtpy.
+/// A group of parse errors from a single file. Guaranteed to be non-empty.
 #[derive(Debug)]
 pub struct ParseErrorSet {
     errors: Vec<ParseError>,
 }
 
 impl ParseErrorSet {
+    /// Collect parse errors into a parse error set.
     pub fn collect(errors: impl IntoIterator<Item = ParseError>) -> Result<(), Self> {
         let mut errors = errors.into_iter().peekable();
 
@@ -119,6 +125,7 @@ impl Display for ParseErrorSet {
     }
 }
 
+/// A file parsing error.
 #[derive(Debug, Error)]
 #[error("at {}:{}..{}:{}: {kind}",
     .start.line,
@@ -127,12 +134,16 @@ impl Display for ParseErrorSet {
     .end.column,
 )]
 pub struct ParseError {
+    /// Line column start
     start: LineColumn,
+    /// Line column end
     end: LineColumn,
+    /// Error kind
     kind: ParseErrorKind,
 }
 
 impl ParseError {
+    /// Create a new parse error.
     pub fn new(span: &impl Spanned, kind: ParseErrorKind) -> Self {
         let span = span.span();
         Self {

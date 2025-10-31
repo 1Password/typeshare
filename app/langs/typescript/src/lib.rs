@@ -1,16 +1,17 @@
+//! Code generation for Typescript
+use anyhow::Context;
+use itertools::Itertools;
+use joinery::JoinableIterator;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::HashMap,
     io::{self, Write},
 };
-
-use anyhow::Context;
-use itertools::Itertools;
-use joinery::JoinableIterator;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typeshare_model::{decorator::Value, prelude::*};
 
+/// Typescript language config
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
@@ -27,15 +28,20 @@ pub struct Config {
 /// All information needed to generate Typescript type-code
 #[derive(Default, Debug)]
 pub struct TypeScript {
+    /// Type mappings
     pub type_mappings: HashMap<TypeName, TypeName>,
+    /// No version header
     pub no_version_header: bool,
 }
 
+/// Format type error
 #[derive(Debug, Clone, Error)]
 pub enum FormatTypeError {
+    /// Large integer
     #[error("Can't have 64-bit or larger integers in typescript")]
     LargeInteger,
 
+    /// Generic key map
     #[error("Can't have generic types as map keys in typescript")]
     GenericMapKey,
 }
@@ -162,14 +168,17 @@ impl Language<'_> for TypeScript {
             w,
             "export type {}{} = {}{};\n",
             ty.id.original,
-            (!ty.generic_types.is_empty())
-                .then(|| format!("<{}>", ty.generic_types.iter().join_with(", ")))
-                .unwrap_or_default(),
+            if !ty.generic_types.is_empty() {
+                format!("<{}>", ty.generic_types.iter().join_with(", "))
+            } else {
+                String::new()
+            },
             r#type,
-            ty.ty
-                .is_optional()
-                .then_some(" | undefined")
-                .unwrap_or_default(),
+            if ty.ty.is_optional() {
+                " | undefined"
+            } else {
+                Default::default()
+            },
         )?;
 
         Ok(())
@@ -181,9 +190,11 @@ impl Language<'_> for TypeScript {
             w,
             "export interface {}{} {{",
             rs.id.original,
-            (!rs.generic_types.is_empty())
-                .then(|| format!("<{}>", rs.generic_types.iter().join_with(", ")))
-                .unwrap_or_default()
+            if !rs.generic_types.is_empty() {
+                format!("<{}>", rs.generic_types.iter().join_with(", "))
+            } else {
+                String::new()
+            }
         )?;
 
         rs.fields
@@ -198,9 +209,11 @@ impl Language<'_> for TypeScript {
     fn write_enum(&self, w: &mut impl Write, e: &RustEnum) -> anyhow::Result<()> {
         self.write_comments(w, 0, &e.shared().comments)?;
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.iter().join_with(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("<{}>", e.shared().generic_types.iter().join_with(", "))
+        } else {
+            String::new()
+        };
 
         match e {
             RustEnum::Unit { shared, .. } => {
@@ -301,7 +314,11 @@ impl TypeScript {
                             tag_key,
                             shared.id.renamed.as_str(),
                             content_key,
-                            ty.is_optional().then_some("?").unwrap_or_default(),
+                            if ty.is_optional() {
+                                "?"
+                            } else {
+                                Default::default()
+                            },
                             r#type
                         )
                         .with_context(|| {

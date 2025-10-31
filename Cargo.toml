@@ -49,4 +49,5 @@ inherits = "release"
 
 [workspace.dependencies]
 log = "0.4"
-flexi_logger = "0.28"
+flexi_logger = "0.31"
+anyhow = "1"

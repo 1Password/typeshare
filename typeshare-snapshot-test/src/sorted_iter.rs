@@ -1,7 +1,4 @@
-use std::{
-    cmp::{self, Ordering},
-    usize,
-};
+use std::cmp::{self, Ordering};
 
 #[derive(Debug, Clone)]
 pub enum EitherOrBoth<T> {

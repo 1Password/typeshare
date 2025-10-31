@@ -1,15 +1,18 @@
+//! Command line arguments
+use crate::serde::args::{ArgType, CliArgsSet};
+use clap::builder::PossibleValuesParser;
 use std::path::{Path, PathBuf};
 
-use clap::builder::PossibleValuesParser;
-
-use crate::serde::args::{ArgType, CliArgsSet};
-
+/// Generated typeshared file output location.
 #[derive(Debug, Clone, Copy)]
 pub enum OutputLocation<'a> {
+    /// Output to a single file.
     File(&'a Path),
+    /// Output multiple files to folder.
     Folder(&'a Path),
 }
 
+/// Output to folder or single file.
 #[derive(clap::Args, Debug)]
 #[group(multiple = false, required = true)]
 pub struct Output {
@@ -25,6 +28,7 @@ pub struct Output {
 }
 
 impl Output {
+    /// Get the output location
     pub fn location(&self) -> OutputLocation<'_> {
         match (&self.directory, &self.file) {
             (Some(dir), None) => OutputLocation::Folder(dir),
@@ -37,9 +41,11 @@ impl Output {
     }
 }
 
+/// Command line arguments.
 #[derive(clap::Parser, Debug)]
 #[command(args_conflicts_with_subcommands = true, subcommand_negates_reqs = true)]
 pub struct StandardArgs {
+    /// Sub command.
     #[command(subcommand)]
     pub subcommand: Option<Command>,
 
@@ -51,9 +57,11 @@ pub struct StandardArgs {
     #[arg(num_args(1..), required=true)]
     pub directories: Vec<PathBuf>,
 
+    /// Command line completions
     #[arg(long, exclusive(true))]
     pub completions: Option<String>,
 
+    /// Output folder or file.
     #[command(flatten)]
     pub output: Output,
 
@@ -72,6 +80,7 @@ pub struct StandardArgs {
     pub target_os: Option<Vec<String>>,
 }
 
+/// Command
 #[derive(Debug, Clone, Copy, clap::Subcommand)]
 pub enum Command {
     /// Generate shell completions
@@ -81,6 +90,7 @@ pub enum Command {
     },
 }
 
+/// Personalize clap.
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct PersonalizeClap {
@@ -91,6 +101,7 @@ pub struct PersonalizeClap {
 }
 
 impl PersonalizeClap {
+    /// New personalized clap.
     pub const fn new() -> Self {
         Self {
             name: None,
@@ -100,6 +111,7 @@ impl PersonalizeClap {
         }
     }
 
+    /// App name
     pub const fn name(self, name: &'static str) -> Self {
         Self {
             name: Some(name),
@@ -107,6 +119,7 @@ impl PersonalizeClap {
         }
     }
 
+    /// App version
     pub const fn version(self, version: &'static str) -> Self {
         Self {
             version: Some(version),
@@ -114,6 +127,7 @@ impl PersonalizeClap {
         }
     }
 
+    /// App author
     pub const fn author(self, author: &'static str) -> Self {
         Self {
             author: Some(author),
@@ -121,6 +135,7 @@ impl PersonalizeClap {
         }
     }
 
+    /// About app
     pub const fn about(self, about: &'static str) -> Self {
         Self {
             about: Some(about),
@@ -129,6 +144,7 @@ impl PersonalizeClap {
     }
 }
 
+/// Add clap personalizations.
 pub fn add_personalizations(
     command: clap::Command,
     personalizations: PersonalizeClap,

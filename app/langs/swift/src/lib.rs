@@ -1,3 +1,10 @@
+//! Code generation for Swift
+use anyhow::Context;
+use indent_write::io::IndentWriter;
+use itertools::Itertools;
+use joinery::{Joinable, JoinableIterator};
+use lazy_format::lazy_format;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::{BTreeSet, HashMap},
@@ -6,20 +13,12 @@ use std::{
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
 };
-
-use anyhow::Context;
-use indent_write::io::IndentWriter;
-use itertools::Itertools;
-use joinery::{Joinable, JoinableIterator};
-use lazy_format::lazy_format;
-use serde::{Deserialize, Serialize};
-
 use typeshare_model::{
     decorator::{DecoratorSet, Value},
     prelude::*,
 };
 
-// Keywords taken from https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html
+/// Keywords taken from https://docs.swift.org/swift-book/ReferenceManual/LexicalStructure.html
 const SWIFT_KEYWORDS: &[&str] = &[
     "associatedtype",
     "class",
@@ -86,6 +85,7 @@ struct CodingKeysInfo {
     coding_keys: Vec<String>,
 }
 
+/// Configuration
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config<'a> {
     /// The prefix to apply to all swift types
@@ -115,6 +115,7 @@ pub struct Config<'a> {
     no_version_header: bool,
 }
 
+/// Swift language
 #[derive(Debug)]
 pub struct Swift<'a> {
     prefix: &'a str,
@@ -612,9 +613,11 @@ impl<'config> Language<'config> for Swift<'config> {
             w,
             "public typealias {}{} = {}",
             type_name,
-            (!alias.generic_types.is_empty())
-                .then(|| format!("<{}>", alias.generic_types.join(", ")))
-                .unwrap_or_default(),
+            if !alias.generic_types.is_empty() {
+                format!("<{}>", alias.generic_types.join(", "))
+            } else {
+                String::new()
+            },
             self.format_type(&alias.ty, alias.generic_types.as_slice())
                 .context("failed to format type")?,
         )
@@ -645,9 +648,11 @@ impl<'config> Language<'config> for Swift<'config> {
         writeln!(
             w,
             "public struct {type_name}{}: {} {{",
-            (!rs.generic_types.is_empty())
-                .then(|| format!("<{generic_names_and_constraints}>",))
-                .unwrap_or_default(),
+            if !rs.generic_types.is_empty() {
+                format!("<{generic_names_and_constraints}>")
+            } else {
+                String::new()
+            },
             decs
         )?;
 
@@ -686,9 +691,11 @@ impl<'config> Language<'config> for Swift<'config> {
                 writeln!(
                     w,
                     "public let {fixed_name}: {ty}{}",
-                    (f.has_default && !f.ty.is_optional())
-                        .then_some("?")
-                        .unwrap_or_default()
+                    if f.has_default && !f.ty.is_optional() {
+                        "?"
+                    } else {
+                        Default::default()
+                    }
                 )?;
             }
 
@@ -722,9 +729,11 @@ impl<'config> Language<'config> for Swift<'config> {
                     "{}: {}{}",
                     remove_dash_from_identifier(f.id.renamed.as_str()),
                     ty,
-                    (f.has_default && !f.ty.is_optional())
-                        .then_some("?")
-                        .unwrap_or_default()
+                    if f.has_default && !f.ty.is_optional() {
+                        "?"
+                    } else {
+                        Default::default()
+                    }
                 ));
             }
 
@@ -791,9 +800,11 @@ impl<'config> Language<'config> for Swift<'config> {
         writeln!(
             w,
             "public {indirect}enum {enum_name}{}: {} {{",
-            (!e.shared().generic_types.is_empty())
-                .then(|| format!("<{generic_names_and_constraints}>",))
-                .unwrap_or_default(),
+            if !e.shared().generic_types.is_empty() {
+                format!("<{generic_names_and_constraints}>")
+            } else {
+                String::new()
+            },
             decs
         )?;
 
@@ -878,14 +889,14 @@ impl<'config> Language<'config> for Swift<'config> {
         if self.should_emit_codable_void.load(Ordering::Relaxed) {
             let mut content = Vec::new();
             self.write_codable_void(&mut content)
-                .expect("write to vec is infallbile");
+                .expect("write to vec is infallible");
 
             let path = output_folder.join("Codable.swift");
 
-            if let Ok(old_content) = fs::read(&path) {
-                if content == old_content {
-                    return Ok(());
-                }
+            if let Ok(old_content) = fs::read(&path)
+                && content == old_content
+            {
+                return Ok(());
             }
 
             let mut w = fs::File::create(&path)?;

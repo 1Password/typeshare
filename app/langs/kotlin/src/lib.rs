@@ -1,16 +1,15 @@
-use std::{
-    borrow::Cow,
-    collections::HashMap,
-    io::{self, Write as _},
-};
-
+//! Code generation for Kotlin
 use anyhow::Context;
 use indent_write::io::IndentWriter;
 use itertools::Itertools as _;
 use joinery::JoinableIterator as _;
 use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
-
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    io::{self, Write as _},
+};
 use typeshare_model::{
     decorator::{DecoratorSet, Value},
     prelude::*,
@@ -21,6 +20,7 @@ enum Visibility {
     Private,
 }
 
+/// Kotlin config
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config<'config> {
@@ -42,6 +42,7 @@ pub struct Config<'config> {
     no_version_header: bool,
 }
 
+/// Kotlin language
 #[derive(Debug)]
 pub struct Kotlin<'config> {
     package: &'config str,
@@ -146,9 +147,11 @@ impl Kotlin<'_> {
                                 w,
                                 "data class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    String::new()
+                                },
                             )?;
                             let variant_type = self
                                 .format_type(ty, e.shared().generic_types.as_slice())
@@ -161,9 +164,11 @@ impl Kotlin<'_> {
                                 w,
                                 "data class {}{}(",
                                 variant_name,
-                                (!e.shared().generic_types.is_empty())
-                                    .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                                    .unwrap_or_default()
+                                if !e.shared().generic_types.is_empty() {
+                                    format!("<{}>", e.shared().generic_types.join(", "))
+                                } else {
+                                    String::new()
+                                }
                             )?;
 
                             // Builds the list of generic types (e.g [T, U, V]), by digging
@@ -205,9 +210,11 @@ impl Kotlin<'_> {
                         ": {}{}{}()",
                         self.prefix,
                         e.shared().id.original,
-                        (!e.shared().generic_types.is_empty())
-                            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-                            .unwrap_or_default()
+                        if !e.shared().generic_types.is_empty() {
+                            format!("<{}>", e.shared().generic_types.join(", "))
+                        } else {
+                            String::new()
+                        }
                     )?;
                 }
             }
@@ -406,9 +413,11 @@ impl<'config> Language<'config> for Kotlin<'config> {
                 w,
                 "typealias {}{} = {}\n",
                 type_name,
-                (!alias.generic_types.is_empty())
-                    .then(|| format!("<{}>", alias.generic_types.join(", ")))
-                    .unwrap_or_default(),
+                if !alias.generic_types.is_empty() {
+                    format!("<{}>", alias.generic_types.join(", "))
+                } else {
+                    String::new()
+                },
                 self.format_type(&alias.ty, alias.generic_types.as_slice())
                     .map_err(std::io::Error::other)?
             )?;
@@ -439,9 +448,11 @@ impl<'config> Language<'config> for Kotlin<'config> {
                 "data class {}{}{} (",
                 self.prefix,
                 rs.id.original,
-                (!rs.generic_types.is_empty())
-                    .then(|| format!("<{}>", rs.generic_types.join(", ")))
-                    .unwrap_or_default()
+                if !rs.generic_types.is_empty() {
+                    format!("<{}>", rs.generic_types.join(", "))
+                } else {
+                    String::new()
+                }
             )?;
 
             {
@@ -509,9 +520,11 @@ impl<'config> Language<'config> for Kotlin<'config> {
             writeln!(w, "@Serializable")?;
         }
 
-        let generic_parameters = (!e.shared().generic_types.is_empty())
-            .then(|| format!("<{}>", e.shared().generic_types.join(", ")))
-            .unwrap_or_default();
+        let generic_parameters = if !e.shared().generic_types.is_empty() {
+            format!("<{}>", e.shared().generic_types.join(", "))
+        } else {
+            String::new()
+        };
 
         match e {
             RustEnum::Unit { .. } => {

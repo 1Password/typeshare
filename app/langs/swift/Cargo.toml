@@ -4,7 +4,7 @@ version = "2.0.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.98"
+anyhow.workspace = true
 indent_write = "2.2.0"
 itertools = { version = "0.14.0" }
 joinery = "3.1.0"

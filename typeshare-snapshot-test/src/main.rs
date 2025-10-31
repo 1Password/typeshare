@@ -1,7 +1,17 @@
+//! Binary to generate or run snapshot tests.
 mod config;
 mod sorted_iter;
 
+use crate::{
+    config::read_toml,
+    sorted_iter::{EitherOrBoth, SortedPairsIter},
+};
+use anyhow::Context;
+use clap::Parser;
 use core::str;
+use indent_write::{indentable::Indentable, io::IndentWriter};
+use lazy_format::lazy_format;
+use similar::TextDiff;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -13,15 +23,6 @@ use std::{
     process::{Command, Stdio, exit},
     thread,
 };
-
-use anyhow::Context;
-use clap::Parser;
-use indent_write::{indentable::Indentable, io::IndentWriter};
-use lazy_format::lazy_format;
-use similar::TextDiff;
-
-use crate::config::read_toml;
-use crate::sorted_iter::{EitherOrBoth, SortedPairsIter};
 
 /**
 Utility for capturing and running snapshot tests for your implementation of
@@ -62,7 +63,7 @@ struct Args {
     /// identified by the name of that directory.
     snapshots: PathBuf,
 
-    /// name or path to your typeshare binary. If ommitted, we assume the
+    /// name or path to your typeshare binary. If omitted, we assume the
     /// binary is called `typeshare-{LANGUAGE}`.
     #[arg(short, long)]
     typeshare: Option<PathBuf>,
@@ -172,7 +173,7 @@ enum Report {
     /// Usually Warning is preferable.
     Skip,
 
-    /// Something intereting happened that we should tell the user about, but
+    /// Something interesting happened that we should tell the user about, but
     /// not enough to cause a nonzero exit
     Warning {
         // Feel free to switch this to a String or Cow<str> if need be
@@ -237,7 +238,7 @@ impl Report {
     fn print_report(&self, name: &str, dest: &mut impl io::Write) -> io::Result<()> {
         match *self {
             Report::Success | Report::Skip => Ok(()),
-            Report::Warning { ref message } => writeln!(dest, "warning from {name}: {message}\n"),
+            Report::Warning { ref message } => writeln!(dest, "warning from {name}: {message}"),
             Report::CommandError {
                 ref command,
                 ref stdout,
@@ -457,6 +458,7 @@ fn clear_item(path: &Path) {
     let _ = fs::remove_dir_all(path);
 }
 
+#[expect(clippy::too_many_arguments)]
 fn snapshot_test(
     snapshot_directory: &Path,
     mode: Mode,
@@ -714,10 +716,10 @@ fn main() -> anyhow::Result<()> {
                     let entry_name = entry_name.to_string_lossy();
                     let entry_name = entry_name.into_owned();
 
-                    if let Some(names) = include_names {
-                        if !names.contains(entry_name.as_str()) {
-                            return Ok((entry_name, Report::Skip));
-                        }
+                    if let Some(names) = include_names
+                        && !names.contains(entry_name.as_str())
+                    {
+                        return Ok((entry_name, Report::Skip));
                     }
 
                     let meta = entry_path.metadata().with_context(|| {
