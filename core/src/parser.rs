@@ -571,9 +571,13 @@ pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
             Meta::NameValue(_meta_name_value) => false,
         })
     };
-    attrs
-        .iter()
-        .any(|attr| attr.path().is_ident(TYPESHARE) || check_cfg_attr(attr))
+    attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .iter()
+            .any(|segment| segment.ident == TYPESHARE)
+            || check_cfg_attr(attr)
+    })
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -1022,5 +1026,17 @@ mod test {
             .get(&DecoratorKind::Kotlin)
             .expect("No kotlin decorator");
         assert_eq!(kotlin_decorator, &BTreeSet::from_iter(["JvmInline".into()]));
+    }
+
+    #[test]
+    fn test_typeshare_with_fully_qualified() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[typeshare::typeshare]
+            pub struct Test {
+                field_1: i64
+            }
+        };
+
+        assert!(has_typeshare_annotation(&item_struct.attrs));
     }
 }
