@@ -720,9 +720,13 @@ pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
             Meta::NameValue(_meta_name_value) => false,
         })
     };
-    attrs
-        .iter()
-        .any(|attr| attr.path().is_ident(TYPESHARE) || check_cfg_attr(attr))
+    attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .iter()
+            .any(|segment| segment.ident == TYPESHARE)
+            || check_cfg_attr(attr)
+    })
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -1132,6 +1136,14 @@ mod test_get_decorators {
     }
 
     #[test]
+    fn test_cfg_attr_qualified() {
+        let attr: Vec<Attribute> = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare::typeshare)]
+        };
+        assert!(has_typeshare_annotation(&attr));
+    }
+
+    #[test]
     fn test_cfg_attr_with_nvps() {
         let attrs: Vec<Attribute> = syn::parse_quote! {
             #[cfg_attr(
@@ -1232,5 +1244,17 @@ mod test_get_decorators {
             .expect("No serialized_as decorator");
 
         assert_eq!(value, &Value::String("i54".into()));
+    }
+
+    #[test]
+    fn test_typeshare_with_fully_qualified() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[typeshare::typeshare]
+            pub struct Test {
+                field_1: i64
+            }
+        };
+
+        assert!(has_typeshare_annotation(&item_struct.attrs));
     }
 }
