@@ -63,17 +63,17 @@ The following example will not allow `MyType` to be typeshared.
 
 ## Combined with features or other cfg attributes
 
-Typehshare will not take into consideration any other `cfg` attributes other than `target_os` when generating types.
+Typeshare will not take into consideration any other `cfg` attributes other than `target_os` when generating types.
 
 For example:
 
 ```rust
-#[cfg(any(target_os = "android", feature = "android-test")]
+#[cfg(any(target_os = "android", feature = "android-test"))]
 pub struct MyType;
 ```
 
 ```rust
-#[cfg(all(target_os = "android", feature = "android-test")]
+#[cfg(all(target_os = "android", feature = "android-test"))]
 pub struct MyType;
 ```
 

@@ -12,4 +12,4 @@ use typeshare_python::Python;
 typeshare_binary! { Python, Golang }
 ```
 
-This creates an `fn main` that uses these languages, plus `typeshare-engine`, to implements a full typeshare CLI.
+This creates a `fn main` that uses these languages, plus `typeshare-engine`, to implement a full typeshare CLI.
