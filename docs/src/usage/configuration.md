@@ -1,13 +1,13 @@
 # Configuration
 
-Your Typeshare can be customized customized by either passing options on the command line or in a configuration file. The `typeshare-driver` will automatically create command line flags from the Config struct in your language. For any command line option that corresponds to a value in the configuration file, specifying the option on the command line will override the value in the configuration file.
+Your Typeshare can be customized by either passing options on the command line or in a configuration file. The `typeshare-driver` will automatically create command line flags from the Config struct in your language. For any command line option that corresponds to a value in the configuration file, specifying the option on the command line will override the value in the configuration file.
 
 Some base commands are available in any Typeshare implementation's CLI
 
 ## Base Command Line Options
 
 - `-l`, `--lang`
-    (Required) The language you want your definitions to be generated in. This will be one of the 
+    (Required) The language you want your definitions to be generated in. This will be one of the languages supported by the Typeshare you are using.
 - `-o`, `--output-file`
     (Required or -d) The file path to which the generated definitions will be written.
 - `-d`, `--directory`

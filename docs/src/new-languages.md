@@ -62,7 +62,7 @@ So make sure to add these to your language crate as well
 Once your project is set up, you need to implement the Language trait from `typeshare-model` inside your langugae crate.
 
 There a few functions that have to be implemented: 
-- `new_from_config`: This instantiates your language struct using configuration from a `Typeshare.toml` file or the command line
+- `new_from_config`: This instantiates your language struct using configuration from a `typeshare.toml` file or the command line
 - `output_filename_for_crate`: This is used in multi-file mode for setting up consistent naming for the files.
 - `write_*`: These functions are your implementations of how various types should be handled. These implementations should typically call `format_type`, which is used to format Rust types into strings for writing to the Typeshare generated file.
 - `format_special_type`: This is where you add custom implementations of special types for each language that is called from within `format_type`.
@@ -89,7 +89,7 @@ Now, running `cargo build` will build your Typeshare with your language implemen
 
 ## Using Your Typeshare
 
-In a project where you want to use Typeshare, add `typeshare` to your `cargo.toml` and add the Typeshare annotations to any types you want to share (see more about using annotations [here](./usage/annotations.md)). Set up a `Typeshare.toml` at the root of your project with any configuration information for your implementation. 
+In a project where you want to use Typeshare, add `typeshare` to your `cargo.toml` and add the Typeshare annotations to any types you want to share (see more about using annotations [here](./usage/annotations.md)). Set up a `typeshare.toml` at the root of your project with any configuration information for your implementation. 
 
 The general usage of a Typeshare CLI binary is:
 ```bash

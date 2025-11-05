@@ -6,7 +6,7 @@ Identify which typeshare implements the language(s) you'd like to use, and insta
 cargo install typeshare2-cli
 ```
 
-But there are also third party crates implementing other languages using typeshare, such as:
+There are also third party crates implementing other languages using typeshare, such as:
 
 - Java: `cargo install typeshare-java`
 
