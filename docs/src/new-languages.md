@@ -38,6 +38,12 @@ This is where the `typeshare-driver`'s main macro for setting up the binary will
 ```bash
 cargo add typeshare-driver
 ```
+You will also need to add the dependency `log` 
+
+```bash
+cargo add log
+```
+
 Add a crate for your language implementation (or as many as you want! Up to 16):
 ```bash
 cargo new my-typeshare-language --lib
