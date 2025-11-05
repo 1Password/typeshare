@@ -128,7 +128,7 @@ language to emit appropriate import statements for its own language.
 language.write_imports(&mut file, crate_name, computed_imports)
 ```
 
-6. For EACE typeshared item in being typeshared, we call `write_enum`,
+6. For EACH typeshared item in being typeshared, we call `write_enum`,
 `write_struct`, `write_type_alias`, or `write_const`, as appropriate.
 
 ```ignore
@@ -181,7 +181,7 @@ pub trait Language<'config>: Sized + Sync + Debug {
     `serde`.
 
     It is important that this type include `#[serde(default)]` or something
-    equivelent, so that a config can be loaded with default setting even
+    equivalent, so that a config can be loaded with default setting even
     if this language isn't present in the config file.
 
     The `serialize` implementation for this type should NOT skip keys, if

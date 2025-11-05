@@ -15,9 +15,9 @@ _One tool to parse your Rust,_
 
 _And in the darkness, compile them_ 💍
 
-Do you like manually managing types that need to be passed through an FFI layer, so that your code doesn't archaically break at runtime? Be honest, nobody does. Typeshare is here to take that burden away from you! Leveraging the power of the `serde` library, Typeshare is a tool that converts your Rust types into their equivalent forms in Swift, Kotlin, Typescript, and a growing family of keeping your cross-language codebase in sync. With automatic implementation for serialization and deserialization on both sides of the FFI, Typeshare does all the heavy lifting for you. It can even handle generics and convert effortlessly between standard libraries in different languages!
+Do you like manually managing types that need to be passed through an FFI layer, so that your code doesn't archaically break at runtime? Be honest, nobody does. Typeshare is here to take that burden away from you! Leveraging the power of the `serde` library, Typeshare is a tool that converts your Rust types into their equivalent forms in Swift, Kotlin, Typescript, and a growing family of other language implementations, keeping your cross-language codebase in sync. With automatic implementation for serialization and deserialization on both sides of the FFI, Typeshare does all the heavy lifting for you. It can even handle generics and convert effortlessly between standard libraries in different languages!
 
-\*\*A few caveats. See [here](#a-quick-refresher-on-supported-languages) for more details.
+\*\*A few caveats. See [here](#what-about-other-languages) for more details.
 
 ## Installation
 
