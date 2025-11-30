@@ -324,13 +324,8 @@ impl TypeScript {
                                 panic!("Tuple variants must have a content key if they have a tag key: {:?}", shared.id.original)
                             }
                         } else {
-                            write!(
-                                w,
-                                "\t| {{ {:?}{}: {} }}",
-                                shared.id.renamed,
-                                if ty.is_optional() { "?" } else { Default::default() },
-                                r#type
-                            )
+                            // Untagged: just output the inner type directly
+                            write!(w, "\t| {}", r#type)
                         }
                     }
                     RustEnumVariant::AnonymousStruct { fields, shared } => {
