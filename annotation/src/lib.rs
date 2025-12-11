@@ -3,7 +3,7 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::ToTokens;
-use syn::{parse, Attribute, Data, DeriveInput, Fields};
+use syn::{parse, punctuated::Punctuated, Attribute, Data, DeriveInput, Fields, Meta, Token};
 
 /// Marks a type as a type shared across the FFI boundary using typeshare.
 ///
@@ -50,11 +50,27 @@ pub fn typeshare(_attr: TokenStream, item: TokenStream) -> TokenStream {
     }
 }
 
+const CONFIG_ATTRIBUTE_NAME: &str = "typeshare";
+
+fn is_typeshare_attribute(attribute: &Attribute) -> bool {
+    let has_cfg_attr = || {
+        if attribute.path().is_ident("cfg_attr") {
+            if let Ok(meta) =
+                attribute.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            {
+                return meta.into_iter().any(
+                    |meta| matches!(meta, Meta::List(meta_list) if meta_list.path.is_ident(CONFIG_ATTRIBUTE_NAME)),
+                );
+            }
+        }
+        false
+    };
+    attribute.path().is_ident(CONFIG_ATTRIBUTE_NAME) || has_cfg_attr()
+}
+
 fn strip_configuration_attribute(item: &mut DeriveInput) {
     fn remove_configuration_from_attributes(attributes: &mut Vec<Attribute>) {
-        const CONFIG_ATTRIBUTE_NAME: &str = "typeshare";
-
-        attributes.retain(|x| x.path().to_token_stream().to_string() != CONFIG_ATTRIBUTE_NAME);
+        attributes.retain(|attribute| !is_typeshare_attribute(attribute));
     }
 
     fn remove_configuration_from_fields(fields: &mut Fields) {

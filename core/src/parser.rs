@@ -11,7 +11,6 @@ use crate::{
     target_os_check::accept_target_os,
     visitors::{ImportedType, TypeShareVisitor},
 };
-use itertools::Either;
 use log::debug;
 use proc_macro2::Ident;
 use std::{
@@ -41,7 +40,7 @@ pub enum DecoratorKind {
 
 impl DecoratorKind {
     /// This decorator as a str.
-    fn as_str(&self) -> &str {
+    fn as_str(&self) -> &'static str {
         match self {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
@@ -151,7 +150,7 @@ pub fn parse(
 ) -> Result<Option<ParsedData>, ParseErrorWithSpan> {
     // We will only produce output for files that contain the `#[typeshare]`
     // attribute, so this is a quick and easy performance win
-    if !parse_file_context.source_code.contains("#[typeshare") {
+    if !parse_file_context.source_code.contains("typeshare") {
         return Ok(None);
     }
 
@@ -560,12 +559,25 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseErrorWithSpan> {
 
 // Helpers
 
-/// Checks the given attrs for `#[typeshare]`
+/// Checks the given attrs for `#[typeshare]` or within `#[cfg_attr(<condition>, typeshare)]`
 pub(crate) fn has_typeshare_annotation(attrs: &[syn::Attribute]) -> bool {
-    attrs
-        .iter()
-        .flat_map(|attr| attr.path().segments.clone())
-        .any(|segment| segment.ident == TYPESHARE)
+    let check_cfg_attr = |attr| {
+        get_meta_items(attr, "cfg_attr").any(|item| match item {
+            Meta::Path(path) => path
+                .segments
+                .iter()
+                .any(|segment| segment.ident == TYPESHARE),
+            Meta::List(meta_list) => meta_list.path.is_ident(TYPESHARE),
+            Meta::NameValue(_meta_name_value) => false,
+        })
+    };
+    attrs.iter().any(|attr| {
+        attr.path()
+            .segments
+            .iter()
+            .any(|segment| segment.ident == TYPESHARE)
+            || check_cfg_attr(attr)
+    })
 }
 
 pub(crate) fn serde_rename_all(attrs: &[syn::Attribute]) -> Option<String> {
@@ -580,7 +592,7 @@ pub(crate) fn get_field_type_override(attrs: &[syn::Attribute]) -> Option<String
     get_name_value_meta_items(attrs, "serialized_as", TYPESHARE).next()
 }
 
-pub(crate) fn get_name_value_meta_items<'a>(
+fn get_name_value_meta_items<'a>(
     attrs: &'a [syn::Attribute],
     name: &'a str,
     ident: &'static str,
@@ -593,22 +605,49 @@ pub(crate) fn get_name_value_meta_items<'a>(
                 }
                 _ => None,
             })
-            .collect::<Vec<_>>()
+            .chain(
+                // If we are searching for typeshare attributes then we'll look into cfg_att as well.
+                (ident == TYPESHARE)
+                    .then(|| {
+                        attrs.iter().flat_map(move |attr| {
+                            get_meta_items(attr, "cfg_attr")
+                                .filter_map(|meta| match meta {
+                                    Meta::List(list) if list.path.is_ident(TYPESHARE) => list
+                                        .parse_args_with(
+                                            Punctuated::<Meta, Token![,]>::parse_terminated,
+                                        )
+                                        .ok(),
+                                    _ => None,
+                                })
+                                .flatten()
+                                .filter_map(|meta| match &meta {
+                                    Meta::NameValue(meta_name_value)
+                                        if meta_name_value.path.is_ident(name) =>
+                                    {
+                                        expr_to_string(&meta_name_value.value)
+                                    }
+                                    _ => None,
+                                })
+                        })
+                    })
+                    .into_iter()
+                    .flatten(),
+            )
     })
 }
 
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
 #[inline(always)]
 pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
-    if attr.path().is_ident(ident) {
-        Either::Left(
+    attr.path()
+        .is_ident(ident)
+        .then(|| {
             attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .into_iter()
-                .flat_map(|punctuated| punctuated.into_iter()),
-        )
-    } else {
-        Either::Right(std::iter::empty())
-    }
+                .flat_map(|punctuated| punctuated.into_iter())
+        })
+        .into_iter()
+        .flatten()
 }
 
 fn get_ident(
@@ -679,11 +718,29 @@ fn is_skipped(attrs: &[syn::Attribute], target_os: &[String]) -> bool {
     typeshare_skip || !accept_target_os(attrs, target_os)
 }
 
+/// Find the ident within a typeshare meta list within a cfg_attr. For
+/// example, find "redacted" for typeshare as `#[cfg_attr(feature = "something", typeshare(redacted))]`
+fn has_typeshare_ident_within_cfg_attr(attr: &Attribute, ident: &str) -> bool {
+    get_meta_items(attr, "cfg_attr").any(|item| match item {
+        Meta::List(meta_list) if meta_list.path.is_ident(TYPESHARE) => meta_list
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
+            .map(|metas| {
+                metas
+                    .into_iter()
+                    .any(|meta| matches!(meta, Meta::Path(path) if path.is_ident(ident)))
+            })
+            .unwrap_or(false),
+
+        _ => false,
+    })
+}
+
 // `#[typeshare(redacted)]`
 fn is_redacted(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| {
         get_meta_items(attr, TYPESHARE)
             .any(|arg| matches!(arg, Meta::Path(path) if path.is_ident("redacted")))
+            || has_typeshare_ident_within_cfg_attr(attr, "redacted")
     })
 }
 
@@ -814,17 +871,20 @@ fn literal_to_string(lit: &syn::Lit) -> Option<String> {
 fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
     let mut decorator_map: DecoratorMap = DecoratorMap::new();
 
-    for decorator_kind in [
+    let decorator_kinds = [
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
         DecoratorKind::Kotlin,
-    ] {
-        for value in get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE) {
-            decorator_map
-                .entry(decorator_kind)
-                .or_default()
-                .extend(value.split(',').map(|s| s.trim().to_string()));
-        }
+    ];
+
+    for (decorator_kind, value) in decorator_kinds.into_iter().flat_map(|decorator_kind| {
+        get_name_value_meta_items(attrs, decorator_kind.as_str(), TYPESHARE)
+            .map(move |value| (decorator_kind, value))
+    }) {
+        decorator_map
+            .entry(decorator_kind)
+            .or_default()
+            .extend(value.split(',').map(|s| s.trim().to_string()));
     }
 
     decorator_map
@@ -844,26 +904,139 @@ pub(crate) fn remove_dash_from_identifier(name: &str) -> String {
     name.replace('-', "_")
 }
 
-#[test]
-fn test_rename_all_to_case() {
-    let test_word = "test_case";
+#[cfg(test)]
+mod test {
+    use crate::{
+        parser::{
+            get_decorators, has_typeshare_annotation, is_redacted, parse_struct,
+            rename_all_to_case, DecoratorKind,
+        },
+        rust_types::RustItem,
+    };
+    use std::collections::BTreeSet;
+    use syn::{Attribute, ItemStruct};
 
-    let tests = [
-        ("lowercase", "test_case"),
-        ("UPPERCASE", "TEST_CASE"),
-        ("PascalCase", "TestCase"),
-        ("camelCase", "testCase"),
-        ("snake_case", "test_case"),
-        ("SCREAMING_SNAKE_CASE", "TEST_CASE"),
-        ("kebab-case", "test-case"),
-        ("SCREAMING-KEBAB-CASE", "TEST-CASE"),
-        ("invalid case", "test_case"),
-    ];
+    #[test]
+    fn test_rename_all_to_case() {
+        let test_word = "test_case";
 
-    for test in tests {
+        let tests = [
+            ("lowercase", "test_case"),
+            ("UPPERCASE", "TEST_CASE"),
+            ("PascalCase", "TestCase"),
+            ("camelCase", "testCase"),
+            ("snake_case", "test_case"),
+            ("SCREAMING_SNAKE_CASE", "TEST_CASE"),
+            ("kebab-case", "test-case"),
+            ("SCREAMING-KEBAB-CASE", "TEST-CASE"),
+            ("invalid case", "test_case"),
+        ];
+
+        for test in tests {
+            assert_eq!(
+                rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
+                test.1
+            );
+        }
+    }
+
+    #[test]
+    fn test_cfg_attr() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare)]
+        };
+        assert!(has_typeshare_annotation(&[attr]));
+    }
+
+    #[test]
+    fn test_cfg_attr_with_nvps() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(
+                    swift = "Equatable, Hashable",
+                    swiftGenericConstraints = "R: Equatable & Hashable"
+                )
+            )]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+
+        let decorators = get_decorators(&attrs);
+
+        let swift_decorators = decorators
+            .get(&DecoratorKind::Swift)
+            .expect("No swift decorators");
+        let swift_constraints = decorators
+            .get(&DecoratorKind::SwiftGenericConstraints)
+            .expect("No swift generic constraints");
+
         assert_eq!(
-            rename_all_to_case(test_word.to_string(), &Some(test.0.to_string())),
-            test.1
+            swift_decorators,
+            &BTreeSet::from_iter(["Equatable".into(), "Hashable".into()])
         );
+        assert_eq!(
+            swift_constraints,
+            &BTreeSet::from_iter(["R: Equatable & Hashable".into()])
+        );
+    }
+
+    #[test]
+    fn test_cfg_attr_redacted() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted))]
+        };
+
+        let attrs = [attr];
+
+        assert!(has_typeshare_annotation(&attrs));
+        assert!(is_redacted(&attrs));
+    }
+
+    #[test]
+    fn test_item_struct_redacted_list() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[cfg_attr(feature = "typeshare-support", typeshare(redacted, kotlin = "JvmInline"))]
+            pub struct Secret(String);
+        };
+
+        let RustItem::Alias(rust_struct) =
+            parse_struct(&item_struct, &[]).expect("Failed to parse struct")
+        else {
+            panic!("Not a struct");
+        };
+        assert!(rust_struct.is_redacted);
+    }
+
+    #[test]
+    fn test_kotlin_decorators() {
+        let attr: Attribute = syn::parse_quote! {
+            #[cfg_attr(
+                feature = "typeshare-support",
+                typeshare(kotlin = "JvmInline", redacted)
+            )]
+        };
+
+        let attrs = [attr];
+        assert!(has_typeshare_annotation(&attrs));
+        let decorators = get_decorators(&attrs);
+        let kotlin_decorator = decorators
+            .get(&DecoratorKind::Kotlin)
+            .expect("No kotlin decorator");
+        assert_eq!(kotlin_decorator, &BTreeSet::from_iter(["JvmInline".into()]));
+    }
+
+    #[test]
+    fn test_typeshare_with_fully_qualified() {
+        let item_struct: ItemStruct = syn::parse_quote! {
+            #[typeshare::typeshare]
+            pub struct Test {
+                field_1: i64
+            }
+        };
+
+        assert!(has_typeshare_annotation(&item_struct.attrs));
     }
 }
