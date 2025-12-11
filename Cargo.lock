@@ -723,7 +723,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-annotation"
-version = "1.0.4"
+version = "1.0.5"
 dependencies = [
  "quote",
  "syn",
@@ -731,7 +731,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-cli"
-version = "1.13.3"
+version = "1.13.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -748,7 +748,7 @@ dependencies = [
 
 [[package]]
 name = "typeshare-core"
-version = "1.13.3"
+version = "1.13.4"
 dependencies = [
  "anyhow",
  "convert_case",
