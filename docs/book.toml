@@ -1,6 +1,5 @@
 [book]
 authors = ["Jane Lewis", "Josh Rampersad", "Darrell Roberts"]
 language = "en"
-multilingual = false
 src = "src"
 title = "The Typeshare Book"
