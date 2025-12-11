@@ -1,4 +1,22 @@
+# Version 1.13.4
+
+- Update for v1.13.3 by @darrell-roberts in https://github.com/1Password/typeshare/pull/254
+- add test with type using #[unsafe(no_mangle)]. by @darrell-roberts in https://github.com/1Password/typeshare/pull/251
+- Bump crossbeam-channel to 0.5.15 by @l004p in https://github.com/1Password/typeshare/pull/257
+- FIx Linting Issues by @l004p in https://github.com/1Password/typeshare/pull/258
+- Use Span to capture line and column numbers for parsing rejections. by @darrell-roberts in https://github.com/1Password/typeshare/pull/262
+- Fix url to 1password.com by @JaKXz in https://github.com/1Password/typeshare/pull/247
+- Bump nix flake.lock by @LuminaSapphira in https://github.com/1Password/typeshare/pull/263
+- Add automated job to update flake.lock file by @charlespierce in https://github.com/1Password/typeshare/pull/264
+- Revert "Add automated job to update flake.lock file" by @charlespierce in https://github.com/1Password/typeshare/pull/266
+- Add automated job to update flake.lock file with signed commits by @charlespierce in https://github.com/1Password/typeshare/pull/267
+- Update flake.lock file with latest versions by @github-actions[bot] in https://github.com/1Password/typeshare/pull/268
+- Update flake.lock file with latest versions by @github-actions[bot] in https://github.com/1Password/typeshare/pull/269
+- support cfg_attr typeshare definitions by @darrell-roberts in https://github.com/1Password/typeshare/pull/274
+- Update book.toml by @darrell-roberts in https://github.com/1Password/typeshare/pull/279
+
 # Version 1.13.3
+
 - Use parallel walker instead of rayon by @darrell-roberts in https://github.com/1Password/typeshare/pull/216
 - Approach to handle serde(rename) references. by @darrell-roberts in https://github.com/1Password/typeshare/pull/210
 - Add Typeshare support for Python by @hculea in https://github.com/1Password/typeshare/pull/169
@@ -11,19 +29,22 @@
 - Fix writing enum values in Go by @edif2008 in https://github.com/1Password/typeshare/pull/233
 - Fix Bug in JS and Python Typesharing Custom Types by @MOmarMiraj in https://github.com/1Password/typeshare/pull/234
 - Update Reviver/Replacer functions in TS typeshare by @MOmarMiraj in https://github.com/1Password/typeshare/pull/235
-- Add support for DateTime field for Go, JS, Python  by @MOmarMiraj in https://github.com/1Password/typeshare/pull/236
+- Add support for DateTime field for Go, JS, Python by @MOmarMiraj in https://github.com/1Password/typeshare/pull/236
 - Fix Equality Check Bug in typescript generator file by @harshils23 in https://github.com/1Password/typeshare/pull/242
 - Update for newer clippy lints by @darrell-roberts in https://github.com/1Password/typeshare/pull/252
 
 # Version 1.13.2
+
 - Fix binary name in --help --version so typeshare is the name and not typeshare-cli: [#214](https://github.com/1Password/typeshare/pull/214)
 
 # Version 1.13.1
+
 - Fix duplicate root added to walker: [#209](https://github.com/1Password/typeshare/pull/209)
 - Only assert if go package is present if generating go types: [#211](https://github.com/1Password/typeshare/pull/211)
 - Update shell completions for new generate function: [#212](https://github.com/1Password/typeshare/pull/212)
 
 # Version 1.13.0
+
 - Update how logging is initialized: [#206](https://github.com/1Password/typeshare/pull/206)
 - Don't recreate `Codable.swift` when the contents have not changed [#205](https://github.com/1Password/typeshare/pull/205)
 - Fix target_os parsing when no --target-os is provided [#204](https://github.com/1Password/typeshare/pull/204)
@@ -234,7 +255,6 @@ This release brings major new additions, the largest of which is support for Sca
 Additionally, the code generation API has been expanded/revised, and many bugs have been fixed.
 
 - `typeshare-cli`
-
   - Kotlin now uses `val` consistently for defining fields.
   - Some issues with the command line options have been corrected.
   - Unit structs that don't use bracket syntax are now supported.
@@ -244,7 +264,6 @@ Additionally, the code generation API has been expanded/revised, and many bugs h
   - Doubly-nested option types (`Option<Option<T>>`) are now supported in Typescript.
 
 - `typeshare-core`
-
   - The `Language` trait now takes `self` mutably for more flexibility in implementations.
   - Scala is now a supported language for code generation, though the CLI does not use it yet.
   - The attribute parser has been reworked to be more robust and flexible for future additions.
