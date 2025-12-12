@@ -493,6 +493,7 @@ impl Scala {
                 }
                 RustType::Special(_) => vec![ty.clone()],
                 RustType::Simple { .. } => vec![],
+                RustType::Unrepresentable { .. } => vec![],
             })
             .any(|ty| {
                 matches!(

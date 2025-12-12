@@ -163,6 +163,7 @@ fn check_type(
                 *id = renamed.to_owned();
             }
         }
+        RustType::Unrepresentable { .. } => {}
     }
 }
 

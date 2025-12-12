@@ -212,6 +212,14 @@ pub enum RustType {
         #[allow(missing_docs)]
         id: String,
     },
+    /// Unrepresentable type due to parsing error. Types may be overridden when emitted, so
+    /// we don't fail immediately but store the error here. We have to separate the span into
+    /// line and column because spans aren't Send and so can't be converted into io::Error.
+    Unrepresentable {
+        error: RustTypeParseError,
+        line: usize,
+        column: usize,
+    },
 }
 
 impl Display for RustType {
@@ -233,6 +241,13 @@ impl Display for RustType {
                 }
             }
             RustType::Special(ty) => &ty.to_string(),
+            RustType::Unrepresentable {
+                error,
+                line,
+                column,
+            } => {
+                return write!(f, "{error:?} at line {line}, column {column}");
+            }
         };
         write!(f, "{rust_type}")
     }
@@ -331,9 +346,11 @@ impl TryFrom<&syn::Type> for RustType {
             syn::Type::Tuple(tuple) if tuple.elems.iter().count() == 0 => {
                 Self::Special(SpecialRustType::Unit)
             }
-            syn::Type::Tuple(tt) => {
-                return Err(RustTypeParseError::UnexpectedParameterizedTuple.with_span(tt.span()))
-            }
+            syn::Type::Tuple(tt) => Self::Unrepresentable {
+                error: RustTypeParseError::UnexpectedParameterizedTuple,
+                line: tt.span().start().line,
+                column: tt.span().start().column,
+            },
             syn::Type::Reference(reference) => Self::try_from(reference.elem.as_ref())?,
             syn::Type::Path(path) => {
                 let segment = path.path.segments.iter().next_back().unwrap();
@@ -441,6 +458,7 @@ impl RustType {
                 id == ty || parameters.iter().any(|p| p.contains_type(ty))
             }
             Self::Special(special) => special.contains_type(ty),
+            Self::Unrepresentable { .. } => false,
         }
     }
 
@@ -449,6 +467,7 @@ impl RustType {
         match &self {
             Self::Simple { id } | Self::Generic { id, .. } => id.as_str(),
             Self::Special(special) => special.id(),
+            Self::Unrepresentable { .. } => "Unrepresentable",
         }
     }
     /// Check if the type is `Option<T>`
@@ -482,6 +501,7 @@ impl RustType {
             Self::Simple { .. } => Box::new(std::iter::empty()),
             Self::Generic { parameters, .. } => Box::new(parameters.iter()),
             Self::Special(special) => special.parameters(),
+            Self::Unrepresentable { .. } => Box::new(std::iter::empty()),
         }
     }
 
@@ -540,6 +560,13 @@ pub enum RustTypeFormatError {
     GenericKeyForbiddenInTS(String),
     #[error("The special type `{0}` is not supported in this language")]
     UnsupportedSpecialType(String),
+    // An error which occurred at parsing time which makes this type unrepresentable.
+    #[error("{error} at line {line}, column {column}")]
+    UnrepresentableType {
+        error: RustTypeParseError,
+        line: usize,
+        column: usize,
+    },
 }
 
 impl SpecialRustType {

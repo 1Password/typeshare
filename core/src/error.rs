@@ -87,7 +87,7 @@ pub enum GenerationError {
     PostGeneration(String),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 #[allow(missing_docs)]
 pub enum RustTypeParseError {
     #[error("Unsupported type: \"{}\"", .0.iter().join(","))]
@@ -99,3 +99,23 @@ pub enum RustTypeParseError {
     #[error("Could not parse numeric literal")]
     NumericLiteral(syn::parse::Error),
 }
+
+impl PartialEq for RustTypeParseError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (RustTypeParseError::UnsupportedType(a), RustTypeParseError::UnsupportedType(b)) => {
+                a == b
+            }
+            (RustTypeParseError::UnexpectedToken(a), RustTypeParseError::UnexpectedToken(b)) => {
+                a == b
+            }
+            (
+                RustTypeParseError::UnexpectedParameterizedTuple,
+                RustTypeParseError::UnexpectedParameterizedTuple,
+            ) => true,
+            (RustTypeParseError::NumericLiteral(_), RustTypeParseError::NumericLiteral(_)) => true,
+            _ => false,
+        }
+    }
+}
+impl Eq for RustTypeParseError {}
