@@ -53,6 +53,7 @@ fn get_dependencies_from_type(
             }
             _ => {}
         },
+        RustType::Unrepresentable { .. } => {}
     };
     seen.remove(&tp.id().to_string());
 }
