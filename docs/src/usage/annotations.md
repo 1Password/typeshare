@@ -103,7 +103,17 @@ This would generate the following Kotlin code:
 typealias Options = String
 ```
 
+This decorator can also be applied to fields. If you want to precisely specify
+the serialized type in the foreign language, you can use the `(type = "...")` decorator:
 
+```rust
+#[typeshare]
+struct MyStruct {
+	#[typeshare(typescript(type = "Record<string, any>"))]
+	#[typeshare(python(type = "dict"))]
+	my_field: MyCustomType,
+}
+```
 
 ## The `#[serde]` Attribute
 
