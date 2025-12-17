@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-15e65a48.js";
+            window.path_to_searchindex_js = "../searchindex-da456943.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-6a351977.js"></script>
@@ -270,6 +270,17 @@ pub enum Options {
 <pre><code class="language-kotlin">/// Options that you could pick
 typealias Options = String
 </code></pre>
+<p>This decorator can also be applied to fields. If you want to precisely specify
+the serialized type in the foreign language, you can use the <code>(type = "...")</code> decorator:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[typeshare]
+struct MyStruct {
+	#[typeshare(typescript(type = "Record&lt;string, any&gt;"))]
+	#[typeshare(python(type = "dict"))]
+	my_field: MyCustomType,
+}
+<span class="boring">}</span></code></pre>
 <h2 id="the-serde-attribute"><a class="header" href="#the-serde-attribute">The <code>#[serde]</code> Attribute</a></h2>
 <p>Since Typeshare relies on the <a href="https://crates.io/crates/serde"><code>serde</code></a> crate for handling serialization and deserialization between Rust types and the generated foreign type definitions, we can use the annotations provided by <code>serde</code> on our Typeshare types. For example, the following Rust definition</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
