@@ -1,3 +1,4 @@
+use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rust_types::{RustEnumShared, RustItem, RustType, RustTypeFormatError, SpecialRustType};
 use crate::topsort::topsort;
@@ -448,9 +449,12 @@ impl Python {
         let is_optional = field.ty.is_optional() || field.has_default;
         // currently, if a field has a serde default value, it must be an Option
         let not_optional_but_default = !field.ty.is_optional() && field.has_default;
-        let python_type = self
-            .format_type(&field.ty, generic_types)
-            .map_err(std::io::Error::other)?;
+        let python_type: String = match field.type_override(SupportedLanguage::Python) {
+            Some(type_override) => type_override.to_owned(),
+            None => self
+                .format_type(&field.ty, generic_types)
+                .map_err(std::io::Error::other)?,
+        };
         let python_field_name = python_property_aware_rename(&field.id.original);
         let is_aliased = python_field_name != field.id.renamed;
         let custom_translations = json_translation_for_type(&python_type);
