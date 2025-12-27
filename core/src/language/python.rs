@@ -57,6 +57,7 @@ fn collect_generics_for_variant(variant_type: &RustType, generics: &[String]) ->
             }
             _ => {}
         },
+        RustType::Unrepresentable { .. } => {}
     }
     // Remove any duplicates
     // E.g. Foo(HashMap<T, T>) should only produce a single type var

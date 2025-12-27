@@ -215,6 +215,15 @@ pub trait Language {
                 self.format_generic_type(id, parameters.as_slice(), generic_types)
             }
             RustType::Special(special) => self.format_special_type(special, generic_types),
+            RustType::Unrepresentable {
+                error,
+                line,
+                column,
+            } => Err(RustTypeFormatError::UnrepresentableType {
+                error: error.clone(),
+                line: *line,
+                column: *column,
+            }),
         }
     }
 
