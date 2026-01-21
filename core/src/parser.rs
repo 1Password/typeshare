@@ -542,6 +542,14 @@ fn parse_const_expr(e: &Expr) -> Result<RustConstExpr, ParseErrorWithSpan> {
                             .map_err(|_| ParseError::RustConstTypeInvalid)?;
                         RustConstExpr::Int(int)
                     }
+                    Lit::Str(lit_str) => {
+                        let repr = lit_str.token().to_string();
+                        let is_raw = repr.starts_with('r') || repr.starts_with("br");
+                        RustConstExpr::String {
+                            value: lit_str.value(),
+                            is_raw,
+                        }
+                    }
                     _ => return Err(ParseError::RustConstTypeInvalid),
                 })
             };

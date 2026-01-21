@@ -296,7 +296,7 @@ impl Language for Python {
     }
 
     fn write_const(&mut self, w: &mut dyn Write, c: &RustConst) -> std::io::Result<()> {
-        match c.expr {
+        match &c.expr {
             RustConstExpr::Int(val) => {
                 let const_type = self
                     .format_type(&c.r#type, &[])
@@ -307,6 +307,19 @@ impl Language for Python {
                     c.id.renamed.to_snake_case().to_uppercase(),
                     const_type,
                     val
+                )
+            }
+            RustConstExpr::String { value, is_raw } => {
+                let const_type = self
+                    .format_type(&c.r#type, &[])
+                    .map_err(std::io::Error::other)?;
+                let literal = make_python_string_literal(value, *is_raw);
+                writeln!(
+                    w,
+                    "{}: {} = {}",
+                    c.id.renamed.to_snake_case().to_uppercase(),
+                    const_type,
+                    literal,
                 )
             }
         }
@@ -814,6 +827,84 @@ fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationF
     custom_translations
         .get(python_type)
         .map(|custom_translation| (*custom_translation).to_owned())
+}
+
+fn make_python_string_literal(value: &str, is_raw: bool) -> String {
+    /// Escape a non-raw segment for inclusion inside a Python triple-quoted string.
+    /// Leaves newlines and tabs as-is; other control characters (< 0x20) are escaped as \xHH.
+    fn escape_non_raw_segment(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        for c in s.chars() {
+            match c {
+                // Replace supported (recognizable) escape sequences
+                '\\' => out.push_str(r"\\"),
+                '\r' => out.push_str(r"\r"),
+                '\t' => out.push_str(r"\t"),
+                '\x08' => out.push_str(r"\b"),
+                '\x0c' => out.push_str(r"\f"),
+                '\n' => out.push('\n'),
+                c if (c as u32) < 0x20 => {
+                    // Other control characters
+                    out.push_str(&format!(r"\x{:<02x}", c as u32));
+                }
+                _ => out.push(c),
+            }
+        }
+        format!(r#""""{out}""""#)
+    }
+
+    /// Given a raw segment, returns one or two Python literal pieces:
+    /// - The main raw triple-quoted segment, adjusted so it does not end with an odd number of backslashes.
+    /// - Optionally an extra piece to supply a trailing backslash if we had to strip one off.
+    fn format_raw_segment_parts(s: &str) -> Vec<String> {
+        // Count trailing backslashes
+        let mut num_trailing_backslashes = 0;
+        for &byte in s.as_bytes().iter().rev() {
+            if byte == b'\\' {
+                num_trailing_backslashes += 1;
+            } else {
+                break;
+            }
+        }
+
+        let mut parts = Vec::new();
+        if num_trailing_backslashes % 2 == 1 {
+            // Strip the last backslash so the raw string doesn't end with an odd number of backslashes
+            let trimmed = &s[..s.len() - 1];
+            parts.push(format!(r#"r"""{trimmed}""""#));
+            // Append a normal single-quoted backslash literal to replace the stripped backslash
+            parts.push(r"'\\'".to_string());
+        } else {
+            parts.push(format!(r#"r"""{s}""""#));
+        }
+        parts
+    }
+
+    // Split on triple quotes; we will re-insert them as separate literal `'"""'`
+    let split: Vec<&str> = value
+        .split(r#"""""#) // This is a literal triple-quote (`"""`)
+        .collect();
+    let mut pieces: Vec<String> = Vec::new();
+
+    for (i, segment) in split.iter().enumerate() {
+        if is_raw {
+            // Raw segment(s), possibly with an extra piece if it ended with odd backslashes.
+            let mut raw_parts = format_raw_segment_parts(segment);
+            pieces.append(&mut raw_parts);
+        } else {
+            // Non-raw: escape and append to `pieces`
+            let escaped = escape_non_raw_segment(segment);
+            pieces.push(escaped);
+        }
+
+        // After every split except the last, insert the triple-quote literal itself.
+        if i != split.len() - 1 {
+            pieces.push(r#"'"""'"#.to_string());
+        }
+    }
+
+    // Return the pieces concatenated together with ` + ` (if there's only one piece, will return that unmodified)
+    pieces.join(" + ")
 }
 
 #[cfg(test)]
