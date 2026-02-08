@@ -166,6 +166,9 @@ macro_rules! output_file_for_ident {
     (python) => {
         "output.py"
     };
+    (rescript) => {
+        "output.res"
+    };
 }
 
 /// Simplifies the construction of `Language` instances for each language.
@@ -298,6 +301,22 @@ macro_rules! language_instance {
             ..Default::default()
         })
     };
+
+    // Default ReScript
+    (rescript) => {
+        language_instance!(rescript { })
+    };
+
+    // ReScript with configuration fields forwarded
+    (rescript {$($field:ident: $val:expr),* $(,)?}) => {
+        #[allow(clippy::needless_update)]
+        Box::new(typeshare_core::language::ReScript {
+            no_version_header: true,
+            $($field: $val,)*
+            ..Default::default()
+        })
+    };
+
 }
 
 macro_rules! target_os {
@@ -468,6 +487,17 @@ static PYTHON_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     .collect()
 });
 
+static RESCRIPT_MAPPINGS: Lazy<HashMap<String, String>> = Lazy::new(|| {
+    [
+        ("Url", "string"),
+        ("DateTime", "string"),
+        ("Vec<u8>", "Uint8Array.t"),
+    ]
+    .iter()
+    .map(|(k, v)| (k.to_string(), v.to_string()))
+    .collect()
+});
+
 tests! {
     /// Enums
     can_generate_algebraic_enum: [
@@ -484,7 +514,8 @@ tests! {
         },
         typescript,
         go,
-        python
+        python,
+        rescript
     ];
     can_generate_generic_enum: [
         swift {
@@ -492,7 +523,8 @@ tests! {
         },
         kotlin,
         scala,
-        typescript
+        typescript,
+        rescript,
     ];
     can_generate_generic_struct: [
         swift {
@@ -502,6 +534,7 @@ tests! {
         kotlin,
         scala,
         typescript,
+        rescript,
     ];
     can_generate_generic_type_alias: [
         swift {
@@ -509,10 +542,11 @@ tests! {
         },
         kotlin,
         scala,
-        typescript
+        typescript,
+        rescript
     ];
     can_generate_const: [typescript, go, python];
-    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, python];
+    can_generate_slice_of_user_type: [swift, kotlin, scala, typescript, go, python, rescript];
     can_generate_readonly_fields: [
         typescript
     ];
@@ -524,16 +558,17 @@ tests! {
         scala,
         typescript,
         go,
-        python
+        python,
+        rescript
     ];
-    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go, python ];
+    can_generate_bare_string_enum: [swift, kotlin, scala, typescript, go, python, rescript ];
     can_generate_double_option_pattern: [
-        typescript
+        typescript, rescript
     ];
     can_recognize_types_inside_modules: [
-        swift, kotlin, scala, typescript, go, python
+        swift, kotlin, scala, typescript, go, python, rescript
     ];
-    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go, python ];
+    test_simple_enum_case_name_support: [swift, kotlin, scala, typescript, go, python, rescript];
     test_algebraic_enum_case_name_support: [
         swift {
             prefix: "OP".to_string(),
@@ -548,16 +583,17 @@ tests! {
         },
         typescript,
         go,
-        python
+        python,
+        rescript
     ];
     can_apply_prefix_correctly: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
-    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python ];
+    can_generate_empty_algebraic_enum: [ swift { prefix: "OP".to_string(), }, kotlin { prefix: "OP".to_string(), }, scala,  typescript, go, python, rescript ];
     can_generate_algebraic_enum_with_skipped_variants: [swift, kotlin, scala,  typescript, go, python];
-    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go, python];
-    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go, python];
-    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go, python];
-    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go, python];
-    test_generate_char: [swift, kotlin, scala, typescript, go, python];
+    can_generate_struct_with_skipped_fields: [swift, kotlin, scala,  typescript, go, python, rescript];
+    enum_is_properly_named_with_serde_overrides: [swift, kotlin, scala,  typescript, go, python, rescript];
+    can_handle_quote_in_serde_rename: [swift, kotlin, scala,  typescript, go, python, rescript];
+    can_handle_anonymous_struct: [swift, kotlin, scala,  typescript, go, python, rescript];
+    test_generate_char: [swift, kotlin, scala, typescript, go, python, rescript];
     anonymous_struct_with_rename: [
         swift {
             prefix: "Core".to_string(),
@@ -568,11 +604,11 @@ tests! {
         go,
         python
     ];
-    can_override_types: [swift, kotlin, scala, typescript, go];
+    can_override_types: [swift, kotlin, scala, typescript, go, rescript];
 
     /// Structs
-    can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala, go, python];
-    generate_types: [kotlin, swift, typescript, scala,  go, python];
+    can_generate_simple_struct_with_a_comment: [kotlin, swift, typescript, scala, go, python, rescript];
+    generate_types: [kotlin, swift, typescript, scala,  go, python, rescript];
     can_handle_serde_rename: [
         swift {
             prefix: "TypeShareX_".to_string(),
@@ -581,14 +617,15 @@ tests! {
         scala,
         typescript,
         go,
-        python
+        python,
+        rescript
     ];
     // TODO: kotlin and typescript don't appear to support this yet
     generates_empty_structs_and_initializers: [swift, kotlin, scala, typescript, go,python];
-    test_default_decorators: [swift { default_decorators: vec!["Sendable".into(), "Identifiable".into()]}];
+    test_default_decorators: [swift { default_decorators: vec!["Sendable".into(), "Identifiable".into()]}, rescript { default_decorators: vec!["@schema".into()] }];
     test_default_generic_constraints: [swift { default_generic_constraints: typeshare_core::language::GenericConstraints::from_config(vec!["Sendable".into(), "Identifiable".into()]) }];
-    test_i54_u53_type: [swift, kotlin, scala,  typescript, go, python];
-    test_serde_default_struct: [swift, kotlin, scala,  typescript, go, python];
+    test_i54_u53_type: [swift, kotlin, scala,  typescript, go, python, rescript];
+    test_serde_default_struct: [swift, kotlin, scala,  typescript, go, python, rescript];
     test_serde_iso8601: [
         swift {
             prefix: String::new(),
@@ -612,6 +649,9 @@ tests! {
         },
         python {
             type_mappings: super::PYTHON_MAPPINGS.clone(),
+        },
+        rescript {
+            type_mappings: super::RESCRIPT_MAPPINGS.clone(),
         }
     ];
     test_serde_url: [
@@ -638,11 +678,14 @@ tests! {
         },
         python{
             type_mappings: super::PYTHON_MAPPINGS.clone()
+        },
+        rescript {
+            type_mappings: super::RESCRIPT_MAPPINGS.clone(),
         }
     ];
-    test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python ];
-    test_optional_type_alias: [swift, kotlin, scala, typescript, go, python];
-    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python ];
+    test_type_alias: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python, rescript ];
+    test_optional_type_alias: [swift, kotlin, scala, typescript, go, python, rescript];
+    test_serialized_as: [ swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python, rescript ];
     test_serialized_as_tuple: [
         swift {
             prefix: "OP".to_string(),
@@ -653,10 +696,11 @@ tests! {
         go {
             uppercase_acronyms: vec!["ID".to_string()],
         },
-        python
+        python,
+        rescript
     ];
-    can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go,python];
-    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python];
+    can_handle_serde_rename_all: [swift, kotlin, scala,  typescript, go, python, rescript];
+    can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python, rescript];
     can_generate_unit_structs: [swift, kotlin, scala, typescript, go, python];
     kebab_case_rename: [swift, kotlin, scala,  typescript, go, python];
 
@@ -664,21 +708,21 @@ tests! {
     orders_types: [swift, kotlin, go, python];
 
     /// Other
-    use_correct_integer_types: [swift, kotlin, scala,  typescript, go, python];
+    use_correct_integer_types: [swift, kotlin, scala,  typescript, go, python, rescript];
     // Only swift supports generating types with keywords
-    generate_types_with_keywords: [swift];
+    generate_types_with_keywords: [swift, rescript];
     // TODO: how is this different from generates_empty_structs_and_initializers?
-    use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go, python];
-    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go, python];
+    use_correct_decoded_variable_name: [swift, kotlin, scala,  typescript, go, python, rescript];
+    can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go, python, rescript];
 
     //3 tests for adding decorators to enums and structs
     const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
     serialize_field_as: [kotlin, swift, typescript, scala,  go, python];
-    serialize_type_alias: [kotlin, swift, typescript, scala,  go, python];
+    serialize_type_alias: [kotlin, swift, typescript, scala,  go, python, rescript];
     serialize_anonymous_field_as: [kotlin, swift, typescript, scala, go, python];
-    smart_pointers: [kotlin, swift, typescript, scala, go, python];
+    smart_pointers: [kotlin, swift, typescript, scala, go, python, rescript];
     recursive_enum_decorator: [kotlin, swift, typescript, scala, go, python];
 
     uppercase_go_acronyms: [
@@ -696,9 +740,9 @@ tests! {
         go,
         python
     ];
-    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go, python];
+    can_generate_anonymous_struct_with_skipped_fields: [swift, kotlin, scala, typescript, go, python, rescript];
     generic_struct_with_constraints_and_decorators: [swift { codablevoid_constraints: vec!["Equatable".into()] }];
-    excluded_by_target_os: [ swift, kotlin, scala, typescript, go,python ] target_os: ["android", "macos"];
+    excluded_by_target_os: [ swift, kotlin, scala, typescript, go, python, rescript ] target_os: ["android", "macos"];
     // excluded_by_target_os_full_module: [swift] target_os: "ios";
     serde_rename_references: [ swift, kotlin, scala, typescript, go ];
     test_custom_serialize_deserialize_functions: [    go
