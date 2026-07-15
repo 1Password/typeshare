@@ -10,13 +10,18 @@ jobs:
     name: Deploy Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+      - uses: step-security/setup-rust-toolchain@a8823c6cdb5668ac7528d7756acfee772bf71809 # v1.16.1
         with:
           toolchain: stable
       - run: (test -x $HOME/.cargo/bin/mdbook || cargo install mdbook)
       - run: mdbook build docs
-      - uses: JamesIves/github-pages-deploy-action@4.1.7
+      - uses: JamesIves/github-pages-deploy-action@6ce741f5d4e01e15f9ea5ec96df1a43f522c330f # 4.1.7
         with:
           branch: gh-pages # The branch the action should deploy to.
           folder: docs/book # The folder the action should deploy.
