@@ -5,7 +5,7 @@ The behaviour of Typeshare can be customized by either passing options on the co
 ## Command Line Options
 
 - `-l`, `--lang`
-    (Required) The language you want your definitions to be generated in. Currently, this option can be set to either `kotlin`, `swift`, `go`, or `typescript`.
+    (Required) The language you want your definitions to be generated in. Currently, this option can be set to either `kotlin`, `scala`, `swift`, or `typescript`. `go` and `python` are also available, but only if `typeshare-cli` was built with the `go` or `python` feature respectively.
 - `-o`, `--output-file`
     (Required or -d) The file path to which the generated definitions will be written.
 - `-d`, `--directory`
