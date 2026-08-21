@@ -153,12 +153,12 @@ impl Language for Go {
             SpecialRustType::String => "string".into(),
             SpecialRustType::Char => "rune".into(),
             SpecialRustType::I8
-            | SpecialRustType::U8
-            | SpecialRustType::U16
             | SpecialRustType::I32
             | SpecialRustType::I16
             | SpecialRustType::ISize
             | SpecialRustType::USize => "int".into(),
+            SpecialRustType::U8 => "uint8".into(),
+            SpecialRustType::U16 => "uint16".into(),
             SpecialRustType::U32 => "uint32".into(),
             SpecialRustType::I54 | SpecialRustType::I64 => "int64".into(),
             SpecialRustType::U53 | SpecialRustType::U64 => "uint64".into(),

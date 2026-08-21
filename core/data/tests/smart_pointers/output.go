@@ -4,7 +4,7 @@ import "encoding/json"
 
 // This is a comment.
 type ArcyColors struct {
-	Red int `json:"red"`
+	Red uint8 `json:"red"`
 	Blue string `json:"blue"`
 	Green []string `json:"green"`
 }

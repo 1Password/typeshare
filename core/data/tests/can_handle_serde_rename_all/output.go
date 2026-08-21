@@ -6,7 +6,7 @@ import "encoding/json"
 type Person struct {
 	FirstName string `json:"firstName"`
 	LastName string `json:"lastName"`
-	Age int `json:"age"`
+	Age uint8 `json:"age"`
 	ExtraSpecialField1 int `json:"extraSpecialField1"`
 	ExtraSpecialField2 *[]string `json:"extraSpecialField2,omitempty"`
 }
@@ -14,5 +14,5 @@ type Person struct {
 type Person2 struct {
 	FirstName string `json:"FIRST_NAME"`
 	LastName string `json:"LAST_NAME"`
-	Age int `json:"AGE"`
+	Age uint8 `json:"AGE"`
 }

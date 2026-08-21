@@ -8,7 +8,7 @@ type Location struct {
 type Person struct {
 	// This is another comment
 	Name string `json:"name"`
-	Age int `json:"age"`
+	Age uint8 `json:"age"`
 	Info *string `json:"info,omitempty"`
 	Emails []string `json:"emails"`
 	Location Location `json:"location"`
