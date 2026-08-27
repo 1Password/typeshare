@@ -238,13 +238,22 @@ impl Display for RustType {
     }
 }
 
+/// Length of `[T; N]`. Paths (associated/named consts) are not rustc-evaluated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArrayLen {
+    /// A literal integer bound, e.g. `[T; 4]`.
+    Literal(usize),
+    /// An associated or named const bound, e.g. `[T; EPlayerIndex::SIZE]`.
+    Const,
+}
+
 /// A special rust type that needs a manual type conversion
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecialRustType {
     /// Represents `Vec<T>` from the standard library
     Vec(Box<RustType>),
     /// Represents `[T; N]` from the standard library
-    Array(Box<RustType>, usize),
+    Array(Box<RustType>, ArrayLen),
     /// Represents `&[T]` from the standard library
     Slice(Box<RustType>),
     /// Represents `HashMap<K, V>` from the standard library
@@ -398,21 +407,26 @@ impl TryFrom<&syn::Type> for RustType {
                     }
                 }
             }
-            syn::Type::Array(TypeArray {
-                elem,
-                len:
+            syn::Type::Array(TypeArray { elem, len, .. }) => {
+                let elem = Box::new(Self::try_from(elem.as_ref())?);
+                let len = match len {
                     Expr::Lit(ExprLit {
                         lit: Lit::Int(count),
                         ..
-                    }),
-                ..
-            }) => Self::Special(SpecialRustType::Array(
-                Self::try_from(elem.as_ref())?.into(),
-                count.base10_parse().map_err(|err| {
-                    let span = err.span();
-                    RustTypeParseError::NumericLiteral(err).with_span(span)
-                })?,
-            )),
+                    }) => ArrayLen::Literal(count.base10_parse().map_err(|err| {
+                        let span = err.span();
+                        RustTypeParseError::NumericLiteral(err).with_span(span)
+                    })?),
+                    Expr::Path(_) => ArrayLen::Const,
+                    other => {
+                        return Err(RustTypeParseError::UnexpectedToken(
+                            other.to_token_stream().to_string(),
+                        )
+                        .with_span(other.span()));
+                    }
+                };
+                Self::Special(SpecialRustType::Array(elem, len))
+            }
             syn::Type::Slice(TypeSlice {
                 bracket_token: _,
                 elem,
@@ -781,4 +795,33 @@ pub enum RustItem {
     Alias(RustTypeAlias),
     /// A `const` definition
     Const(RustConst),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_associated_const_array_len() {
+        let ty: RustType = "[String; EPlayerIndex::SIZE]".parse().unwrap();
+        assert_eq!(
+            ty,
+            RustType::Special(SpecialRustType::Array(
+                Box::new(RustType::Special(SpecialRustType::String)),
+                ArrayLen::Const,
+            ))
+        );
+    }
+
+    #[test]
+    fn parses_literal_array_len() {
+        let ty: RustType = "[String; 4]".parse().unwrap();
+        assert_eq!(
+            ty,
+            RustType::Special(SpecialRustType::Array(
+                Box::new(RustType::Special(SpecialRustType::String)),
+                ArrayLen::Literal(4),
+            ))
+        );
+    }
 }

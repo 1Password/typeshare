@@ -3,7 +3,9 @@ use std::io::Write;
 use crate::language::SupportedLanguage;
 use crate::parser::ParsedData;
 use crate::rename::RenameExt;
-use crate::rust_types::{RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType};
+use crate::rust_types::{
+    ArrayLen, RustConst, RustConstExpr, RustItem, RustTypeFormatError, SpecialRustType,
+};
 use crate::{
     language::Language,
     rust_types::{RustEnum, RustEnumVariant, RustField, RustStruct, RustTypeAlias},
@@ -127,8 +129,11 @@ impl Language for Go {
 
         Ok(match special_ty {
             SpecialRustType::Vec(rtype) => format!("[]{}", self.format_type(rtype, generic_types)?),
-            SpecialRustType::Array(rtype, len) => {
+            SpecialRustType::Array(rtype, ArrayLen::Literal(len)) => {
                 format!("[{}]{}", len, self.format_type(rtype, generic_types)?)
+            }
+            SpecialRustType::Array(rtype, ArrayLen::Const) => {
+                format!("[]{}", self.format_type(rtype, generic_types)?)
             }
             SpecialRustType::Slice(rtype) => {
                 format!("[]{}", self.format_type(rtype, generic_types)?)
