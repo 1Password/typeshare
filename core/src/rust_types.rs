@@ -824,4 +824,15 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn rejects_computed_array_len_with_the_length_expression() {
+        // Only literals and paths are accepted. Anything else still fails, but
+        // the error now names the length expression rather than the whole type.
+        let err = "[u8; N + 1]".parse::<RustType>().unwrap_err();
+        assert!(
+            err.to_string().contains("N + 1"),
+            "error should name the length expression, got: {err}"
+        );
+    }
 }
