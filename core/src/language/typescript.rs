@@ -3,8 +3,8 @@ use crate::{
     language::{Language, SupportedLanguage},
     parser::ParsedData,
     rust_types::{
-        RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
-        RustTypeAlias, RustTypeFormatError, SpecialRustType,
+        ArrayLen, RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct,
+        RustType, RustTypeAlias, RustTypeFormatError, SpecialRustType,
     },
 };
 use itertools::Itertools;
@@ -91,12 +91,15 @@ export const ReplacerFunc = (key: string, value: unknown): unknown => {{
             SpecialRustType::Vec(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
-            SpecialRustType::Array(rtype, len) => {
+            SpecialRustType::Array(rtype, ArrayLen::Literal(len)) => {
                 let formatted_type = self.format_type(rtype, generic_types)?;
                 Ok(format!(
                     "[{}]",
                     std::iter::repeat_n(&formatted_type, *len).join_with(", ")
                 ))
+            }
+            SpecialRustType::Array(rtype, ArrayLen::Const) => {
+                Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
             }
             SpecialRustType::Slice(rtype) => {
                 Ok(format!("{}[]", self.format_type(rtype, generic_types)?))
