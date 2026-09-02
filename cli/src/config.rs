@@ -62,6 +62,13 @@ pub struct GoParams {
     pub type_mappings: HashMap<String, String>,
 }
 
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[serde(default)]
+pub struct ReScriptParams {
+    pub type_mappings: HashMap<String, String>,
+    pub default_decorators: Vec<String>,
+}
+
 /// The parameters that are used to configure the behaviour of typeshare
 /// from the configuration file `typeshare.toml`
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
@@ -75,6 +82,7 @@ pub(crate) struct Config {
     pub python: PythonParams,
     #[cfg(feature = "go")]
     pub go: GoParams,
+    pub rescript: ReScriptParams,
     #[serde(skip)]
     pub target_os: Vec<String>,
 }

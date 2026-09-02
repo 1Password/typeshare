@@ -36,6 +36,7 @@ pub enum DecoratorKind {
     SwiftGenericConstraints,
     /// The typeshare attribute for kotlin "kotlin"
     Kotlin,
+    ReScript,
 }
 
 impl DecoratorKind {
@@ -45,6 +46,7 @@ impl DecoratorKind {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
             DecoratorKind::Kotlin => "kotlin",
+            DecoratorKind::ReScript => "rescript",
         }
     }
 }
@@ -875,6 +877,7 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
         DecoratorKind::Kotlin,
+        DecoratorKind::ReScript,
     ];
 
     for (decorator_kind, value) in decorator_kinds.into_iter().flat_map(|decorator_kind| {

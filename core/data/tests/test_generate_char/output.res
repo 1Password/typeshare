@@ -1,0 +1,4 @@
+type myType = {
+	field: char,
+}
+

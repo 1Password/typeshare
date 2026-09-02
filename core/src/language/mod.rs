@@ -22,6 +22,7 @@ use std::{
 mod go;
 mod kotlin;
 mod python;
+mod rescript;
 mod scala;
 mod swift;
 mod typescript;
@@ -29,6 +30,7 @@ mod typescript;
 pub use go::Go;
 pub use kotlin::Kotlin;
 pub use python::Python;
+pub use rescript::ReScript;
 pub use scala::Scala;
 pub use swift::GenericConstraints;
 pub use swift::Swift;
@@ -103,13 +105,14 @@ pub enum SupportedLanguage {
     Swift,
     TypeScript,
     Python,
+    ReScript,
 }
 
 impl SupportedLanguage {
     /// Returns an iterator over all supported language variants.
     pub fn all_languages() -> impl Iterator<Item = Self> {
         use SupportedLanguage::*;
-        [Go, Kotlin, Scala, Swift, TypeScript, Python].into_iter()
+        [Go, Kotlin, Scala, Swift, TypeScript, Python, ReScript].into_iter()
     }
 
     /// Get the file name extension for the supported language.
@@ -121,6 +124,7 @@ impl SupportedLanguage {
             SupportedLanguage::Swift => "swift",
             SupportedLanguage::TypeScript => "ts",
             SupportedLanguage::Python => "py",
+            SupportedLanguage::ReScript => "res",
         }
     }
 }
@@ -136,6 +140,7 @@ impl FromStr for SupportedLanguage {
             "swift" => Ok(Self::Swift),
             "typescript" => Ok(Self::TypeScript),
             "python" => Ok(Self::Python),
+            "rescript" => Ok(Self::ReScript),
             _ => Err(ParseError::UnsupportedLanguage(s.into())),
         }
     }

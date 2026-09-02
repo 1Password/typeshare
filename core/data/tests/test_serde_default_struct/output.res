@@ -1,0 +1,4 @@
+type foo = {
+	bar?: bool,
+}
+

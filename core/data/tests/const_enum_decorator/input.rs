@@ -21,3 +21,8 @@ pub enum BestHockeyTeams3 {
 pub enum BestHockeyTeams4 {
     PittsburghPenguins,
 }
+
+#[typeshare(rescript = "@unboxed")]
+pub enum BestHockeyTeams5 {
+    PittsburghPenguins,
+}

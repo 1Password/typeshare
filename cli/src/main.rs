@@ -27,7 +27,9 @@ use typeshare_core::language::Go;
 use typeshare_core::language::Python;
 use typeshare_core::{
     context::ParseContext,
-    language::{CrateName, Kotlin, Language, Scala, SupportedLanguage, Swift, TypeScript},
+    language::{
+        CrateName, Kotlin, Language, ReScript, Scala, SupportedLanguage, Swift, TypeScript,
+    },
     parser::ParsedData,
     reconcile::reconcile_aliases,
 };
@@ -95,6 +97,7 @@ fn generate_types(config_file: Option<&Path>, options: &Args) -> anyhow::Result<
             args::AvailableLanguage::Go => SupportedLanguage::Go,
             #[cfg(feature = "python")]
             args::AvailableLanguage::Python => SupportedLanguage::Python,
+            args::AvailableLanguage::ReScript => SupportedLanguage::ReScript,
         },
     };
 
@@ -236,6 +239,11 @@ fn language(
         SupportedLanguage::Python => {
             panic!("python support is currently experimental and must be enabled as a feature flag for typeshare-cli")
         }
+        SupportedLanguage::ReScript => Box::new(ReScript {
+            type_mappings: config.rescript.type_mappings,
+            default_decorators: config.rescript.default_decorators,
+            ..Default::default()
+        }),
     }
 }
 
