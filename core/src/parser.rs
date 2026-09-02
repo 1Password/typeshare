@@ -877,6 +877,7 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
         DecoratorKind::Kotlin,
+        DecoratorKind::ReScript,
     ];
 
     for (decorator_kind, value) in decorator_kinds.into_iter().flat_map(|decorator_kind| {

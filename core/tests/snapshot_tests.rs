@@ -716,7 +716,7 @@ tests! {
     can_handle_unit_type: [swift { codablevoid_constraints: vec!["Equatable".into()]} , kotlin, scala,  typescript, go, python, rescript];
 
     //3 tests for adding decorators to enums and structs
-    const_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
+    const_enum_decorator: [ swift{ prefix: "OP".to_string(), }, rescript ];
     algebraic_enum_decorator: [ swift{ prefix: "OP".to_string(), } ];
     struct_decorator: [ kotlin, swift{ prefix: "OP".to_string(), } ];
     serialize_field_as: [kotlin, swift, typescript, scala,  go, python];
