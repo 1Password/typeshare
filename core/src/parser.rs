@@ -36,6 +36,7 @@ pub enum DecoratorKind {
     SwiftGenericConstraints,
     /// The typeshare attribute for kotlin "kotlin"
     Kotlin,
+    ReScript,
 }
 
 impl DecoratorKind {
@@ -45,6 +46,7 @@ impl DecoratorKind {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
             DecoratorKind::Kotlin => "kotlin",
+            DecoratorKind::ReScript => "rescript",
         }
     }
 }

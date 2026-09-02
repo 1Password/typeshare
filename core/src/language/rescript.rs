@@ -2,7 +2,7 @@ use crate::rust_types::Id;
 use crate::RenameExt;
 use crate::{
     language::{Language, SupportedLanguage},
-    parser::ParsedData,
+    parser::{DecoratorKind, ParsedData},
     rust_types::{
         RustConst, RustConstExpr, RustEnum, RustEnumVariant, RustField, RustStruct, RustType,
         RustTypeAlias, RustTypeFormatError, SpecialRustType,
@@ -271,9 +271,27 @@ impl Language for ReScript {
             Default::default()
         };
 
+        // If there are no decorators found for this struct, still write `Codable` and default decorators for structs
+        // Check if this struct's decorators contains swift in the hashmap
+        let decs = if let Some(rescript_decs) = e.shared().decorators.get(&DecoratorKind::ReScript)
+        {
+            // For reach item in the received decorators in the typeshared struct add it to the original vector
+            // this avoids duplicated of `Codable` without needing to `.sort()` then `.dedup()`
+            // Note: the list received from `rs.decorators` is already deduped
+            let combined_decorators: Vec<String> = self
+                .default_decorators
+                .iter()
+                .chain(rescript_decs.iter())
+                .cloned()
+                .collect();
+            combined_decorators.join(" ")
+        } else {
+            self.default_decorators.join(" ")
+        };
+
         // Apply default decorators if any
-        if !self.default_decorators.is_empty() {
-            writeln!(w, "{}", self.default_decorators.join(" "))?;
+        if !decs.is_empty() {
+            writeln!(w, "{}", decs)?;
         }
 
         match e {
