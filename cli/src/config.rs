@@ -67,6 +67,7 @@ pub struct GoParams {
 pub struct ReScriptParams {
     pub type_mappings: HashMap<String, String>,
     pub default_decorators: Vec<String>,
+    pub header: Option<String>,
 }
 
 /// The parameters that are used to configure the behaviour of typeshare

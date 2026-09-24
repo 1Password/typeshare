@@ -242,6 +242,7 @@ fn language(
         SupportedLanguage::ReScript => Box::new(ReScript {
             type_mappings: config.rescript.type_mappings,
             default_decorators: config.rescript.default_decorators,
+            header: config.rescript.header,
             ..Default::default()
         }),
     }

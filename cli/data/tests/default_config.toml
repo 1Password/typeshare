@@ -20,3 +20,5 @@ package = ''
 [kotlin.type_mappings]
 
 [scala.type_mappings]
+
+[rescript]
