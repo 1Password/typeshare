@@ -19,3 +19,7 @@ public enum OPBestHockeyTeams3: String, Codable {
 public enum OPBestHockeyTeams4: String, Codable, Equatable, Hashable {
 	case pittsburghPenguins = "PittsburghPenguins"
 }
+
+public enum OPBestHockeyTeams5: String, Codable {
+	case pittsburghPenguins = "PittsburghPenguins"
+}

@@ -36,6 +36,7 @@ pub enum DecoratorKind {
     SwiftGenericConstraints,
     /// The typeshare attribute for kotlin "kotlin"
     Kotlin,
+    ReScript,
 }
 
 impl DecoratorKind {
@@ -45,6 +46,7 @@ impl DecoratorKind {
             DecoratorKind::Swift => "swift",
             DecoratorKind::SwiftGenericConstraints => "swiftGenericConstraints",
             DecoratorKind::Kotlin => "kotlin",
+            DecoratorKind::ReScript => "rescript",
         }
     }
 }
@@ -639,8 +641,15 @@ fn get_name_value_meta_items<'a>(
 /// Returns all arguments passed into `#[{ident}(...)]` where `{ident}` can be `serde` or `typeshare` attributes
 #[inline(always)]
 pub(crate) fn get_meta_items(attr: &syn::Attribute, ident: &str) -> impl Iterator<Item = Meta> {
-    attr.path()
-        .is_ident(ident)
+    // Check if the attribute path directly matches the ident, or if any of its segments match
+    let matches = attr.path().is_ident(ident)
+        || attr
+            .path()
+            .segments
+            .iter()
+            .any(|segment| segment.ident == ident);
+
+    matches
         .then(|| {
             attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)
                 .into_iter()
@@ -875,6 +884,7 @@ fn get_decorators(attrs: &[syn::Attribute]) -> DecoratorMap {
         DecoratorKind::Swift,
         DecoratorKind::SwiftGenericConstraints,
         DecoratorKind::Kotlin,
+        DecoratorKind::ReScript,
     ];
 
     for (decorator_kind, value) in decorator_kinds.into_iter().flat_map(|decorator_kind| {
@@ -914,7 +924,7 @@ mod test {
         rust_types::RustItem,
     };
     use std::collections::BTreeSet;
-    use syn::{Attribute, ItemStruct};
+    use syn::{Attribute, ItemEnum, ItemStruct};
 
     #[test]
     fn test_rename_all_to_case() {
@@ -1038,5 +1048,21 @@ mod test {
         };
 
         assert!(has_typeshare_annotation(&item_struct.attrs));
+    }
+
+    #[test]
+    fn test_fully_qualified_decorator() {
+        let item_enum: ItemEnum = syn::parse_quote! {
+            #[typeshare::typeshare(rescript = "@unboxed")]
+            pub enum TestEnum {
+                Variant1,
+            }
+        };
+
+        let decorators = get_decorators(&item_enum.attrs);
+        // Should find the rescript decorator
+        assert!(decorators.contains_key(&DecoratorKind::ReScript));
+        let rescript_decorators = decorators.get(&DecoratorKind::ReScript).unwrap();
+        assert!(rescript_decorators.contains(&"@unboxed".to_string()));
     }
 }

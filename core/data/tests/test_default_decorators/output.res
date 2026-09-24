@@ -1,0 +1,4 @@
+@schema
+type emptyType = {
+}
+

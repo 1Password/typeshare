@@ -12,6 +12,8 @@ pub enum AvailableLanguage {
     Go,
     #[cfg(feature = "python")]
     Python,
+    #[value(name = "rescript")]
+    ReScript,
 }
 
 #[derive(clap::Parser)]

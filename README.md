@@ -99,6 +99,7 @@ Are you getting weird deserialization issues? Did our procedural macro throw a c
 - Typescript
 - Go**
 - Python** (see list of limitations [here](https://github.com/1Password/typeshare/issues/217))
+- ReScript
 
 
 If there is a language that you want Typeshare to generate definitions for, you can either:
