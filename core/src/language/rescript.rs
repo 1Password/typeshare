@@ -451,7 +451,7 @@ impl ReScript {
                             r#type
                         )
                     }
-                    RustEnumVariant::AnonymousStruct { fields, shared } => {
+                    RustEnumVariant::AnonymousStruct { fields: _, shared } => {
                         let generic_str = if e.shared().generic_types.as_slice().len() > 0 {
                             format!(
                                 "<{}>",
