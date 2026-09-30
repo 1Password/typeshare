@@ -211,6 +211,33 @@ pub(crate) fn parse_struct(
     Ok(match &s.fields {
         // Structs
         Fields::Named(f) => {
+            // A struct with `#[serde(transparent)]` serializes as the value of
+            // its single non-skipped field, so generate a type alias to that
+            // field's type instead of a wrapper struct.
+            if serde_transparent(&s.attrs) {
+                let mut transparent_fields = f
+                    .named
+                    .iter()
+                    .filter(|field| !is_skipped(&field.attrs, target_os));
+                if let (Some(field), None) = (transparent_fields.next(), transparent_fields.next())
+                {
+                    let ty = if let Some(ty) = get_field_type_override(&field.attrs) {
+                        ty.parse()?
+                    } else {
+                        RustType::try_from(&field.ty)?
+                    };
+
+                    return Ok(RustItem::Alias(RustTypeAlias {
+                        id: get_ident(Some(&s.ident), &s.attrs, &None),
+                        r#type: ty,
+                        comments: parse_comment_attrs(&s.attrs),
+                        generic_types,
+                        decorators: get_decorators(&s.attrs),
+                        is_redacted: is_redacted(&s.attrs),
+                    }));
+                }
+            }
+
             let fields = f
                 .named
                 .iter()
@@ -757,6 +784,10 @@ fn serde_default(attrs: &[syn::Attribute]) -> bool {
 
 fn serde_flatten(attrs: &[syn::Attribute]) -> bool {
     serde_attr(attrs, "flatten")
+}
+
+fn serde_transparent(attrs: &[syn::Attribute]) -> bool {
+    serde_attr(attrs, "transparent")
 }
 
 /// Checks the struct or enum for decorators like `#[typeshare(typescript(readonly)]`

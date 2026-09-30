@@ -166,3 +166,20 @@ export interface MyStruct {
 	c: number;
 }
 ```
+
+### Transparent Structs
+
+A struct annotated with `#[serde(transparent)]` serializes as the value of its
+single non-skipped field. Typeshare mirrors this by generating a type alias to
+that field's type instead of a wrapper struct. For example, this Rust type
+```rust
+#[typeshare]
+#[serde(transparent)]
+pub struct Players {
+    players: Vec<Player>,
+}
+```
+becomes the following Typescript definition.
+```typescript
+export type Players = Player[];
+```
