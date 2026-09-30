@@ -716,4 +716,5 @@ tests! {
     ];
     no_mangle: [swift, kotlin, scala, typescript, go];
     cfg_if_attribute_typeshare: [swift, kotlin, typescript];
+    can_handle_serde_transparent: [kotlin, swift, typescript, scala, go, python];
 }
