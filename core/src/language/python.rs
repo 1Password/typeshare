@@ -798,6 +798,11 @@ fn json_translation_for_type(python_type: &str) -> Option<CustomJsonTranslationF
         "%Y-%m-%dT%H:%M:%SZ",   
         "%Y-%m-%dT%H:%M:%S.%fZ"
     ]
+
+    # %f accepts at most 6 fractional digits, but Rust can emit up to 9 (nanoseconds)
+    head, dot, fraction = date_str.partition(".")
+    if dot and fraction.endswith("Z"):
+        date_str = f"{head}.{fraction[:-1][:6]}Z"
     
     for fmt in date_formats:
         try:
