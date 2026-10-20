@@ -453,7 +453,12 @@ impl TypeScript {
 }
 
 fn typescript_property_aware_rename(name: &str) -> String {
-    if name.chars().any(|c| c == '-') {
+    let mut chars = name.chars();
+    let is_identifier = chars
+        .next()
+        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+        && chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+    if !is_identifier {
         return format!("{name:?}");
     }
     name.to_string()

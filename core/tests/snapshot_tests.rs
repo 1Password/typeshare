@@ -659,6 +659,7 @@ tests! {
     can_handle_serde_rename_on_top_level: [swift { prefix: "OP".to_string(), }, kotlin, scala,  typescript, go, python];
     can_generate_unit_structs: [swift, kotlin, scala, typescript, go, python];
     kebab_case_rename: [swift, kotlin, scala,  typescript, go, python];
+    can_quote_non_identifier_field_names: [typescript];
 
     /// Globals get topologically sorted
     orders_types: [swift, kotlin, go, python];
