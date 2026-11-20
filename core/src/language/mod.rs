@@ -356,7 +356,7 @@ pub trait Language {
     ///
     /// This function will write out:
     ///
-    /// ```rust
+    /// ```ignore
     /// /// Generated type representing the anonymous struct variant `<make_struct_name>` of the `AlgebraicEnum` rust enum
     /// /* the struct definition for whatever language */
     /// ```
